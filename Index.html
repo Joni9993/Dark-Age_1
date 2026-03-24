@@ -17,14 +17,11 @@
         .wa-btn { background: #25D366; border-color: #128C7E; color: white; }
         .wa-btn:active { background: #128C7E; }
 
-        /* HUD ganz oben (Z-Index 150), stört nicht beim Wischen wegen pointer-events: none */
         #resource-hud { position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); background: rgba(46, 46, 46, 0.95); border: 2px solid #4a4036; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 1rem; z-index: 150; display: none; pointer-events: none; text-shadow: 1px 1px 2px #000; }
         
-        /* Fullscreen Canvas - Nimmt kompletten Bildschirm ein */
-        #canvas-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000; display: none; z-index: 1; overflow: hidden; }
+        #canvas-wrapper { position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; background-color: #000; display: none; z-index: 1; overflow: hidden; }
         canvas { background-color: #000; display: block; touch-action: none; image-rendering: pixelated; width: 100%; height: 100%; }
         
-        /* UI Overlay unten - sicher platziert */
         #ui-container { position: fixed; bottom: 0; left: 0; width: 100%; padding: 15px; padding-bottom: calc(15px + env(safe-area-inset-bottom)); box-sizing: border-box; display: none; flex-direction: column; gap: 10px; z-index: 10; background: linear-gradient(to top, rgba(0,0,0,0.95) 10%, rgba(0,0,0,0.6) 70%, transparent); pointer-events: none; }
         #ui-container > * { pointer-events: auto; }
         #info-panel { padding: 10px; background: rgba(46, 46, 46, 0.9); border: 2px solid #4a4036; text-align: center; font-weight: bold; white-space: pre-line; min-height: 20px; text-shadow: 1px 1px 2px #000; border-radius: 4px; pointer-events: none; }
@@ -441,7 +438,7 @@
             actionMenu.innerHTML = html; 
             actionMenu.style.display = 'flex'; 
             
-            // ANTI GHOST-CLICK: Deaktiviere Klicks für 300ms
+            // ANTI GHOST-CLICK: Deaktiviere Klicks für 300ms nach dem Erscheinen
             actionMenu.style.pointerEvents = 'none';
             actionMenu.style.opacity = '0.5';
             setTimeout(() => {
@@ -572,28 +569,27 @@
             updateUI();
         }
 
-        // --- KAMERA STEUERUNG & TOUCH LOGIK ---
-        let isDragging = false;
-        let hasMoved = false;
-        let dragStartX = 0, dragStartY = 0;
-        let camStartX = 0, camStartY = 0;
-        let initialPinchDist = null;
-        let initialCamScale = 1;
-        let initialCamX = 0, initialCamY = 0;
-
+        // --- EXAKTE TOUCH- UND KLICK-UMRECHNUNG ---
         function handleCanvasClick(clientX, clientY) {
             if (showRecap) { showRecap = false; renderBoard(gameState); }
             
-            // Anpassung an Kamerawinkel und Zoom
-            const mouseX = (clientX - camX) / camScale;
-            const mouseY = (clientY - camY) / camScale;
+            // Lese die echten Element-Grenzen aus (Verhindert Scaling-Bugs)
+            const rect = canvas.getBoundingClientRect();
+            const rawX = (clientX - rect.left) * (canvas.width / rect.width);
+            const rawY = (clientY - rect.top) * (canvas.height / rect.height);
+
+            // Kameratransformation umkehren
+            const mouseX = (rawX - camX) / camScale;
+            const mouseY = (rawY - camY) / camScale;
             
             let closest = null; let minDist = Infinity; hideActionMenu(); 
 
             for (let y = 0; y < gameState.bh; y++) {
                 for (let x = 0; x < gameState.bw; x++) {
                     const center = getHexCenter(x, y); 
-                    const dist = Math.sqrt((mouseX - center.px)**2 + ((mouseY - center.py) / yCompress)**2);
+                    // 2.5D Anpassung: Das optische Massezentrum eines Tokens ist etwas tiefer als der Deckel
+                    const hitY = center.py + (thickness * 0.5); 
+                    const dist = Math.sqrt((mouseX - center.px)**2 + ((mouseY - hitY) / yCompress)**2);
                     if (dist < minDist) { minDist = dist; closest = { x, y }; }
                 }
             }
@@ -679,6 +675,14 @@
         }
 
         // Panning (Maus & Touch)
+        let isDragging = false;
+        let hasMoved = false;
+        let dragStartX = 0, dragStartY = 0;
+        let camStartX = 0, camStartY = 0;
+        let initialPinchDist = null;
+        let initialCamScale = 1;
+        let initialCamX = 0, initialCamY = 0;
+
         canvas.addEventListener('pointerdown', (e) => {
             isDragging = true;
             hasMoved = false;
@@ -752,22 +756,18 @@
             const pState = gameState.p[pId];
             const vis = getVisibleHexes(pId);
             
-            // 1. Letzte sichtbare Aktion fokussieren
             const visibleActions = (gameState.la || []).filter(a => vis.has(`${a.x},${a.y}`));
             if (visibleActions.length > 0) {
                 targetHex = visibleActions[visibleActions.length - 1];
             } else {
-                // 2. Eigene Einheit fokussieren
                 const myUnits = gameState.u.filter(u => u.p === pId);
                 if (myUnits.length > 0) targetHex = myUnits[0];
                 else {
-                    // 3. Eigenes Dorf fokussieren
                     const myVillages = Object.keys(gameState.v).filter(k => gameState.v[k] === pId);
                     if (myVillages.length > 0) {
                         const [vx, vy] = myVillages[0].split(',').map(Number);
                         targetHex = {x: vx, y: vy};
                     } else if (pState.sv) {
-                        // 4. Fallback: Startdorf (auch wenn zerstört)
                         const [vx, vy] = pState.sv.split(',').map(Number);
                         targetHex = {x: vx, y: vy};
                     }
@@ -777,15 +777,18 @@
             if (targetHex) {
                 const center = getHexCenter(targetHex.x, targetHex.y);
                 camScale = 1.0; 
-                camX = (window.innerWidth / 2) - center.px;
-                camY = (window.innerHeight / 2) - center.py;
+                camX = (canvas.width / 2) - center.px;
+                camY = (canvas.height / 2) - center.py;
             }
         }
 
         window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            if(gameState) { focusCamera(); renderBoard(gameState); }
+            if (canvasWrapper.style.display === 'block') {
+                // Wichtig: clientWidth statt innerWidth verhindert den Skalierungs-Bug!
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+                if(gameState) { focusCamera(); renderBoard(gameState); }
+            }
         });
 
         endTurnBtn.addEventListener('click', () => {
@@ -836,13 +839,16 @@
             const alivePlayers = gameState.p.filter(p => p.dead !== 1);
             if (alivePlayers.length <= 1) { document.getElementById('win-msg').innerText = `${alivePlayers[0].n} hat als Letzter überlebt!`; winScreen.style.display = 'flex'; return; }
 
-            canvas.width = window.innerWidth; 
-            canvas.height = window.innerHeight;
+            canvasWrapper.style.display = 'block'; 
+            uiContainer.style.display = 'flex'; 
+            resourceHud.style.display = 'block';
 
-            canvasWrapper.style.display = 'block'; uiContainer.style.display = 'flex'; resourceHud.style.display = 'block';
+            // Canvas an physische Größe anpassen
+            canvas.width = canvas.clientWidth; 
+            canvas.height = canvas.clientHeight;
+
             showRecap = true; 
-            
-            focusCamera(); // Kamera sauber zentrieren
+            focusCamera(); 
             renderBoard(gameState);
 
             if (gameState.th && gameState.th.length > 0) {
