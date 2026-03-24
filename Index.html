@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dark Ages: URL Tactics (Player Names)</title>
+    <title>Dark Ages: URL Tactics (2.5D Fullscreen Edition)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <style>
-        body { margin: 0; background-color: #1a1a1a; color: #d4c4a8; font-family: 'Courier New', Courier, monospace; display: flex; flex-direction: column; align-items: center; padding: 10px; }
-        .screen-box { display: flex; flex-direction: column; gap: 15px; background: #2e2e2e; padding: 20px; border: 2px solid #4a4036; width: 100%; max-width: 400px; box-sizing: border-box; text-align: center; }
+        body { margin: 0; background-color: #1a1a1a; color: #d4c4a8; font-family: 'Courier New', Courier, monospace; display: flex; flex-direction: column; align-items: center; overflow: hidden; touch-action: none; }
+        h2 { margin-top: 5px; }
+        .screen-box { display: flex; flex-direction: column; gap: 15px; background: #2e2e2e; padding: 20px; border: 2px solid #4a4036; width: 100%; max-width: 400px; box-sizing: border-box; text-align: center; position: relative; z-index: 200; margin-top: 20px; }
         .setup-group { display: flex; flex-direction: column; gap: 5px; text-align: left; }
         input, select { padding: 10px; background: #1a1a1a; color: #d4c4a8; border: 1px solid #4a4036; font-family: inherit; font-size: 1rem; }
         .action-btn { margin-top: 10px; padding: 12px; background: #4a4036; color: #d4c4a8; border: 2px solid #3e2723; font-weight: bold; font-size: 1.1rem; cursor: pointer; text-transform: uppercase; transition: opacity 0.2s; }
@@ -16,16 +17,21 @@
         .wa-btn { background: #25D366; border-color: #128C7E; color: white; }
         .wa-btn:active { background: #128C7E; }
 
-        #resource-hud { position: fixed; top: 10px; right: 10px; background: rgba(46, 46, 46, 0.85); border: 2px solid #4a4036; padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 0.95rem; z-index: 50; display: none; pointer-events: none; text-shadow: 1px 1px 2px #000; }
-        #canvas-wrapper { width: 100%; max-width: 600px; height: 50vh; overflow: auto; border: 4px solid #3e2723; background-color: #000; box-shadow: 0 0 15px rgba(0,0,0,0.8); display: none; scroll-behavior: smooth; }
-        canvas { background-color: #000; display: block; touch-action: manipulation; image-rendering: pixelated; }
+        /* HUD ganz oben (Z-Index 150), stört nicht beim Wischen wegen pointer-events: none */
+        #resource-hud { position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); background: rgba(46, 46, 46, 0.95); border: 2px solid #4a4036; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 1rem; z-index: 150; display: none; pointer-events: none; text-shadow: 1px 1px 2px #000; }
         
-        #ui-container { width: 100%; max-width: 600px; display: none; flex-direction: column; gap: 10px; margin-top: 10px; }
-        #info-panel { padding: 10px; background: #2e2e2e; border: 2px solid #4a4036; text-align: center; font-weight: bold; white-space: pre-line; min-height: 40px; }
-        #action-menu { display: none; flex-wrap: wrap; justify-content: center; gap: 5px; } 
+        /* Fullscreen Canvas - Nimmt kompletten Bildschirm ein */
+        #canvas-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000; display: none; z-index: 1; overflow: hidden; }
+        canvas { background-color: #000; display: block; touch-action: none; image-rendering: pixelated; width: 100%; height: 100%; }
+        
+        /* UI Overlay unten - sicher platziert */
+        #ui-container { position: fixed; bottom: 0; left: 0; width: 100%; padding: 15px; padding-bottom: calc(15px + env(safe-area-inset-bottom)); box-sizing: border-box; display: none; flex-direction: column; gap: 10px; z-index: 10; background: linear-gradient(to top, rgba(0,0,0,0.95) 10%, rgba(0,0,0,0.6) 70%, transparent); pointer-events: none; }
+        #ui-container > * { pointer-events: auto; }
+        #info-panel { padding: 10px; background: rgba(46, 46, 46, 0.9); border: 2px solid #4a4036; text-align: center; font-weight: bold; white-space: pre-line; min-height: 20px; text-shadow: 1px 1px 2px #000; border-radius: 4px; pointer-events: none; }
+        #action-menu { display: none; flex-wrap: wrap; justify-content: center; gap: 8px; transition: opacity 0.3s ease; } 
         #link-box { width: 100%; padding: 10px; background: #000; color: #0f0; border: 1px solid #4fc3f7; font-family: monospace; box-sizing: border-box; word-break: break-all; }
         
-        #intermission-screen, #win-screen { display: none; }
+        #intermission-screen, #win-screen { display: none; position: relative; z-index: 200; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; flex-direction: column; justify-content: flex-start; align-items: center; padding: 20px; box-sizing: border-box; overflow-y: auto; }
         .cards-container { display: flex; flex-wrap: wrap; gap: 15px; width: 100%; max-width: 500px; justify-content: center; margin-bottom: 20px; }
         .card { background: #2e2e2e; border: 2px solid #d4c4a8; padding: 15px; flex: 1 1 45%; cursor: pointer; text-align: center; display: flex; flex-direction: column; gap: 10px; transition: transform 0.1s; box-sizing: border-box; }
@@ -39,7 +45,7 @@
 </head>
 <body>
 
-    <h2>Dark Ages</h2>
+    <h2 id="main-title">Dark Ages</h2>
     <div id="resource-hud">💰 0 | 🪵 0</div>
 
     <div id="setup-screen" class="screen-box">
@@ -93,7 +99,6 @@
     </div>
 
     <script>
-        // --- INLINE PIXEL ENGINE ---
         const pal = { 1: "#111", 2: "#ffccaa", 3: "#cfd8dc", 4: "#795548", 6: "#424242", 7: "#ffb300" };
         const P = 9; 
 
@@ -143,6 +148,7 @@
         const intermissionMsg = document.getElementById('intermission-msg');
         const waShareBtn = document.getElementById('wa-share-btn');
         const resourceHud = document.getElementById('resource-hud'); 
+        const mainTitle = document.getElementById('main-title');
         
         const mapSizeSelect = document.getElementById('map-size');
         const playerCountSelect = document.getElementById('player-count');
@@ -152,7 +158,6 @@
         const playerColors = ["#4fc3f7", "#e57373", "#81c784", "#fff176"]; 
         const getEntityColor = (id) => id === -1 ? "#888888" : playerColors[id]; 
         
-        // HILFSFUNKTION FÜR NAMEN
         const formatOwnerName = (id, cp) => {
             if (id === cp) return "Dein";
             let name = gameState.p[id].n;
@@ -160,6 +165,58 @@
         };
         
         let gameState = null; let turnActions = []; let showRecap = true; 
+
+        // --- KAMERA VARIABLEN ---
+        let camX = 0; let camY = 0; let camScale = 1.0;
+
+        // --- ANIMATIONS-SYSTEM ---
+        let floatingTexts = [];
+        let isAnimating = false;
+
+        function spawnFloatingText(x, y, text, color) {
+            floatingTexts.push({ x, y, text, color, life: 1.0, dy: 0 });
+            if (!isAnimating) {
+                isAnimating = true;
+                requestAnimationFrame(animateLoop);
+            }
+        }
+
+        function animateLoop() {
+            if (floatingTexts.length === 0) {
+                isAnimating = false;
+                drawScene(gameState); 
+                return;
+            }
+            
+            drawScene(gameState); 
+            
+            ctx.save();
+            ctx.translate(camX, camY);
+            ctx.scale(camScale, camScale);
+            
+            let stillAlive = [];
+            for (let ft of floatingTexts) {
+                ft.life -= 0.025; 
+                ft.dy -= 0.8;     
+                if (ft.life > 0) stillAlive.push(ft);
+                
+                const center = getHexCenter(ft.x, ft.y);
+                ctx.globalAlpha = Math.max(0, ft.life);
+                ctx.fillStyle = ft.color;
+                ctx.font = "bold 24px 'Courier New', monospace";
+                ctx.textAlign = "center";
+                ctx.strokeStyle = "#000";
+                ctx.lineWidth = 4;
+                const textY = center.py - 25 + ft.dy;
+                ctx.strokeText(ft.text, center.px, textY);
+                ctx.fillText(ft.text, center.px, textY);
+            }
+            ctx.globalAlpha = 1.0;
+            ctx.restore();
+            
+            floatingTexts = stillAlive;
+            requestAnimationFrame(animateLoop);
+        }
 
         const factions = {
             0: { name: "🏰 Feudalismus", desc: "Passive: +2 HP auf eigenen Dörfern.\nSpezial: 🛡️ Ritter", cost: 10, reqV: 2 },
@@ -219,17 +276,28 @@
                 if (valid) { for (let key in villages) { let [vx, vy] = key.split(',').map(Number); if (hexDistance({x:nx, y:ny}, {x:vx, y:vy}) < 3) valid = false; } }
                 if (valid) { villages[`${nx},${ny}`] = -1; neutralCount--; } attempts++;
             }
-            gameState = { sd: seed, bw: size, bh: size, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, la: [] };
+            gameState = { sd: seed, bw: size, bh: size, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, la: [], th: [] };
             bootGame();
         });
 
-        const hexSize = 24; const hexWidth = Math.sqrt(3) * hexSize; const hexHeight = 2 * hexSize;
-        const xOffset = hexWidth; const yOffset = hexHeight * 0.75; const thickness = 6; 
+        const hexSize = 24; 
+        const hexWidth = Math.sqrt(3) * hexSize; 
+        const hexHeight = 2 * hexSize;
+        const xOffset = hexWidth; 
+        const yOffset = hexHeight * 0.75; 
+        const thickness = 12; 
+        const yCompress = 0.65; 
         const terrainColors = { grass: { top: "#2e3b32", side: "#1a241d" }, forest: { top: "#1b261c", side: "#0d140e" }, hill: { top: "#4a4036", side: "#2b241e" }, black: { top: "#000", side: "#000" } };
 
         let selectedHex = null; let selectedUnit = null; let validMoves = []; let validAttacks = [];
 
-        function getHexCenter(x, y) { return { px: (x + 0.5 * (y % 2)) * xOffset + (hexWidth / 2) + 10, py: y * yOffset + (hexHeight / 2) + 10 }; }
+        function getHexCenter(x, y) { 
+            return { 
+                px: (x + 0.5 * (y % 2)) * xOffset + (hexWidth / 2) + 10, 
+                py: (y * yOffset + (hexHeight / 2) + 10) * yCompress 
+            }; 
+        }
+
         function oddRToCube(x, y) { const cx = x - (y - (y & 1)) / 2; const cz = y; return { x: cx, y: -cx - cz, z: cz }; }
         function hexDistance(p1, p2) { const a = oddRToCube(p1.x, p1.y); const b = oddRToCube(p2.x, p2.y); return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y), Math.abs(a.z - b.z)); }
         function getNeighbors(x, y) { const isOdd = y % 2 !== 0; const offsets = isOdd ? [[1, 0], [0, -1], [-1, 0], [0, 1], [1, -1], [1, 1]] : [[1, 0], [0, -1], [-1, -1], [-1, 0], [-1, 1], [0, 1]]; return offsets.map(o => ({ x: x + o[0], y: y + o[1] })).filter(n => n.x >= 0 && n.x < gameState.bw && n.y >= 0 && n.y < gameState.bh); }
@@ -294,14 +362,23 @@
 
         function drawHexPath(cx, cy) {
             ctx.beginPath();
-            for (let i = 0; i < 6; i++) { const angle = (Math.PI / 180) * (60 * i - 30); const px = cx + hexSize * Math.cos(angle); const py = cy + hexSize * Math.sin(angle); if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
+            for (let i = 0; i < 6; i++) { 
+                const angle = (Math.PI / 180) * (60 * i - 30); 
+                const px = cx + hexSize * Math.cos(angle); 
+                const py = cy + (hexSize * Math.sin(angle)) * yCompress;
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); 
+            }
             ctx.closePath();
         }
 
         function drawHex(x, y, terrainType, applyShroud, isRecap) {
             const center = getHexCenter(x, y); const colors = terrainColors[terrainType] || terrainColors.grass;
-            drawHexPath(center.px, center.py + thickness); ctx.fillStyle = colors.side; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.stroke();
-            drawHexPath(center.px, center.py); ctx.fillStyle = colors.top; ctx.fill(); ctx.stroke();
+            
+            drawHexPath(center.px, center.py + thickness); 
+            ctx.fillStyle = colors.side; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.stroke();
+            
+            drawHexPath(center.px, center.py); 
+            ctx.fillStyle = colors.top; ctx.fill(); ctx.stroke();
 
             if (terrainType === 'forest' && !applyShroud) {
                 ctx.fillStyle = "#0d140e";
@@ -321,13 +398,20 @@
             const center = getHexCenter(x, y); 
             ctx.globalAlpha = hasActed ? 0.4 : 1.0;
             
-            drawPixelSprite(ctx, center.px, center.py, spriteKey, color);
+            ctx.fillStyle = "rgba(0,0,0,0.5)";
+            ctx.beginPath();
+            ctx.ellipse(center.px, center.py, 12, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const offsetY = -2; 
+            drawPixelSprite(ctx, center.px, center.py + offsetY, spriteKey, color);
             
             if (hp !== undefined && maxHp !== undefined) {
                 const barW = 16; const barH = 4; const pct = Math.max(0, hp / maxHp);
-                ctx.fillStyle = "#e57373"; ctx.fillRect(center.px - barW/2, center.py + 8, barW, barH);
-                ctx.fillStyle = "#81c784"; ctx.fillRect(center.px - barW/2, center.py + 8, barW * pct, barH);
-                ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.strokeRect(center.px - barW/2, center.py + 8, barW, barH);
+                const barY = center.py + offsetY + 8;
+                ctx.fillStyle = "#e57373"; ctx.fillRect(center.px - barW/2, barY, barW, barH);
+                ctx.fillStyle = "#81c784"; ctx.fillRect(center.px - barW/2, barY, barW * pct, barH);
+                ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.strokeRect(center.px - barW/2, barY, barW, barH);
             }
             ctx.globalAlpha = 1.0;
         }
@@ -353,7 +437,18 @@
         }
 
         function hideActionMenu() { actionMenu.style.display = 'none'; actionMenu.innerHTML = ''; }
-        function showActionMenu(html) { actionMenu.innerHTML = html; actionMenu.style.display = 'flex'; }
+        function showActionMenu(html) { 
+            actionMenu.innerHTML = html; 
+            actionMenu.style.display = 'flex'; 
+            
+            // ANTI GHOST-CLICK: Deaktiviere Klicks für 300ms
+            actionMenu.style.pointerEvents = 'none';
+            actionMenu.style.opacity = '0.5';
+            setTimeout(() => {
+                actionMenu.style.pointerEvents = 'auto';
+                actionMenu.style.opacity = '1';
+            }, 300);
+        }
 
         function openDraft(cost) {
             const pState = gameState.p[gameState.cp]; let pool = [0, 1, 2, 3]; let options = [];
@@ -418,45 +513,87 @@
         }
 
         function renderBoard(state) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height); updateExploration(); 
-            const vis = getVisibleHexes(gameState.cp); const explored = gameState.p[gameState.cp].e || [];
+            if (!isAnimating) drawScene(state);
+        }
+
+        function drawScene(state) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
+            ctx.save();
+            ctx.translate(camX, camY);
+            ctx.scale(camScale, camScale);
+
+            updateExploration(); 
+            const vis = getVisibleHexes(gameState.cp); 
+            const explored = gameState.p[gameState.cp].e || [];
             const visibleRecaps = (state.la || []).filter(a => vis.has(`${a.x},${a.y}`));
 
             for (let y = 0; y < state.bh; y++) {
                 for (let x = 0; x < state.bw; x++) {
                     const idx = y * state.bw + x; const isVisible = vis.has(`${x},${y}`);
                     if (!explored.includes(idx)) continue; 
-                    const tType = getTerrainType(state, x, y); const isRecap = showRecap && visibleRecaps.some(a => a.x === x && a.y === y);
+                    const tType = getTerrainType(state, x, y); 
+                    const isRecap = showRecap && visibleRecaps.some(a => a.x === x && a.y === y);
                     drawHex(x, y, tType, !isVisible, isRecap); 
                 }
             }
+
+            let renderQueue = [];
 
             for (const [key, ownerId] of Object.entries(state.v)) {
                 if (vis.has(key) || ownerId === gameState.cp || (ownerId === -1 && explored.includes(parseInt(key.split(',')[1]) * state.bw + parseInt(key.split(',')[0])))) {
                     const [vx, vy] = key.split(',').map(Number);
                     let isStart = false; let hp = undefined; let spriteKey = "village";
-                    if (ownerId !== -1 && gameState.p[ownerId] && gameState.p[ownerId].sv === key) { isStart = true; hp = gameState.p[ownerId].sh; spriteKey = "startVillage"; }
-                    drawEntity(vx, vy, getEntityColor(ownerId), false, hp, 30, spriteKey);
+                    if (ownerId !== -1 && gameState.p[ownerId] && gameState.p[ownerId].sv === key) { 
+                        isStart = true; hp = gameState.p[ownerId].sh; spriteKey = "startVillage"; 
+                    }
+                    renderQueue.push({ py: getHexCenter(vx, vy).py, type: 'building', vx, vy, ownerId, hp, spriteKey });
                 }
             }
 
             state.u.forEach(unit => {
                 if (vis.has(`${unit.x},${unit.y}`) || unit.p === gameState.cp) {
-                    const maxHp = getUnitMaxHp(gameState.p[unit.p], unit.t);
-                    drawEntity(unit.x, unit.y, playerColors[unit.p], unit.a === 1, unit.h, maxHp, unit.t);
+                    renderQueue.push({ py: getHexCenter(unit.x, unit.y).py, type: 'unit', unit });
                 }
             });
+
+            renderQueue.sort((a, b) => a.py - b.py);
+
+            renderQueue.forEach(item => {
+                if (item.type === 'building') {
+                    drawEntity(item.vx, item.vy, getEntityColor(item.ownerId), false, item.hp, 30, item.spriteKey);
+                } else if (item.type === 'unit') {
+                    const u = item.unit;
+                    const maxHp = getUnitMaxHp(gameState.p[u.p], u.t);
+                    drawEntity(u.x, u.y, playerColors[u.p], u.a === 1, u.h, maxHp, u.t);
+                }
+            });
+
+            ctx.restore();
             updateUI();
         }
 
-        canvas.addEventListener('pointerdown', (e) => {
+        // --- KAMERA STEUERUNG & TOUCH LOGIK ---
+        let isDragging = false;
+        let hasMoved = false;
+        let dragStartX = 0, dragStartY = 0;
+        let camStartX = 0, camStartY = 0;
+        let initialPinchDist = null;
+        let initialCamScale = 1;
+        let initialCamX = 0, initialCamY = 0;
+
+        function handleCanvasClick(clientX, clientY) {
             if (showRecap) { showRecap = false; renderBoard(gameState); }
-            const rect = canvas.getBoundingClientRect(); const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width); const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+            
+            // Anpassung an Kamerawinkel und Zoom
+            const mouseX = (clientX - camX) / camScale;
+            const mouseY = (clientY - camY) / camScale;
+            
             let closest = null; let minDist = Infinity; hideActionMenu(); 
 
             for (let y = 0; y < gameState.bh; y++) {
                 for (let x = 0; x < gameState.bw; x++) {
-                    const center = getHexCenter(x, y); const dist = Math.sqrt((mouseX - center.px)**2 + (mouseY - center.py)**2);
+                    const center = getHexCenter(x, y); 
+                    const dist = Math.sqrt((mouseX - center.px)**2 + ((mouseY - center.py) / yCompress)**2);
                     if (dist < minDist) { minDist = dist; closest = { x, y }; }
                 }
             }
@@ -485,12 +622,18 @@
                     
                     if (targetAttack.isBuilding) {
                         gameState.p[targetAttack.owner].sh -= finalDmg;
+                        spawnFloatingText(targetAttack.x, targetAttack.y, `-${finalDmg}`, "#ff5252"); 
+                        
                         if (gameState.p[targetAttack.owner].sh <= 0) {
-                            gameState.p[targetAttack.owner].dead = 1; gameState.u = gameState.u.filter(u => u.p !== targetAttack.owner); gameState.v[`${clickedX},${clickedY}`] = gameState.cp; 
+                            gameState.p[targetAttack.owner].dead = 1; 
+                            gameState.u = gameState.u.filter(u => u.p !== targetAttack.owner); 
+                            gameState.v[`${clickedX},${clickedY}`] = gameState.cp; 
                             infoPanel.innerText = `💀 HAUPTGEBÄUDE ZERSTÖRT!\n${gameState.p[targetAttack.owner].n} ist ausgeschieden!`;
                         } else { infoPanel.innerText = `Hauptgebäude angegriffen! (-${finalDmg} HP)`; }
                     } else {
                         targetAttack.target.h -= finalDmg;
+                        spawnFloatingText(targetAttack.target.x, targetAttack.target.y, `-${finalDmg}`, "#ff5252"); 
+                        
                         if (targetAttack.target.h <= 0) {
                             gameState.u = gameState.u.filter(u => u.i !== targetAttack.target.i);
                             if (pState.u.includes(2)) { pState.g += 3; infoPanel.innerText = `Angriff! (-${finalDmg} HP) | +3G Kopfgeld!`; } else { infoPanel.innerText = `Angriff! (-${finalDmg} HP)`; }
@@ -506,7 +649,6 @@
                 else {
                     selectedHex = closest;
                     
-                    // NEU: GRAMMATIK HELFER FÜR NAMEN
                     if (clickedUnit) {
                         const maxHp = getUnitMaxHp(gameState.p[clickedUnit.p], clickedUnit.t);
                         infoPanel.innerText = `${formatOwnerName(clickedUnit.p, gameState.cp)} ${unitStats[clickedUnit.t].name} (${clickedUnit.h}/${maxHp} HP)`;
@@ -534,6 +676,116 @@
                     } else { selectedUnit = null; validMoves = []; validAttacks = []; }
                 } renderBoard(gameState);
             }
+        }
+
+        // Panning (Maus & Touch)
+        canvas.addEventListener('pointerdown', (e) => {
+            isDragging = true;
+            hasMoved = false;
+            dragStartX = e.clientX; dragStartY = e.clientY;
+            camStartX = camX; camStartY = camY;
+            canvas.setPointerCapture(e.pointerId);
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - dragStartX; const dy = e.clientY - dragStartY;
+            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) hasMoved = true;
+            camX = camStartX + dx; camY = camStartY + dy;
+            if (!isAnimating) requestAnimationFrame(() => drawScene(gameState));
+        });
+
+        canvas.addEventListener('pointerup', (e) => {
+            isDragging = false;
+            canvas.releasePointerCapture(e.pointerId);
+            if (!hasMoved) handleCanvasClick(e.clientX, e.clientY);
+        });
+
+        // Zoom (Mausrad)
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomIntensity = 0.1;
+            const wheel = e.deltaY < 0 ? 1 : -1;
+            const zoom = Math.exp(wheel * zoomIntensity);
+            
+            camX = e.clientX - (e.clientX - camX) * zoom;
+            camY = e.clientY - (e.clientY - camY) * zoom;
+            camScale *= zoom;
+            camScale = Math.max(0.4, Math.min(camScale, 3.0)); 
+            
+            if (!isAnimating) requestAnimationFrame(() => drawScene(gameState));
+        }, {passive: false});
+
+        // Pinch to Zoom (Touch)
+        canvas.addEventListener('touchstart', e => {
+            if (e.touches.length === 2) {
+                isDragging = false; 
+                initialPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                initialCamScale = camScale;
+                initialCamX = camX; initialCamY = camY;
+            }
+        }, {passive: false});
+
+        canvas.addEventListener('touchmove', e => {
+            if (e.touches.length === 2 && initialPinchDist) {
+                e.preventDefault();
+                const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                const zoom = dist / initialPinchDist;
+                const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+                camScale = initialCamScale * zoom;
+                camScale = Math.max(0.4, Math.min(camScale, 3.0));
+                
+                camX = centerX - (centerX - initialCamX) * (camScale / initialCamScale);
+                camY = centerY - (centerY - initialCamY) * (camScale / initialCamScale);
+
+                if (!isAnimating) requestAnimationFrame(() => drawScene(gameState));
+            }
+        }, {passive: false});
+
+        canvas.addEventListener('touchend', e => { if (e.touches.length < 2) initialPinchDist = null; });
+
+        function focusCamera() {
+            let targetHex = null;
+            const pId = gameState.cp;
+            const pState = gameState.p[pId];
+            const vis = getVisibleHexes(pId);
+            
+            // 1. Letzte sichtbare Aktion fokussieren
+            const visibleActions = (gameState.la || []).filter(a => vis.has(`${a.x},${a.y}`));
+            if (visibleActions.length > 0) {
+                targetHex = visibleActions[visibleActions.length - 1];
+            } else {
+                // 2. Eigene Einheit fokussieren
+                const myUnits = gameState.u.filter(u => u.p === pId);
+                if (myUnits.length > 0) targetHex = myUnits[0];
+                else {
+                    // 3. Eigenes Dorf fokussieren
+                    const myVillages = Object.keys(gameState.v).filter(k => gameState.v[k] === pId);
+                    if (myVillages.length > 0) {
+                        const [vx, vy] = myVillages[0].split(',').map(Number);
+                        targetHex = {x: vx, y: vy};
+                    } else if (pState.sv) {
+                        // 4. Fallback: Startdorf (auch wenn zerstört)
+                        const [vx, vy] = pState.sv.split(',').map(Number);
+                        targetHex = {x: vx, y: vy};
+                    }
+                }
+            }
+            
+            if (targetHex) {
+                const center = getHexCenter(targetHex.x, targetHex.y);
+                camScale = 1.0; 
+                camX = (window.innerWidth / 2) - center.px;
+                camY = (window.innerHeight / 2) - center.py;
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if(gameState) { focusCamera(); renderBoard(gameState); }
         });
 
         endTurnBtn.addEventListener('click', () => {
@@ -544,11 +796,25 @@
             if (alivePlayers.length === 1) { canvasWrapper.style.display = 'none'; uiContainer.style.display = 'none'; resourceHud.style.display = 'none'; document.getElementById('win-msg').innerText = `${alivePlayers[0].n} hat als Letzter überlebt!`; winScreen.style.display = 'flex'; return; }
 
             const pId = gameState.cp; const pState = gameState.p[pId];
+            let healsThisTurn = []; 
+            
             if (gameState.rn > 1) {
                 let myVillages = Object.values(gameState.v).filter(v => v === pId).length; let extraGold = pState.f && pState.f.includes(3) ? 1 : 0;
                 pState.g += (myVillages * (2 + extraGold)); pState.m += (myVillages * 1); 
-                if (pState.f && pState.f.includes(0)) { gameState.u.filter(u => u.p === pId).forEach(u => { const loc = `${u.x},${u.y}`; const maxHp = getUnitMaxHp(pState, u.t); if (gameState.v[loc] === pId) u.h = Math.min(maxHp, u.h + 2); }); }
+                
+                if (pState.f && pState.f.includes(0)) { 
+                    gameState.u.filter(u => u.p === pId).forEach(u => { 
+                        const loc = `${u.x},${u.y}`; 
+                        const maxHp = getUnitMaxHp(pState, u.t); 
+                        if (gameState.v[loc] === pId && u.h < maxHp) { 
+                            const healAmount = Math.min(maxHp - u.h, 2);
+                            u.h += healAmount; 
+                            healsThisTurn.push({x: u.x, y: u.y, val: healAmount}); 
+                        } 
+                    }); 
+                }
             }
+            gameState.th = healsThisTurn; 
 
             selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = []; hideActionMenu();
             const encodedState = LZString.compressToEncodedURIComponent(JSON.stringify(gameState)); 
@@ -563,23 +829,27 @@
 
         function bootGame() {
             setupScreen.style.display = 'none'; intermissionScreen.style.display = 'none'; draftOverlay.style.display = 'none'; researchOverlay.style.display = 'none'; winScreen.style.display = 'none';
+            
+            if (mainTitle) mainTitle.style.display = 'none';
+            
             gameState.p.forEach(p => { if (p.sh === undefined) p.sh = 30; if (!p.u) p.u = []; });
             const alivePlayers = gameState.p.filter(p => p.dead !== 1);
             if (alivePlayers.length <= 1) { document.getElementById('win-msg').innerText = `${alivePlayers[0].n} hat als Letzter überlebt!`; winScreen.style.display = 'flex'; return; }
 
-            canvas.width = gameState.bw * xOffset + (hexWidth/2) + 20; canvas.height = gameState.bh * yOffset + (hexHeight/2) + 20;
-            canvasWrapper.style.display = 'block'; uiContainer.style.display = 'flex'; resourceHud.style.display = 'block';
-            showRecap = true; renderBoard(gameState);
+            canvas.width = window.innerWidth; 
+            canvas.height = window.innerHeight;
 
-            if (gameState.la && gameState.la.length > 0) {
-                const vis = getVisibleHexes(gameState.cp); const visibleActions = gameState.la.filter(a => vis.has(`${a.x},${a.y}`));
-                if (visibleActions.length > 0) {
-                    const target = visibleActions[visibleActions.length - 1]; const center = getHexCenter(target.x, target.y);
-                    setTimeout(() => { canvasWrapper.scrollLeft = center.px - canvasWrapper.clientWidth / 2; canvasWrapper.scrollTop = center.py - canvasWrapper.clientHeight / 2; }, 100); 
-                }
-            } else {
-                const startVillage = gameState.p[gameState.cp].sv;
-                if(startVillage) { const [sx, sy] = startVillage.split(',').map(Number); const center = getHexCenter(sx, sy); setTimeout(() => { canvasWrapper.scrollLeft = center.px - canvasWrapper.clientWidth / 2; canvasWrapper.scrollTop = center.py - canvasWrapper.clientHeight / 2; }, 100); }
+            canvasWrapper.style.display = 'block'; uiContainer.style.display = 'flex'; resourceHud.style.display = 'block';
+            showRecap = true; 
+            
+            focusCamera(); // Kamera sauber zentrieren
+            renderBoard(gameState);
+
+            if (gameState.th && gameState.th.length > 0) {
+                setTimeout(() => {
+                    gameState.th.forEach(h => spawnFloatingText(h.x, h.y, `+${h.val}`, "#81c784")); 
+                    gameState.th = []; 
+                }, 500);
             }
         }
 
