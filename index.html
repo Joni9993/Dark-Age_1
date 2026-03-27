@@ -532,6 +532,35 @@
         const getUnitMove = (pState, type) => (type === 5 && pState.u.includes(5)) ? unitStats[type].move + 1 : unitStats[type].move;
 
         function createPRNG(seed) { return function () { let t = seed += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; } }
+        
+        // --- STATE KOMPRIMIERUNG (FOG OF WAR) ---
+        function compressFog(arr) {
+            if (!arr || arr.length === 0) return "";
+            let max = Math.max(...arr);
+            let hex = "";
+            for (let i = 0; i <= max; i += 4) {
+                let val = 0;
+                if (arr.includes(i)) val |= 1;
+                if (arr.includes(i+1)) val |= 2;
+                if (arr.includes(i+2)) val |= 4;
+                if (arr.includes(i+3)) val |= 8;
+                hex += val.toString(16);
+            }
+            return hex.replace(/0+$/, ''); // Nullen am Ende abschneiden für max. Effizienz
+        }
+
+        function decompressFog(hex) {
+            if (!hex) return [];
+            let arr = [];
+            for (let i = 0; i < hex.length; i++) {
+                let val = parseInt(hex[i], 16);
+                if (val & 1) arr.push(i * 4);
+                if (val & 2) arr.push(i * 4 + 1);
+                if (val & 4) arr.push(i * 4 + 2);
+                if (val & 8) arr.push(i * 4 + 3);
+            }
+            return arr;
+        }
 
         function renderNameInputs() {
             const count = parseInt(playerCountSelect.value); namesContainer.innerHTML = '';
@@ -1127,7 +1156,15 @@
             gameState.th = healsThisTurn;
 
             selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = []; hideActionMenu();
+            
+            // Vor dem Speichern: Fog of War Arrays komprimieren
+            gameState.p.forEach(p => { if (Array.isArray(p.e)) p.e = compressFog(p.e); });
+            
             const encodedState = LZString.compressToEncodedURIComponent(JSON.stringify(gameState));
+            
+            // Direkt danach wieder entpacken (Live-State intakt halten)
+            gameState.p.forEach(p => { if (typeof p.e === 'string') p.e = decompressFog(p.e); });
+
             const baseUrl = window.location.href.split('?')[0]; const newUrl = baseUrl + "?state=" + encodedState;
             try { window.history.pushState({ path: newUrl }, '', newUrl); } catch (e) { }
 
@@ -1142,7 +1179,17 @@
 
             if (mainTitle) mainTitle.style.display = 'none';
 
-            gameState.p.forEach(p => { if (p.sh === undefined) p.sh = 30; if (!p.u) p.u = []; });
+            gameState.p.forEach(p => { 
+                if (p.sh === undefined) p.sh = 30; 
+                if (!p.u) p.u = []; 
+                if (!p.e) p.e = [];
+
+                // MIGRATION & ENTZIFFERN
+                if (typeof p.e === 'string') {
+                    p.e = decompressFog(p.e);
+                }
+            });
+
             const alivePlayers = gameState.p.filter(p => p.dead !== 1);
             if (alivePlayers.length <= 1) { document.getElementById('win-msg').innerText = `${alivePlayers[0].n} hat als Letzter überlebt!`; winScreen.style.display = 'flex'; return; }
 
@@ -1177,4 +1224,3 @@
 </body>
 
 </html>
-
