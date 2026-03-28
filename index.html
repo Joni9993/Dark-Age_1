@@ -456,7 +456,10 @@
             return Math.max(1, Math.round(dmg * (attackerUnit.h / maxHp)));
         };
 
-        let gameState = null; let turnActions = []; let showRecap = true;
+        let gameState = null; let turnActions = []; let showRecap = true; 
+        
+        // NEU: Globale Variable für Fähigkeiten-State (z.B. Tribok AoE)
+        window.specialActive = null;
 
         // --- KAMERA VARIABLEN ---
         let camX = 0; let camY = 0; let camScale = 1.0;
@@ -723,7 +726,8 @@
 
         function calculateAttacks(unit) {
             const stats = unitStats[unit.t]; let attacks = [];
-            for (let enemy of gameState.u.filter(u => u.p !== unit.p)) if (hexDistance({ x: unit.x, y: unit.y }, { x: enemy.x, y: enemy.y }) <= stats.range) attacks.push({ x: enemy.x, y: enemy.y, target: enemy });
+            // Unsichtbare Einheiten (iv === 1) werden ignoriert
+            for (let enemy of gameState.u.filter(u => u.p !== unit.p && u.iv !== 1)) if (hexDistance({ x: unit.x, y: unit.y }, { x: enemy.x, y: enemy.y }) <= stats.range) attacks.push({ x: enemy.x, y: enemy.y, target: enemy });
             for (let i = 0; i < gameState.p.length; i++) {
                 if (i !== unit.p && gameState.p[i].dead === 0) {
                     let [vx, vy] = gameState.p[i].sv.split(',').map(Number);
@@ -754,6 +758,68 @@
                 if (!gameState.p[pId].e.includes(idx)) gameState.p[pId].e.push(idx);
             });
         }
+
+        // --- FÄHIGKEITEN LOGIK ---
+        window.useAbility = function(type) {
+            const pState = gameState.p[gameState.cp];
+            if (!selectedUnit) return;
+
+            if (type === 'ritter') {
+                pState.m -= 3;
+                // Alle Einheiten in Reichweite 1 (ohne eigene) bekommen 4 DMG
+                let dmgDone = false;
+                gameState.u.filter(u => u.p !== gameState.cp && hexDistance({x: u.x, y: u.y}, {x: selectedUnit.x, y: selectedUnit.y}) <= 1).forEach(enemy => {
+                    enemy.h -= 4; spawnFloatingText(enemy.x, enemy.y, "-4", "#ff5252"); dmgDone = true;
+                });
+                gameState.u = gameState.u.filter(u => u.h > 0);
+                
+                // Gebäude checken
+                for(let i=0; i<gameState.p.length; i++) {
+                    if(i !== gameState.cp && gameState.p[i].dead === 0) {
+                        let [vx,vy] = gameState.p[i].sv.split(',').map(Number);
+                        if(hexDistance({x:vx, y:vy}, {x: selectedUnit.x, y: selectedUnit.y}) <= 1) {
+                            gameState.p[i].sh -= 4; spawnFloatingText(vx, vy, "-4", "#ff5252"); dmgDone = true;
+                            if(gameState.p[i].sh <= 0) {
+                                gameState.p[i].dead = 1;
+                                gameState.u = gameState.u.filter(u => u.p !== i);
+                                gameState.v[`${vx},${vy}`] = gameState.cp;
+                            }
+                        }
+                    }
+                }
+                selectedUnit.a = 1; turnActions.push({x: selectedUnit.x, y: selectedUnit.y});
+                selectedUnit = null; validMoves = []; validAttacks = []; hideActionMenu(); 
+                if (dmgDone) { infoPanel.innerHTML = `🌀 Rundumschlag ausgeführt!`; }
+                renderBoard(gameState);
+            }
+            else if (type === 'berserker') {
+                pState.m -= 2; 
+                selectedUnit.a = 0; // Aktionspunkt zurücksetzen
+                validMoves = calculateMoves(selectedUnit); validAttacks = calculateAttacks(selectedUnit);
+                infoPanel.innerHTML = `🩸 Blutrausch aktiv!<div class="info-detail" style="color: #4fc3f7;">Aktionspunkt wiederhergestellt. Einheit kann nochmals agieren.</div>`;
+                hideActionMenu(); renderBoard(gameState);
+            }
+            else if (type === 'assassine') {
+                pState.m -= 2; 
+                selectedUnit.iv = 1; // Unsichtbar Flag setzen
+                infoPanel.innerHTML = `🌫️ Unsichtbarkeit aktiv!<div class="info-detail" style="color: #4fc3f7;">Für Feinde nicht mehr anvisierbar. Bricht sofort bei Angriff.</div>`;
+                hideActionMenu(); renderBoard(gameState);
+            }
+            else if (type === 'tribok') {
+                pState.m -= 4; window.specialActive = 'tribok';
+                validAttacks = []; validMoves = [];
+                // Alle Felder in Reichweite 3 sammeln
+                for(let y=0; y<gameState.bh; y++) {
+                    for(let x=0; x<gameState.bw; x++) {
+                        if(isInsideMap(gameState, x, y) && hexDistance({x,y}, {x: selectedUnit.x, y: selectedUnit.y}) <= 3) {
+                            validAttacks.push({x, y, isTribokAoE: true});
+                        }
+                    }
+                }
+                hideActionMenu(); infoPanel.innerHTML = `🔥 Flächenbrand Zielwahl<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes Feld. 3 DMG im Zentrum, 2 DMG an alle Nachbarn.</div>`; 
+                renderBoard(gameState);
+            }
+        };
 
         function drawHexPath(cx, cy) {
             ctx.beginPath();
@@ -789,9 +855,10 @@
             if (validAttacks.some(a => a.x === x && a.y === y)) { ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
         }
 
-        function drawEntity(x, y, color, hasActed, hp, maxHp, spriteKey) {
+        // Anpassung: Nimmt isStealth an, um Unsichtbarkeit zu zeichnen
+        function drawEntity(x, y, color, hasActed, hp, maxHp, spriteKey, isStealth) {
             const center = getHexCenter(x, y);
-            ctx.globalAlpha = hasActed ? 0.4 : 1.0;
+            ctx.globalAlpha = isStealth ? 0.3 : (hasActed ? 0.4 : 1.0);
 
             ctx.fillStyle = "rgba(0,0,0,0.5)";
             ctx.beginPath();
@@ -816,12 +883,11 @@
             if (!pState.f) pState.f = []; if (!pState.of) pState.of = []; if (!pState.u) pState.u = [];
             let myVillages = Object.values(gameState.v).filter(v => v === pId).length;
 
-            // HUD Update mit Einkommen
             const income = calculateIncome(pId);
             resourceHud.innerHTML = `💰 ${pState.g} <span class="income-text">(+${income.g})</span> | 🪵 ${pState.m} <span class="income-text">(+${income.m})</span>`;
 
             infoPanel.style.color = playerColors[pId];
-            if (!selectedUnit && !selectedHex) infoPanel.innerHTML = `Runde ${gameState.rn} | ${pState.n} ist am Zug.<div class="info-detail">Tippe auf Einheiten oder Dörfer für Details.</div>`;
+            if (!selectedUnit && !selectedHex && window.specialActive !== 'tribok') infoPanel.innerHTML = `Runde ${gameState.rn} | ${pState.n} ist am Zug.<div class="info-detail">Tippe auf Einheiten oder Dörfer für Details.</div>`;
 
             upgradeBtn.style.display = 'block'; researchBtn.style.display = pState.f.length > 0 ? 'block' : 'none';
             if (pState.f.length === 0) {
@@ -839,7 +905,6 @@
         function showActionMenu(html) {
             actionMenu.innerHTML = html;
             actionMenu.style.display = 'flex';
-
             actionMenu.style.pointerEvents = 'none';
             actionMenu.style.opacity = '0.5';
             setTimeout(() => {
@@ -931,7 +996,6 @@
                     const idx = y * state.bw + x; 
                     const isVisible = vis.has(`${x},${y}`);
 
-                    // FIX 2: Zeichne leere Hex-Konturen für unentdeckte Felder
                     if (!explored.includes(idx)) {
                         const center = getHexCenter(x, y);
                         drawHexPath(center.px, center.py + thickness);
@@ -961,6 +1025,9 @@
             }
 
             state.u.forEach(unit => {
+                // Unsichtbare Gegner werden komplett übersprungen
+                if (unit.p !== gameState.cp && unit.iv === 1) return;
+
                 if (vis.has(`${unit.x},${unit.y}`) || unit.p === gameState.cp) {
                     renderQueue.push({ py: getHexCenter(unit.x, unit.y).py, type: 'unit', unit });
                 }
@@ -970,11 +1037,11 @@
 
             renderQueue.forEach(item => {
                 if (item.type === 'building') {
-                    drawEntity(item.vx, item.vy, getEntityColor(item.ownerId), false, item.hp, 30, item.spriteKey);
+                    drawEntity(item.vx, item.vy, getEntityColor(item.ownerId), false, item.hp, 30, item.spriteKey, false);
                 } else if (item.type === 'unit') {
                     const u = item.unit;
                     const maxHp = getUnitMaxHp(gameState.p[u.p], u.t);
-                    drawEntity(u.x, u.y, playerColors[u.p], u.a === 1, u.h, maxHp, u.t);
+                    drawEntity(u.x, u.y, playerColors[u.p], u.a === 1, u.h, maxHp, u.t, u.iv === 1);
                 }
             });
 
@@ -1008,8 +1075,10 @@
             if (closest && minDist < hexSize) {
                 const clickedX = closest.x; const clickedY = closest.y;
                 const vis = getVisibleHexes(gameState.cp); const isVisible = vis.has(`${clickedX},${clickedY}`);
+                
+                // Unsichtbare Gegner werden auch beim Klicken ignoriert
                 let clickedUnit = gameState.u.find(u => u.x === clickedX && u.y === clickedY);
-                if (clickedUnit && clickedUnit.p !== gameState.cp && !isVisible) clickedUnit = undefined;
+                if (clickedUnit && clickedUnit.p !== gameState.cp && (!isVisible || clickedUnit.iv === 1)) clickedUnit = undefined;
 
                 const targetAttack = validAttacks.find(a => a.x === clickedX && a.y === clickedY);
                 const villageOwner = gameState.v[`${clickedX},${clickedY}`];
@@ -1017,7 +1086,32 @@
                 let isStart = false; let svHp = 0; let svOwner = -1;
                 for (let i = 0; i < gameState.p.length; i++) { if (gameState.p[i].sv === `${clickedX},${clickedY}`) { isStart = true; svHp = gameState.p[i].sh; svOwner = i; } }
 
+                // --- Tribok Flächenbrand Ausführung ---
+                if (window.specialActive === 'tribok' && targetAttack && targetAttack.isTribokAoE) {
+                    let targets = [{x: targetAttack.x, y: targetAttack.y, dmg: 3}];
+                    getNeighbors(targetAttack.x, targetAttack.y).forEach(n => targets.push({x: n.x, y: n.y, dmg: 2}));
+                    
+                    targets.forEach(t => {
+                        let uList = gameState.u.filter(u => u.x === t.x && u.y === t.y && u.p !== gameState.cp);
+                        uList.forEach(u => { u.h -= t.dmg; spawnFloatingText(u.x, u.y, `-${t.dmg}`, "#ff5252"); });
+                        for(let i=0; i<gameState.p.length; i++) {
+                            if(i !== gameState.cp && gameState.p[i].dead === 0 && gameState.p[i].sv === `${t.x},${t.y}`) {
+                                gameState.p[i].sh -= t.dmg; spawnFloatingText(t.x, t.y, `-${t.dmg}`, "#ff5252");
+                                if(gameState.p[i].sh <= 0) { gameState.p[i].dead = 1; gameState.u = gameState.u.filter(un => un.p !== i); gameState.v[`${t.x},${t.y}`] = gameState.cp; }
+                            }
+                        }
+                    });
+                    gameState.u = gameState.u.filter(u => u.h > 0);
+                    selectedUnit.a = 1; turnActions.push({x: targetAttack.x, y: targetAttack.y}); 
+                    selectedUnit = null; validMoves = []; validAttacks = []; window.specialActive = null; renderBoard(gameState); return;
+                } else if (window.specialActive === 'tribok') {
+                    window.specialActive = null; selectedUnit = null; validMoves = []; validAttacks = []; renderBoard(gameState); return;
+                }
+
                 if (selectedUnit && targetAttack) {
+                    // Unsichtbarkeit bricht beim normalen Angriff ab
+                    if (selectedUnit.iv === 1) { delete selectedUnit.iv; selectedUnit.cd = 2; }
+
                     const finalDmg = getExpectedDamage(selectedUnit, targetAttack.isBuilding ? 'building' : 'unit', targetAttack.isBuilding ? targetAttack.owner : targetAttack.target.p);
 
                     if (targetAttack.isBuilding) {
@@ -1089,21 +1183,58 @@
                         infoPanel.innerHTML = `${tName}<div class="info-detail">${tInfo}</div>`;
                     }
 
-                    if (clickedUnit && clickedUnit.p === gameState.cp && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
-                        selectedUnit = clickedUnit; validMoves = clickedUnit.a === 0 ? calculateMoves(clickedUnit) : []; validAttacks = calculateAttacks(clickedUnit);
-                        infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Einheit ausgewählt. Ziel antippen.</div>`;
-                        if (villageOwner !== undefined && villageOwner !== gameState.cp && !isStart && clickedUnit.a === 0) {
-                            showActionMenu(`<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #ff1744;" onclick="window.startCapture()">Dorf einnehmen</button>`);
-                            infoPanel.innerHTML += `<div class="info-detail">(Dorf kann kampflos eingenommen werden)</div>`;
+                    // --- EIGENE EINHEITEN & FÄHIGKEITEN MENÜ ---
+                    let isOwnActive = clickedUnit && clickedUnit.p === gameState.cp && (clickedUnit.a === 0 || clickedUnit.a === 2);
+                    let isOwnBerserkerUsed = clickedUnit && clickedUnit.p === gameState.cp && clickedUnit.t === 4 && clickedUnit.a === 1;
+
+                    if (isOwnActive || isOwnBerserkerUsed) {
+                        selectedUnit = clickedUnit; 
+                        validMoves = clickedUnit.a === 0 ? calculateMoves(clickedUnit) : []; 
+                        validAttacks = clickedUnit.a === 0 ? calculateAttacks(clickedUnit) : [];
+                        
+                        let menuHtml = '';
+                        
+                        // Fähigkeiten Buttons bauen
+                        if (clickedUnit.t === 3 && clickedUnit.a === 0) {
+                            if (pState.m >= 3) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #3949ab;" onclick="useAbility('ritter')">🌀 Rundumschlag (3🪵)</button>`;
+                            else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🌀 Rundumschlag (3🪵)</button>`;
                         }
+                        if (clickedUnit.t === 4 && clickedUnit.a === 1) {
+                            if (pState.m >= 2) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #e53935;" onclick="useAbility('berserker')">🩸 Blutrausch (2🪵)</button>`;
+                            else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🩸 Blutrausch (2🪵)</button>`;
+                        }
+                        if (clickedUnit.t === 5 && !clickedUnit.iv && !clickedUnit.cd) {
+                            if (pState.m >= 2) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #43a047;" onclick="useAbility('assassine')">🌫️ Tarnung (2🪵)</button>`;
+                            else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🌫️ Tarnung (2🪵)</button>`;
+                        }
+                        if (clickedUnit.t === 6 && clickedUnit.a === 0) {
+                            if (pState.m >= 4) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #fb8c00;" onclick="useAbility('tribok')">🔥 Flächenbrand (4🪵)</button>`;
+                            else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🔥 Flächenbrand (4🪵)</button>`;
+                        }
+                        
+                        if (villageOwner !== undefined && villageOwner !== gameState.cp && !isStart && clickedUnit.a === 0) {
+                            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #ff1744;" onclick="startCapture()">Dorf einnehmen</button>`;
+                        }
+
+                        if (menuHtml) showActionMenu(menuHtml);
+                        infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Einheit ausgewählt. Ziel oder Aktion wählen.</div>`;
+
+                        // UI Erklärungen im Panel
+                        let specInfo = "";
+                        if (clickedUnit.t === 3) specInfo = "Spezial: Fügt allen benachbarten Feinden 4 DMG zu.";
+                        if (clickedUnit.t === 4) specInfo = "Spezial: Aktionspunkt nach Angriff wiederherstellen.";
+                        if (clickedUnit.t === 5) specInfo = "Spezial: Unsichtbar für Feinde. Bricht bei Angriff." + (clickedUnit.cd ? ` (Cooldown: ${clickedUnit.cd} Runden)` : "");
+                        if (clickedUnit.t === 6) specInfo = "Spezial: AoE-Angriff auf Zielgebiet (Reichweite 3).";
+                        
+                        if (specInfo) infoPanel.innerHTML += `<div class="info-detail" style="color: #4fc3f7;">${specInfo}</div>`;
                     }
                     else if (!clickedUnit && villageOwner === gameState.cp) {
                         selectedUnit = null; validMoves = []; validAttacks = [];
-                        let menuHtml = `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" onclick="window.buyUnit(0)">⚔️ Schwert (${getUnitCost(pState, 0)}G)</button><button class="action-btn" style="padding: 8px; font-size: 0.9rem;" onclick="window.buyUnit(1)">🏹 Bogen (${getUnitCost(pState, 1)}G)</button><button class="action-btn" style="padding: 8px; font-size: 0.9rem;" onclick="window.buyUnit(2)">🐎 Pferd (${getUnitCost(pState, 2)}G)</button>`;
-                        if (pState.f.includes(0)) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; border-color: #fff176;" onclick="window.buyUnit(3)">🛡️ Ritter (6G)</button>`;
-                        if (pState.f.includes(1)) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; border-color: #fff176;" onclick="window.buyUnit(4)">🪓 Berserker (4G)</button>`;
-                        if (pState.f.includes(2)) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; border-color: #fff176;" onclick="window.buyUnit(5)">🗡️ Assassine (5G)</button>`;
-                        if (pState.f.includes(3)) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; border-color: #fff176;" onclick="window.buyUnit(6)">🏗️ Tribok (7G)</button>`;
+                        let menuHtml = `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" onclick="buyUnit(0)">⚔️ Schwert (${getUnitCost(pState, 0)}G)</button><button class="action-btn" style="padding: 8px; font-size: 0.9rem;" onclick="buyUnit(1)">🏹 Bogen (${getUnitCost(pState, 1)}G)</button><button class="action-btn" style="padding: 8px; font-size: 0.9rem;" onclick="buyUnit(2)">🐎 Pferd (${getUnitCost(pState, 2)}G)</button>`;
+                        if (pState.f.includes(0)) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; border-color: #fff176;" onclick="buyUnit(3)">🛡️ Ritter (6G)</button>`;
+                        if (pState.f.includes(1)) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; border-color: #fff176;" onclick="buyUnit(4)">🪓 Berserker (4G)</button>`;
+                        if (pState.f.includes(2)) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; border-color: #fff176;" onclick="buyUnit(5)">🗡️ Assassine (5G)</button>`;
+                        if (pState.f.includes(3)) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; border-color: #fff176;" onclick="buyUnit(6)">🏗️ Tribok (7G)</button>`;
                         showActionMenu(menuHtml); infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Was möchtest du rekrutieren?</div>`;
                     } else { selectedUnit = null; validMoves = []; validAttacks = []; }
                 } renderBoard(gameState);
@@ -1225,6 +1356,12 @@
 
         endTurnBtn.addEventListener('click', () => {
             gameState.u.forEach(u => u.a = 0); gameState.la = turnActions; turnActions = [];
+            
+            // NEU: Cooldowns für Assassinen ticken am Zug-Ende runter
+            gameState.u.filter(u => u.p === gameState.cp).forEach(u => {
+                if (u.cd > 0) { u.cd--; if(u.cd === 0) delete u.cd; }
+            });
+
             let loopGuard = 0; do { gameState.cp++; if (gameState.cp >= gameState.p.length) { gameState.cp = 0; gameState.rn++; } loopGuard++; } while (gameState.p[gameState.cp].dead === 1 && loopGuard < gameState.p.length);
 
             const alivePlayers = gameState.p.filter(p => p.dead !== 1);
@@ -1252,11 +1389,14 @@
             }
             gameState.th = healsThisTurn;
 
-            selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = []; hideActionMenu();
+            selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = []; window.specialActive = null; hideActionMenu();
             
-            // FOG KOMPRIMIERUNG
+            // Vor dem Speichern: Fog of War Arrays komprimieren
             gameState.p.forEach(p => { if (Array.isArray(p.e)) p.e = compressFog(p.e); });
+            
             const encodedState = LZString.compressToEncodedURIComponent(JSON.stringify(gameState));
+            
+            // Direkt danach wieder entpacken (Live-State intakt halten)
             gameState.p.forEach(p => { if (typeof p.e === 'string') p.e = decompressFog(p.e); });
 
             const baseUrl = window.location.href.split('?')[0]; const newUrl = baseUrl + "?state=" + encodedState;
@@ -1277,9 +1417,13 @@
                 if (p.sh === undefined) p.sh = 30; 
                 if (!p.u) p.u = []; 
                 if (!p.e) p.e = [];
-                // FOG DEKOMPRIMIERUNG
-                if (typeof p.e === 'string') p.e = decompressFog(p.e);
+
+                // MIGRATION & ENTZIFFERN
+                if (typeof p.e === 'string') {
+                    p.e = decompressFog(p.e);
+                }
             });
+
             const alivePlayers = gameState.p.filter(p => p.dead !== 1);
             if (alivePlayers.length <= 1) { document.getElementById('win-msg').innerText = `${alivePlayers[0].n} hat als Letzter überlebt!`; winScreen.style.display = 'flex'; return; }
 
