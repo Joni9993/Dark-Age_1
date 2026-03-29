@@ -1173,17 +1173,20 @@
                         infoPanel.innerHTML = `${tName}<div class="info-detail">${tInfo}</div>`;
                     }
 
+                    // FIX: "clickedUnit.a === 2" erlaubt jetzt auch die Angriffs-Zielfindung
                     let isOwnActive = clickedUnit && clickedUnit.p === gameState.cp && (clickedUnit.a === 0 || clickedUnit.a === 2);
                     let isOwnBerserkerUsed = clickedUnit && clickedUnit.p === gameState.cp && clickedUnit.t === 4 && clickedUnit.a === 1;
 
                     if (isOwnActive || isOwnBerserkerUsed) {
                         selectedUnit = clickedUnit; 
                         validMoves = clickedUnit.a === 0 ? calculateMoves(clickedUnit) : []; 
-                        validAttacks = clickedUnit.a === 0 ? calculateAttacks(clickedUnit) : [];
+                        // FIX: Hier lag der Fehler! validAttacks wird jetzt auch für den "a === 2" Status berechnet
+                        validAttacks = (clickedUnit.a === 0 || clickedUnit.a === 2) ? calculateAttacks(clickedUnit) : [];
                         
                         let menuHtml = '';
                         
-                        if (clickedUnit.t === 3 && clickedUnit.a === 0) {
+                        // FIX: Rundumschlag kann ebenfalls nach dem Reiten ausgeführt werden
+                        if (clickedUnit.t === 3 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
                             if (pState.m >= 3) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #3949ab;" onclick="useAbility('ritter')">🌀 Rundumschlag (3🪵)</button>`;
                             else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🌀 Rundumschlag (3🪵)</button>`;
                         }
