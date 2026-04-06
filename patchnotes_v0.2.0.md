@@ -15,10 +15,25 @@
 
 ---
 
-## 📢 Ereignis-System Fix
-- **Random-Ereignisse werden jetzt allen Spielern angezeigt**, nicht mehr nur Spieler 1.
-- Das Event-Popup erscheint bei jedem Spieler beim Laden seines Zugs als Info-Meldung.
-- Die **Auswirkung** des Events wird nur einmal ausgelöst (beim Rundenübergang), um Doppeleffekte zu vermeiden.
+## 🎲 Random-Ereignisse (NEU)
+Ab **Runde 3** besteht jede Runde eine **30% Chance**, dass ein zufälliges Weltereignis eintritt. Dieses betrifft **alle Spieler gleichzeitig** — egal ob positiv oder negativ.
+
+Das Ereignis wird deterministisch aus dem Map-Seed berechnet, sodass es für alle Spieler identisch ist und nicht manipuliert werden kann.
+
+### Alle möglichen Ereignisse
+
+| Icon | Name | Effekt |
+|------|------|--------|
+| ☠️ | **Pest** | Alle Einheiten auf dem Feld verlieren **1 HP** (Minimum 1 HP). |
+| 💰 | **Goldrausch** | Reiche Goldadern entdeckt! Alle Spieler erhalten **+5 Gold**. |
+| 🌲 | **Reiche Ernte** | Die Wälder blühen! Alle Spieler erhalten **+3 Holz**. |
+| ⚔️ | **Kriegslust** | Aggression liegt in der Luft! Alle Einheiten erhalten **+2 HP** (kann Max-HP überschreiten). |
+| 🌑 | **Finstere Nacht** | Dunkelheit verschlingt das Land. Atmosphärisches Event ohne mechanischen Effekt. |
+| 🏰 | **Befestigung** | Die Dörfer werden verstärkt! Alle Hauptgebäude heilen **+5 HP** (max. 30). |
+
+### Anzeige-Fix
+- Das Event-Popup erscheint jetzt bei **jedem Spieler** beim Laden seines Zugs — nicht mehr nur bei Spieler 1.
+- Die Auswirkung wird nur **einmal pro Runde** beim Rundenübergang ausgelöst (keine Doppeleffekte).
 
 ---
 
