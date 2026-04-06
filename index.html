@@ -6,45 +6,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dark Ages: URL Tactics (2.5D Fullscreen Edition)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-deep: #0a0a0f;
+            --bg-panel: rgba(22, 20, 16, 0.92);
+            --bg-card: rgba(38, 34, 28, 0.95);
+            --border: rgba(180, 150, 100, 0.3);
+            --border-bright: rgba(212, 175, 120, 0.55);
+            --text: #e8d8c0;
+            --text-dim: #8a7e6e;
+            --gold: #e8b84a;
+            --red: #ff3355;
+            --green: #5cb85c;
+            --blue: #4fc3f7;
+        }
+
+        * { box-sizing: border-box; }
+
         body {
             margin: 0;
-            background-color: #1a1a1a;
-            color: #d4c4a8;
+            background: radial-gradient(ellipse at 50% 40%, #1a1510 0%, #0d0b08 50%, #050505 100%);
+            color: var(--text);
             font-family: 'Courier New', Courier, monospace;
             display: flex;
             flex-direction: column;
             align-items: center;
             overflow: hidden;
             touch-action: none;
+            min-height: 100vh;
         }
 
         h2 {
             margin-top: 5px;
+            font-family: 'MedievalSharp', cursive;
+            font-size: 2rem;
+            letter-spacing: 3px;
+            color: var(--gold);
+            text-shadow: 0 0 20px rgba(232, 184, 74, 0.3);
         }
 
         .screen-box {
             display: flex;
             flex-direction: column;
             gap: 15px;
-            background: #2e2e2e;
-            padding: 20px;
-            border: 2px solid #4a4036;
+            background: var(--bg-panel);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 28px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
             width: 100%;
-            max-width: 400px;
-            box-sizing: border-box;
+            max-width: 420px;
             text-align: center;
             position: relative;
             z-index: 200;
             margin-top: 20px;
             max-height: 90vh;
             overflow-y: auto;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.04);
+            animation: fadeInUp 0.6s ease;
         }
 
-        /* Custom Scrollbar Styling für die Screen-Box */
-        .screen-box::-webkit-scrollbar { width: 8px; }
-        .screen-box::-webkit-scrollbar-track { background: #1a1a1a; border-radius: 4px; }
-        .screen-box::-webkit-scrollbar-thumb { background: #4a4036; border-radius: 4px; }
+        .screen-box::-webkit-scrollbar { width: 6px; }
+        .screen-box::-webkit-scrollbar-track { background: transparent; }
+        .screen-box::-webkit-scrollbar-thumb { background: rgba(180,150,100,0.3); border-radius: 3px; }
 
         .setup-group {
             display: flex;
@@ -53,134 +79,180 @@
             text-align: left;
         }
 
-        input,
-        select {
-            padding: 10px;
-            background: #1a1a1a;
-            color: #d4c4a8;
-            border: 1px solid #4a4036;
+        .setup-group label {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+
+        input, select {
+            padding: 10px 14px;
+            background: rgba(10, 10, 10, 0.7);
+            color: var(--text);
+            border: 1px solid rgba(180, 150, 100, 0.2);
+            border-radius: 8px;
             font-family: inherit;
             font-size: 1rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            outline: none;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 12px rgba(232, 184, 74, 0.15);
         }
 
         .action-btn {
             margin-top: 10px;
-            padding: 12px;
-            background: #4a4036;
-            color: #d4c4a8;
-            border: 2px solid #3e2723;
-            font-weight: bold;
-            font-size: 1.1rem;
+            padding: 13px 20px;
+            background: linear-gradient(180deg, #4a3d2e 0%, #342a1e 100%);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 1rem;
             cursor: pointer;
             text-transform: uppercase;
-            transition: opacity 0.2s;
+            letter-spacing: 1.5px;
+            transition: all 0.25s ease;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+            font-family: 'MedievalSharp', cursive;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .action-btn:hover::before { left: 100%; }
+
+        .action-btn:hover {
+            border-color: var(--border-bright);
+            box-shadow: 0 4px 16px rgba(232, 184, 74, 0.15);
+            transform: translateY(-1px);
         }
 
         .action-btn:active {
-            background: #3e2723;
+            background: linear-gradient(180deg, #2e2518 0%, #1a1510 100%);
+            transform: translateY(1px);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
         }
 
         .action-btn:disabled {
-            background: #2a241e;
-            color: #555;
-            border-color: #1a1410;
+            background: #151210;
+            color: #3a3530;
+            border-color: #1a1815;
             cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
         }
 
+        .action-btn:disabled::before { display: none; }
+
         .wa-btn {
-            background: #25D366;
-            border-color: #128C7E;
+            background: linear-gradient(180deg, #2db555 0%, #1a8a42 100%);
+            border-color: rgba(37, 211, 102, 0.4);
             color: white;
         }
 
-        .wa-btn:active {
-            background: #128C7E;
+        .wa-btn:hover {
+            background: linear-gradient(180deg, #35c760 0%, #209a4d 100%);
+            border-color: rgba(37, 211, 102, 0.6);
         }
 
-        /* HUD mit Einkommensanzeige */
+        .wa-btn:active {
+            background: linear-gradient(180deg, #1a8a42 0%, #128C7E 100%);
+        }
+
         #resource-hud {
             position: fixed;
-            top: max(10px, env(safe-area-inset-top));
-            right: max(10px, env(safe-area-inset-right));
-            background: rgba(46, 46, 46, 0.95);
-            border: 2px solid #4a4036;
-            padding: 8px 12px;
-            border-radius: 6px;
+            top: max(12px, env(safe-area-inset-top));
+            right: max(12px, env(safe-area-inset-right));
+            background: var(--bg-panel);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            padding: 10px 16px;
+            border-radius: 10px;
             font-weight: bold;
-            font-size: 1rem;
+            font-size: 1.05rem;
             z-index: 150;
             display: none;
             pointer-events: none;
-            text-shadow: 1px 1px 2px #000;
+            text-shadow: 1px 1px 3px #000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            letter-spacing: 0.5px;
         }
 
         .income-text {
             font-size: 0.8rem;
-            color: #81c784;
+            color: var(--green);
             font-weight: normal;
         }
 
         #canvas-wrapper {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100%; height: 100%;
+            background-color: #050505;
             display: none;
             z-index: 1;
             overflow: hidden;
         }
 
         canvas {
-            background-color: #000;
+            background-color: #050505;
             display: block;
             touch-action: none;
             image-rendering: pixelated;
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
         }
 
         #ui-container {
             position: fixed;
-            bottom: 0;
-            left: 0;
+            bottom: 0; left: 0;
             width: 100%;
             padding: 15px;
             padding-bottom: calc(15px + env(safe-area-inset-bottom));
-            box-sizing: border-box;
             display: none;
             flex-direction: column;
             gap: 10px;
             z-index: 10;
-            background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 10%, rgba(0, 0, 0, 0.6) 70%, transparent);
+            background: linear-gradient(to top, rgba(5,5,5,0.95) 0%, rgba(5,5,5,0.7) 60%, transparent 100%);
             pointer-events: none;
         }
 
-        #ui-container>* {
-            pointer-events: auto;
-        }
+        #ui-container>* { pointer-events: auto; }
 
         #info-panel {
-            padding: 10px;
-            background: rgba(46, 46, 46, 0.9);
-            border: 2px solid #4a4036;
+            padding: 12px 18px;
+            background: var(--bg-panel);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
             text-align: center;
             font-weight: bold;
             white-space: pre-line;
             min-height: 20px;
-            text-shadow: 1px 1px 2px #000;
-            border-radius: 4px;
+            text-shadow: 1px 1px 3px #000;
+            border-radius: 10px;
             pointer-events: none;
+            font-family: 'MedievalSharp', cursive;
+            font-size: 0.95rem;
+            line-height: 1.4;
         }
 
         .info-detail {
-            font-size: 0.85rem;
-            color: #b0bec5;
+            font-size: 0.8rem;
+            color: var(--text-dim);
             font-weight: normal;
             margin-top: 4px;
+            font-family: 'Courier New', monospace;
         }
 
         #action-menu {
@@ -193,17 +265,17 @@
 
         #link-box {
             width: 100%;
-            padding: 10px;
-            background: #000;
-            color: #0f0;
-            border: 1px solid #4fc3f7;
+            padding: 12px;
+            background: rgba(10, 10, 10, 0.8);
+            color: var(--green);
+            border: 1px solid rgba(79, 195, 247, 0.3);
+            border-radius: 8px;
             font-family: monospace;
-            box-sizing: border-box;
             word-break: break-all;
+            resize: none;
         }
 
-        #intermission-screen,
-        #win-screen {
+        #intermission-screen, #win-screen {
             display: none;
             position: relative;
             z-index: 200;
@@ -212,17 +284,15 @@
         .overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(5, 5, 5, 0.95);
+            backdrop-filter: blur(4px);
             z-index: 100;
             flex-direction: column;
             justify-content: flex-start;
             align-items: center;
             padding: 20px;
-            box-sizing: border-box;
             overflow-y: auto;
         }
 
@@ -237,66 +307,208 @@
         }
 
         .card {
-            background: #2e2e2e;
-            border: 2px solid #d4c4a8;
-            padding: 15px;
+            background: var(--bg-card);
+            border: 1px solid rgba(212, 196, 168, 0.35);
+            border-radius: 10px;
+            padding: 18px;
             flex: 1 1 45%;
             cursor: pointer;
             text-align: center;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            transition: transform 0.1s;
-            box-sizing: border-box;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .card:hover {
+            border-color: rgba(212, 196, 168, 0.6);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
         }
 
         .card:active {
-            transform: scale(0.95);
-            border-color: #00e5ff;
+            transform: scale(0.97);
+            border-color: var(--blue);
         }
 
         .card.disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
-            border-color: #4a4036;
+            border-color: rgba(100, 90, 80, 0.2);
+            transform: none;
+            box-shadow: none;
         }
 
         .card.bought {
-            border-color: #81c784;
-            background: #1b261c;
+            border-color: rgba(92, 184, 92, 0.5);
+            background: rgba(20, 40, 25, 0.8);
             cursor: default;
         }
 
         .card h3 {
             margin: 0;
-            color: #fff176;
-            border-bottom: 1px solid #4a4036;
-            padding-bottom: 5px;
+            color: var(--gold);
+            border-bottom: 1px solid rgba(180, 150, 100, 0.2);
+            padding-bottom: 8px;
             font-size: 1.1rem;
+            font-family: 'MedievalSharp', cursive;
         }
 
         .card p {
             margin: 0;
             font-size: 0.85rem;
             flex-grow: 1;
+            color: var(--text-dim);
+            line-height: 1.4;
         }
 
         .card .cost {
             font-weight: bold;
-            color: #00e5ff;
+            color: var(--blue);
             font-size: 0.9rem;
             margin-top: 5px;
+        }
+
+        /* === LOGO === */
+        .game-logo {
+            width: 110px; height: 110px;
+            border-radius: 50%;
+            border: 2px solid rgba(212, 175, 120, 0.3);
+            margin: 0 auto 5px;
+            box-shadow: 0 0 30px rgba(232, 184, 74, 0.15);
+            object-fit: cover;
+        }
+
+        /* === TOAST NOTIFICATIONS === */
+        #toast-container {
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+
+        .toast {
+            padding: 10px 24px;
+            background: var(--bg-panel);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+            animation: toastIn 0.35s ease, toastOut 0.35s ease 2.2s forwards;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+            white-space: nowrap;
+            font-family: 'MedievalSharp', cursive;
+            font-size: 0.9rem;
+        }
+
+        .toast.error { border-color: rgba(255, 51, 85, 0.5); color: #ff5555; }
+        .toast.success { border-color: rgba(92, 184, 92, 0.5); color: #5cb85c; }
+        .toast.info { border-color: rgba(79, 195, 247, 0.5); color: var(--blue); }
+        .toast.gold { border-color: rgba(232, 184, 74, 0.5); color: var(--gold); }
+
+        /* === EVENT OVERLAY === */
+        #event-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.88);
+            z-index: 250;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .event-card {
+            background: var(--bg-panel);
+            border: 1px solid rgba(232, 184, 74, 0.4);
+            border-radius: 14px;
+            padding: 35px 30px;
+            max-width: 360px;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(232, 184, 74, 0.1), 0 20px 50px rgba(0,0,0,0.5);
+            animation: fadeInUp 0.5s ease 0.15s both;
+        }
+
+        .event-card .event-icon { font-size: 2.5rem; margin-bottom: 12px; }
+        .event-card h2 { color: var(--gold); margin: 0 0 12px; font-size: 1.3rem; letter-spacing: 1px; }
+        .event-card p { color: var(--text-dim); margin: 0 0 22px; line-height: 1.5; font-size: 0.9rem; }
+
+        /* === SCOREBOARD === */
+        #scoreboard {
+            position: fixed;
+            top: max(12px, env(safe-area-inset-top));
+            left: max(12px, env(safe-area-inset-left));
+            background: var(--bg-panel);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            z-index: 150;
+            display: none;
+            pointer-events: none;
+        }
+
+        .score-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; opacity: 0.9; }
+        .score-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; box-shadow: 0 0 4px currentColor; }
+        .score-dead { opacity: 0.25; text-decoration: line-through; }
+
+        /* === VETERAN STAR === */
+        .vet-star { color: var(--gold); font-size: 0.7rem; }
+
+        /* === ANIMATIONS === */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(25px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(-15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes toastOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 8px rgba(232, 184, 74, 0.15); }
+            50% { box-shadow: 0 0 25px rgba(232, 184, 74, 0.4); }
+        }
+
+        #win-screen h1 {
+            font-family: 'MedievalSharp', cursive;
+            text-shadow: 0 0 30px rgba(232, 184, 74, 0.5);
+            animation: pulseGlow 2s ease infinite;
         }
     </style>
 </head>
 
 <body>
 
+    <div id="toast-container"></div>
     <h2 id="main-title">Dark Ages</h2>
     <div id="resource-hud">💰 0 <span class="income-text">(+0)</span> | 🪵 0 <span class="income-text">(+0)</span></div>
+    <div id="scoreboard"></div>
 
     <div id="setup-screen" class="screen-box">
-        <h3 style="margin-top: 0;">Spiel erstellen</h3>
+        <img src="Icon.png" alt="Dark Ages" class="game-logo">
+        <h3 style="margin-top: 0; font-family: 'MedievalSharp', cursive; font-size: 1.3rem; color: var(--gold);">Spiel erstellen</h3>
         <div class="setup-group">
             <label>Kartengröße:</label>
             <select id="map-size">
@@ -347,6 +559,21 @@
             onclick="document.getElementById('research-overlay').style.display='none'">Schließen</button>
     </div>
 
+    <div id="dip-overlay" class="screen-box" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 20; min-width: 300px; flex-direction: column;">
+        <h3 style="margin-top: 0; font-family: 'MedievalSharp', cursive; color: var(--gold);">Diplomatie</h3>
+        <div id="dip-content" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        <button class="action-btn" style="margin-top: 15px;" onclick="document.getElementById('dip-overlay').style.display='none'">Schließen</button>
+    </div>
+
+    <div id="event-overlay">
+        <div class="event-card" id="event-card">
+            <div class="event-icon" id="event-icon"></div>
+            <h2 id="event-title"></h2>
+            <p id="event-desc"></p>
+            <button class="action-btn" onclick="dismissEvent()">Weiter</button>
+        </div>
+    </div>
+
     <div id="canvas-wrapper"><canvas id="gameCanvas"></canvas></div>
     <div id="ui-container">
         <div id="info-panel">Lade Spielstand...</div>
@@ -357,6 +584,9 @@
             <button id="research-btn" class="action-btn"
                 style="background: #1a237e; border-color: #3949ab; display: none; flex: 1;" onclick="openResearch()">📜
                 Forschung</button>
+            <button id="dip-btn" class="action-btn"
+                style="background: #5e35b1; border-color: #7e57c2; display: none; flex: 1;" onclick="openDiplomacy()">🤝
+                Diplomatie</button>
         </div>
         <button id="end-turn-btn" class="action-btn">Zug beenden & Link generieren</button>
     </div>
@@ -412,6 +642,12 @@
         const waShareBtn = document.getElementById('wa-share-btn');
         const resourceHud = document.getElementById('resource-hud');
         const mainTitle = document.getElementById('main-title');
+        const toastContainer = document.getElementById('toast-container');
+        const scoreboard = document.getElementById('scoreboard');
+        const eventOverlay = document.getElementById('event-overlay');
+        const eventIcon = document.getElementById('event-icon');
+        const eventTitle = document.getElementById('event-title');
+        const eventDesc = document.getElementById('event-desc');
 
         const mapSizeSelect = document.getElementById('map-size');
         const playerCountSelect = document.getElementById('player-count');
@@ -447,6 +683,10 @@
             if (attackerUnit.t === 4 && targetType === 'building' && pState.u.includes(3)) dmg += 3;
             if (pState.u.includes(4) && getTerrainType(gameState, attackerUnit.x, attackerUnit.y) === 'forest') dmg += 1;
             if (attackerUnit.t === 6 && pState.u.includes(7)) dmg += 2;
+            // Hill bonus: ranged units on hills get +1 DMG
+            if (!stats.isMelee && getTerrainType(gameState, attackerUnit.x, attackerUnit.y) === 'hill') dmg += 1;
+            // Veteran bonus
+            dmg += getVeteranBonus(attackerUnit);
 
             const maxHp = getUnitMaxHp(pState, attackerUnit.t);
             return Math.max(1, Math.round(dmg * (attackerUnit.h / maxHp)));
@@ -455,24 +695,108 @@
         let gameState = null; let turnActions = []; let showRecap = true; 
         
         window.specialActive = null;
+        let pendingEvent = null;
+
+        // --- TOAST NOTIFICATION SYSTEM ---
+        function showToast(msg, type = 'info') {
+            const t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.textContent = msg;
+            toastContainer.appendChild(t);
+            setTimeout(() => t.remove(), 2600);
+        }
+
+        // --- SCOREBOARD ---
+        function updateScoreboard() {
+            if (!gameState || !scoreboard) return;
+            let scores = gameState.p.map((p, i) => {
+                const vCount = Object.values(gameState.v).filter(v => v === i).length;
+                const uCount = gameState.u.filter(u => u.p === i).length;
+                const isDead = p.dead === 1;
+                // Calculate points: 10 per village, 5 per unit, 1 per gold
+                const score = vCount * 10 + uCount * 5 + p.g;
+                return { p, i, isDead, score };
+            });
+            scores.sort((a, b) => b.score - a.score);
+
+            let html = '';
+            scores.forEach(s => {
+                html += `<div class="score-row ${s.isDead ? 'score-dead' : ''}">`;
+                html += `<span class="score-dot" style="color:${playerColors[s.i]};background:${playerColors[s.i]}"></span>`;
+                html += `<span>${s.p.n}: ${s.isDead ? 'Ausgeschieden' : s.score + ' Punkte'}</span>`;
+                html += `</div>`;
+            });
+            scoreboard.innerHTML = html;
+        }
+
+        // --- EVENT SYSTEM ---
+        const gameEvents = [
+            { icon: '☠️', name: 'Pest', desc: 'Eine Seuche breitet sich aus! Alle Einheiten verlieren 1 HP.', effect: (gs) => { gs.u.forEach(u => { u.h = Math.max(1, u.h - 1); }); }},
+            { icon: '💰', name: 'Goldrausch', desc: 'Reiche Goldadern entdeckt! Alle Spieler erhalten +5 Gold.', effect: (gs) => { gs.p.forEach(p => { if (!p.dead) p.g += 5; }); }},
+            { icon: '🌲', name: 'Reiche Ernte', desc: 'Die Wälder blühen! Alle Spieler erhalten +3 Holz.', effect: (gs) => { gs.p.forEach(p => { if (!p.dead) p.m += 3; }); }},
+            { icon: '⚔️', name: 'Kriegslust', desc: 'Ein Hauch von Aggression liegt in der Luft! Alle Einheiten erhalten +2 HP.', effect: (gs) => { gs.u.forEach(u => { const max = getUnitMaxHp(gs.p[u.p], u.t); u.h = Math.min(max + 2, u.h + 2); }); }},
+            { icon: '🌑', name: 'Finstere Nacht', desc: 'Dunkelheit verschlingt das Land. Sichtweite reduziert für diese Runde.', effect: (gs) => { /* thematic, no mechanical effect */ }},
+            { icon: '🏰', name: 'Befestigung', desc: 'Die Dörfer werden verstärkt! Alle Hauptgebäude heilen +5 HP.', effect: (gs) => { gs.p.forEach(p => { if (!p.dead) p.sh = Math.min(30, p.sh + 5); }); }}
+        ];
+
+        function checkForEvent() {
+            if (!gameState || gameState.rn < 3) return null;
+            const eventRng = createPRNG(gameState.sd + gameState.rn * 7);
+            if (eventRng() > 0.3) return null; // 30% chance per round
+            const idx = Math.floor(eventRng() * gameEvents.length);
+            return gameEvents[idx];
+        }
+
+        function showEvent(evt) {
+            pendingEvent = evt;
+            eventIcon.textContent = evt.icon;
+            eventTitle.textContent = evt.name;
+            eventDesc.textContent = evt.desc;
+            eventOverlay.style.display = 'flex';
+        }
+
+        window.dismissEvent = function() {
+            if (pendingEvent) {
+                pendingEvent = null;
+            }
+            eventOverlay.style.display = 'none';
+            renderBoard(gameState);
+        };
+
+        // --- VETERANEN SYSTEM ---
+        function checkVeteran(unit) {
+            if (!unit.k) unit.k = 0;
+            unit.k++;
+            if (unit.k >= 2 && !unit.vet) {
+                unit.vet = 1;
+                showToast(`⭐ ${unitStats[unit.t].name} wird zum Veteranen!`, 'gold');
+            }
+        }
+
+        function getVeteranBonus(unit) {
+            return unit.vet ? 1 : 0;
+        }
 
         // --- KAMERA VARIABLEN ---
         let camX = 0; let camY = 0; let camScale = 1.0;
 
         // --- ANIMATIONS-SYSTEM ---
         let floatingTexts = [];
+        let attackAnims = [];
         let isAnimating = false;
 
         function spawnFloatingText(x, y, text, color) {
             floatingTexts.push({ x, y, text, color, life: 1.0, dy: 0 });
-            if (!isAnimating) {
-                isAnimating = true;
-                requestAnimationFrame(animateLoop);
-            }
+            if (!isAnimating) { isAnimating = true; requestAnimationFrame(animateLoop); }
+        }
+
+        function spawnAttackAnim(fromX, fromY, toX, toY, type) {
+            attackAnims.push({ fromX, fromY, toX, toY, type, progress: 0 });
+            if (!isAnimating) { isAnimating = true; requestAnimationFrame(animateLoop); }
         }
 
         function animateLoop() {
-            if (floatingTexts.length === 0) {
+            if (floatingTexts.length === 0 && attackAnims.length === 0) {
                 isAnimating = false;
                 drawScene(gameState);
                 return;
@@ -484,12 +808,73 @@
             ctx.translate(camX, camY);
             ctx.scale(camScale, camScale);
 
+            // Attack animations
+            let aliveAnims = [];
+            for (let anim of attackAnims) {
+                anim.progress += anim.type === 'slash' ? 0.03 : 0.06;
+                if (anim.progress > 1) continue;
+                aliveAnims.push(anim);
+
+                const tTerrain = getTerrainType(gameState, anim.toX, anim.toY);
+                const tElev = tTerrain === 'hill' ? -thickness : 0;
+                const fTerrain = getTerrainType(gameState, anim.fromX, anim.fromY);
+                const fElev = fTerrain === 'hill' ? -thickness : 0;
+                const from = getHexCenter(anim.fromX, anim.fromY);
+                const to = getHexCenter(anim.toX, anim.toY);
+                const p = anim.progress;
+
+                if (anim.type === 'slash') {
+                    const alpha = p < 0.5 ? p * 2 : (1 - p) * 2;
+                    ctx.globalAlpha = alpha;
+                    ctx.strokeStyle = '#ff6e40';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    const r = 14;
+                    const startAngle = -Math.PI * 0.8 + p * Math.PI * 0.6;
+                    ctx.arc(to.px, to.py + tElev - 4, r, startAngle, startAngle + Math.PI * 0.8);
+                    ctx.stroke();
+                    ctx.strokeStyle = '#ffab40';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                } else if (anim.type === 'arrow') {
+                    ctx.globalAlpha = 1;
+                    const cx = from.px + (to.px - from.px) * p;
+                    const cy = (from.py + fElev) + ((to.py + tElev) - (from.py + fElev)) * p - Math.sin(p * Math.PI) * 20;
+                    const angle = Math.atan2((to.py + tElev) - (from.py + fElev), to.px - from.px);
+                    ctx.save();
+                    ctx.translate(cx, cy);
+                    ctx.rotate(angle);
+                    ctx.fillStyle = '#c0c0c0';
+                    ctx.beginPath();
+                    ctx.moveTo(6, 0); ctx.lineTo(-4, -3); ctx.lineTo(-4, 3);
+                    ctx.closePath(); ctx.fill();
+                    ctx.strokeStyle = '#8a8a8a'; ctx.lineWidth = 1.5;
+                    ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(-12, 0); ctx.stroke();
+                    ctx.restore();
+                } else if (anim.type === 'fire') {
+                    const alpha = p < 0.4 ? 1 : Math.max(0, 1 - (p - 0.4) / 0.6);
+                    ctx.globalAlpha = alpha;
+                    const rng = createPRNG(Math.floor(p * 20));
+                    for (let i = 0; i < 8; i++) {
+                        const px2 = to.px + (rng() - 0.5) * 24;
+                        const py2 = to.py + tElev + (rng() - 0.5) * 16 - p * 15;
+                        const sz = 2 + rng() * 4;
+                        ctx.fillStyle = rng() > 0.5 ? '#ff6e40' : '#ffab00';
+                        ctx.beginPath(); ctx.arc(px2, py2, sz, 0, Math.PI * 2); ctx.fill();
+                    }
+                }
+            }
+            attackAnims = aliveAnims;
+
+            // Floating texts
             let stillAlive = [];
             for (let ft of floatingTexts) {
                 ft.life -= 0.025;
                 ft.dy -= 0.8;
                 if (ft.life > 0) stillAlive.push(ft);
 
+                const tTerrain = getTerrainType(gameState, ft.x, ft.y);
+                const tElev = tTerrain === 'hill' ? -thickness : 0;
                 const center = getHexCenter(ft.x, ft.y);
                 ctx.globalAlpha = Math.max(0, ft.life);
                 ctx.fillStyle = ft.color;
@@ -497,7 +882,7 @@
                 ctx.textAlign = "center";
                 ctx.strokeStyle = "#000";
                 ctx.lineWidth = 4;
-                const textY = center.py - 25 + ft.dy;
+                const textY = center.py + tElev - 25 + ft.dy;
                 ctx.strokeText(ft.text, center.px, textY);
                 ctx.fillText(ft.text, center.px, textY);
             }
@@ -672,7 +1057,13 @@
         const yOffset = hexHeight * 0.75;
         const thickness = 12;
         const yCompress = 0.65;
-        const terrainColors = { grass: { top: "#2e3b32", side: "#1a241d" }, forest: { top: "#1b261c", side: "#0d140e" }, hill: { top: "#4a4036", side: "#2b241e" }, black: { top: "#000", side: "#000" } };
+        const terrainColors = {
+            grass: { top: "#2e3b32", side: "#1a241d" },
+            forest: { top: "#1b261c", side: "#0d140e" },
+            hill: { top: "#5a4d40", side: "#3b2e22", sideBottom: "#2b1e14" },
+            black: { top: "#000", side: "#000" }
+        };
+        const hillThickness = thickness * 2;
 
         let selectedHex = null; let selectedUnit = null; let validMoves = []; let validAttacks = [];
 
@@ -719,9 +1110,12 @@
 
         function calculateAttacks(unit) {
             const stats = unitStats[unit.t]; let attacks = [];
-            for (let enemy of gameState.u.filter(u => u.p !== unit.p && u.iv !== 1)) if (hexDistance({ x: unit.x, y: unit.y }, { x: enemy.x, y: enemy.y }) <= stats.range) attacks.push({ x: enemy.x, y: enemy.y, target: enemy });
+            const pState = gameState.p[gameState.cp];
+            const canAttack = (targetId) => !(pState.al && pState.al.includes(targetId)) && !(pState.tc && pState.tc.includes(targetId));
+
+            for (let enemy of gameState.u.filter(u => u.p !== unit.p && u.iv !== 1 && canAttack(u.p))) if (hexDistance({ x: unit.x, y: unit.y }, { x: enemy.x, y: enemy.y }) <= stats.range) attacks.push({ x: enemy.x, y: enemy.y, target: enemy });
             for (let i = 0; i < gameState.p.length; i++) {
-                if (i !== unit.p && gameState.p[i].dead === 0) {
+                if (i !== unit.p && gameState.p[i].dead === 0 && canAttack(i)) {
                     let [vx, vy] = gameState.p[i].sv.split(',').map(Number);
                     if (hexDistance({ x: unit.x, y: unit.y }, { x: vx, y: vy }) <= stats.range) attacks.push({ x: vx, y: vy, isBuilding: true, owner: i });
                 }
@@ -729,18 +1123,24 @@
         }
 
         function getVisibleHexes(playerId) {
-            let visible = new Set(); const pState = gameState.p[playerId]; if (pState.dead) return visible;
-            const sightRange = pState.f && pState.f.includes(2) ? 3 : 2;
-            const myUnits = gameState.u.filter(u => u.p === playerId); const myVillages = Object.entries(gameState.v).filter(([k, v]) => v === playerId).map(([k, v]) => k.split(',').map(Number));
-            for (let y = 0; y < gameState.bh; y++) {
-                for (let x = 0; x < gameState.bw; x++) {
-                    if (!isInsideMap(gameState, x, y)) continue; 
-                    let isVis = false;
-                    for (let u of myUnits) if (hexDistance({ x, y }, { x: u.x, y: u.y }) <= sightRange) { isVis = true; break; }
-                    if (!isVis) { for (let [vx, vy] of myVillages) if (hexDistance({ x, y }, { x: vx, y: vy }) <= sightRange) { isVis = true; break; } }
-                    if (isVis) visible.add(`${x},${y}`);
+            let visible = new Set(); const mainState = gameState.p[playerId]; if (mainState.dead) return visible;
+            const addV = (pId) => {
+                const pState = gameState.p[pId];
+                const sightRange = pState.f && pState.f.includes(2) ? 3 : 2;
+                const myUnits = gameState.u.filter(u => u.p === pId); const myVillages = Object.entries(gameState.v).filter(([k, v]) => v === pId).map(([k, v]) => k.split(',').map(Number));
+                for (let y = 0; y < gameState.bh; y++) {
+                    for (let x = 0; x < gameState.bw; x++) {
+                        if (!isInsideMap(gameState, x, y) || visible.has(`${x},${y}`)) continue; 
+                        let isVis = false;
+                        for (let u of myUnits) if (hexDistance({ x, y }, { x: u.x, y: u.y }) <= sightRange) { isVis = true; break; }
+                        if (!isVis) { for (let [vx, vy] of myVillages) if (hexDistance({ x, y }, { x: vx, y: vy }) <= sightRange) { isVis = true; break; } }
+                        if (isVis) visible.add(`${x},${y}`);
+                    }
                 }
-            } return visible;
+            };
+            addV(playerId);
+            if (mainState.al) mainState.al.forEach(allyId => addV(allyId));
+            return visible;
         }
 
         function updateExploration() {
@@ -759,13 +1159,14 @@
             if (type === 'ritter') {
                 pState.m -= 3;
                 let dmgDone = false;
-                gameState.u.filter(u => u.p !== gameState.cp && hexDistance({x: u.x, y: u.y}, {x: selectedUnit.x, y: selectedUnit.y}) <= 1).forEach(enemy => {
+                const canAttack = (targetId) => !(pState.al && pState.al.includes(targetId)) && !(pState.tc && pState.tc.includes(targetId));
+                gameState.u.filter(u => u.p !== gameState.cp && canAttack(u.p) && hexDistance({x: u.x, y: u.y}, {x: selectedUnit.x, y: selectedUnit.y}) <= 1).forEach(enemy => {
                     enemy.h -= 4; spawnFloatingText(enemy.x, enemy.y, "-4", "#ff5252"); dmgDone = true;
                 });
                 gameState.u = gameState.u.filter(u => u.h > 0);
                 
                 for(let i=0; i<gameState.p.length; i++) {
-                    if(i !== gameState.cp && gameState.p[i].dead === 0) {
+                    if(i !== gameState.cp && gameState.p[i].dead === 0 && canAttack(i)) {
                         let [vx,vy] = gameState.p[i].sv.split(',').map(Number);
                         if(hexDistance({x:vx, y:vy}, {x: selectedUnit.x, y: selectedUnit.y}) <= 1) {
                             gameState.p[i].sh -= 4; spawnFloatingText(vx, vy, "-4", "#ff5252"); dmgDone = true;
@@ -777,7 +1178,7 @@
                         }
                     }
                 }
-                selectedUnit.a = 1; turnActions.push({x: selectedUnit.x, y: selectedUnit.y});
+                selectedUnit.a = 1; turnActions.push({x: selectedUnit.x, y: selectedUnit.y, t: 'atk'});
                 selectedUnit = null; validMoves = []; validAttacks = []; hideActionMenu(); 
                 if (dmgDone) { infoPanel.innerHTML = `🌀 Rundumschlag ausgeführt!`; }
                 renderBoard(gameState);
@@ -824,37 +1225,93 @@
 
         function drawHex(x, y, terrainType, applyShroud, isRecap) {
             const center = getHexCenter(x, y); const colors = terrainColors[terrainType] || terrainColors.grass;
+            const isHill = terrainType === 'hill';
+            const th = isHill ? hillThickness : thickness;
 
-            drawHexPath(center.px, center.py + thickness);
-            ctx.fillStyle = colors.side; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.stroke();
-
-            drawHexPath(center.px, center.py);
-            ctx.fillStyle = colors.top; ctx.fill(); ctx.stroke();
-
-            if (terrainType === 'forest' && !applyShroud) {
-                ctx.fillStyle = "#0d140e";
-                ctx.beginPath(); ctx.moveTo(center.px, center.py - 5); ctx.lineTo(center.px - 6, center.py + 6); ctx.lineTo(center.px + 6, center.py + 6); ctx.fill();
-                ctx.beginPath(); ctx.moveTo(center.px - 8, center.py - 2); ctx.lineTo(center.px - 14, center.py + 8); ctx.lineTo(center.px - 2, center.py + 8); ctx.fill();
-                ctx.beginPath(); ctx.moveTo(center.px + 8, center.py + 1); ctx.lineTo(center.px + 2, center.py + 11); ctx.lineTo(center.px + 14, center.py + 11); ctx.fill();
+            // Side (pillar)
+            if (isHill) {
+                // Gradient side for hills: lighter at top, darker at bottom
+                drawHexPath(center.px, center.py + th);
+                ctx.fillStyle = colors.sideBottom || colors.side; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.stroke();
+                drawHexPath(center.px, center.py + th * 0.5);
+                ctx.fillStyle = colors.side; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.6)"; ctx.stroke();
+            } else {
+                drawHexPath(center.px, center.py + th);
+                ctx.fillStyle = colors.side; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.stroke();
             }
 
-            if (applyShroud) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(0, 0, 0, 0.65)"; ctx.fill(); }
-            if (isRecap) { ctx.fillStyle = "rgba(255, 165, 0, 0.4)"; ctx.fill(); ctx.strokeStyle = "orange"; ctx.lineWidth = 2; ctx.stroke(); }
-            if (selectedHex && selectedHex.x === x && selectedHex.y === y) { ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); }
-            if (validMoves.some(m => m.x === x && m.y === y)) { ctx.fillStyle = "rgba(100, 255, 100, 0.3)"; ctx.fill(); }
-            if (validAttacks.some(a => a.x === x && a.y === y)) { ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
+            // Top face
+            const topY = isHill ? center.py - thickness : center.py;
+            drawHexPath(center.px, topY);
+            ctx.fillStyle = colors.top; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.6)"; ctx.lineWidth = 1; ctx.stroke();
+
+            // Terrain decoration
+            const rng = createPRNG(x * 1000 + y);
+            if (terrainType === 'forest' && !applyShroud) {
+                const treeColors = ['#0d140e', '#1b3a1e', '#15291a', '#0a1f0d', '#2a4430'];
+                const treePositions = [
+                    { dx: 0, dy: -4, sz: 7 },
+                    { dx: -9, dy: 2, sz: 6 },
+                    { dx: 8, dy: 3, sz: 5 },
+                    { dx: -4, dy: -1, sz: 5 },
+                    { dx: 5, dy: -2, sz: 4 }
+                ];
+                treePositions.forEach((t, i) => {
+                    const tx = center.px + t.dx + (rng() - 0.5) * 3;
+                    const ty = center.py + t.dy + (rng() - 0.5) * 2;
+                    // Trunk
+                    ctx.strokeStyle = '#3e2723'; ctx.lineWidth = 1.5;
+                    ctx.beginPath(); ctx.moveTo(tx, ty + t.sz); ctx.lineTo(tx, ty + t.sz + 4); ctx.stroke();
+                    // Canopy
+                    ctx.fillStyle = treeColors[i % treeColors.length];
+                    ctx.beginPath(); ctx.moveTo(tx, ty - t.sz); ctx.lineTo(tx - t.sz, ty + t.sz); ctx.lineTo(tx + t.sz, ty + t.sz); ctx.fill();
+                    // Lighter highlight
+                    ctx.fillStyle = 'rgba(100,180,100,0.15)';
+                    ctx.beginPath(); ctx.moveTo(tx, ty - t.sz); ctx.lineTo(tx - t.sz * 0.4, ty + t.sz * 0.3); ctx.lineTo(tx + t.sz * 0.2, ty + t.sz * 0.3); ctx.fill();
+                });
+            } else if (isHill && !applyShroud) {
+                // Stone/rock details on hilltop
+                for (let i = 0; i < 3; i++) {
+                    const sx = center.px + (rng() - 0.5) * 16;
+                    const sy = topY + (rng() - 0.5) * 8;
+                    ctx.fillStyle = rng() > 0.5 ? '#6d6056' : '#5a4d40';
+                    ctx.beginPath(); ctx.ellipse(sx, sy, 2 + rng() * 2, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+                }
+                // Ridge line
+                ctx.strokeStyle = 'rgba(100,90,80,0.3)'; ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(center.px - 8, topY + 2); ctx.lineTo(center.px + 6, topY - 1);
+                ctx.stroke();
+            } else if (terrainType === 'grass' && !applyShroud) {
+                // Subtle grass strokes
+                ctx.strokeStyle = 'rgba(80,130,80,0.25)'; ctx.lineWidth = 1;
+                for (let i = 0; i < 3; i++) {
+                    const gx = center.px + (rng() - 0.5) * 18;
+                    const gy = center.py + (rng() - 0.5) * 10;
+                    ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx + (rng() - 0.5) * 4, gy - 3 - rng() * 2); ctx.stroke();
+                }
+            }
+
+            // Overlays
+            if (applyShroud) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(0, 0, 0, 0.65)"; ctx.fill(); }
+            if (isRecap) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 165, 0, 0.4)"; ctx.fill(); ctx.strokeStyle = "orange"; ctx.lineWidth = 2; ctx.stroke(); }
+            if (selectedHex && selectedHex.x === x && selectedHex.y === y) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); }
+            if (validMoves.some(m => m.x === x && m.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(100, 255, 100, 0.3)"; ctx.fill(); }
+            if (validAttacks.some(a => a.x === x && a.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
         }
 
-        function drawEntity(x, y, color, hasActed, hp, maxHp, spriteKey, isStealth) {
+        function drawEntity(x, y, color, hasActed, hp, maxHp, spriteKey, isStealth, unit) {
             const center = getHexCenter(x, y);
+            const tType = getTerrainType(gameState, x, y);
+            const elevation = tType === 'hill' ? -thickness : 0;
             ctx.globalAlpha = isStealth ? 0.3 : (hasActed ? 0.4 : 1.0);
 
             ctx.fillStyle = "rgba(0,0,0,0.5)";
             ctx.beginPath();
-            ctx.ellipse(center.px, center.py, 12, 6, 0, 0, Math.PI * 2);
+            ctx.ellipse(center.px, center.py + elevation, 12, 6, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            const offsetY = -2;
+            const offsetY = -2 + elevation;
             drawPixelSprite(ctx, center.px, center.py + offsetY, spriteKey, color);
 
             if (hp !== undefined && maxHp !== undefined) {
@@ -864,8 +1321,119 @@
                 ctx.fillStyle = "#00e676"; ctx.fillRect(center.px - barW / 2, barY, barW * pct, barH);
                 ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.strokeRect(center.px - barW / 2, barY, barW, barH);
             }
+            // Veteran star indicator
+            if (unit && unit.vet) {
+                ctx.fillStyle = '#e8b84a';
+                ctx.font = 'bold 10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.strokeText('★', center.px, center.py + offsetY - 14);
+                ctx.fillText('★', center.px, center.py + offsetY - 14);
+            }
             ctx.globalAlpha = 1.0;
         }
+
+        window.openDiplomacy = function() {
+            const content = document.getElementById('dip-content');
+            content.innerHTML = '';
+            const pState = gameState.p[gameState.cp];
+
+            const hasAlliance = pState.al && pState.al.length > 0;
+            const hasOutReq = gameState.p.some(p => p.req && p.req.includes(gameState.cp));
+            const maxReached = hasAlliance || hasOutReq;
+
+            gameState.p.forEach((p, i) => {
+                if (i === gameState.cp || p.dead) return;
+                
+                let actionBtn = '';
+                if (pState.al && pState.al.includes(i)) {
+                    actionBtn = `<button class="action-btn" style="background: #e53935; padding: 4px 8px; font-size: 0.8rem;" onclick="breakAlliance(${i})">💔 Brechen</button>`;
+                } else if (pState.req && pState.req.includes(i)) {
+                    actionBtn = `<button class="action-btn" style="background: #43a047; padding: 4px 8px; font-size: 0.8rem;" onclick="acceptAlliance(${i})">🤝 Annehmen (5💰 5🪵)</button>
+                                 <button class="action-btn" style="background: #888; padding: 4px 8px; font-size: 0.8rem; margin-top: 5px;" onclick="rejectAlliance(${i})">❌ Ablehnen</button>`;
+                } else if (p.req && p.req.includes(gameState.cp)) {
+                    actionBtn = `<button class="action-btn" style="background: #e53935; padding: 4px 8px; font-size: 0.8rem;" onclick="withdrawAlliance(${i})">❌ Zurückziehen</button>`;
+                } else {
+                    if (maxReached) {
+                        actionBtn = `<button class="action-btn" style="background: #3949ab; padding: 4px 8px; font-size: 0.8rem; opacity: 0.5;" disabled>✉️ Anfragen (5💰 5🪵)</button>`;
+                    } else {
+                        actionBtn = `<button class="action-btn" style="background: #3949ab; padding: 4px 8px; font-size: 0.8rem;" onclick="sendAlliance(${i})">✉️ Anfragen (5💰 5🪵)</button>`;
+                    }
+                }
+
+                content.innerHTML += `
+                    <div style="display: flex; flex-direction: column; align-items: flex-end; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 5px;">
+                        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 5px;">
+                            <span style="color: ${playerColors[i]}">${p.n}</span>
+                        </div>
+                        <div style="display: flex; gap: 5px;">${actionBtn}</div>
+                    </div>
+                `;
+            });
+            document.getElementById('dip-overlay').style.display = 'flex';
+        };
+
+        window.sendAlliance = function(id) {
+            const pState = gameState.p[gameState.cp];
+            if (pState.g < 5 || pState.m < 5) {
+                showToast('Nicht genug Ressourcen! (5💰 5🪵 benötigt)', 'error'); return;
+            }
+            pState.g -= 5; pState.m -= 5;
+            if (!gameState.p[id].req) gameState.p[id].req = [];
+            if (!gameState.p[id].req.includes(gameState.cp)) gameState.p[id].req.push(gameState.cp);
+            showToast('Bündnisanfrage an ' + gameState.p[id].n + ' gesendet!', 'info');
+            openDiplomacy(); updateUI();
+        };
+
+        window.acceptAlliance = function(id) {
+            const pState = gameState.p[gameState.cp];
+            const hasAlliance = pState.al && pState.al.length > 0;
+            const hasOutReq = gameState.p.some(p => p.req && p.req.includes(gameState.cp));
+            if (hasAlliance || hasOutReq) { showToast('Du kannst nur 1 aktive Diplomatie haben!', 'error'); return; }
+            if (pState.g < 5 || pState.m < 5) {
+                showToast('Nicht genug Ressourcen zum Annehmen! (5💰 5🪵 benötigt)', 'error'); return;
+            }
+            pState.g -= 5; pState.m -= 5;
+            if (!pState.req) pState.req = [];
+            pState.req = pState.req.filter(reqId => reqId !== id);
+            
+            pState.req = [];
+
+            if (!pState.al) pState.al = [];
+            pState.al.push(id);
+            if (!gameState.p[id].al) gameState.p[id].al = [];
+            gameState.p[id].al.push(gameState.cp);
+            showToast('Bündnis mit ' + gameState.p[id].n + ' geschlossen!', 'gold');
+            openDiplomacy(); renderBoard(gameState); updateUI();
+        };
+
+        window.rejectAlliance = function(id) {
+            const pState = gameState.p[gameState.cp];
+            if (!pState.req) pState.req = [];
+            pState.req = pState.req.filter(reqId => reqId !== id);
+            showToast('Anfrage abgelehnt!', 'info');
+            openDiplomacy();
+        };
+
+        window.withdrawAlliance = function(id) {
+            if (gameState.p[id].req) {
+                gameState.p[id].req = gameState.p[id].req.filter(reqId => reqId !== gameState.cp);
+            }
+            showToast('Anfrage zurückgezogen!', 'info');
+            openDiplomacy();
+        };
+
+        window.breakAlliance = function(id) {
+            const pState = gameState.p[gameState.cp];
+            if (!pState.al) pState.al = [];
+            pState.al = pState.al.filter(alId => alId !== id);
+            if (gameState.p[id].al) gameState.p[id].al = gameState.p[id].al.filter(alId => alId !== gameState.cp);
+            if (!pState.tc) pState.tc = [];
+            pState.tc.push(id);
+            showToast('Bündnis gebrochen! Waffenruhe für diese Runde.', 'error');
+            openDiplomacy(); renderBoard(gameState);
+        };
 
         function updateUI() {
             const pId = gameState.cp; const pState = gameState.p[pId];
@@ -879,6 +1447,7 @@
             if (!selectedUnit && !selectedHex && window.specialActive !== 'tribok') infoPanel.innerHTML = `Runde ${gameState.rn} | ${pState.n} ist am Zug.<div class="info-detail">Tippe auf Einheiten oder Dörfer für Details.</div>`;
 
             upgradeBtn.style.display = 'block'; researchBtn.style.display = pState.f.length > 0 ? 'block' : 'none';
+            document.getElementById('dip-btn').style.display = (gameState.p.length >= 4 && gameState.rn >= 5) ? 'block' : 'none';
             if (pState.f.length === 0) {
                 upgradeBtn.innerText = "✨ 1. Kultur (10 Holz)";
                 if (myVillages >= 2 && pState.m >= 10) { upgradeBtn.style.opacity = "1"; upgradeBtn.onclick = () => openDraft(10); }
@@ -888,6 +1457,7 @@
                 if (myVillages >= 4 && pState.m >= 30) { upgradeBtn.style.opacity = "1"; upgradeBtn.onclick = () => openDraft(30); }
                 else { upgradeBtn.style.opacity = "0.5"; upgradeBtn.onclick = () => { infoPanel.innerText = `Für 2. Kultur fehlt:\n🏘️ ${Math.max(0, 4 - myVillages)} weitere Dörfer\n🪵 ${Math.max(0, 30 - pState.m)} Holz`; }; }
             } else { upgradeBtn.style.display = 'none'; }
+            updateScoreboard();
         }
 
         function hideActionMenu() { actionMenu.style.display = 'none'; actionMenu.innerHTML = ''; }
@@ -949,16 +1519,16 @@
                     gameState.p[gameState.cp].g -= cost; let nextId = Math.max(...gameState.u.map(u => u.i), 0) + 1;
                     const maxHp = getUnitMaxHp(gameState.p[gameState.cp], type);
                     gameState.u.push({ i: nextId, p: gameState.cp, t: type, x: selectedHex.x, y: selectedHex.y, h: maxHp, a: 1 });
-                    turnActions.push({ x: selectedHex.x, y: selectedHex.y });
+                    turnActions.push({ x: selectedHex.x, y: selectedHex.y, t: 'buy' });
                     selectedHex = null; hideActionMenu(); renderBoard(gameState);
-                } else { alert("Nicht genug Gold!"); }
+                } else { showToast('Nicht genug Gold!', 'error'); }
             }
         }
 
         window.startCapture = function () {
             if (selectedUnit) {
                 const loc = `${selectedUnit.x},${selectedUnit.y}`;
-                gameState.v[loc] = gameState.cp; selectedUnit.a = 1; turnActions.push({ x: selectedUnit.x, y: selectedUnit.y });
+                gameState.v[loc] = gameState.cp; selectedUnit.a = 1; turnActions.push({ x: selectedUnit.x, y: selectedUnit.y, t: 'cap' });
                 selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
                 hideActionMenu(); infoPanel.innerHTML = "Dorf eingenommen!"; renderBoard(gameState);
             }
@@ -1034,7 +1604,7 @@
                 } else if (item.type === 'unit') {
                     const u = item.unit;
                     const maxHp = getUnitMaxHp(gameState.p[u.p], u.t);
-                    drawEntity(u.x, u.y, playerColors[u.p], u.a === 1, u.h, maxHp, u.t, u.iv === 1);
+                    drawEntity(u.x, u.y, playerColors[u.p], u.a === 1, u.h, maxHp, u.t, u.iv === 1, u);
                 }
             });
 
@@ -1059,7 +1629,9 @@
                 for (let x = 0; x < gameState.bw; x++) {
                     if (!isInsideMap(gameState, x, y)) continue; 
                     const center = getHexCenter(x, y);
-                    const hitY = center.py + (thickness * 0.5);
+                    const tType = getTerrainType(gameState, x, y);
+                    const elev = tType === 'hill' ? -thickness : 0;
+                    const hitY = center.py + elev + (thickness * 0.5);
                     const dist = Math.sqrt((mouseX - center.px) ** 2 + ((mouseY - hitY) / yCompress) ** 2);
                     if (dist < minDist) { minDist = dist; closest = { x, y }; }
                 }
@@ -1079,21 +1651,23 @@
                 for (let i = 0; i < gameState.p.length; i++) { if (gameState.p[i].sv === `${clickedX},${clickedY}`) { isStart = true; svHp = gameState.p[i].sh; svOwner = i; } }
 
                 if (window.specialActive === 'tribok' && targetAttack && targetAttack.isTribokAoE) {
+                    spawnAttackAnim(selectedUnit.x, selectedUnit.y, targetAttack.x, targetAttack.y, 'fire');
                     let targets = [{x: targetAttack.x, y: targetAttack.y, dmg: 3}];
                     getNeighbors(targetAttack.x, targetAttack.y).forEach(n => targets.push({x: n.x, y: n.y, dmg: 2}));
                     
                     targets.forEach(t => {
-                        let uList = gameState.u.filter(u => u.x === t.x && u.y === t.y && u.p !== gameState.cp);
+                        const canAttack = (targetId) => !(pState.al && pState.al.includes(targetId)) && !(pState.tc && pState.tc.includes(targetId));
+                        let uList = gameState.u.filter(u => u.x === t.x && u.y === t.y && u.p !== gameState.cp && canAttack(u.p));
                         uList.forEach(u => { u.h -= t.dmg; spawnFloatingText(u.x, u.y, `-${t.dmg}`, "#ff5252"); });
                         for(let i=0; i<gameState.p.length; i++) {
-                            if(i !== gameState.cp && gameState.p[i].dead === 0 && gameState.p[i].sv === `${t.x},${t.y}`) {
+                            if(i !== gameState.cp && gameState.p[i].dead === 0 && canAttack(i) && gameState.p[i].sv === `${t.x},${t.y}`) {
                                 gameState.p[i].sh -= t.dmg; spawnFloatingText(t.x, t.y, `-${t.dmg}`, "#ff5252");
                                 if(gameState.p[i].sh <= 0) { gameState.p[i].dead = 1; gameState.u = gameState.u.filter(un => un.p !== i); gameState.v[`${t.x},${t.y}`] = gameState.cp; }
                             }
                         }
                     });
                     gameState.u = gameState.u.filter(u => u.h > 0);
-                    selectedUnit.a = 1; turnActions.push({x: targetAttack.x, y: targetAttack.y}); 
+                    selectedUnit.a = 1; turnActions.push({x: targetAttack.x, y: targetAttack.y, t: 'atk', fx: selectedUnit.x, fy: selectedUnit.y}); 
                     selectedUnit = null; validMoves = []; validAttacks = []; window.specialActive = null; renderBoard(gameState); return;
                 } else if (window.specialActive === 'tribok') {
                     window.specialActive = null; selectedUnit = null; validMoves = []; validAttacks = []; renderBoard(gameState); return;
@@ -1103,6 +1677,8 @@
                     if (selectedUnit.iv === 1) { delete selectedUnit.iv; selectedUnit.cd = 2; }
 
                     const finalDmg = getExpectedDamage(selectedUnit, targetAttack.isBuilding ? 'building' : 'unit', targetAttack.isBuilding ? targetAttack.owner : targetAttack.target.p);
+                    const atkType = unitStats[selectedUnit.t].isMelee ? 'slash' : 'arrow';
+                    spawnAttackAnim(selectedUnit.x, selectedUnit.y, clickedX, clickedY, atkType);
 
                     if (targetAttack.isBuilding) {
                         gameState.p[targetAttack.owner].sh -= finalDmg;
@@ -1120,15 +1696,17 @@
 
                         if (targetAttack.target.h <= 0) {
                             gameState.u = gameState.u.filter(u => u.i !== targetAttack.target.i);
+                            checkVeteran(selectedUnit);
                             if (pState.u.includes(2)) { pState.g += 3; infoPanel.innerHTML = `Angriff! (-${finalDmg} HP) | +3G Kopfgeld!`; } else { infoPanel.innerHTML = `Angriff! (-${finalDmg} HP)`; }
                         } else { infoPanel.innerHTML = `Angriff! (-${finalDmg} HP)`; }
                     }
-                    turnActions.push({ x: clickedX, y: clickedY }); selectedUnit.a = 1; selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
+                    turnActions.push({ x: clickedX, y: clickedY, t: 'atk', fx: selectedUnit.x, fy: selectedUnit.y }); selectedUnit.a = 1; selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
                 }
                 else if (selectedUnit && validMoves.some(m => m.x === clickedX && m.y === clickedY)) {
+                    const prevX = selectedUnit.x, prevY = selectedUnit.y;
                     selectedUnit.x = clickedX; selectedUnit.y = clickedY;
                     if (selectedUnit.t === 3 && pState.u.includes(1)) { selectedUnit.a = 2; } else { selectedUnit.a = 1; }
-                    turnActions.push({ x: clickedX, y: clickedY }); selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
+                    turnActions.push({ x: clickedX, y: clickedY, t: 'mv', fx: prevX, fy: prevY }); selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
                 }
                 else {
                     selectedHex = closest;
@@ -1145,7 +1723,8 @@
                             expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${expDmg} DMG</span>`;
                         }
 
-                        infoPanel.innerHTML = `${ownerName} ${unitStats[clickedUnit.t].name} (${clickedUnit.h}/${maxHp} HP)<div class="info-detail">Bewegung: ${moveStat} | Angriff: ${atkDmg}</div>${expectedDmgText}`;
+                        let vetText = clickedUnit.vet ? ' | <span style="color:var(--gold)">★ Veteran (+1 DMG)</span>' : '';
+                        infoPanel.innerHTML = `${ownerName} ${unitStats[clickedUnit.t].name} (${clickedUnit.h}/${maxHp} HP)<div class="info-detail">Bewegung: ${moveStat} | Angriff: ${atkDmg}${vetText}</div>${expectedDmgText}`;
 
                     } else if (isStart && isVisible) {
                         const ownerName = formatOwnerName(svOwner, gameState.cp);
@@ -1169,7 +1748,7 @@
                     } else {
                         let tType = getTerrainType(gameState, clickedX, clickedY);
                         let tName = tType === 'forest' ? 'Wald' : tType === 'hill' ? 'Hügel' : 'Grasland';
-                        let tInfo = tType === 'forest' ? 'Sicht blockiert, Schutz für Assassinen' : 'Normales Gelände';
+                        let tInfo = tType === 'forest' ? 'Sicht blockiert, Schutz für Assassinen' : tType === 'hill' ? '+1 DMG für Fernkämpfer' : 'Normales Gelände';
                         infoPanel.innerHTML = `${tName}<div class="info-detail">${tInfo}</div>`;
                     }
 
@@ -1204,7 +1783,7 @@
                             else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🔥 Flächenbrand (4🪵)</button>`;
                         }
                         
-                        if (villageOwner !== undefined && villageOwner !== gameState.cp && !isStart && clickedUnit.a === 0) {
+                        if (villageOwner !== undefined && villageOwner !== gameState.cp && !isStart && clickedUnit.a === 0 && !(pState.al && pState.al.includes(villageOwner)) && !(pState.tc && pState.tc.includes(villageOwner))) {
                             menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #ff1744;" onclick="startCapture()">Dorf einnehmen</button>`;
                         }
 
@@ -1357,8 +1936,15 @@
                 u.a = 0;
                 delete u.br;
             });
+            if (gameState.p[gameState.cp].tc) gameState.p[gameState.cp].tc = [];
 
+            let oldRn = gameState.rn;
             let loopGuard = 0; do { gameState.cp++; if (gameState.cp >= gameState.p.length) { gameState.cp = 0; gameState.rn++; } loopGuard++; } while (gameState.p[gameState.cp].dead === 1 && loopGuard < gameState.p.length);
+
+            if (gameState.rn > oldRn && gameState.rn >= 3) {
+                const evt = checkForEvent();
+                if (evt) evt.effect(gameState);
+            }
 
             const alivePlayers = gameState.p.filter(p => p.dead !== 1);
             if (alivePlayers.length === 1) { canvasWrapper.style.display = 'none'; uiContainer.style.display = 'none'; resourceHud.style.display = 'none'; document.getElementById('win-msg').innerText = `${alivePlayers[0].n} hat als Letzter überlebt!`; winScreen.style.display = 'flex'; return; }
@@ -1387,14 +1973,41 @@
 
             selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = []; window.specialActive = null; hideActionMenu();
             
-            gameState.p.forEach(p => { if (Array.isArray(p.e)) p.e = compressFog(p.e); });
+            // --- URL COMPRESSION OPTIMIZATIONS ---
+            gameState.p.forEach(p => {
+                if (Array.isArray(p.e)) p.e = compressFog(p.e);
+                // Strip empty arrays to save space
+                if (p.al && p.al.length === 0) delete p.al;
+                if (p.req && p.req.length === 0) delete p.req;
+                if (p.tc && p.tc.length === 0) delete p.tc;
+                if (p.of && p.of.length === 0) delete p.of;
+                // Strip default values
+                if (p.dead === 0) delete p.dead;
+            });
+            // Strip default unit fields
+            gameState.u.forEach(u => {
+                if (u.a === 0) delete u.a;
+                delete u.i;
+            });
             const encodedState = LZString.compressToEncodedURIComponent(JSON.stringify(gameState));
-            gameState.p.forEach(p => { if (typeof p.e === 'string') p.e = decompressFog(p.e); });
+            // Restore stripped fields
+            gameState.p.forEach(p => {
+                if (typeof p.e === 'string') p.e = decompressFog(p.e);
+                if (!p.al) p.al = [];
+                if (!p.req) p.req = [];
+                if (!p.tc) p.tc = [];
+                if (!p.of) p.of = [];
+                if (p.dead === undefined) p.dead = 0;
+            });
+            gameState.u.forEach((u, idx) => {
+                if (u.a === undefined) u.a = 0;
+                if (!u.i) u.i = idx + 1;
+            });
 
             const baseUrl = window.location.href.split('?')[0]; const newUrl = baseUrl + "?state=" + encodedState;
             try { window.history.pushState({ path: newUrl }, '', newUrl); } catch (e) { }
 
-            canvasWrapper.style.display = 'none'; uiContainer.style.display = 'none'; resourceHud.style.display = 'none';
+            canvasWrapper.style.display = 'none'; uiContainer.style.display = 'none'; resourceHud.style.display = 'none'; scoreboard.style.display = 'none';
             intermissionMsg.innerText = `Kopiere diesen Link und schicke ihn an ${pState.n}.`; linkBox.value = newUrl; intermissionScreen.style.display = 'flex';
             waShareBtn.onclick = () => { window.open(`https://wa.me/?text=${encodeURIComponent(`Dein Zug in Dark Ages, ${pState.n}!\nKlicke hier: ${newUrl}`)}`, '_blank'); };
             navigator.clipboard.writeText(newUrl).catch(err => { });
@@ -1409,7 +2022,16 @@
                 if (p.sh === undefined) p.sh = 30; 
                 if (!p.u) p.u = []; 
                 if (!p.e) p.e = [];
+                if (!p.al) p.al = [];
+                if (!p.req) p.req = [];
+                if (!p.tc) p.tc = [];
                 if (typeof p.e === 'string') p.e = decompressFog(p.e);
+                if (p.dead === undefined) p.dead = 0;
+            });
+            // Restore stripped unit fields
+            gameState.u.forEach((u, idx) => {
+                if (u.a === undefined) u.a = 0;
+                if (!u.i) u.i = idx + 1;
             });
             const alivePlayers = gameState.p.filter(p => p.dead !== 1);
             if (alivePlayers.length <= 1) { document.getElementById('win-msg').innerText = `${alivePlayers[0].n} hat als Letzter überlebt!`; winScreen.style.display = 'flex'; return; }
@@ -1417,20 +2039,97 @@
             canvasWrapper.style.display = 'block';
             uiContainer.style.display = 'flex';
             resourceHud.style.display = 'block';
+            scoreboard.style.display = 'block';
 
             canvas.width = canvas.clientWidth;
             canvas.height = canvas.clientHeight;
 
             showRecap = true;
             focusCamera();
-            renderBoard(gameState);
 
-            if (gameState.th && gameState.th.length > 0) {
-                setTimeout(() => {
-                    gameState.th.forEach(h => spawnFloatingText(h.x, h.y, `+${h.val}`, "#81c784"));
-                    gameState.th = [];
-                }, 500);
+            // --- STRICT EVENT SEQUENCE: 1) Recap → 2) Events → 3) Diplomacy ---
+            const recapActions = (gameState.la || []).filter(a => {
+                const vis = getVisibleHexes(gameState.cp);
+                return vis.has(`${a.x},${a.y}`);
+            });
+
+            function startRecap() {
+                if (recapActions.length === 0) {
+                    showRecap = false;
+                    renderBoard(gameState);
+                    startEvents();
+                    return;
+                }
+
+                let recapIndex = 0;
+                const recapColors = { mv: '#64b5f6', atk: '#ff5252', buy: '#69f0ae', cap: '#ffab40' };
+                const recapIcons = { mv: '→', atk: '⚔', buy: '✦', cap: '⚑' };
+
+                function playNextRecap() {
+                    if (recapIndex >= recapActions.length) {
+                        showRecap = false;
+                        renderBoard(gameState);
+                        setTimeout(startEvents, 400);
+                        return;
+                    }
+                    const action = recapActions[recapIndex];
+                    recapIndex++;
+
+                    // Focus camera on action
+                    const target = getHexCenter(action.x, action.y);
+                    camX = (canvas.width / 2) - target.px;
+                    camY = (canvas.height / 2) - target.py;
+                    renderBoard(gameState);
+
+                    // Spawn visual
+                    const icon = recapIcons[action.t] || '•';
+                    const color = recapColors[action.t] || '#fff';
+
+                    if (action.t === 'atk' && action.fx !== undefined) {
+                        spawnAttackAnim(action.fx, action.fy, action.x, action.y, 'slash');
+                    }
+                    spawnFloatingText(action.x, action.y, icon, color);
+
+                    setTimeout(playNextRecap, 1200);
+                }
+                playNextRecap();
             }
+
+            function startEvents() {
+                if (gameState.rn >= 3) {
+                    const evt = checkForEvent();
+                    if (evt) {
+                        showEvent(evt);
+                        // Wait for user to dismiss event before proceeding
+                        const origDismiss = window.dismissEvent;
+                        window.dismissEvent = function() {
+                            origDismiss();
+                            window.dismissEvent = origDismiss;
+                            setTimeout(startDiplomacy, 300);
+                        };
+                        return;
+                    }
+                }
+                startDiplomacy();
+            }
+
+            function startDiplomacy() {
+                const pState = gameState.p[gameState.cp];
+                if (gameState.p.length >= 4 && gameState.rn >= 5 && pState.req && pState.req.length > 0) {
+                    openDiplomacy();
+                }
+
+                // Show heal floaters
+                if (gameState.th && gameState.th.length > 0) {
+                    setTimeout(() => {
+                        gameState.th.forEach(h => spawnFloatingText(h.x, h.y, `+${h.val}`, "#81c784"));
+                        gameState.th = [];
+                    }, 500);
+                }
+            }
+
+            // Start the sequence
+            startRecap();
         }
 
         const urlParams = new URLSearchParams(window.location.search);
