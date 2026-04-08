@@ -670,7 +670,8 @@
             7: [0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 1, 0, 0, 0, 0, 1, 2, 2, 2, 2, 1, 0, 0, 0, 1, 1, P, P, P, P, 1, 0, 1, 0, 1, 2, 1, P, P, 1, 3, 3, 3, 1, 1, 1, 0, P, P, 1, 0, 4, 0, 0, 0, 0, 1, 1, 1, 1, 0, 4, 0, 0, 0, 0, 1, 0, 0, 1, 0, 4, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             "village": [0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 1, 0, 0, 0, 1, 4, 4, 4, 4, 4, 4, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, P, P, P, P, P, P, 1, 0, 0, 1, P, P, 1, 1, P, P, 1, 0, 0, 1, P, P, 1, 1, P, P, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             "startVillage": [0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 3, 1, 3, 1, 3, 1, 3, 1, 0, 1, 3, 3, 3, 3, 3, 3, 3, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, P, P, P, P, P, P, P, 1, 0, 1, P, P, 1, 1, 1, P, P, 1, 0, 1, P, P, 1, 0, 1, P, P, 1, 0, 1, P, P, 1, 0, 1, P, P, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            "tunnel": [0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 4, 4, 4, 4, 4, 1, 0, 0, 1, 4, 1, P, P, P, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            "tunnel": [0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 4, 4, 4, 4, 4, 1, 0, 0, 1, 4, 1, P, P, P, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            8: [0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, P, P, P, P, 1, 0, 0, 0, 0, 1, 2, 2, 2, 2, 1, 0, 0, 0, 1, 1, P, P, P, P, 1, 1, 0, 0, 0, 1, 1, P, P, 1, 1, 0, 7, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 7, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         };
 
         function drawPixelSprite(ctx, cx, cy, spriteKey, playerColor) {
@@ -1012,7 +1013,8 @@
             4: { dmg: 6, range: 1, move: 2, name: "Berserker", cost: 4, maxHp: 8, isMelee: true },
             5: { dmg: 6, range: 1, move: 3, name: "Assassine", cost: 5, maxHp: 8, isMelee: true },
             6: { dmg: 6, range: 2, move: 1, name: "Tribok", cost: 7, maxHp: 8, isMelee: false },
-            7: { dmg: 4, range: 1, move: 1, name: "Tunnelgräber", cost: 10, maxHp: 10, isMelee: true }
+            7: { dmg: 4, range: 1, move: 1, name: "Tunnelgräber", cost: 10, maxHp: 10, isMelee: true },
+            8: { dmg: 0, range: 0, move: 2, name: "Saboteur", cost: 9, maxHp: 8, isMelee: false }
         };
 
         const getUnitMaxHp = (pState, type) => (type === 0 && pState.u.includes(0)) ? 15 : unitStats[type].maxHp;
@@ -1331,6 +1333,55 @@
                     }
                 }
                 hideActionMenu(); infoPanel.innerHTML = `🚇 Tunnel Startpunkt<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes, freies Feld neben dem Tunnelgräber.</div>`; 
+                renderBoard(gameState);
+            }
+            else if (type === 'detonate') {
+                const cx = selectedUnit.x, cy = selectedUnit.y;
+                let targets = [{x: cx, y: cy}];
+                getNeighbors(cx, cy).forEach(n => targets.push(n));
+
+                targets.forEach(t => {
+                    spawnAttackAnim(cx, cy, t.x, t.y, 'fire');
+                    
+                    // Units
+                    gameState.u.forEach(u => {
+                        if (u.x === t.x && u.y === t.y && u !== selectedUnit) {
+                            u.h -= 8;
+                            spawnFloatingText(u.x, u.y, "-8", "#ff5252");
+                        }
+                    });
+
+                    // Main Buildings
+                    for (let i = 0; i < gameState.p.length; i++) {
+                        if (gameState.p[i].dead === 0 && gameState.p[i].sv === `${t.x},${t.y}`) {
+                            gameState.p[i].sh -= 8;
+                            spawnFloatingText(t.x, t.y, "-8", "#ff5252");
+                            if (gameState.p[i].sh <= 0) {
+                                gameState.p[i].dead = 1;
+                                gameState.u = gameState.u.filter(un => un.p !== i);
+                                gameState.v[`${t.x},${t.y}`] = gameState.cp;
+                            }
+                        }
+                    }
+
+                    // Tunnels
+                    if (gameState.tu) {
+                        gameState.tu.forEach(tun => {
+                            if ((tun.x1 === t.x && tun.y1 === t.y) || (tun.x2 === t.x && tun.y2 === t.y)) {
+                                tun.h -= 8;
+                                spawnFloatingText(t.x, t.y, "-8", "#ff5252");
+                            }
+                        });
+                    }
+                });
+
+                selectedUnit.h = 0;
+                gameState.u = gameState.u.filter(u => u.h > 0);
+                if (gameState.tu) gameState.tu = gameState.tu.filter(tun => tun.h > 0);
+
+                turnActions.push({x: cx, y: cy, t: 'atk'});
+                selectedUnit = null; validMoves = []; validAttacks = []; window.specialActive = null;
+                hideActionMenu(); infoPanel.innerHTML = "💥 BOOM! Saboteur detoniert!";
                 renderBoard(gameState);
             }
         };
@@ -1991,7 +2042,7 @@
                     }
 
                     selectedUnit.x = targetX; selectedUnit.y = targetY;
-                    if (selectedUnit.t === 3 && pState.u.includes(1)) { selectedUnit.a = 2; } 
+                    if ((selectedUnit.t === 3 && pState.u.includes(1)) || selectedUnit.t === 8) { selectedUnit.a = 2; } 
                     else if (teleported) { selectedUnit.a = 0; } 
                     else { selectedUnit.a = 1; }
                     
@@ -2099,6 +2150,8 @@
                             menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #ff1744;" onclick="startCapture()">Dorf einnehmen</button>`;
                         }
 
+                        if (clickedUnit.t === 8 && (clickedUnit.a === 0 || clickedUnit.a === 2)) { menuHtml += '<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #d84315;" onclick="useAbility(\'detonate\')">💥 Sprengen</button>'; }
+
                         if (menuHtml) showActionMenu(menuHtml);
                         infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Einheit ausgewählt. Ziel oder Aktion wählen.</div>`;
 
@@ -2108,6 +2161,7 @@
                         if (clickedUnit.t === 5) specInfo = "Spezial: Unsichtbar für Feinde. Bricht bei Angriff." + (clickedUnit.cd ? ` (Cooldown: ${clickedUnit.cd} Runden)` : "");
                         if (clickedUnit.t === 6) specInfo = "Spezial: AoE-Angriff auf Zielgebiet (Reichweite 3).";
                         if (clickedUnit.t === 7) specInfo = "Spezial: Kann Tunnelsystem bauen (15G, 5H).";
+                        if (clickedUnit.t === 8) specInfo = "Spezial: Kann sich bewegen und explodieren (AoE 8 DMG). Zerstört sich selbst und schädigt auch eigene Truppen!";
                         
                         if (specInfo) infoPanel.innerHTML += `<div class="info-detail" style="color: #4fc3f7;">${specInfo}</div>`;
                     }
@@ -2119,6 +2173,7 @@
                         if (pState.f.includes(2)) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; border-color: #fff176;" onclick="window.buyUnit(5)">🗡️ Assassine (5G)</button>`;
                         if (pState.f.includes(3)) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; border-color: #fff176;" onclick="window.buyUnit(6)">🏗️ Tribok (7G)</button>`;
                         menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; border-color: #a1887f;" onclick="window.buyUnit(7)">⛏️ Tunnelgräber (10G)</button>`;
+                        menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; border-color: #d84315;" onclick="window.buyUnit(8)">💣 Saboteur (9G)</button>`;
                         showActionMenu(menuHtml); infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Was möchtest du rekrutieren?</div>`;
                     } else { selectedUnit = null; validMoves = []; validAttacks = []; }
                 } renderBoard(gameState);
