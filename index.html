@@ -2042,8 +2042,8 @@
                     }
 
                     selectedUnit.x = targetX; selectedUnit.y = targetY;
-                    if ((selectedUnit.t === 3 && pState.u.includes(1)) || selectedUnit.t === 8) { selectedUnit.a = 2; } 
-                    else if (teleported) { selectedUnit.a = 0; } 
+                    if (teleported) { selectedUnit.a = 0; } 
+                    else if ((selectedUnit.t === 3 && pState.u.includes(1)) || selectedUnit.t === 8) { selectedUnit.a = 2; } 
                     else { selectedUnit.a = 1; }
                     
                     turnActions.push({ x: targetX, y: targetY, t: 'mv', fx: prevX, fy: prevY }); selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
