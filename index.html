@@ -2395,12 +2395,12 @@
                             if (pState.m >= 2) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #43a047;" onclick="useAbility('assassine')">🌫️ Tarnung (2🪵)</button>`;
                             else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🌫️ Tarnung (2🪵)</button>`;
                         }
-                        if (clickedUnit.t === 6 && clickedUnit.a === 0) {
+                        if (clickedUnit.t === 6 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
                             if (pState.m >= 4) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #fb8c00;" onclick="useAbility('tribok')">🔥 Flächenbrand (4🪵)</button>`;
                             else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🔥 Flächenbrand (4🪵)</button>`;
                         }
 
-                        if (clickedUnit.t === 7 && clickedUnit.a === 0) {
+                        if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
                             if (pState.g >= 5 && pState.m >= 5) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #5d4037;" onclick="useAbility('tunnel')">🚇 Tunnel bauen (5💰 5🪵)</button>`;
                             else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🚇 Tunnel bauen (5💰 5🪵)</button>`;
                         }
@@ -2412,7 +2412,7 @@
                             }
                         }
 
-                        if (villageOwner !== undefined && villageOwner !== gameState.cp && !isStart && clickedUnit.a === 0 && !(pState.al && pState.al.includes(villageOwner)) && !(pState.tc && pState.tc.includes(villageOwner))) {
+                        if (villageOwner !== undefined && villageOwner !== gameState.cp && !isStart && (clickedUnit.a === 0 || clickedUnit.a === 2) && !(pState.al && pState.al.includes(villageOwner)) && !(pState.tc && pState.tc.includes(villageOwner))) {
                             menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #ff1744;" onclick="startCapture()">Dorf einnehmen</button>`;
                         }
 
