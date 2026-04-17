@@ -2412,7 +2412,11 @@
                             }
                         }
 
-                        if (villageOwner !== undefined && villageOwner !== gameState.cp && !isStart && (clickedUnit.a === 0 || clickedUnit.a === 2) && !(pState.al && pState.al.includes(villageOwner)) && !(pState.tc && pState.tc.includes(villageOwner))) {
+                        const canCapture = (villageOwner === -1) 
+                            ? (clickedUnit.a === 0 || clickedUnit.a === 2) 
+                            : (clickedUnit.a === 0);
+
+                        if (villageOwner !== undefined && villageOwner !== gameState.cp && !isStart && canCapture && !(pState.al && pState.al.includes(villageOwner)) && !(pState.tc && pState.tc.includes(villageOwner))) {
                             menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #ff1744;" onclick="startCapture()">Dorf einnehmen</button>`;
                         }
 
