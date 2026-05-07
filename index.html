@@ -811,7 +811,7 @@
 </head>
 
 <body>
-
+    <audio id="bg-music" loop src="backgroundmusic.mp3"></audio>
     <div id="toast-container"></div>
     <h2 id="main-title">Dark Ages</h2>
     <div id="game-hud">
@@ -3088,6 +3088,25 @@
             if (!decoded) { try { decoded = atob(stateParam); } catch (e) { } }
             if (decoded) { try { gameState = JSON.parse(decoded); bootGame(); } catch (e) { renderNameInputs(); } } else { renderNameInputs(); }
         } else { renderNameInputs(); }
+
+        // --- BACKGROUND MUSIC LOGIC ---
+        const bgMusic = document.getElementById('bg-music');
+        bgMusic.volume = 0.4;
+
+        function startMusic() {
+            bgMusic.play().catch(e => {
+                // Autoplay was prevented, wait for next interaction
+                console.log("Autoplay prevented, waiting for interaction");
+            });
+            // Remove the listeners once music starts successfully
+            if (!bgMusic.paused) {
+                document.removeEventListener('click', startMusic);
+                document.removeEventListener('touchstart', startMusic);
+            }
+        }
+
+        document.addEventListener('click', startMusic);
+        document.addEventListener('touchstart', startMusic);
     </script>
 </body>
 
