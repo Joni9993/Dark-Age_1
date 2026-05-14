@@ -1027,7 +1027,7 @@
             // Veteran bonus
             dmg += getVeteranBonus(attackerUnit);
 
-            const maxHp = getUnitMaxHp(pState, attackerUnit.t);
+            const maxHp = getUnitMaxHp(pState, attackerUnit.t, attackerUnit);
             return Math.max(1, Math.round(dmg * (attackerUnit.h / maxHp)));
         };
 
@@ -1097,7 +1097,7 @@
             { icon: '☠️', name: 'Pest', desc: 'Eine Seuche breitet sich aus! Alle Einheiten verlieren 1 HP.', effect: (gs) => { gs.u.forEach(u => { u.h = Math.max(1, u.h - 1); }); } },
             { icon: '💰', name: 'Goldrausch', desc: 'Reiche Goldadern entdeckt! Alle Spieler erhalten +5 Gold.', effect: (gs) => { gs.p.forEach(p => { if (!p.dead) p.g += 5; }); } },
             { icon: '🌲', name: 'Reiche Ernte', desc: 'Die Wälder blühen! Alle Spieler erhalten +3 Holz.', effect: (gs) => { gs.p.forEach(p => { if (!p.dead) p.m += 3; }); } },
-            { icon: '⚔️', name: 'Kriegslust', desc: 'Ein Hauch von Aggression liegt in der Luft! Alle Einheiten erhalten +2 HP.', effect: (gs) => { gs.u.forEach(u => { const max = getUnitMaxHp(gs.p[u.p], u.t); u.h = Math.min(max + 2, u.h + 2); }); } },
+            { icon: '⚔️', name: 'Kriegslust', desc: 'Ein Hauch von Aggression liegt in der Luft! Alle Einheiten erhalten +2 HP.', effect: (gs) => { gs.u.forEach(u => { const max = getUnitMaxHp(gs.p[u.p], u.t, u); u.h = Math.min(max + 2, u.h + 2); }); } },
             { icon: '🌑', name: 'Finstere Nacht', desc: 'Dunkelheit verschlingt das Land. Sichtweite reduziert für diese Runde.', effect: (gs) => { /* thematic, no mechanical effect */ } },
             { icon: '🏰', name: 'Befestigung', desc: 'Die Dörfer werden verstärkt! Alle Hauptgebäude heilen +5 HP.', effect: (gs) => { gs.p.forEach(p => { if (!p.dead) p.sh = Math.min(30, p.sh + 5); }); } }
         ];
@@ -1257,7 +1257,7 @@
         }
 
         const factions = {
-            0: { name: "🏰 Feudalismus", desc: "Passive: +2 HP auf eigenen Dörfern.\nSpezial: 🛡️ Ritter", cost: 10, reqV: 2 },
+            0: { name: "🏰 Feudalismus", desc: "Passive: Neu rekrutierte Einheiten erhalten +1 Max-HP für jedes Dorf, das du aktuell besitzt.\nSpezial: 🛡️ Ritter", cost: 10, reqV: 2 },
             1: { name: "🩸 Plünderer", desc: "Passive: +1 DMG für Nahkämpfer.\nSpezial: 🪓 Berserker", cost: 10, reqV: 2 },
             2: { name: "👁️ Spionage", desc: "Passive: +1 Sichtweite.\nSpezial: 🗡️ Assassine", cost: 10, reqV: 2 },
             3: { name: "⚖️ Gilden", desc: "Passive: +1 Gold pro Dorf.\nSpezial: 🏗️ Tribok", cost: 10, reqV: 2 }
@@ -1265,20 +1265,20 @@
 
         const upgrades = {
             0: { fac: 0, t: 1, name: "Plattenpanzer", desc: "Basis-Schwerter erhalten +5 Max HP.", g: 10, m: 5 },
-            1: { fac: 0, t: 2, name: "Schlachtrosse", desc: "Ritter können im selben Zug laufen & angreifen.", g: 15, m: 10 },
+            1: { fac: 0, t: 2, name: "Schlachtrosse", desc: "Ritter können im selben Zug laufen & angreifen.", g: 10, m: 5 },
             2: { fac: 1, t: 1, name: "Kopfgeld", desc: "+3 Gold für jeden Kill.", g: 10, m: 5 },
-            3: { fac: 1, t: 2, name: "Brandschatzer", desc: "Berserker machen +3 DMG gegen Hauptgebäude.", g: 15, m: 10 },
+            3: { fac: 1, t: 2, name: "Brandschatzer", desc: "Berserker machen +3 DMG gegen Hauptgebäude.", g: 10, m: 5 },
             4: { fac: 2, t: 1, name: "Waldläufer", desc: "+1 DMG bei Angriffen aus dem Wald heraus.", g: 10, m: 5 },
-            5: { fac: 2, t: 2, name: "Schattenläufer", desc: "Assassinen erhalten +1 Bewegung.", g: 15, m: 10 },
+            5: { fac: 2, t: 2, name: "Schattenläufer", desc: "Assassinen erhalten +1 Bewegung.", g: 10, m: 5 },
             6: { fac: 3, t: 1, name: "Söldner-Verträge", desc: "Schwert, Bogen & Pferd kosten -1 Gold.", g: 10, m: 5 },
-            7: { fac: 3, t: 2, name: "Pech & Schwefel", desc: "Triboke machen +2 DMG.", g: 15, m: 10 }
+            7: { fac: 3, t: 2, name: "Pech & Schwefel", desc: "Triboke machen +2 DMG.", g: 10, m: 5 }
         };
 
         const unitStats = {
             0: { dmg: 5, range: 1, move: 1, name: "Schwert", cost: 3, maxHp: 10, isMelee: true },
             1: { dmg: 4, range: 2, move: 1, name: "Bogen", cost: 4, maxHp: 10, isMelee: false },
             2: { dmg: 5, range: 1, move: 2, name: "Pferd", cost: 4, maxHp: 10, isMelee: true },
-            3: { dmg: 6, range: 1, move: 1, name: "Ritter", cost: 6, maxHp: 15, isMelee: true },
+            3: { dmg: 6, range: 1, move: 2, name: "Ritter", cost: 6, maxHp: 15, isMelee: true },
             4: { dmg: 6, range: 1, move: 2, name: "Berserker", cost: 4, maxHp: 8, isMelee: true },
             5: { dmg: 6, range: 1, move: 3, name: "Assassine", cost: 5, maxHp: 8, isMelee: true },
             6: { dmg: 6, range: 2, move: 1, name: "Tribok", cost: 7, maxHp: 8, isMelee: false },
@@ -1286,7 +1286,11 @@
             8: { dmg: 0, range: 0, move: 2, name: "Saboteur", cost: 8, maxHp: 8, isMelee: false }
         };
 
-        const getUnitMaxHp = (pState, type) => (type === 0 && pState.u.includes(0)) ? 15 : unitStats[type].maxHp;
+        const getUnitMaxHp = (pState, type, unit) => {
+            let hp = (type === 0 && pState.u.includes(0)) ? 15 : unitStats[type].maxHp;
+            if (unit && unit.fb) hp += unit.fb;
+            return hp;
+        };
         const getUnitCost = (pState, type) => ([0, 1, 2].includes(type) && pState.u.includes(6)) ? unitStats[type].cost - 1 : unitStats[type].cost;
         const getUnitMove = (pState, type) => (type === 5 && pState.u.includes(5)) ? unitStats[type].move + 1 : unitStats[type].move;
 
@@ -1593,7 +1597,7 @@
                 hideActionMenu(); renderBoard(gameState);
             }
             else if (type === 'tribok') {
-                pState.m -= 4; window.specialActive = 'tribok';
+                pState.m -= 3; window.specialActive = 'tribok';
                 validAttacks = []; validMoves = [];
                 for (let y = 0; y < gameState.bh; y++) {
                     for (let x = 0; x < gameState.bw; x++) {
@@ -2073,11 +2077,18 @@
 
         window.buyUnit = function (type) {
             if (selectedHex) {
-                const cost = getUnitCost(gameState.p[gameState.cp], type);
-                if (gameState.p[gameState.cp].g >= cost) {
-                    gameState.p[gameState.cp].g -= cost; let nextId = Math.max(...gameState.u.map(u => u.i), 0) + 1;
-                    const maxHp = getUnitMaxHp(gameState.p[gameState.cp], type);
-                    gameState.u.push({ i: nextId, p: gameState.cp, t: type, x: selectedHex.x, y: selectedHex.y, h: maxHp, a: 1 });
+                const pState = gameState.p[gameState.cp];
+                const cost = getUnitCost(pState, type);
+                if (pState.g >= cost) {
+                    pState.g -= cost; 
+                    let nextId = Math.max(...gameState.u.map(u => u.i), 0) + 1;
+                    let fb = 0;
+                    if (pState.f.includes(0)) {
+                        fb = Object.values(gameState.v).filter(v => v === gameState.cp).length;
+                    }
+                    const unitObj = { i: nextId, p: gameState.cp, t: type, x: selectedHex.x, y: selectedHex.y, fb: fb, a: 1 };
+                    unitObj.h = getUnitMaxHp(pState, type, unitObj);
+                    gameState.u.push(unitObj);
                     turnActions.push({ x: selectedHex.x, y: selectedHex.y, t: 'buy' });
                     selectedHex = null; hideActionMenu(); renderBoard(gameState);
                 } else { showToast('Nicht genug Gold!', 'error'); }
@@ -2179,7 +2190,7 @@
                     if (item.isTunnel && item.rr > state.rn) ctx.globalAlpha = 1.0;
                 } else if (item.type === 'unit') {
                     const u = item.unit;
-                    const maxHp = getUnitMaxHp(gameState.p[u.p], u.t);
+                    const maxHp = getUnitMaxHp(gameState.p[u.p], u.t, u);
                     drawEntity(u.x, u.y, playerColors[u.p], u.a === 1, u.h, maxHp, u.t, u.iv === 1, u);
                 }
             });
@@ -2579,8 +2590,8 @@
                         else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🌫️ Tarnung (2🪵)</button>`;
                     }
                     if (clickedUnit.t === 6 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
-                        if (pState.m >= 4) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #fb8c00;" onclick="useAbility('tribok')">🔥 Flächenbrand (4🪵)</button>`;
-                        else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🔥 Flächenbrand (4🪵)</button>`;
+                        if (pState.m >= 3) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #fb8c00;" onclick="useAbility('tribok')">🔥 Flächenbrand (3🪵)</button>`;
+                        else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🔥 Flächenbrand (3🪵)</button>`;
                     }
 
                     if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
