@@ -846,7 +846,7 @@
             <select id="map-size">
                 <option value="5">Klein (Radius 5)</option>
                 <option value="7" selected>Mittel (Radius 7)</option>
-                <option value="9">Groß (Radius 9)</option>
+                <option value="12">Groß (Radius 12)</option>
             </select>
         </div>
         <div class="setup-group">
@@ -1408,9 +1408,83 @@
                 units.push({ i: i + 1, p: i, t: 0, x: startPos[i].ux, y: startPos[i].uy, h: 10, a: 0 });
             }
 
-            let neutralCount = radius + count + 1;
-            let attempts = 0;
             const tempState = { bw: size, bh: size, rad: radius };
+
+            // Phase 1: Garantierte Start-Dörfer (2 pro Spieler in Distanz 3)
+            for (let i = 0; i < count; i++) {
+                const svX = startPos[i].vx;
+                const svY = startPos[i].vy;
+                const svCube = oddRToCube(svX, svY);
+
+                // Alle Felder in exakt Distanz 3 sammeln
+                let candidates = [];
+                for (let dx = -3; dx <= 3; dx++) {
+                    for (let dy = Math.max(-3, -dx - 3); dy <= Math.min(3, -dx + 3); dy++) {
+                        let dz = -dx - dy;
+                        if (Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) === 3) {
+                            const candidateCube = { x: svCube.x + dx, y: svCube.y + dy, z: svCube.z + dz };
+                            const candidatePos = cubeToOddR(candidateCube);
+                            candidates.push(candidatePos);
+                        }
+                    }
+                }
+
+                // Kandidaten filtern (in der Map, nicht auf dem Rand, min. Abstand 3 zu anderen Dörfern)
+                let validCandidates = [];
+                let minDistOther = 3;
+                let minDistStart = 3;
+
+                // Robustes Fallback-System bei Platzmangel
+                while (validCandidates.length < 2 && minDistOther >= 0) {
+                    validCandidates = candidates.filter(c => {
+                        let valid = isInsideMap(tempState, c.x, c.y);
+                        if (hexDistance(c, { x: cx, y: cy }) >= radius) valid = false;
+                        if (valid) {
+                            for (let key in villages) {
+                                let [vx, vy] = key.split(',').map(Number);
+                                let isStartVillage = false;
+                                for (let pIdx = 0; pIdx < count; pIdx++) {
+                                    if (startPos[pIdx].vx === vx && startPos[pIdx].vy === vy) {
+                                        isStartVillage = true;
+                                        break;
+                                    }
+                                }
+                                let minDist = isStartVillage ? minDistStart : minDistOther;
+                                if (hexDistance(c, { x: vx, y: vy }) < minDist) valid = false;
+                            }
+                        }
+                        return valid;
+                    });
+
+                    if (validCandidates.length < 2) {
+                        minDistOther--;
+                        if (minDistOther < 2) minDistStart = 2;
+                    }
+                }
+
+                // Shuffle und die ersten 2 platzieren
+                if (validCandidates.length > 0) {
+                    // Fisher-Yates shuffle mit dem deterministischen PRNG
+                    for (let j = validCandidates.length - 1; j > 0; j--) {
+                        const k = Math.floor(rng() * (j + 1));
+                        const temp = validCandidates[j];
+                        validCandidates[j] = validCandidates[k];
+                        validCandidates[k] = temp;
+                    }
+                    
+                    const toPlace = Math.min(2, validCandidates.length);
+                    for (let j = 0; j < toPlace; j++) {
+                        const c = validCandidates[j];
+                        villages[`${c.x},${c.y}`] = -1;
+                    }
+                }
+            }
+
+            // Phase 2: Zusätzliche zufällige Dörfer (1/3 mehr insgesamt)
+            const totalNeutralTarget = Math.floor((radius + count + 1) * 4 / 3);
+            let placedNeutral = Object.values(villages).filter(v => v === -1).length;
+            let neutralCount = Math.max(0, totalNeutralTarget - placedNeutral);
+            let attempts = 0;
 
             while (neutralCount > 0 && attempts < 400) {
                 let nx = Math.floor(rng() * size);
@@ -3230,7 +3304,7 @@
             canvas.width = canvas.clientWidth;
             canvas.height = canvas.clientHeight;
 
-            showRecap = true;
+            showRecap = false;
             focusCamera();
 
             // --- STRICT EVENT SEQUENCE: 1) Recap → 2) Events → 3) Diplomacy ---
@@ -3314,8 +3388,9 @@
                 }
             }
 
-            // Start the sequence
-            startRecap();
+            // Recap is temporarily disabled; keep collecting last actions for a later fix.
+            renderBoard(gameState);
+            startEvents();
         }
 
         const urlParams = new URLSearchParams(window.location.search);
