@@ -200,5 +200,19 @@ startGameBtn.addEventListener('click', () => {
     }
 
     gameState = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [] };
+
+    if (count >= 4 && count % 2 === 0) {
+        gameState.at = 1;
+        const idx = Array.from({ length: count }, (_, i) => i);
+        for (let i = idx.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1));
+            [idx[i], idx[j]] = [idx[j], idx[i]];
+        }
+        for (let i = 0; i < count; i += 2) {
+            players[idx[i]].al = [idx[i + 1]];
+            players[idx[i + 1]].al = [idx[i]];
+        }
+    }
+
     bootGame();
 });

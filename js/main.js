@@ -27,10 +27,9 @@ function bootGame() {
         if (u.mi === undefined) delete u.mi;
     });
     const alivePlayers = gameState.p.filter(p => p.dead !== 1);
-    if (alivePlayers.length <= 1) {
-        document.getElementById('win-msg').innerText = `${alivePlayers[0].n} hat als Letzter überlebt!`;
-        winScreen.style.display = 'flex'; return;
-    }
+    const teamWinnersB = checkTeamWin(alivePlayers);
+    if (teamWinnersB) { showWin(`${teamWinnersB.map(p => p.n).join(' & ')} gewinnen gemeinsam!`); return; }
+    if (alivePlayers.length <= 1) { showWin(`${alivePlayers[0].n} hat als Letzter überlebt!`); return; }
 
     canvasWrapper.style.display = 'block';
     uiContainer.style.display = 'flex';

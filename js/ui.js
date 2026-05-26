@@ -64,7 +64,8 @@ function updateUI() {
     if (!selectedUnit && !selectedHex && window.specialActive !== 'tribok') infoPanel.innerHTML = `Runde ${gameState.rn} | ${pState.n} ist am Zug.<div class="info-detail">Tippe auf Einheiten oder Dörfer für Details.</div>`;
 
     upgradeBtn.style.display = 'block'; researchBtn.style.display = pState.f.length > 0 ? 'block' : 'none';
-    document.getElementById('dip-btn').style.display = (gameState.p.length >= 4 && gameState.rn >= 5) ? 'block' : 'none';
+    const _n = gameState.p.length;
+    document.getElementById('dip-btn').style.display = (_n >= 4 && _n % 2 === 0) ? 'block' : 'none';
     if (pState.f.length === 0) {
         upgradeBtn.innerText = "✨ 1. Kultur (10 Holz)";
         if (myVillages >= 2 && pState.m >= 10) { upgradeBtn.style.opacity = "1"; upgradeBtn.onclick = () => openDraft(10); }

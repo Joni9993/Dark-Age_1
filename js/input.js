@@ -844,14 +844,9 @@ function confirmSurrender() {
     } while (gameState.p[gameState.cp].dead === 1 && loopGuard < gameState.p.length);
 
     const alivePlayers = gameState.p.filter(p => p.dead !== 1);
-    if (alivePlayers.length === 1) {
-        canvasWrapper.style.display = 'none';
-        uiContainer.style.display = 'none';
-        gameHud.style.display = 'none';
-        document.getElementById('win-msg').innerText = `${alivePlayers[0].n} hat als Letzter überlebt! (${surrenderingName} hat aufgegeben)`;
-        winScreen.style.display = 'flex';
-        return;
-    }
+    const teamWinners = checkTeamWin(alivePlayers);
+    if (teamWinners) { showWin(`${teamWinners.map(p => p.n).join(' & ')} gewinnen gemeinsam!`); return; }
+    if (alivePlayers.length === 1) { showWin(`${alivePlayers[0].n} hat als Letzter überlebt! (${surrenderingName} hat aufgegeben)`); return; }
 
     if (gameState.rn > 1) {
         const pState = gameState.p[gameState.cp];
@@ -955,11 +950,9 @@ endTurnBtn.addEventListener('click', () => {
     }
 
     const alivePlayers = gameState.p.filter(p => p.dead !== 1);
-    if (alivePlayers.length === 1) {
-        canvasWrapper.style.display = 'none'; uiContainer.style.display = 'none'; gameHud.style.display = 'none';
-        document.getElementById('win-msg').innerText = `${alivePlayers[0].n} hat als Letzter überlebt!`;
-        winScreen.style.display = 'flex'; return;
-    }
+    const teamWinners2 = checkTeamWin(alivePlayers);
+    if (teamWinners2) { showWin(`${teamWinners2.map(p => p.n).join(' & ')} gewinnen gemeinsam!`); return; }
+    if (alivePlayers.length === 1) { showWin(`${alivePlayers[0].n} hat als Letzter überlebt!`); return; }
 
     const pId = gameState.cp; const pState = gameState.p[pId];
     let healsThisTurn = [];

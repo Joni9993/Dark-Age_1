@@ -1,8 +1,39 @@
 // === DIPLOMACY ===
+function checkTeamWin(alivePlayers) {
+    if (!gameState.at || alivePlayers.length < 2) return null;
+    const aliveIds = alivePlayers.map(p => gameState.p.indexOf(p));
+    const firstAllies = gameState.p[aliveIds[0]].al || [];
+    if (aliveIds.every(id => id === aliveIds[0] || firstAllies.includes(id))) return alivePlayers;
+    return null;
+}
+
+function showWin(msg) {
+    canvasWrapper.style.display = 'none';
+    uiContainer.style.display = 'none';
+    gameHud.style.display = 'none';
+    document.getElementById('win-msg').innerText = msg;
+    winScreen.style.display = 'flex';
+}
+
 window.openDiplomacy = function () {
     const content = document.getElementById('dip-content');
     content.innerHTML = '';
     const pState = gameState.p[gameState.cp];
+
+    if (gameState.at) {
+        gameState.p.forEach((p, i) => {
+            if (i === gameState.cp || p.dead) return;
+            const isAlly = pState.al && pState.al.includes(i);
+            content.innerHTML += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 5px;">
+                    <span style="color: ${playerColors[i]}">${p.n}</span>
+                    <span style="font-size: 0.8rem; color: ${isAlly ? '#69f0ae' : '#ff5252'}">${isAlly ? '🤝 Verbündeter' : '⚔️ Feind'}</span>
+                </div>
+            `;
+        });
+        document.getElementById('dip-overlay').style.display = 'flex';
+        return;
+    }
 
     const hasAlliance = pState.al && pState.al.length > 0;
     const hasOutReq = gameState.p.some(p => p.req && p.req.includes(gameState.cp));
@@ -88,6 +119,7 @@ window.withdrawAlliance = function (id) {
 };
 
 window.breakAlliance = function (id) {
+    if (gameState.at) { showToast('Feste Teams können nicht gebrochen werden!', 'error'); return; }
     const pState = gameState.p[gameState.cp];
     if (!pState.al) pState.al = [];
     pState.al = pState.al.filter(alId => alId !== id);
