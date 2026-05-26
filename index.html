@@ -819,7 +819,8 @@
             <div class="score-compact" id="score-compact"></div>
             <div class="score-expanded" id="score-expanded"></div>
         </div>
-        <div id="resource-hud">💰 0 <span class="income-text">(+0)</span> | 🪵 0 <span class="income-text">(+0)</span>
+        <div id="resource-hud">💰 0 <span class="income-text">(+0)</span> | 🪵 0 <span class="income-text">(+0)</span> |
+            🪨 0
         </div>
         <button id="surrender-btn" onclick="openSurrenderDialog()">🏳 Aufgeben</button>
     </div>
@@ -947,7 +948,57 @@
             9: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, P, P, P, P, 1, 0, 0, 0, 0, 6, 1, P, P, 1, 6, 6, 0, 0, 6, 6, 6, 1, 1, 5, 5, 6, 6, 0, 6, 6, 6, 6, 6, 5, 5, 1, 6, 0, 6, 6, 6, 6, 6, 6, 6, 6, 3, 3, 0, 6, 6, 0, 6, 6, 0, 6, 0, 0, 0, 6, 5, 0, 6, 5, 0, 6, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             // Kamelreiter: P=Reiter, 4=Kamelbraun, 1=Auge/Bogen/Hufe
             10: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 1, 0, 0, 0, 0, 0, 0, 0, P, P, 3, 1, 0, 0, 0, 0, 0, 0, P, 0, 1, 0, 0, 0, 0, 0, 0, 4, 4, 4, 0, 0, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 0, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 4, 0, 4, 0, 0, 4, 0, 0, 0, 0, 4, 0, 4, 0, 0, 4, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0],
+            // Wagenburg (Kriegswagen): 4=Holz, 5=Metall, 1=Details
+            11: [
+                0, 0, 0, 0, 1, 1, 1, 1, 0, 0,
+                0, 0, 0, 0, 1, P, P, 1, 0, 0,
+                0, 0, 0, 0, 1, 1, 1, 1, 0, 0,
+                0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+                1, 4, 4, 4, 4, 4, 4, 4, 1, 0,
+                1, 4, 5, 4, 4, 4, 5, 4, 1, 0,
+                1, 4, 4, 4, 4, 4, 4, 4, 1, 0,
+                0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+                0, 0, 1, 1, 0, 0, 1, 1, 0, 0,
+                0, 0, 1, 1, 0, 0, 1, 1, 0, 0
+            ],
+            "wagen_dp": [
+                0, 0, 0, 0, 1, 1, 1, 1, 0, 0,
+                0, 0, 0, 0, 1, P, P, 1, 0, 0,
+                0, 0, 0, 0, 1, 1, 1, 1, 0, 0,
+                0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+                1, 4, 4, 4, 4, 4, 4, 4, 1, 0,
+                1, 4, 5, 4, 1, 1, 5, 4, 1, 0,
+                1, 4, 4, 4, 4, 4, 4, 4, 1, 0,
+                1, 5, 5, 5, 5, 5, 5, 5, 1, 0,
+                1, 4, 4, 4, 4, 4, 4, 4, 1, 0,
+                0, 1, 1, 1, 1, 1, 1, 1, 1, 0
+            ],
             "wall": [0, 0, 4, 0, 0, 4, 0, 0, 4, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 5, 4, 4, 5, 4, 4, 5, 4, 4, P, P, P, P, P, P, P, P, 4, 4, 4, 5, 4, 4, 5, 4, 4, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 4, 0, 0, 4, 0, 0, 4, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 4, 4, 5, 4, 4, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+            ,
+            "stone": [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 5, 5, 5, 0, 0, 0,
+                0, 0, 0, 5, 5, 5, 5, 5, 0, 0,
+                0, 0, 5, 5, 5, 5, 5, 5, 5, 0,
+                0, 5, 5, 5, 5, 5, 5, 5, 5, 0,
+                0, 5, 5, 5, 5, 5, 5, 5, 5, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ],
+            "tower": [
+                0, 0, 0, 1, 0, 1, 0, 1, 0, 0,
+                0, 0, 0, 1, 3, 1, 3, 1, 0, 0,
+                0, 0, 0, 1, 3, 3, 3, 1, 0, 0,
+                0, 0, 0, 1, 1, 1, 1, 1, 0, 0,
+                0, 0, 0, 1, P, P, P, 1, 0, 0,
+                0, 0, 0, 1, P, P, P, 1, 0, 0,
+                0, 0, 1, 1, 3, 3, 3, 1, 1, 0,
+                0, 0, 1, 3, 3, 1, 3, 3, 1, 0,
+                0, 0, 1, 3, 3, 1, 3, 3, 1, 0,
+                0, 0, 1, 1, 1, 1, 1, 1, 1, 0
+            ]
         };
         function drawPixelSprite(ctx, cx, cy, spriteKey, playerColor) {
             const arr = pixelSprites[spriteKey];
@@ -1019,7 +1070,7 @@
             };
         };
 
-        const getExpectedDamage = (attackerUnit, targetType, targetOwnerId) => {
+        const getExpectedDamage = (attackerUnit, targetType, targetOwnerId, targetUnit) => {
             const pState = gameState.p[attackerUnit.p];
             const stats = unitStats[attackerUnit.t];
             let dmg = stats.dmg;
@@ -1028,14 +1079,21 @@
             if (attackerUnit.t === 4 && (targetType === 'building' || targetType === 'tunnel') && pState.u.includes(3)) dmg += 3;
             if (pState.u.includes(4) && getTerrainType(gameState, attackerUnit.x, attackerUnit.y) === 'forest') dmg += 1;
             if (attackerUnit.t === 6 && pState.u.includes(7)) dmg += 2;
-            if (attackerUnit.t === 9 && (targetType === 'building' || targetType === 'tunnel' || targetType === 'wall') && pState.u.includes(10)) dmg += 5;
+            if (attackerUnit.t === 9 && (targetType === 'building' || targetType === 'tunnel' || targetType === 'wall' || targetType === 'tower') && pState.u.includes(10)) dmg += 5;
             // Hill bonus: ranged units on hills get +1 DMG
             if (!stats.isMelee && getTerrainType(gameState, attackerUnit.x, attackerUnit.y) === 'hill') dmg += 1;
             // Veteran bonus
             dmg += getVeteranBonus(attackerUnit);
 
             const maxHp = getUnitMaxHp(pState, attackerUnit.t, attackerUnit);
-            return Math.max(1, Math.round(dmg * (attackerUnit.h / maxHp)));
+            let scaled = Math.max(1, Math.round(dmg * (attackerUnit.h / maxHp)));
+
+            // Wagenburg-Aura: Schaden auf befreundete Nachbarn -1 (min. 1)
+            if (targetType === 'unit' && targetUnit && targetUnit.p === targetOwnerId) {
+                const hasAura = gameState.u.some(u => u.p === targetOwnerId && u.t === 11 && u.dp === 1 && hexDistance({ x: u.x, y: u.y }, { x: targetUnit.x, y: targetUnit.y }) === 1);
+                if (hasAura) scaled = Math.max(1, scaled - 1);
+            }
+            return scaled;
         };
 
         let gameState = null; let turnActions = []; let showRecap = true;
@@ -1267,7 +1325,7 @@
             0: { name: "🏰 Feudalismus", desc: "Passive: Neu rekrutierte Einheiten erhalten +1 Max-HP für jedes Dorf, das du aktuell besitzt.\nSpezial: 🛡️ Ritter & 🏹 Kamelreiter", cost: 10, reqV: 2 },
             1: { name: "🩸 Plünderer", desc: "Passive: +1 DMG für Nahkämpfer.\nSpezial: 🪓 Berserker & 💥 Saboteur", cost: 10, reqV: 2 },
             2: { name: "👁️ Spionage", desc: "Passive: +1 Sichtweite.\nSpezial: 🗡️ Assassine & 🐘 Elefant", cost: 10, reqV: 2 },
-            3: { name: "⚖️ Gilden", desc: "Passive: +1 Gold pro Dorf.\nSpezial: 🏗️ Tribok & 🚇 Tunnelgräber", cost: 10, reqV: 2 }
+            3: { name: "⚖️ Gilden", desc: "Passive: +1 Gold pro Dorf.\nSpezial: 🏗️ Tribok & 🚚 Wagenburg", cost: 10, reqV: 2 }
         };
 
         const upgrades = {
@@ -1282,7 +1340,7 @@
             8: { fac: 0, t: 3, name: "Doppelschuss", desc: "Parthershot (Kamelreiter) kostet 0 Holz.", g: 10, m: 5 },
             9: { fac: 1, t: 3, name: "Instabiler Kern", desc: "Saboteur Explosionsschaden +2 (insg. 10 DMG).", g: 10, m: 5 },
             10: { fac: 2, t: 3, name: "Belagerungsbestie", desc: "Elefant macht +5 DMG gegen Gebäude & Tunnel.", g: 10, m: 5 },
-            11: { fac: 3, t: 3, name: "Palisaden", desc: "Tunnelgräber kann Holzmauern (10 HP) bauen (Kosten: 1🪵).", g: 10, m: 5 }
+            11: { fac: 3, t: 3, name: "Verstärkte Beschläge", desc: "Wagenburg: dauerhaft +4 Max HP. Bei Nahkampfangriff erleidet der Angreifer 2 DMG Rückschlag.", g: 10, m: 5 }
         };
 
         const unitStats = {
@@ -1292,20 +1350,29 @@
             3: { dmg: 6, range: 1, move: 2, name: "Ritter", cost: 6, maxHp: 15, isMelee: true },
             4: { dmg: 6, range: 1, move: 2, name: "Berserker", cost: 4, maxHp: 8, isMelee: true },
             5: { dmg: 6, range: 1, move: 3, name: "Assassine", cost: 5, maxHp: 8, isMelee: true },
-            6: { dmg: 6, range: 2, move: 1, name: "Tribok", cost: 7, maxHp: 8, isMelee: false },
-            7: { dmg: 4, range: 1, move: 1, name: "Tunnelgräber", cost: 7, maxHp: 10, isMelee: true },
+            6: { dmg: 6, range: 3, move: 1, name: "Tribok", cost: 7, maxHp: 8, isMelee: false },
+            7: { dmg: 2, range: 1, move: 1, name: "Arbeiter", cost: 2, maxHp: 10, isMelee: true },
             8: { dmg: 0, range: 0, move: 2, name: "Saboteur", cost: 8, maxHp: 8, isMelee: false },
             9: { dmg: 8, range: 1, move: 1, name: "Elefant", cost: 9, maxHp: 30, isMelee: true },
-            10: { dmg: 6, range: 2, move: 2, name: "Kamelreiter", cost: 6, maxHp: 12, isMelee: false }
+            10: { dmg: 6, range: 2, move: 2, name: "Kamelreiter", cost: 6, maxHp: 12, isMelee: false },
+            11: { dmg: 6, range: 1, move: 2, name: "Wagenburg", cost: 7, maxHp: 18, isMelee: true }
         };
 
         const getUnitMaxHp = (pState, type, unit) => {
             let hp = (type === 0 && pState.u.includes(0)) ? 15 : unitStats[type].maxHp;
             if (unit && unit.fb) hp += unit.fb;
+            if (type === 11 && pState.u.includes(11)) hp += 4;
             return hp;
         };
         const getUnitCost = (pState, type) => ([0, 1, 2].includes(type) && pState.u.includes(6)) ? unitStats[type].cost - 1 : unitStats[type].cost;
-        const getUnitMove = (pState, type) => (type === 5 && pState.u.includes(5)) ? unitStats[type].move + 1 : unitStats[type].move;
+        const getUnitMove = (pState, type, unit) => {
+            if (type === 11 && unit && unit.dp === 1) return 0;
+            return (type === 5 && pState.u.includes(5)) ? unitStats[type].move + 1 : unitStats[type].move;
+        };
+        const getUnitRange = (pState, unit) => {
+            if (unit.t === 11 && unit.dp === 1) return 2;
+            return unitStats[unit.t].range;
+        };
 
         function createPRNG(seed) { return function () { let t = seed += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; } }
 
@@ -1403,7 +1470,7 @@
 
             for (let i = 0; i < count; i++) {
                 const svLoc = `${startPos[i].vx},${startPos[i].vy}`;
-                players.push({ n: document.getElementById(`p-name-${i}`).value.trim() || `Spieler ${i + 1}`, g: 3, m: 1, f: [], of: [], u: [], e: [], sv: svLoc, dead: 0, sh: 30 });
+                players.push({ n: document.getElementById(`p-name-${i}`).value.trim() || `Spieler ${i + 1}`, g: 3, m: 1, s: 0, f: [], of: [], u: [], e: [], sv: svLoc, dead: 0, sh: 30 });
                 villages[svLoc] = i;
                 units.push({ i: i + 1, p: i, t: 0, x: startPos[i].ux, y: startPos[i].uy, h: 10, a: 0 });
             }
@@ -1471,7 +1538,7 @@
                         validCandidates[j] = validCandidates[k];
                         validCandidates[k] = temp;
                     }
-                    
+
                     const toPlace = Math.min(2, validCandidates.length);
                     for (let j = 0; j < toPlace; j++) {
                         const c = validCandidates[j];
@@ -1502,7 +1569,57 @@
                 if (valid) { villages[`${nx},${ny}`] = -1; neutralCount--; }
                 attempts++;
             }
-            gameState = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, la: [], th: [], tu: [], wa: [] };
+            // Steinhaufen platzieren (1 pro Spieler in Distanz 2 zum Startdorf + 2*Spieler neutral)
+            const stones = [];
+            const isOccupied = (x, y) => {
+                if (units.some(u => u.x === x && u.y === y)) return true;
+                if (villages[`${x},${y}`] !== undefined) return true;
+                return false;
+            };
+            const isValidStone = (x, y) => {
+                if (!isInsideMap(tempState, x, y)) return false;
+                if (hexDistance({ x, y }, { x: cx, y: cy }) >= radius) return false;
+                if (isOccupied(x, y)) return false;
+                if (stones.some(s => hexDistance({ x, y }, { x: s.x, y: s.y }) < 2)) return false;
+                for (let key in villages) {
+                    const [vx, vy] = key.split(',').map(Number);
+                    if (hexDistance({ x, y }, { x: vx, y: vy }) < 2) return false;
+                }
+                return true;
+            };
+
+            for (let i = 0; i < count; i++) {
+                const [svX, svY] = players[i].sv.split(',').map(Number);
+                const svCube = oddRToCube(svX, svY);
+                let candidates = [];
+                for (let dx = -2; dx <= 2; dx++) {
+                    for (let dy = Math.max(-2, -dx - 2); dy <= Math.min(2, -dx + 2); dy++) {
+                        let dz = -dx - dy;
+                        if (Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) === 2) {
+                            const cPos = cubeToOddR({ x: svCube.x + dx, y: svCube.y + dy, z: svCube.z + dz });
+                            candidates.push(cPos);
+                        }
+                    }
+                }
+                // shuffle candidates
+                for (let j = candidates.length - 1; j > 0; j--) {
+                    const k = Math.floor(rng() * (j + 1));
+                    const tmp = candidates[j]; candidates[j] = candidates[k]; candidates[k] = tmp;
+                }
+                const pick = candidates.find(c => isValidStone(c.x, c.y));
+                if (pick) stones.push({ x: pick.x, y: pick.y, h: 40 });
+            }
+
+            let neutralToPlace = 2 * count;
+            let attemptsSt = 0;
+            while (neutralToPlace > 0 && attemptsSt < 800) {
+                let nx = Math.floor(rng() * size);
+                let ny = Math.floor(rng() * size);
+                if (isValidStone(nx, ny)) { stones.push({ x: nx, y: ny, h: 40 }); neutralToPlace--; }
+                attemptsSt++;
+            }
+
+            gameState = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [] };
             bootGame();
         });
 
@@ -1522,6 +1639,7 @@
         const hillThickness = thickness * 2;
 
         let selectedHex = null; let selectedUnit = null; let validMoves = []; let validAttacks = [];
+        let selectedTower = null;
 
         function getHexCenter(x, y) {
             return {
@@ -1549,7 +1667,7 @@
         }
 
         function calculateMoves(unit) {
-            const pState = gameState.p[unit.p]; const moveStat = getUnitMove(pState, unit.t);
+            const pState = gameState.p[unit.p]; const moveStat = getUnitMove(pState, unit.t, unit);
             let moves = []; let queue = [{ x: unit.x, y: unit.y, steps: 0 }]; let visited = new Set([`${unit.x},${unit.y}`]);
             while (queue.length > 0) {
                 let current = queue.shift();
@@ -1564,7 +1682,9 @@
                             isEnemyTunnel = gameState.tu.some(t => !canUse(t.o) && ((t.x1 === n.x && t.y1 === n.y) || (t.x2 === n.x && t.y2 === n.y)));
                         }
                         const hasWall = gameState.wa && gameState.wa.some(w => w.x === n.x && w.y === n.y);
-                        if (!visited.has(key) && !gameState.u.find(u => u.x === n.x && u.y === n.y) && !isAliveSV && !isEnemyTunnel && !hasWall) { visited.add(key); queue.push({ x: n.x, y: n.y, steps: current.steps + 1 }); }
+                        const hasStone = gameState.st && gameState.st.some(s => s.x === n.x && s.y === n.y && s.h > 0);
+                        const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === n.x && tw.y === n.y && tw.h > 0);
+                        if (!visited.has(key) && !gameState.u.find(u => u.x === n.x && u.y === n.y) && !isAliveSV && !isEnemyTunnel && !hasWall && !hasStone && !hasTower) { visited.add(key); queue.push({ x: n.x, y: n.y, steps: current.steps + 1 }); }
                     }
                 }
             } return moves;
@@ -1574,21 +1694,22 @@
             const stats = unitStats[unit.t]; let attacks = [];
             const pState = gameState.p[gameState.cp];
             const canAttack = (targetId) => !(pState.al && pState.al.includes(targetId)) && !(pState.tc && pState.tc.includes(targetId));
+            const range = getUnitRange(gameState.p[unit.p], unit);
 
-            for (let enemy of gameState.u.filter(u => u.p !== unit.p && u.iv !== 1 && canAttack(u.p))) if (hexDistance({ x: unit.x, y: unit.y }, { x: enemy.x, y: enemy.y }) <= stats.range) attacks.push({ x: enemy.x, y: enemy.y, target: enemy });
+            for (let enemy of gameState.u.filter(u => u.p !== unit.p && u.iv !== 1 && canAttack(u.p))) if (hexDistance({ x: unit.x, y: unit.y }, { x: enemy.x, y: enemy.y }) <= range) attacks.push({ x: enemy.x, y: enemy.y, target: enemy });
             for (let i = 0; i < gameState.p.length; i++) {
                 if (i !== unit.p && gameState.p[i].dead === 0 && canAttack(i)) {
                     let [vx, vy] = gameState.p[i].sv.split(',').map(Number);
-                    if (hexDistance({ x: unit.x, y: unit.y }, { x: vx, y: vy }) <= stats.range) attacks.push({ x: vx, y: vy, isBuilding: true, owner: i });
+                    if (hexDistance({ x: unit.x, y: unit.y }, { x: vx, y: vy }) <= range) attacks.push({ x: vx, y: vy, isBuilding: true, owner: i });
                 }
             }
             if (gameState.tu) {
                 for (let t of gameState.tu) {
                     if (t.o !== unit.p && canAttack(t.o)) {
-                        if (hexDistance({ x: unit.x, y: unit.y }, { x: t.x1, y: t.y1 }) <= stats.range) {
+                        if (hexDistance({ x: unit.x, y: unit.y }, { x: t.x1, y: t.y1 }) <= range) {
                             attacks.push({ x: t.x1, y: t.y1, isTunnelTarget: true, tunnel: t, targetOwner: t.o });
                         }
-                        if (hexDistance({ x: unit.x, y: unit.y }, { x: t.x2, y: t.y2 }) <= stats.range) {
+                        if (hexDistance({ x: unit.x, y: unit.y }, { x: t.x2, y: t.y2 }) <= range) {
                             attacks.push({ x: t.x2, y: t.y2, isTunnelTarget: true, tunnel: t, targetOwner: t.o });
                         }
                     }
@@ -1597,13 +1718,46 @@
             if (gameState.wa) {
                 for (let w of gameState.wa) {
                     if (w.o !== unit.p && !(pState.al && pState.al.includes(w.o))) {
-                        if (hexDistance({ x: unit.x, y: unit.y }, { x: w.x, y: w.y }) <= stats.range) {
+                        if (hexDistance({ x: unit.x, y: unit.y }, { x: w.x, y: w.y }) <= range) {
                             attacks.push({ x: w.x, y: w.y, isWallTarget: true, wall: w });
                         }
                     }
                 }
             }
+            if (gameState.tw) {
+                for (let tw of gameState.tw) {
+                    if (tw.h > 0 && tw.o !== unit.p && canAttack(tw.o)) {
+                        if (hexDistance({ x: unit.x, y: unit.y }, { x: tw.x, y: tw.y }) <= range) {
+                            attacks.push({ x: tw.x, y: tw.y, isTowerTarget: true, tower: tw });
+                        }
+                    }
+                }
+            }
             return attacks;
+        }
+
+        function processAutoMining(pId) {
+            const pState = gameState.p[pId];
+            if (!pState.s) pState.s = 0;
+            if (!gameState.st) gameState.st = [];
+            const myWorkers = gameState.u.filter(u => u.p === pId && u.t === 7 && u.mi);
+            myWorkers.forEach(w => {
+                if (!w.mi) return;
+                const target = gameState.st.find(s => s.x === w.mi.x && s.y === w.mi.y && s.h > 0);
+                const stillAdj = target && hexDistance({ x: w.x, y: w.y }, { x: target.x, y: target.y }) === 1;
+                if (stillAdj) {
+                    const tx = target.x, ty = target.y;
+                    target.h -= 1;
+                    pState.s += 1;
+                    if (target.h <= 0) {
+                        gameState.st = gameState.st.filter(s => s.x !== tx || s.y !== ty);
+                        gameState.u.forEach(u => { if (u.mi && u.mi.x === tx && u.mi.y === ty) delete u.mi; });
+                    }
+                } else {
+                    delete w.mi;
+                }
+            });
+            if (gameState.st.length === 0) gameState.st = [];
         }
 
         function getVisibleHexes(playerId) {
@@ -1612,12 +1766,17 @@
                 const pState = gameState.p[pId];
                 const sightRange = pState.f && pState.f.includes(2) ? 3 : 2;
                 const myUnits = gameState.u.filter(u => u.p === pId); const myVillages = Object.entries(gameState.v).filter(([k, v]) => v === pId).map(([k, v]) => k.split(',').map(Number));
+                const myTowers = (gameState.tw || []).filter(tw => tw.o === pId && tw.h > 0);
                 for (let y = 0; y < gameState.bh; y++) {
                     for (let x = 0; x < gameState.bw; x++) {
                         if (!isInsideMap(gameState, x, y) || visible.has(`${x},${y}`)) continue;
                         let isVis = false;
-                        for (let u of myUnits) if (hexDistance({ x, y }, { x: u.x, y: u.y }) <= sightRange) { isVis = true; break; }
+                        for (let u of myUnits) {
+                            const unitSight = (u.t === 6) ? 3 : sightRange;
+                            if (hexDistance({ x, y }, { x: u.x, y: u.y }) <= unitSight) { isVis = true; break; }
+                        }
                         if (!isVis) { for (let [vx, vy] of myVillages) if (hexDistance({ x, y }, { x: vx, y: vy }) <= sightRange) { isVis = true; break; } }
+                        if (!isVis) { for (let tw of myTowers) if (hexDistance({ x, y }, { x: tw.x, y: tw.y }) <= 2) { isVis = true; break; } }
                         if (isVis) visible.add(`${x},${y}`);
                     }
                 }
@@ -1713,11 +1872,13 @@
                     const hasVillage = gameState.v[`${n.x},${n.y}`] !== undefined;
                     const hasTunnel = gameState.tu && gameState.tu.some(t => (t.x1 === n.x && t.y1 === n.y) || (t.x2 === n.x && t.y2 === n.y));
                     const hasWall = gameState.wa && gameState.wa.some(w => w.x === n.x && w.y === n.y);
-                    if (!gameState.u.some(u => u.x === n.x && u.y === n.y) && !hasVillage && !hasTunnel && !hasWall) {
+                    const hasStone = gameState.st && gameState.st.some(s => s.x === n.x && s.y === n.y && s.h > 0);
+                    const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === n.x && tw.y === n.y && tw.h > 0);
+                    if (!gameState.u.some(u => u.x === n.x && u.y === n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower) {
                         validMoves.push({ x: n.x, y: n.y });
                     }
                 }
-                hideActionMenu(); infoPanel.innerHTML = `🚇 Tunnel Startpunkt<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes, freies Feld neben dem Tunnelgräber.</div>`;
+                hideActionMenu(); infoPanel.innerHTML = `🚇 Tunnel Startpunkt<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes, freies Feld neben dem Arbeiter (4🪨).</div>`;
                 renderBoard(gameState);
             }
             else if (type === 'wall') {
@@ -1727,11 +1888,29 @@
                     const hasVillage = gameState.v[`${n.x},${n.y}`] !== undefined;
                     const hasTunnel = gameState.tu && gameState.tu.some(t => (t.x1 === n.x && t.y1 === n.y) || (t.x2 === n.x && t.y2 === n.y));
                     const hasWall = gameState.wa && gameState.wa.some(w => w.x === n.x && w.y === n.y);
-                    if (!gameState.u.some(u => u.x === n.x && u.y === n.y) && !hasVillage && !hasTunnel && !hasWall) {
+                    const hasStone = gameState.st && gameState.st.some(s => s.x === n.x && s.y === n.y && s.h > 0);
+                    const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === n.x && tw.y === n.y && tw.h > 0);
+                    if (!gameState.u.some(u => u.x === n.x && u.y === n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower) {
                         validMoves.push({ x: n.x, y: n.y });
                     }
                 }
-                hideActionMenu(); infoPanel.innerHTML = `🧱 Palisade errichten<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes, freies Feld neben dem Tunnelgräber (1🪵).</div>`;
+                hideActionMenu(); infoPanel.innerHTML = `🧱 Mauer errichten<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes, freies Feld neben dem Arbeiter (1🪨).</div>`;
+                renderBoard(gameState);
+            }
+            else if (type === 'tower') {
+                window.specialActive = 'tower_step1';
+                validAttacks = []; validMoves = [];
+                for (let n of getNeighbors(selectedUnit.x, selectedUnit.y)) {
+                    const hasVillage = gameState.v[`${n.x},${n.y}`] !== undefined;
+                    const hasTunnel = gameState.tu && gameState.tu.some(t => (t.x1 === n.x && t.y1 === n.y) || (t.x2 === n.x && t.y2 === n.y));
+                    const hasWall = gameState.wa && gameState.wa.some(w => w.x === n.x && w.y === n.y);
+                    const hasStone = gameState.st && gameState.st.some(s => s.x === n.x && s.y === n.y && s.h > 0);
+                    const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === n.x && tw.y === n.y && tw.h > 0);
+                    if (!gameState.u.some(u => u.x === n.x && u.y === n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower) {
+                        validMoves.push({ x: n.x, y: n.y });
+                    }
+                }
+                hideActionMenu(); infoPanel.innerHTML = `🗼 Turm errichten<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes, freies Feld neben dem Arbeiter (5🪨).</div>`;
                 renderBoard(gameState);
             }
             else if (type === 'detonate') {
@@ -1820,6 +1999,36 @@
                 infoPanel.innerHTML = `🏹 Parthershot aktiviert! Greife jetzt an – danach kannst du dich noch einmal bewegen.`;
                 renderBoard(gameState);
             }
+        };
+
+        window.startMining = function () {
+            const pState = gameState.p[gameState.cp];
+            if (!selectedUnit || selectedUnit.t !== 7) return;
+            const adj = (gameState.st || []).filter(s => s.h > 0 && hexDistance({ x: s.x, y: s.y }, { x: selectedUnit.x, y: selectedUnit.y }) === 1);
+            if (adj.length === 0) { showToast("Kein Steinhaufen neben dir.", "error"); return; }
+            // pick richest adjacent
+            adj.sort((a, b) => b.h - a.h);
+            selectedUnit.mi = { x: adj[0].x, y: adj[0].y };
+            hideActionMenu();
+            infoPanel.innerHTML = `⛏️ Abbau gestartet!<div class="info-detail" style="color:#4fc3f7;">Am Rundenende: +1🪨, Steinhaufen -1 (solange du daneben stehst).</div>`;
+            renderBoard(gameState);
+        };
+
+        window.stopMining = function () {
+            if (!selectedUnit || selectedUnit.t !== 7) return;
+            delete selectedUnit.mi;
+            hideActionMenu();
+            infoPanel.innerHTML = `⛏️ Abbau gestoppt.`;
+            renderBoard(gameState);
+        };
+
+        window.toggleDeploy = function () {
+            if (!selectedUnit || selectedUnit.t !== 11) return;
+            selectedUnit.dp = selectedUnit.dp === 1 ? 0 : 1;
+            selectedUnit.a = 1;
+            hideActionMenu();
+            infoPanel.innerHTML = selectedUnit.dp === 1 ? `⛺ Wagenburg aufgeschlagen!` : `🐎 Wagenburg mobil.`;
+            renderBoard(gameState);
         };
 
         window.useTunnel = function () {
@@ -1988,17 +2197,20 @@
             // Offset ist für alles gleich
             let isBuilding = (spriteKey === 'village' || spriteKey === 'startVillage' || spriteKey === 'tunnel');
             const offsetY = -2 + elevation;
+            let actualSprite = spriteKey;
+            if (actualSprite === 11 && unit && unit.dp === 1) actualSprite = "wagen_dp";
+
             if (isStealth) {
                 // Slight wavy offset or double render for "ghostly" effect (only if still active to highlight it)
                 if (!hasActed) {
                     ctx.globalAlpha = 0.4;
-                    drawPixelSprite(ctx, center.px - 2, center.py + offsetY, spriteKey, color);
-                    drawPixelSprite(ctx, center.px + 2, center.py + offsetY, spriteKey, color);
+                    drawPixelSprite(ctx, center.px - 2, center.py + offsetY, actualSprite, color);
+                    drawPixelSprite(ctx, center.px + 2, center.py + offsetY, actualSprite, color);
                     ctx.globalAlpha = 0.85;
                 }
             }
 
-            drawPixelSprite(ctx, center.px, center.py + offsetY, spriteKey, color);
+            drawPixelSprite(ctx, center.px, center.py + offsetY, actualSprite, color);
 
             // Minimalistisches Banner (kleine Flagge rechts vom Gebäude), die auch verdeckt noch sichtbar ist
             if (isBuilding) {
@@ -2041,6 +2253,16 @@
                 ctx.lineWidth = 2;
                 ctx.strokeText('★', center.px, center.py + offsetY - 14);
                 ctx.fillText('★', center.px, center.py + offsetY - 14);
+            }
+            // Mining indicator (Arbeiter)
+            if (unit && unit.mi) {
+                ctx.fillStyle = '#fff176';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.strokeText('⛏', center.px + 14, center.py + offsetY - 10);
+                ctx.fillText('⛏', center.px + 14, center.py + offsetY - 10);
             }
             ctx.globalAlpha = 1.0;
         }
@@ -2152,7 +2374,7 @@
             let myVillages = Object.values(gameState.v).filter(v => v === pId).length;
 
             const income = calculateIncome(pId);
-            resourceHud.innerHTML = `💰 ${pState.g} <span class="income-text">(+${income.g})</span> | 🪵 ${pState.m} <span class="income-text">(+${income.m})</span>`;
+            resourceHud.innerHTML = `💰 ${pState.g} <span class="income-text">(+${income.g})</span> | 🪵 ${pState.m} <span class="income-text">(+${income.m})</span> | 🪨 ${pState.s || 0}`;
 
             infoPanel.style.color = playerColors[pId];
             if (!selectedUnit && !selectedHex && window.specialActive !== 'tribok') infoPanel.innerHTML = `Runde ${gameState.rn} | ${pState.n} ist am Zug.<div class="info-detail">Tippe auf Einheiten oder Dörfer für Details.</div>`;
@@ -2331,6 +2553,22 @@
                 });
             }
 
+            if (state.st) {
+                state.st.forEach(s => {
+                    if (s.h > 0 && vis.has(`${s.x},${s.y}`)) {
+                        renderQueue.push({ py: getHexCenter(s.x, s.y).py, type: 'stone', vx: s.x, vy: s.y, hp: s.h, maxHp: 40, spriteKey: "stone" });
+                    }
+                });
+            }
+
+            if (state.tw) {
+                state.tw.forEach(tw => {
+                    if (tw.h > 0 && vis.has(`${tw.x},${tw.y}`)) {
+                        renderQueue.push({ py: getHexCenter(tw.x, tw.y).py, type: 'tower', vx: tw.x, vy: tw.y, ownerId: tw.o, hp: tw.h, maxHp: 15, spriteKey: "tower", acted: tw.a });
+                    }
+                });
+            }
+
             for (const [key, ownerId] of Object.entries(state.v)) {
                 if (vis.has(key) || ownerId === gameState.cp || (ownerId === -1 && explored.includes(parseInt(key.split(',')[1]) * state.bw + parseInt(key.split(',')[0])))) {
                     const [vx, vy] = key.split(',').map(Number);
@@ -2363,6 +2601,12 @@
                     drawEntity(u.x, u.y, playerColors[u.p], u.a === 1, u.h, maxHp, u.t, u.iv === 1, u);
                 } else if (item.type === 'wall') {
                     drawEntity(item.vx, item.vy, getEntityColor(item.ownerId), false, item.hp, item.maxHp, item.spriteKey, false);
+                } else if (item.type === 'stone') {
+                    drawEntity(item.vx, item.vy, "#9e9e9e", false, item.hp, item.maxHp, item.spriteKey, false);
+                    // Quantity label removed – stones now shown without number
+
+                } else if (item.type === 'tower') {
+                    drawEntity(item.vx, item.vy, getEntityColor(item.ownerId), item.acted === 1, item.hp, item.maxHp, item.spriteKey, false);
                 }
             });
 
@@ -2418,6 +2662,82 @@
 
                 let clickedUnit = gameState.u.find(u => u.x === clickedX && u.y === clickedY);
                 if (clickedUnit && clickedUnit.p !== gameState.cp && (!isVisible || clickedUnit.iv === 1)) clickedUnit = undefined;
+                let clickedTower = (gameState.tw && isVisible) ? gameState.tw.find(tw => tw.x === clickedX && tw.y === clickedY && tw.h > 0) : null;
+
+                if (window.specialActive === 'tower_shot') {
+                    const t = selectedTower;
+                    if (t && validAttacks.some(a => a.x === clickedX && a.y === clickedY && a.isTowerShot)) {
+                        const targetUnit = gameState.u.find(u => u.x === clickedX && u.y === clickedY);
+                        const targetTower = !targetUnit && gameState.tw && gameState.tw.find(tw => tw.x === clickedX && tw.y === clickedY && tw.h > 0);
+                        const targetWall = !targetUnit && !targetTower && gameState.wa && gameState.wa.find(w => w.x === clickedX && w.y === clickedY && w.h > 0);
+                        let targetBuildingOwner = -1;
+                        if (!targetUnit && !targetTower && !targetWall) {
+                            for (let i = 0; i < gameState.p.length; i++) {
+                                if (gameState.p[i].sv === `${clickedX},${clickedY}`) { targetBuildingOwner = i; break; }
+                            }
+                        }
+                        if (targetUnit || targetTower || targetWall || targetBuildingOwner >= 0) {
+                            spawnAttackAnim(t.x, t.y, clickedX, clickedY, 'arrow');
+                            spawnFloatingText(clickedX, clickedY, `-5`, "#ff5252");
+                            if (targetUnit) {
+                                targetUnit.h -= 5;
+                                if (targetUnit.h <= 0) gameState.u = gameState.u.filter(u => u.i !== targetUnit.i);
+                                infoPanel.innerHTML = `🗼 Turm feuert! (-5 HP)`;
+                            } else if (targetTower) {
+                                targetTower.h -= 5;
+                                if (targetTower.h <= 0) { gameState.tw = gameState.tw.filter(tw => tw !== targetTower); infoPanel.innerHTML = `🗼 Feindlicher Turm zerstört!`; }
+                                else infoPanel.innerHTML = `🗼 Turm feuert auf Turm! (-5 HP)`;
+                            } else if (targetWall) {
+                                targetWall.h -= 5;
+                                if (targetWall.h <= 0) { gameState.wa = gameState.wa.filter(w => w !== targetWall); infoPanel.innerHTML = `🗼 Palisade zerstört!`; }
+                                else infoPanel.innerHTML = `🗼 Turm feuert auf Palisade! (-5 HP)`;
+                            } else if (targetBuildingOwner >= 0) {
+                                gameState.p[targetBuildingOwner].sh -= 5;
+                                if (gameState.p[targetBuildingOwner].sh <= 0) {
+                                    gameState.p[targetBuildingOwner].dead = 1;
+                                    gameState.u = gameState.u.filter(u => u.p !== targetBuildingOwner);
+                                    gameState.v[`${clickedX},${clickedY}`] = gameState.cp;
+                                    infoPanel.innerHTML = `💀 HAUPTGEBÄUDE ZERSTÖRT! ${gameState.p[targetBuildingOwner].n} ist ausgeschieden!`;
+                                } else infoPanel.innerHTML = `🗼 Turm feuert auf Hauptgebäude! (-5 HP)`;
+                            }
+                            t.a = 1;
+                            window.specialActive = null; selectedTower = null; selectedHex = null; validAttacks = [];
+                            renderBoard(gameState);
+                        }
+                    } else {
+                        window.specialActive = null; selectedTower = null; selectedHex = null; validAttacks = [];
+                        renderBoard(gameState);
+                    }
+                    return;
+                }
+
+                if (clickedTower && clickedTower.o === gameState.cp && clickedTower.a === 0 && !clickedUnit) {
+                    selectedTower = clickedTower;
+                    selectedHex = { x: clickedTower.x, y: clickedTower.y };
+                    window.specialActive = 'tower_shot';
+                    validMoves = [];
+                    const pState2 = gameState.p[gameState.cp];
+                    const canAttack = (targetId) => !(pState2.al && pState2.al.includes(targetId)) && !(pState2.tc && pState2.tc.includes(targetId));
+                    validAttacks = gameState.u
+                        .filter(u => u.p !== gameState.cp && u.iv !== 1 && canAttack(u.p) && hexDistance({ x: clickedTower.x, y: clickedTower.y }, { x: u.x, y: u.y }) <= 2)
+                        .map(u => ({ x: u.x, y: u.y, isTowerShot: true }));
+                    if (gameState.tw) for (let tw of gameState.tw)
+                        if (tw.h > 0 && tw.o !== gameState.cp && canAttack(tw.o) && hexDistance({ x: clickedTower.x, y: clickedTower.y }, { x: tw.x, y: tw.y }) <= 2)
+                            validAttacks.push({ x: tw.x, y: tw.y, isTowerShot: true });
+                    if (gameState.wa) for (let w of gameState.wa)
+                        if (w.h > 0 && w.o !== gameState.cp && canAttack(w.o) && hexDistance({ x: clickedTower.x, y: clickedTower.y }, { x: w.x, y: w.y }) <= 2)
+                            validAttacks.push({ x: w.x, y: w.y, isTowerShot: true });
+                    for (let i = 0; i < gameState.p.length; i++)
+                        if (i !== gameState.cp && gameState.p[i].dead === 0 && canAttack(i)) {
+                            const [vx, vy] = gameState.p[i].sv.split(',').map(Number);
+                            if (hexDistance({ x: clickedTower.x, y: clickedTower.y }, { x: vx, y: vy }) <= 2)
+                                validAttacks.push({ x: vx, y: vy, isTowerShot: true });
+                        }
+                    hideActionMenu();
+                    infoPanel.innerHTML = `🗼 Turm – Ziel wählen<br><div class="info-detail" style="color:#4fc3f7;">Reichweite 2 | 5 DMG | 1x pro Runde</div>`;
+                    renderBoard(gameState);
+                    return;
+                }
 
                 const targetAttack = validAttacks.find(a => a.x === clickedX && a.y === clickedY);
                 const villageOwner = gameState.v[`${clickedX},${clickedY}`];
@@ -2453,15 +2773,17 @@
                         const hasMain = gameState.p.some((p, i) => i !== gameState.cp && p.dead === 0 && p.sv === `${clickedX},${clickedY}`);
                         const hasTunnel = gameState.tu && gameState.tu.some(t => (t.x1 === clickedX && t.y1 === clickedY) || (t.x2 === clickedX && t.y2 === clickedY));
                         const hasWall = gameState.wa && gameState.wa.some(w => w.x === clickedX && w.y === clickedY);
+                        const hasStone = gameState.st && gameState.st.some(s => s.x === clickedX && s.y === clickedY && s.h > 0);
+                        const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === clickedX && tw.y === clickedY && tw.h > 0);
 
-                        if (hasEnemy || hasVillage || hasMain || hasTunnel || hasWall) {
+                        if (hasEnemy || hasVillage || hasMain || hasTunnel || hasWall || hasStone || hasTower) {
                             showToast("Feld blockiert!", "error");
                             validAttacks = [{ x: clickedX, y: clickedY }]; renderBoard(gameState);
                             setTimeout(() => { validAttacks = []; renderBoard(gameState); }, 600);
                             return;
                         }
 
-                        pState.g -= 5; pState.m -= 5;
+                        pState.s = (pState.s || 0) - 4;
                         if (!gameState.tu) gameState.tu = [];
                         gameState.tu.push({
                             x1: window.tunnelStart.x, y1: window.tunnelStart.y,
@@ -2478,13 +2800,25 @@
                     return;
                 } else if (window.specialActive === 'wall_step1') {
                     if (validMoves.some(m => m.x === clickedX && m.y === clickedY)) {
-                        pState.m -= 1;
+                        pState.s = (pState.s || 0) - 1;
                         if (!gameState.wa) gameState.wa = [];
                         gameState.wa.push({ x: clickedX, y: clickedY, o: gameState.cp, h: 10 });
 
                         selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'cap', fx: selectedUnit.x, fy: selectedUnit.y });
                         window.specialActive = null; selectedUnit = null; validMoves = [];
                         infoPanel.innerHTML = "🧱 Palisade errichtet!"; renderBoard(gameState);
+                    } else {
+                        window.specialActive = null; selectedUnit = null; validMoves = []; renderBoard(gameState);
+                    }
+                    return;
+                } else if (window.specialActive === 'tower_step1') {
+                    if (validMoves.some(m => m.x === clickedX && m.y === clickedY)) {
+                        pState.s = (pState.s || 0) - 5;
+                        if (!gameState.tw) gameState.tw = [];
+                        gameState.tw.push({ x: clickedX, y: clickedY, o: gameState.cp, h: 15, a: 1 });
+                        selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'cap', fx: selectedUnit.x, fy: selectedUnit.y });
+                        window.specialActive = null; selectedUnit = null; validMoves = [];
+                        infoPanel.innerHTML = "🗼 Turm errichtet!"; renderBoard(gameState);
                     } else {
                         window.specialActive = null; selectedUnit = null; validMoves = []; renderBoard(gameState);
                     }
@@ -2609,8 +2943,14 @@
                     } else if (targetAttack.isTunnelTarget) {
                         targetType = 'tunnel';
                         targetOwnerId = targetAttack.targetOwner;
+                    } else if (targetAttack.isTowerTarget) {
+                        targetType = 'tower';
+                        targetOwnerId = targetAttack.tower.o;
+                    } else if (targetAttack.isWallTarget) {
+                        targetType = 'wall';
+                        targetOwnerId = targetAttack.wall.o;
                     }
-                    const finalDmg = getExpectedDamage(selectedUnit, targetType, targetOwnerId);
+                    const finalDmg = getExpectedDamage(selectedUnit, targetType, targetOwnerId, targetAttack.target);
                     const atkType = unitStats[selectedUnit.t].isMelee ? 'slash' : 'arrow';
                     spawnAttackAnim(selectedUnit.x, selectedUnit.y, clickedX, clickedY, atkType);
 
@@ -2638,17 +2978,37 @@
                             gameState.wa = gameState.wa.filter(w => w !== targetAttack.wall);
                             infoPanel.innerHTML = `Palisade zerstört!`;
                         } else { infoPanel.innerHTML = `Palisade angegriffen! (-${finalDmg} HP)`; }
+                    } else if (targetAttack.isTowerTarget) {
+                        targetAttack.tower.h -= finalDmg;
+                        spawnFloatingText(targetAttack.x, targetAttack.y, `-${finalDmg}`, "#ff5252");
+                        if (targetAttack.tower.h <= 0) {
+                            gameState.tw = gameState.tw.filter(t => t !== targetAttack.tower);
+                            infoPanel.innerHTML = `Turm zerstört!`;
+                        } else { infoPanel.innerHTML = `Turm angegriffen! (-${finalDmg} HP)`; }
                     } else {
                         targetAttack.target.h -= finalDmg;
                         spawnFloatingText(targetAttack.target.x, targetAttack.target.y, `-${finalDmg}`, "#ff5252");
 
+                        // Wagenburg-Dornen (Upgrade 11): Nahkämpfer erleiden 2 Rückschlag
+                        const attackerUnit = selectedUnit;
+                        if (targetAttack.target.t === 11 && unitStats[attackerUnit.t].isMelee) {
+                            const targetOwnerState = gameState.p[targetAttack.target.p];
+                            if (targetOwnerState && targetOwnerState.u && targetOwnerState.u.includes(11)) {
+                                attackerUnit.h -= 2;
+                                spawnFloatingText(attackerUnit.x, attackerUnit.y, `-2`, "#ff5252");
+                                if (attackerUnit.h <= 0) {
+                                    gameState.u = gameState.u.filter(u => u.i !== attackerUnit.i);
+                                    infoPanel.innerHTML = `Angriff! (-${finalDmg} HP)<br>Deine Einheit wurde durch Rückschlag besiegt!`;
+                                }
+                            }
+                        }
+
                         // --- 2. RETALIATION (VERTEIDIGUNG) ---
                         if (targetAttack.target.h > 0) {
                             const targetStats = unitStats[targetAttack.target.t];
-                            const attackerUnit = selectedUnit; // Fix: Capture reference before selectedUnit is nullified
                             const dist = hexDistance({ x: clickedX, y: clickedY }, { x: attackerUnit.x, y: attackerUnit.y });
-                            if (dist <= targetStats.range) {
-                                const retDmg = getExpectedDamage(targetAttack.target, 'unit', attackerUnit.p);
+                            if (dist <= getUnitRange(gameState.p[targetAttack.target.p], targetAttack.target)) {
+                                const retDmg = getExpectedDamage(targetAttack.target, 'unit', attackerUnit.p, attackerUnit);
                                 const retAtkType = targetStats.isMelee ? 'slash' : 'arrow';
                                 setTimeout(() => {
                                     if (attackerUnit.h > 0) { // Only retaliate if attacker is still reachable
@@ -2741,10 +3101,14 @@
                     if (selectedUnit.t === 4 && selectedUnit.a === 1 && !selectedUnit.br && pState.m >= 2) hasAbilities = true;
                     if (selectedUnit.t === 5 && !selectedUnit.iv && !selectedUnit.cd && pState.m >= 2) hasAbilities = true;
                     if (selectedUnit.t === 6 && pState.m >= 4) hasAbilities = true;
-                    if (selectedUnit.t === 7 && pState.g >= 5 && pState.m >= 5) hasAbilities = true;
+                    if (selectedUnit.t === 7) {
+                        const adjStone = gameState.st && gameState.st.some(s => s.h > 0 && hexDistance({ x: s.x, y: s.y }, { x: selectedUnit.x, y: selectedUnit.y }) === 1);
+                        if (adjStone || (pState.s || 0) > 0) hasAbilities = true;
+                    }
                     if (selectedUnit.t === 8) hasAbilities = true;
                     if (selectedUnit.t === 9 && pState.m >= 3) hasAbilities = true;
                     if (selectedUnit.t === 10 && pState.m >= 1 && !selectedUnit.ps) hasAbilities = true;
+                    if (selectedUnit.t === 11) hasAbilities = true;
 
                     if (validAttacks.length > 0 || canCap || hasAbilities) {
                         // Keep selected and update UI
@@ -2776,12 +3140,12 @@
             if (clickedUnit) {
                 const maxHp = getUnitMaxHp(gameState.p[clickedUnit.p], clickedUnit.t, clickedUnit);
                 const ownerName = formatOwnerName(clickedUnit.p, gameState.cp);
-                const moveStat = getUnitMove(gameState.p[clickedUnit.p], clickedUnit.t);
+                const moveStat = getUnitMove(gameState.p[clickedUnit.p], clickedUnit.t, clickedUnit);
                 const atkDmg = unitStats[clickedUnit.t].dmg;
 
                 let expectedDmgText = "";
                 if (selectedUnit && selectedUnit.p === gameState.cp && clickedUnit.p !== gameState.cp && validAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
-                    const expDmg = getExpectedDamage(selectedUnit, 'unit', clickedUnit.p);
+                    const expDmg = getExpectedDamage(selectedUnit, 'unit', clickedUnit.p, clickedUnit);
                     expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${expDmg} DMG</span>`;
                 }
 
@@ -2826,6 +3190,18 @@
                         expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${expDmg} DMG</span>`;
                     }
                     infoPanel.innerHTML = `${ownerName} Palisade (${wall.h}/10 HP)${expectedDmgText}`;
+                } else if (gameState.st && gameState.st.some(s => s.x === clickedX && s.y === clickedY && s.h > 0) && isVisible) {
+                    const st = gameState.st.find(s => s.x === clickedX && s.y === clickedY);
+                    infoPanel.innerHTML = `Steinvorkommen (${st.h}/40)<div class="info-detail">Benötigt Arbeiter zum Abbau</div>`;
+                } else if (gameState.tw && gameState.tw.some(tw => tw.x === clickedX && tw.y === clickedY && tw.h > 0) && isVisible) {
+                    const tw = gameState.tw.find(tw => tw.x === clickedX && tw.y === clickedY);
+                    const ownerName = formatOwnerName(tw.o, gameState.cp);
+                    let expectedDmgText = "";
+                    if (selectedUnit && selectedUnit.p === gameState.cp && tw.o !== gameState.cp && validAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
+                        const expDmg = getExpectedDamage(selectedUnit, 'tower', tw.o);
+                        expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${expDmg} DMG</span>`;
+                    }
+                    infoPanel.innerHTML = `${ownerName} Turm (${tw.h}/15 HP)<div class="info-detail">Range 2 | 5 DMG</div>${expectedDmgText}`;
                 } else {
                     let tType = getTerrainType(gameState, clickedX, clickedY);
                     let tName = tType === 'forest' ? 'Wald' : tType === 'hill' ? 'Hügel' : 'Grasland';
@@ -2876,13 +3252,24 @@
                     }
 
                     if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
-                        if (pState.g >= 5 && pState.m >= 5) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #5d4037;" onclick="useAbility('tunnel')">🚇 Tunnel bauen (5💰 5🪵)</button>`;
-                        else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🚇 Tunnel bauen (5💰 5🪵)</button>`;
-                        
-                        if (pState.u.includes(11)) { // Upgrade 11: Palisaden
-                            if (pState.m >= 1) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #795548;" onclick="useAbility('wall')">🧱 Mauer bauen (1🪵)</button>`;
-                            else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🧱 Mauer bauen (1🪵)</button>`;
-                        }
+                        const adjStone = gameState.st && gameState.st.some(s => s.h > 0 && hexDistance({ x: s.x, y: s.y }, { x: clickedUnit.x, y: clickedUnit.y }) === 1);
+                        if (adjStone && !clickedUnit.mi) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #616161;" onclick="startMining()">⛏️ Abbau starten</button>`;
+                        if (clickedUnit.mi) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #455a64;" onclick="stopMining()">🛑 Abbau stoppen</button>`;
+
+                        const stones = pState.s || 0;
+                        if (stones >= 1) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #795548;" onclick="useAbility('wall')">🧱 Mauer (1🪨)</button>`;
+                        else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🧱 Mauer (1🪨)</button>`;
+
+                        if (stones >= 4) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #5d4037;" onclick="useAbility('tunnel')">🚇 Tunnel (4🪨)</button>`;
+                        else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🚇 Tunnel (4🪨)</button>`;
+
+                        if (stones >= 5) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #37474f;" onclick="useAbility('tower')">🗼 Turm (5🪨)</button>`;
+                        else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🗼 Turm (5🪨)</button>`;
+                    }
+
+                    if (clickedUnit.t === 11 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
+                        const label = clickedUnit.dp === 1 ? '🐎 Abbauen' : '⛺ Aufschlagen';
+                        menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #263238;" onclick="toggleDeploy()">${label}</button>`;
                     }
 
                     if (gameState.tu) {
@@ -2910,10 +3297,11 @@
                     if (clickedUnit.t === 4) specInfo = "Spezial: Aktionspunkt nach Angriff wiederherstellen.";
                     if (clickedUnit.t === 5) specInfo = "Spezial: Unsichtbar für Feinde. Bricht bei Angriff." + (clickedUnit.cd ? ` (Cooldown: ${clickedUnit.cd} Runden)` : "");
                     if (clickedUnit.t === 6) specInfo = "Spezial: AoE-Angriff auf Zielgebiet (Reichweite 3).";
-                    if (clickedUnit.t === 7) specInfo = "Spezial: Kann Tunnelsystem bauen (5G, 5H).";
+                    if (clickedUnit.t === 7) specInfo = "Spezial: ⛏️ Abbau starten (gratis). Kann 🧱 Mauer (1🪨), 🚇 Tunnel (4🪨), 🗼 Turm (5🪨) bauen.";
                     if (clickedUnit.t === 8) specInfo = "Spezial: Kann sich bewegen und explodieren (AoE 8 DMG). Zerstört sich selbst und schädigt auch eigene Truppen!";
                     if (clickedUnit.t === 9) specInfo = "Spezial: Stampede – Wähle ein Ziel (max. Distanz 2). Elefant trifft alle Feinde auf dem Weg (5 DMG, kein Gegenangriff) und bewegt sich dorthin.";
                     if (clickedUnit.t === 10) specInfo = "Spezial: Parthershot (1🪵) – Aktiviere vor dem Angriff. Nach dem Angriff kann der Kamelreiter sich noch einmal bewegen (Rückzug/Neupositionierung)." + (clickedUnit.ps ? " ► AKTIV – Jetzt angreifen!" : "");
+                    if (clickedUnit.t === 11) specInfo = `Spezial: ⛺ Aufschlagen / 🐎 Abbauen (gratis, verbraucht Zug). Stationär: Reichweite 2, Bewegung 0. Aura: -1 einkommender DMG für befreundete Nachbarn.`;
 
                     if (specInfo) infoPanel.innerHTML += `<div class="info-detail" style="color: #4fc3f7;">${specInfo}</div>`;
                 }
@@ -2922,13 +3310,14 @@
                 selectedUnit = null; validMoves = []; validAttacks = [];
                 let menuHtml = '';
                 const mkBtn = (t, icon, name, col = '') => {
-                    const hp = getUnitMaxHp(pState, t), mv = getUnitMove(pState, t), dmg = unitStats[t].dmg, cost = getUnitCost(pState, t), rg = unitStats[t].range;
+                    const hp = getUnitMaxHp(pState, t), mv = getUnitMove(pState, t, null), dmg = unitStats[t].dmg, cost = getUnitCost(pState, t), rg = unitStats[t].range;
                     return `<button class="action-btn" style="padding: 6px 8px; font-size: 0.9rem; display:flex; flex-direction:column; align-items:center; gap:4px; ${col ? 'border-color: ' + col + ';' : ''}" onclick="window.buyUnit(${t})">
                         <div>${icon} ${name} (${cost}G)</div>
                         <div style="font-size: 0.65rem; color: #b0bec5; display: flex; gap: 8px;"><span>❤️${hp}</span><span>⚔️${dmg}</span><span>👟${mv}</span><span>🎯${rg}</span></div>
                     </button>`;
                 };
                 menuHtml += mkBtn(0, '⚔️', 'Schwert') + mkBtn(1, '🏹', 'Bogen') + mkBtn(2, '🐎', 'Pferd');
+                menuHtml += mkBtn(7, '⛏️', 'Arbeiter', '#fff176');
                 if (pState.f.includes(0)) {
                     menuHtml += mkBtn(3, '🛡️', 'Ritter', '#fff176');
                     menuHtml += mkBtn(10, '🐪', 'Kamelreiter', '#e65100');
@@ -2943,7 +3332,7 @@
                 }
                 if (pState.f.includes(3)) {
                     menuHtml += mkBtn(6, '🏗️', 'Tribok', '#fff176');
-                    menuHtml += mkBtn(7, '⛏️', 'Tunnelgräber', '#fff176');
+                    menuHtml += mkBtn(11, '🚚', 'Wagenburg', '#fff176');
                 }
                 showActionMenu(menuHtml); infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Was möchtest du rekrutieren?</div>`;
             } else { selectedUnit = null; validMoves = []; validAttacks = []; }
@@ -3137,10 +3526,15 @@
                 if (p.tc && p.tc.length === 0) delete p.tc;
                 if (p.of && p.of.length === 0) delete p.of;
                 if (gameState.tu && gameState.tu.length === 0) delete gameState.tu;
+                if (gameState.wa && gameState.wa.length === 0) delete gameState.wa;
+                if (gameState.st && gameState.st.length === 0) delete gameState.st;
+                if (gameState.tw && gameState.tw.length === 0) delete gameState.tw;
                 if (p.dead === 0) delete p.dead;
             });
             gameState.u.forEach(u => {
                 if (u.a === 0) delete u.a;
+                if (u.dp === 0) delete u.dp;
+                if (!u.mi) delete u.mi;
                 delete u.i;
             });
             const encodedState = LZString.compressToEncodedURIComponent(JSON.stringify(gameState));
@@ -3155,9 +3549,13 @@
                 if (p.dead === undefined) p.dead = 0;
             });
             if (!gameState.tu) gameState.tu = [];
+            if (!gameState.wa) gameState.wa = [];
+            if (!gameState.st) gameState.st = [];
+            if (!gameState.tw) gameState.tw = [];
             gameState.u.forEach((u, idx) => {
                 if (u.a === undefined) u.a = 0;
                 if (!u.i) u.i = idx + 1;
+                if (u.dp === undefined) u.dp = 0;
             });
 
             const baseUrl = window.location.href.split('?')[0];
@@ -3180,7 +3578,16 @@
         window.confirmSurrender = confirmSurrender;
 
         endTurnBtn.addEventListener('click', () => {
+            if (endTurnBtn.disabled) return;
+            endTurnBtn.disabled = true;
+
             gameState.la = turnActions; turnActions = [];
+
+            // Auto-Miner vor Zugwechsel (ohne Animation, damit Zugende nicht unterbrochen wird)
+            processAutoMining(gameState.cp);
+            floatingTexts = [];
+            attackAnims = [];
+            isAnimating = false;
 
             gameState.u.filter(u => u.p === gameState.cp).forEach(u => {
                 if (u.cd > 0) { u.cd--; if (u.cd === 0) delete u.cd; }
@@ -3195,6 +3602,9 @@
 
             let oldRn = gameState.rn;
             let loopGuard = 0; do { gameState.cp++; if (gameState.cp >= gameState.p.length) { gameState.cp = 0; gameState.rn++; } loopGuard++; } while (gameState.p[gameState.cp].dead === 1 && loopGuard < gameState.p.length);
+
+            // Türme des neuen aktiven Spielers resetten
+            if (gameState.tw) gameState.tw.filter(tw => tw.o === gameState.cp).forEach(tw => tw.a = 0);
 
             if (gameState.rn > oldRn && gameState.rn >= 3) {
                 const evt = checkForEvent();
@@ -3239,11 +3649,15 @@
                 // Strip default values
                 if (gameState.tu && gameState.tu.length === 0) delete gameState.tu;
                 if (gameState.wa && gameState.wa.length === 0) delete gameState.wa;
+                if (gameState.st && gameState.st.length === 0) delete gameState.st;
+                if (gameState.tw && gameState.tw.length === 0) delete gameState.tw;
                 if (p.dead === 0) delete p.dead;
             });
             // Strip default unit fields
             gameState.u.forEach(u => {
                 if (u.a === 0) delete u.a;
+                if (u.dp === 0) delete u.dp;
+                if (!u.mi) delete u.mi;
                 delete u.i;
             });
             const encodedState = LZString.compressToEncodedURIComponent(JSON.stringify(gameState));
@@ -3258,9 +3672,12 @@
             });
             if (!gameState.tu) gameState.tu = [];
             if (!gameState.wa) gameState.wa = [];
+            if (!gameState.st) gameState.st = [];
+            if (!gameState.tw) gameState.tw = [];
             gameState.u.forEach((u, idx) => {
                 if (u.a === undefined) u.a = 0;
                 if (!u.i) u.i = idx + 1;
+                if (u.dp === undefined) u.dp = 0;
             });
 
             const baseUrl = window.location.href.split('?')[0]; const newUrl = baseUrl + "?state=" + encodedState;
@@ -3286,13 +3703,18 @@
                 if (!p.tc) p.tc = [];
                 if (typeof p.e === 'string') p.e = decompressFog(p.e);
                 if (p.dead === undefined) p.dead = 0;
+                if (p.s === undefined) p.s = 0;
             });
             if (!gameState.tu) gameState.tu = [];
             if (!gameState.wa) gameState.wa = [];
+            if (!gameState.st) gameState.st = [];
+            if (!gameState.tw) gameState.tw = [];
             // Restore stripped unit fields
             gameState.u.forEach((u, idx) => {
                 if (u.a === undefined) u.a = 0;
                 if (!u.i) u.i = idx + 1;
+                if (u.dp === undefined) u.dp = 0;
+                if (u.mi === undefined) delete u.mi;
             });
             const alivePlayers = gameState.p.filter(p => p.dead !== 1);
             if (alivePlayers.length <= 1) { document.getElementById('win-msg').innerText = `${alivePlayers[0].n} hat als Letzter überlebt!`; winScreen.style.display = 'flex'; return; }
@@ -3300,6 +3722,7 @@
             canvasWrapper.style.display = 'block';
             uiContainer.style.display = 'flex';
             gameHud.style.display = 'flex';
+            endTurnBtn.disabled = false;
 
             canvas.width = canvas.clientWidth;
             canvas.height = canvas.clientHeight;
