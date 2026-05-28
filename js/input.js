@@ -48,13 +48,15 @@ function handleCanvasClick(clientX, clientY) {
                 const targetUnit = gameState.u.find(u => u.x === clickedX && u.y === clickedY);
                 const targetTower = !targetUnit && gameState.tw && gameState.tw.find(tw => tw.x === clickedX && tw.y === clickedY && tw.h > 0);
                 const targetWall = !targetUnit && !targetTower && gameState.wa && gameState.wa.find(w => w.x === clickedX && w.y === clickedY && w.h > 0);
+                const clickedTunnelAttack = validAttacks.find(a => a.x === clickedX && a.y === clickedY && a.isTunnelShot);
+                const targetTunnel = !targetUnit && !targetTower && !targetWall && clickedTunnelAttack && clickedTunnelAttack.tunnel;
                 let targetBuildingOwner = -1;
-                if (!targetUnit && !targetTower && !targetWall) {
+                if (!targetUnit && !targetTower && !targetWall && !targetTunnel) {
                     for (let i = 0; i < gameState.p.length; i++) {
                         if (gameState.p[i].sv === `${clickedX},${clickedY}`) { targetBuildingOwner = i; break; }
                     }
                 }
-                if (targetUnit || targetTower || targetWall || targetBuildingOwner >= 0) {
+                if (targetUnit || targetTower || targetWall || targetTunnel || targetBuildingOwner >= 0) {
                     spawnAttackAnim(t.x, t.y, clickedX, clickedY, 'arrow');
                     spawnFloatingText(clickedX, clickedY, `-5`, "#ff5252");
                     if (targetUnit) {
@@ -69,6 +71,10 @@ function handleCanvasClick(clientX, clientY) {
                         targetWall.h -= 5;
                         if (targetWall.h <= 0) { gameState.wa = gameState.wa.filter(w => w !== targetWall); infoPanel.innerHTML = `🗼 Palisade zerstört!`; }
                         else infoPanel.innerHTML = `🗼 Turm feuert auf Palisade! (-5 HP)`;
+                    } else if (targetTunnel) {
+                        targetTunnel.h -= 5;
+                        if (targetTunnel.h <= 0) { gameState.tu = gameState.tu.filter(tu => tu !== targetTunnel); infoPanel.innerHTML = `🗼 Tunnel zerstört!`; }
+                        else infoPanel.innerHTML = `🗼 Turm feuert auf Tunnel! (-5 HP)`;
                     } else if (targetBuildingOwner >= 0) {
                         gameState.p[targetBuildingOwner].sh -= 5;
                         if (gameState.p[targetBuildingOwner].sh <= 0) {
@@ -105,6 +111,13 @@ function handleCanvasClick(clientX, clientY) {
             if (gameState.wa) for (let w of gameState.wa)
                 if (w.h > 0 && w.o !== gameState.cp && canAttack(w.o) && hexDistance({ x: clickedTower.x, y: clickedTower.y }, { x: w.x, y: w.y }) <= 2)
                     validAttacks.push({ x: w.x, y: w.y, isTowerShot: true });
+            if (gameState.tu) for (let tu of gameState.tu)
+                if (tu.h > 0 && tu.o !== gameState.cp && canAttack(tu.o) && tu.r <= gameState.rn) {
+                    if (hexDistance({ x: clickedTower.x, y: clickedTower.y }, { x: tu.x1, y: tu.y1 }) <= 2)
+                        validAttacks.push({ x: tu.x1, y: tu.y1, isTowerShot: true, isTunnelShot: true, tunnel: tu });
+                    if (hexDistance({ x: clickedTower.x, y: clickedTower.y }, { x: tu.x2, y: tu.y2 }) <= 2)
+                        validAttacks.push({ x: tu.x2, y: tu.y2, isTowerShot: true, isTunnelShot: true, tunnel: tu });
+                }
             for (let i = 0; i < gameState.p.length; i++)
                 if (i !== gameState.cp && gameState.p[i].dead === 0 && canAttack(i)) {
                     const [vx, vy] = gameState.p[i].sv.split(',').map(Number);

@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dark Age – Patchnotes v2.0 "Stein & Stahl"</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;700&family=IM+Fell+English:ital@0;1&family=Inter:wght@400;600&display=swap');
+
+    :root {
+      --gold: #f5c842;
+      --gold-dark: #c49a0a;
+      --stone: #9e9e9e;
+      --wood: #795548;
+      --bg: #0d0d0f;
+      --card: #16181e;
+      --card2: #1d2030;
+      --border: #2a2d3e;
+      --text: #d4c9b0;
+      --muted: #7a7a8a;
+      --buff: #69f0ae;
+      --nerf: #ff5252;
+      --new: #40c4ff;
+      --red: #e53935;
+      --blue: #3949ab;
+      --green: #43a047;
+      --purple: #8e24aa;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* === HERO === */
+    .hero {
+      position: relative;
+      text-align: center;
+      padding: 60px 20px 50px;
+      background: radial-gradient(ellipse at 50% 0%, #1a1200 0%, var(--bg) 70%);
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M0 30 L30 0 L60 30 L30 60 Z' fill='none' stroke='%23ffffff08' stroke-width='1'/%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: rgba(245,200,66,0.12);
+      border: 1px solid var(--gold-dark);
+      color: var(--gold);
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-bottom: 18px;
+    }
+    .hero h1 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(2rem, 6vw, 3.8rem);
+      font-weight: 700;
+      color: var(--gold);
+      text-shadow: 0 0 40px rgba(245,200,66,0.4), 0 2px 0 #000;
+      letter-spacing: 2px;
+      line-height: 1.1;
+    }
+    .hero-sub {
+      font-family: 'IM Fell English', serif;
+      font-style: italic;
+      color: var(--muted);
+      font-size: 1.15rem;
+      margin-top: 10px;
+    }
+    /* === LAYOUT === */
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 0 18px 80px;
+    }
+
+    /* === TOC === */
+    .toc {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px 28px;
+      margin: 36px 0 44px;
+    }
+    .toc-title {
+      font-family: 'Cinzel', serif;
+      color: var(--gold);
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .toc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 6px;
+    }
+    .toc a {
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .toc a:hover { background: rgba(255,255,255,0.05); color: var(--gold); }
+    .toc-num { color: var(--muted); font-size: 0.75rem; width: 18px; flex-shrink: 0; }
+
+    /* === SECTION === */
+    .section {
+      margin-bottom: 52px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 22px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-icon {
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.4rem;
+      color: var(--gold);
+      letter-spacing: 1px;
+    }
+    .section-desc { color: var(--muted); font-size: 0.9rem; margin-top: 2px; }
+
+    /* === CARDS === */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+    .card:hover { border-color: #3a3d50; transform: translateY(-1px); }
+    .card.full { grid-column: 1 / -1; }
+    .card.highlight { border-color: rgba(245,200,66,0.3); background: linear-gradient(135deg, var(--card), #1a1800); }
+    .card-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-bottom: 10px;
+    }
+    .tag-new { background: rgba(64,196,255,0.15); color: var(--new); border: 1px solid rgba(64,196,255,0.3); }
+    .tag-buff { background: rgba(105,240,174,0.12); color: var(--buff); border: 1px solid rgba(105,240,174,0.3); }
+    .tag-nerf { background: rgba(255,82,82,0.12); color: var(--nerf); border: 1px solid rgba(255,82,82,0.3); }
+    .tag-changed { background: rgba(255,193,7,0.12); color: #ffc107; border: 1px solid rgba(255,193,7,0.3); }
+    .tag-removed { background: rgba(229,57,35,0.12); color: #ef5350; border: 1px solid rgba(229,57,35,0.3); }
+
+    .card-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.05rem;
+      color: #e8e0c8;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card p { color: var(--muted); font-size: 0.9rem; line-height: 1.55; }
+    .card p + p { margin-top: 7px; }
+    .card p strong { color: var(--text); font-weight: 600; }
+
+    /* === STAT BLOCK === */
+    .stat-block {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .stat {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .stat-key { color: var(--muted); }
+    .stat-val { color: var(--text); font-weight: 600; }
+    .stat-val.buff { color: var(--buff); }
+    .stat-val.nerf { color: var(--nerf); }
+    .stat-val.gold { color: var(--gold); }
+    .stat-arrow { color: var(--muted); font-size: 0.7rem; }
+
+    /* === UNIT TABLE === */
+    .unit-row {
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      transition: background 0.15s;
+    }
+    .unit-row:hover { background: var(--card2); }
+    .unit-emoji { font-size: 1.6rem; text-align: center; }
+    .unit-info .unit-name {
+      font-family: 'Cinzel', serif;
+      font-size: 0.95rem;
+      color: #e8e0c8;
+    }
+    .unit-info .unit-sub { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+    .unit-stats-inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      justify-content: flex-end;
+    }
+    .stat-chip {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+    .stat-chip.highlight { border-color: rgba(105,240,174,0.4); color: var(--buff); }
+    .stat-chip.gold { border-color: rgba(245,200,66,0.3); color: var(--gold); }
+
+    /* === FACTION CARDS === */
+    .faction-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .faction-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      transition: border-color 0.2s;
+    }
+    .faction-card:hover { border-color: #3a3d55; }
+    .faction-name {
+      font-family: 'Cinzel', serif;
+      font-size: 1rem;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+    .faction-passive {
+      font-size: 0.82rem;
+      color: var(--muted);
+      padding: 7px 10px;
+      background: var(--card2);
+      border-left: 2px solid var(--gold-dark);
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 9px;
+    }
+    .faction-units { font-size: 0.82rem; color: #b0a888; }
+    .faction-units span { color: var(--new); font-weight: 600; }
+
+    /* === MECHANICS === */
+    .mechanic-block {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 12px;
+    }
+    .mechanic-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1rem;
+      color: #e8e0c8;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+    .mechanic-block ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .mechanic-block ul li {
+      font-size: 0.89rem;
+      color: var(--muted);
+      display: flex;
+      gap: 9px;
+    }
+    .mechanic-block ul li::before { content: '▸'; color: var(--gold-dark); flex-shrink: 0; }
+    .mechanic-block ul li strong { color: var(--text); }
+
+    /* === UPGRADES === */
+    .upgrade-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .upgrade-item {
+      display: grid;
+      grid-template-columns: 24px 1fr auto;
+      align-items: start;
+      gap: 10px;
+      padding: 12px 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.87rem;
+    }
+    .upgrade-item .tier {
+      background: var(--card2);
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 600;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .upgrade-name { color: var(--text); font-weight: 600; margin-bottom: 2px; }
+    .upgrade-desc { color: var(--muted); font-size: 0.82rem; }
+    .upgrade-cost {
+      color: var(--gold);
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    /* === DIPLOMACY === */
+    .dip-flow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 14px 0;
+    }
+    .dip-step {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .dip-arrow { color: var(--muted); font-size: 1.2rem; }
+
+    /* === RESOURCE BAR === */
+    .res-bar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 18px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .res-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+    }
+    .res-item .res-val { font-weight: 700; color: var(--gold); }
+    .res-item .res-label { color: var(--muted); font-size: 0.8rem; }
+    .res-sep { color: var(--border); font-size: 1.2rem; }
+    .res-new {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(64,196,255,0.1);
+      border: 1px solid rgba(64,196,255,0.3);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 0.75rem;
+      color: var(--new);
+    }
+
+    /* === CALLOUT === */
+    .callout {
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 0.9rem;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+    .callout-body { flex: 1; }
+    .callout-title { font-weight: 600; margin-bottom: 4px; }
+    .callout.info { background: rgba(57,73,171,0.15); border: 1px solid rgba(57,73,171,0.4); }
+    .callout.info .callout-title { color: #7986cb; }
+    .callout.warning { background: rgba(245,200,66,0.08); border: 1px solid rgba(245,200,66,0.25); }
+    .callout.warning .callout-title { color: var(--gold); }
+    .callout.danger { background: rgba(255,82,82,0.08); border: 1px solid rgba(255,82,82,0.25); }
+    .callout.danger .callout-title { color: var(--nerf); }
+
+    /* === DIVIDER === */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 32px 0;
+    }
+
+    /* === FOOTER === */
+    .footer {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--muted);
+      font-family: 'IM Fell English', serif;
+      font-style: italic;
+      font-size: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .card-grid { grid-template-columns: 1fr; }
+      .faction-grid { grid-template-columns: 1fr 1fr; }
+      .unit-row { grid-template-columns: 36px 1fr; }
+      .unit-stats-inline { display: none; }
+      .hero h1 { font-size: 1.9rem; }
+    }
+
+    /* === CHANGELOG BAR === */
+    .changelog-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      background: #111215;
+    }
+    .changelog-col {
+      padding: 22px 28px;
+      border-right: 1px solid var(--border);
+    }
+    .changelog-col:last-child { border-right: none; }
+    .cl-heading {
+      font-family: 'Cinzel', serif;
+      font-size: 0.72rem;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .cl-new    { color: var(--new); }
+    .cl-changed { color: #ffc107; }
+    .cl-removed { color: var(--nerf); }
+    .cl-item {
+      font-size: 0.875rem;
+      color: var(--text);
+      line-height: 1.4;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      display: flex;
+      gap: 6px;
+      align-items: baseline;
+    }
+    .cl-item:last-child { border-bottom: none; }
+    @media (max-width: 720px) {
+      .changelog-bar { grid-template-columns: 1fr; }
+      .changelog-col { border-right: none; border-bottom: 1px solid var(--border); }
+      .changelog-col:last-child { border-bottom: none; }
+    }
+
+    /* Scroll anchor offset */
+    [id] { scroll-margin-top: 24px; }
+  </style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">Update v2.0</div>
+  <h1>⚔️ Stein & Stahl ⚔️</h1>
+  <div class="hero-sub">Die größte Überarbeitung – neue Ressourcen, neue Gebäude, neues Fraktionsdesign.</div>
+</div>
+
+<!-- CHANGELOG OVERVIEW -->
+<div class="changelog-bar">
+  <div class="changelog-col">
+    <div class="cl-heading cl-new">✦ NEU</div>
+    <div class="cl-item">🪨 Ressource: Stein — dritte Ressource, nur durch Abbau</div>
+    <div class="cl-item">👷 Arbeiter — jetzt für alle Fraktionen verfügbar</div>
+    <div class="cl-item">🗼 Turm — Gebäude, 5🪨, greift auto. an (Range 2, 5 DMG)</div>
+    <div class="cl-item">🚚 Wagenburg — neue Gilden-Spezialeinheit mit Deploy & Schutzaura</div>
+    <div class="cl-item">🏆 Team-Sieg — alle verbündeten Spieler können gemeinsam gewinnen</div>
+    <div class="cl-item">⭐ Veteranen — nach 2 Kills: +1 DMG permanent</div>
+  </div>
+  <div class="changelog-col">
+    <div class="cl-heading cl-changed">~ GEÄNDERT</div>
+    <div class="cl-item">🏗️ Tribok — Range 2 → 3, feste Sichtweite 3 Felder</div>
+    <div class="cl-item">🧱 Mauer — kostet jetzt 1🪨 (bisher kostenlos)</div>
+    <div class="cl-item">🚇 Tunnel — kostet jetzt 4🪨, baut der Arbeiter</div>
+    <div class="cl-item">💔 Bündnis — kostet 5💰 + 5🪵 (Anfrage & Annehmen)</div>
+    <div class="cl-item">🏰 Feudalismus — Kamelreiter statt Trebuchet als 2. Spezial</div>
+    <div class="cl-item">📐 Schaden — skaliert mit verbleibenden HP der Einheit</div>
+  </div>
+  <div class="changelog-col">
+    <div class="cl-heading cl-removed">✕ ENTFERNT</div>
+    <div class="cl-item">🗑️ Tunnelgräber — aus Gilden-Fraktion entfernt</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- TOC -->
+  <div class="toc">
+    <div class="toc-title">Inhalt</div>
+    <div class="toc-grid">
+      <a href="#ressourcen"><span class="toc-num">01</span>🪨 Neue Ressource: Stein</a>
+      <a href="#arbeiter"><span class="toc-num">02</span>⛏️ Arbeiter überarbeitet</a>
+      <a href="#gebaeude"><span class="toc-num">03</span>🗼 Neue Gebäude</a>
+      <a href="#wagenburg"><span class="toc-num">04</span>🚚 Wagenburg (NEU)</a>
+      <a href="#fraktionen"><span class="toc-num">05</span>⚖️ Fraktions-Übersicht</a>
+      <a href="#upgrades"><span class="toc-num">06</span>🔬 Upgrade-System</a>
+      <a href="#einheiten"><span class="toc-num">07</span>⚔️ Einheiten-Änderungen</a>
+      <a href="#diplomatie"><span class="toc-num">08</span>🤝 Diplomatie & Team-Sieg</a>
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- 1. RESSOURCEN -->
+  <!-- ============================= -->
+  <div class="section" id="ressourcen">
+    <div class="section-header">
+      <div class="section-icon">🪨</div>
+      <div>
+        <div class="section-title">Neue Ressource: Stein</div>
+        <div class="section-desc">Eine dritte Ressource verändert das Wirtschaftssystem grundlegend.</div>
+      </div>
+    </div>
+
+    <div class="res-bar">
+      <div class="res-item">💰 <span class="res-val">Gold</span> <span class="res-label">2/Dorf</span></div>
+      <span class="res-sep">|</span>
+      <div class="res-item">🪵 <span class="res-val">Holz</span> <span class="res-label">1/Dorf</span></div>
+      <span class="res-sep">|</span>
+      <div class="res-item">🪨 <span class="res-val">Stein</span> <span class="res-label">0 (Abbau)</span></div>
+      <div class="res-new">✦ NEU</div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <span class="card-tag tag-new">Neu</span>
+        <div class="card-title">🪨 Steinhaufen auf der Map</div>
+        <p>Jede Map enthält physische Steinvorkommen (bis zu <strong>40 Steine</strong>). Steinhaufen <strong>blockieren Bewegung</strong>, nicht aber Schusslinien.</p>
+        <p>Jeder Spieler startet mit einem Vorkommen in <strong>Distanz 2</strong> zu seinem Hauptdorf. Weitere neutrale Haufen verteilen sich über die Map.</p>
+        <div class="stat-block">
+          <div class="stat"><span class="stat-key">Kapazität</span><span class="stat-val">40 Steine</span></div>
+          <div class="stat"><span class="stat-key">Blockiert Einheiten</span><span class="stat-val buff">Ja</span></div>
+          <div class="stat"><span class="stat-key">Blockiert Schuss</span><span class="stat-val nerf">Nein</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <span class="card-tag tag-new">Mechanik</span>
+        <div class="card-title">⛏️ Abbau per Arbeiter</div>
+        <p>Arbeiter neben einem Steinhaufen können <strong>Abbau starten</strong>. Am Ende jeder eigenen Runde: <strong>+1 🪨</strong>, Haufen –1.</p>
+        <p>Läuft der Arbeiter weg oder der Haufen ist leer, bricht der Abbau ab. Mehrere Arbeiter können denselben Haufen abbauen.</p>
+        <div class="stat-block">
+          <div class="stat"><span class="stat-key">Ertrag/Runde</span><span class="stat-val gold">+1 🪨</span></div>
+          <div class="stat"><span class="stat-key">Aktion nötig</span><span class="stat-val buff">Nein (passiv)</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <span class="card-tag tag-new">Kosten</span>
+        <div class="card-title">🏗️ Stein verwenden</div>
+        <p>Stein wird ausschließlich für <strong>Gebäude</strong> verwendet – kein Stein für Einheiten oder Upgrades.</p>
+        <div class="stat-block">
+          <div class="stat"><span class="stat-key">🧱 Mauer</span><span class="stat-val">1 🪨</span></div>
+          <div class="stat"><span class="stat-key">🚇 Tunnel</span><span class="stat-val">4 🪨</span></div>
+          <div class="stat"><span class="stat-key">🗼 Turm</span><span class="stat-val">5 🪨</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- 2. ARBEITER -->
+  <!-- ============================= -->
+  <div class="section" id="arbeiter">
+    <div class="section-header">
+      <div class="section-icon">⛏️</div>
+      <div>
+        <div class="section-title">Arbeiter – überarbeitet</div>
+        <div class="section-desc">Kein Fraktion-Lock mehr. Jetzt für alle zugänglich und deutlich wichtiger.</div>
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">Wichtige Änderung</div>
+        Der Arbeiter ist jetzt eine <strong>Basis-Einheit für jede Fraktion</strong> – kein Gilden-Exklusiv mehr. Ohne Arbeiter keine Steingebäude.
+      </div>
+    </div>
+
+    <div class="unit-row">
+      <div class="unit-emoji">👷</div>
+      <div class="unit-info">
+        <div class="unit-name">Arbeiter</div>
+        <div class="unit-sub">Für alle Fraktionen • Kann bauen & abbauen</div>
+      </div>
+      <div class="unit-stats-inline">
+        <span class="stat-chip gold">💰 2</span>
+        <span class="stat-chip">❤️ 10</span>
+        <span class="stat-chip">⚔️ 2 DMG</span>
+        <span class="stat-chip">👟 1</span>
+        <span class="stat-chip">🎯 1</span>
+      </div>
+    </div>
+
+    <div class="card-grid" style="margin-top: 14px;">
+      <div class="card">
+        <div class="card-title">⛏️ Abbau starten</div>
+        <p>Klick auf Arbeiter neben Steinhaufen → <strong>"Abbau starten"</strong>. Verbraucht <strong>keine Aktion</strong>. Am Rundenende: +1🪨 automatisch.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">🧱 Mauer errichten</div>
+        <p>Platziert eine Mauer auf einem Nachbarfeld für <strong>1 🪨</strong>. Blockiert Bewegung und Schuss. Mauern können durch Angriffe zerstört werden.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">🚇 Tunnel graben</div>
+        <p>Verbindet zwei Felder für <strong>4 🪨</strong>. Einheiten aller Verbündeten können ihn nutzen (Teleport). Gegner können Tunnel angreifen und zerstören.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">🗼 Turm bauen</div>
+        <p>Errichtet einen Wachturm für <strong>5 🪨</strong>. Schießt automatisch 1× pro Runde auf Feinde in Reichweite. Details → Abschnitt Gebäude.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- 3. GEBÄUDE -->
+  <!-- ============================= -->
+  <div class="section" id="gebaeude">
+    <div class="section-header">
+      <div class="section-icon">🏗️</div>
+      <div>
+        <div class="section-title">Neue Gebäude</div>
+        <div class="section-desc">Türme als neue Verteidigungsstruktur. Mauern und Tunnel bleiben – jetzt mit Stein-Kosten.</div>
+      </div>
+    </div>
+
+    <div class="mechanic-block" style="border-color: rgba(64,196,255,0.25);">
+      <div class="mechanic-title">🗼 Turm <span class="card-tag tag-new" style="margin-left: 4px;">NEU</span></div>
+      <ul>
+        <li><strong>HP:</strong> 15 • <strong>DMG:</strong> 5 (fix) • <strong>Reichweite:</strong> 2 Felder</li>
+        <li><strong>Automatisch:</strong> Greift einmal pro Runde die nächste feindliche Einheit in Reichweite an – kein Kauf von Aktionen nötig.</li>
+        <li>Türme <strong>schießen nicht</strong> auf andere Gebäude oder Hauptdörfer.</li>
+        <li><strong>Kosten:</strong> 5 🪨 (via Arbeiter platzieren)</li>
+        <li>Kann durch Einheitenangriffe zerstört werden. <strong>Upgrade-kompatibel:</strong> Elefant mit "Belagerungsbestie" macht +5 DMG gegen Türme.</li>
+      </ul>
+    </div>
+
+    <div class="mechanic-block">
+      <div class="mechanic-title">🧱 Mauer & 🚇 Tunnel – jetzt mit Stein</div>
+      <ul>
+        <li>Mauern kosten jetzt <strong>1 🪨</strong> (war: kostenlos oder via Tunnelgräber)</li>
+        <li>Tunnel kosten jetzt <strong>4 🪨</strong> – erfordern echte Ressourcenplanung</li>
+        <li>Tunnel werden <strong>2 Runden</strong> nach dem Bau benutzbar (unveränderter Delay)</li>
+        <li>Verbündete Spieler können deine Tunnel mitnutzen</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- 4. WAGENBURG -->
+  <!-- ============================= -->
+  <div class="section" id="wagenburg">
+    <div class="section-header">
+      <div class="section-icon">🚚</div>
+      <div>
+        <div class="section-title">Wagenburg – neue Gilden-Spezialeinheit</div>
+        <div class="section-desc">Ersetzt den Tunnelgräber vollständig. Hybride Einheit mit Defensive-Aura.</div>
+      </div>
+    </div>
+
+    <div class="callout danger">
+      <div class="callout-icon">🗑️</div>
+      <div class="callout-body">
+        <div class="callout-title">Tunnelgräber entfernt</div>
+        Der Tunnelgräber ist kein Gilden-Spezial mehr und wurde vollständig aus dem Spiel entfernt. Tunnel bauen jetzt normale Arbeiter.
+      </div>
+    </div>
+
+    <div class="unit-row" style="border-color: rgba(245,200,66,0.3); background: linear-gradient(135deg, var(--card), #1a1800);">
+      <div class="unit-emoji">🚚</div>
+      <div class="unit-info">
+        <div class="unit-name">Wagenburg</div>
+        <div class="unit-sub">Gilden-Exklusiv • Deploy-Mechanik • Schutzaura</div>
+      </div>
+      <div class="unit-stats-inline">
+        <span class="stat-chip gold">💰 7</span>
+        <span class="stat-chip highlight">❤️ 18</span>
+        <span class="stat-chip">⚔️ 6 DMG</span>
+        <span class="stat-chip">👟 2 (→0)</span>
+        <span class="stat-chip">🎯 1 (→2)</span>
+      </div>
+    </div>
+
+    <div class="card-grid" style="margin-top: 14px;">
+      <div class="card highlight">
+        <span class="card-tag tag-new">Kernmechanik</span>
+        <div class="card-title">⛺ Aufschlagen / 🐎 Abbauen</div>
+        <p><strong>Kostenlos, verbraucht Zug.</strong> Toggle zwischen mobilem und stationärem Modus.</p>
+        <div class="stat-block" style="margin-top: 10px;">
+          <div class="stat"><span class="stat-key">Mobil</span><span class="stat-val">Move 2 • Range 1</span></div>
+          <div class="stat"><span class="stat-key">Deployed</span><span class="stat-val buff">Move 0 • Range 2</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <span class="card-tag tag-new">Passiv (Deployed)</span>
+        <div class="card-title">🛡️ Schutzaura</div>
+        <p>Alle <strong>befreundeten Einheiten</strong> auf direkt angrenzenden Feldern erhalten <strong>–1 eingehenden Schaden</strong> (Minimum: 1 DMG bleibt immer).</p>
+        <p>Eigene aufgeschlagene Wagenburg schützt dein Heer – perfekt für defensive Formationen.</p>
+      </div>
+      <div class="card">
+        <span class="card-tag tag-buff">Upgrade</span>
+        <div class="card-title">🔩 Verstärkte Beschläge</div>
+        <p>Dauerhaft <strong>+4 Max-HP</strong> (18 → 22 HP).</p>
+        <p>Zusätzlich: Jeder Nahkämpfer der die Wagenburg angreift, erleidet <strong>2 DMG Rückschlag</strong>.</p>
+        <div class="stat-block">
+          <div class="stat"><span class="stat-key">Kosten</span><span class="stat-val">10 💰 · 5 🪵</span></div>
+          <div class="stat"><span class="stat-key">Ebene</span><span class="stat-val">3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- 5. FRAKTIONEN -->
+  <!-- ============================= -->
+  <div class="section" id="fraktionen">
+    <div class="section-header">
+      <div class="section-icon">⚖️</div>
+      <div>
+        <div class="section-title">Fraktions-Übersicht</div>
+        <div class="section-desc">Alle 4 Fraktionen auf einen Blick – Passiv, Spezialeinheiten, neues Design.</div>
+      </div>
+    </div>
+
+    <div class="faction-grid">
+      <div class="faction-card">
+        <div class="faction-name">🏰 Feudalismus</div>
+        <div class="faction-passive">Passiv: Neu rekrutierte Einheiten +1 Max-HP pro aktuell besessenes Dorf beim Kauf.</div>
+        <div class="faction-units">Spezial: 🛡️ Ritter · <span>🐪 Kamelreiter (NEU)</span></div>
+      </div>
+      <div class="faction-card">
+        <div class="faction-name">🩸 Plünderer</div>
+        <div class="faction-passive">Passiv: +1 DMG für alle Nahkämpfer.</div>
+        <div class="faction-units">Spezial: 🪓 Berserker · 💥 Saboteur</div>
+      </div>
+      <div class="faction-card">
+        <div class="faction-name">👁️ Spionage</div>
+        <div class="faction-passive">Passiv: +1 Sichtweite für alle eigenen Einheiten.</div>
+        <div class="faction-units">Spezial: 🗡️ Assassine · 🐘 Elefant</div>
+      </div>
+      <div class="faction-card" style="border-color: rgba(245,200,66,0.3);">
+        <div class="faction-name">⚖️ Gilden</div>
+        <div class="faction-passive">Passiv: +1 Gold pro Dorf (3 Gold statt 2).</div>
+        <div class="faction-units">Spezial: 🏗️ Tribok · <span>🚚 Wagenburg (NEU!)</span></div>
+      </div>
+    </div>
+
+    <div class="callout info" style="margin-top: 16px;">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body">
+        <div class="callout-title">Fraktion wählen</div>
+        Ab <strong>2 Dörfern</strong> erscheint die Fraktionswahl. Kosten: 10 💰. Jede Fraktion bietet 3 Upgrade-Ebenen und 2 Spezialeinheiten.
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- 6. UPGRADES -->
+  <!-- ============================= -->
+  <div class="section" id="upgrades">
+    <div class="section-header">
+      <div class="section-icon">🔬</div>
+      <div>
+        <div class="section-title">Upgrade-System – vollständige Übersicht</div>
+        <div class="section-desc">Jede Fraktion hat 3 Upgrades (Ebene 1–3). Alle kosten 10 💰 + 5 🪵.</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div>
+        <div style="font-family: 'Cinzel', serif; font-size: 0.85rem; color: var(--gold); margin-bottom: 10px;">🏰 Feudalismus</div>
+        <div class="upgrade-list">
+          <div class="upgrade-item"><div class="tier">1</div><div><div class="upgrade-name">Plattenpanzer</div><div class="upgrade-desc">Schwerter +5 Max-HP (10 → 15)</div></div><div class="upgrade-cost">10💰 5🪵</div></div>
+          <div class="upgrade-item"><div class="tier">2</div><div><div class="upgrade-name">Schlachtrosse</div><div class="upgrade-desc">Ritter: laufen & angreifen im selben Zug</div></div><div class="upgrade-cost">10💰 5🪵</div></div>
+          <div class="upgrade-item"><div class="tier">3</div><div><div class="upgrade-name">Doppelschuss</div><div class="upgrade-desc">Parthershot (Kamelreiter) kostet kein Holz mehr</div></div><div class="upgrade-cost">10💰 5🪵</div></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-family: 'Cinzel', serif; font-size: 0.85rem; color: var(--gold); margin-bottom: 10px;">🩸 Plünderer</div>
+        <div class="upgrade-list">
+          <div class="upgrade-item"><div class="tier">1</div><div><div class="upgrade-name">Kopfgeld</div><div class="upgrade-desc">+3 Gold für jeden Kill</div></div><div class="upgrade-cost">10💰 5🪵</div></div>
+          <div class="upgrade-item"><div class="tier">2</div><div><div class="upgrade-name">Brandschatzer</div><div class="upgrade-desc">Berserker +3 DMG gegen Hauptgebäude</div></div><div class="upgrade-cost">10💰 5🪵</div></div>
+          <div class="upgrade-item"><div class="tier">3</div><div><div class="upgrade-name">Instabiler Kern</div><div class="upgrade-desc">Saboteur-Explosion: 8 → 10 DMG</div></div><div class="upgrade-cost">10💰 5🪵</div></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-family: 'Cinzel', serif; font-size: 0.85rem; color: var(--gold); margin-bottom: 10px;">👁️ Spionage</div>
+        <div class="upgrade-list">
+          <div class="upgrade-item"><div class="tier">1</div><div><div class="upgrade-name">Waldläufer</div><div class="upgrade-desc">+1 DMG bei Angriffen aus dem Wald heraus</div></div><div class="upgrade-cost">10💰 5🪵</div></div>
+          <div class="upgrade-item"><div class="tier">2</div><div><div class="upgrade-name">Schattenläufer</div><div class="upgrade-desc">Assassinen +1 Bewegung (3 → 4)</div></div><div class="upgrade-cost">10💰 5🪵</div></div>
+          <div class="upgrade-item"><div class="tier">3</div><div><div class="upgrade-name">Belagerungsbestie</div><div class="upgrade-desc">Elefant +5 DMG gegen Gebäude & Tunnel</div></div><div class="upgrade-cost">10💰 5🪵</div></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-family: 'Cinzel', serif; font-size: 0.85rem; color: var(--gold); margin-bottom: 10px;">⚖️ Gilden</div>
+        <div class="upgrade-list">
+          <div class="upgrade-item"><div class="tier">1</div><div><div class="upgrade-name">Söldner-Verträge</div><div class="upgrade-desc">Schwert, Bogen & Pferd kosten –1 Gold</div></div><div class="upgrade-cost">10💰 5🪵</div></div>
+          <div class="upgrade-item"><div class="tier">2</div><div><div class="upgrade-name">Pech & Schwefel</div><div class="upgrade-desc">Tribok +2 DMG (Standardangriff)</div></div><div class="upgrade-cost">10💰 5🪵</div></div>
+          <div class="upgrade-item"><div class="tier">3</div><div><div class="upgrade-name">Verstärkte Beschläge</div><div class="upgrade-desc">Wagenburg +4 Max-HP + Dornen-Effekt</div></div><div class="upgrade-cost">10💰 5🪵</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- 7. EINHEITEN-ÄNDERUNGEN -->
+  <!-- ============================= -->
+  <div class="section" id="einheiten">
+    <div class="section-header">
+      <div class="section-icon">⚔️</div>
+      <div>
+        <div class="section-title">Einheiten-Änderungen</div>
+        <div class="section-desc">Buffs, neue Fähigkeiten und überarbeitete Spezials.</div>
+      </div>
+    </div>
+
+    <!-- FULL UNIT ROSTER -->
+    <div class="card full" style="margin-bottom: 20px;">
+      <span class="card-tag tag-new">Vollständiges Roster</span>
+      <div class="card-title">Alle Einheiten auf einen Blick</div>
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-top: 10px;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border);">
+              <th style="text-align: left; padding: 6px 10px; color: var(--muted); font-weight: 600;">Einheit</th>
+              <th style="text-align: center; padding: 6px 8px; color: var(--muted);">💰</th>
+              <th style="text-align: center; padding: 6px 8px; color: var(--muted);">❤️</th>
+              <th style="text-align: center; padding: 6px 8px; color: var(--muted);">⚔️</th>
+              <th style="text-align: center; padding: 6px 8px; color: var(--muted);">🎯</th>
+              <th style="text-align: center; padding: 6px 8px; color: var(--muted);">👟</th>
+              <th style="text-align: left; padding: 6px 10px; color: var(--muted);">Verfügbar</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+              <td style="padding: 7px 10px;">🗡️ Schwert</td>
+              <td style="text-align: center; padding: 7px 8px;">3</td><td style="text-align: center; padding: 7px 8px;">10</td><td style="text-align: center; padding: 7px 8px;">5</td><td style="text-align: center; padding: 7px 8px;">1</td><td style="text-align: center; padding: 7px 8px;">1</td>
+              <td style="padding: 7px 10px; color: var(--muted); font-size: 0.8rem;">Alle</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+              <td style="padding: 7px 10px;">🏹 Bogen</td>
+              <td style="text-align: center; padding: 7px 8px;">4</td><td style="text-align: center; padding: 7px 8px;">10</td><td style="text-align: center; padding: 7px 8px;">4</td><td style="text-align: center; padding: 7px 8px;">2</td><td style="text-align: center; padding: 7px 8px;">1</td>
+              <td style="padding: 7px 10px; color: var(--muted); font-size: 0.8rem;">Alle</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+              <td style="padding: 7px 10px;">🐴 Pferd</td>
+              <td style="text-align: center; padding: 7px 8px;">4</td><td style="text-align: center; padding: 7px 8px;">10</td><td style="text-align: center; padding: 7px 8px;">5</td><td style="text-align: center; padding: 7px 8px;">1</td><td style="text-align: center; padding: 7px 8px;">2</td>
+              <td style="padding: 7px 10px; color: var(--muted); font-size: 0.8rem;">Alle</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+              <td style="padding: 7px 10px;">👷 Arbeiter</td>
+              <td style="text-align: center; padding: 7px 8px; color: var(--buff);">2</td><td style="text-align: center; padding: 7px 8px;">10</td><td style="text-align: center; padding: 7px 8px;">2</td><td style="text-align: center; padding: 7px 8px;">1</td><td style="text-align: center; padding: 7px 8px;">1</td>
+              <td style="padding: 7px 10px; color: var(--buff); font-size: 0.8rem;">✦ Alle</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(57,73,171,0.06);">
+              <td style="padding: 7px 10px;">🛡️ Ritter</td>
+              <td style="text-align: center; padding: 7px 8px;">6</td><td style="text-align: center; padding: 7px 8px;">15</td><td style="text-align: center; padding: 7px 8px;">6</td><td style="text-align: center; padding: 7px 8px;">1</td><td style="text-align: center; padding: 7px 8px;">2</td>
+              <td style="padding: 7px 10px; color: var(--muted); font-size: 0.8rem;">🏰 Feudalismus</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(57,73,171,0.06);">
+              <td style="padding: 7px 10px;">🐪 Kamelreiter</td>
+              <td style="text-align: center; padding: 7px 8px;">6</td><td style="text-align: center; padding: 7px 8px;">12</td><td style="text-align: center; padding: 7px 8px;">6</td><td style="text-align: center; padding: 7px 8px;">2</td><td style="text-align: center; padding: 7px 8px;">2</td>
+              <td style="padding: 7px 10px; color: var(--muted); font-size: 0.8rem;">🏰 Feudalismus</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(229,57,35,0.06);">
+              <td style="padding: 7px 10px;">🪓 Berserker</td>
+              <td style="text-align: center; padding: 7px 8px;">4</td><td style="text-align: center; padding: 7px 8px;">8</td><td style="text-align: center; padding: 7px 8px;">6</td><td style="text-align: center; padding: 7px 8px;">1</td><td style="text-align: center; padding: 7px 8px;">2</td>
+              <td style="padding: 7px 10px; color: var(--muted); font-size: 0.8rem;">🩸 Plünderer</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(229,57,35,0.06);">
+              <td style="padding: 7px 10px;">💥 Saboteur</td>
+              <td style="text-align: center; padding: 7px 8px;">8</td><td style="text-align: center; padding: 7px 8px;">8</td><td style="text-align: center; padding: 7px 8px;">—</td><td style="text-align: center; padding: 7px 8px;">—</td><td style="text-align: center; padding: 7px 8px;">2</td>
+              <td style="padding: 7px 10px; color: var(--muted); font-size: 0.8rem;">🩸 Plünderer</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(67,160,71,0.06);">
+              <td style="padding: 7px 10px;">🗡️ Assassine</td>
+              <td style="text-align: center; padding: 7px 8px;">5</td><td style="text-align: center; padding: 7px 8px;">8</td><td style="text-align: center; padding: 7px 8px;">6</td><td style="text-align: center; padding: 7px 8px;">1</td><td style="text-align: center; padding: 7px 8px;">3</td>
+              <td style="padding: 7px 10px; color: var(--muted); font-size: 0.8rem;">👁️ Spionage</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(67,160,71,0.06);">
+              <td style="padding: 7px 10px;">🐘 Elefant</td>
+              <td style="text-align: center; padding: 7px 8px;">9</td><td style="text-align: center; padding: 7px 8px; color: var(--buff);">30</td><td style="text-align: center; padding: 7px 8px; color: var(--buff);">8</td><td style="text-align: center; padding: 7px 8px;">1</td><td style="text-align: center; padding: 7px 8px;">1</td>
+              <td style="padding: 7px 10px; color: var(--muted); font-size: 0.8rem;">👁️ Spionage</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(142,36,170,0.06);">
+              <td style="padding: 7px 10px;">🏗️ Tribok</td>
+              <td style="text-align: center; padding: 7px 8px;">7</td><td style="text-align: center; padding: 7px 8px;">8</td><td style="text-align: center; padding: 7px 8px;">6</td><td style="text-align: center; padding: 7px 8px; color: var(--buff);">3 ✦</td><td style="text-align: center; padding: 7px 8px;">1</td>
+              <td style="padding: 7px 10px; color: var(--muted); font-size: 0.8rem;">⚖️ Gilden</td>
+            </tr>
+            <tr style="background: rgba(142,36,170,0.06);">
+              <td style="padding: 7px 10px;">🚚 Wagenburg</td>
+              <td style="text-align: center; padding: 7px 8px;">7</td><td style="text-align: center; padding: 7px 8px; color: var(--buff);">18</td><td style="text-align: center; padding: 7px 8px;">6</td><td style="text-align: center; padding: 7px 8px;">1–2</td><td style="text-align: center; padding: 7px 8px;">0–2</td>
+              <td style="padding: 7px 10px; color: var(--new); font-size: 0.8rem;">⚖️ Gilden ✦ NEU</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SPECIFIC UNIT CHANGES -->
+    <div class="card-grid">
+      <div class="card">
+        <span class="card-tag tag-buff">Buff</span>
+        <div class="card-title">🏗️ Tribok – Range-Buff</div>
+        <p>Reichweite von <strong>2 → 3 Felder</strong> erhöht. Tribok sieht jetzt auch <strong>fix 3 Felder</strong> weit, unabhängig von Spionage-Boni.</p>
+        <div class="stat-block">
+          <div class="stat"><span class="stat-key">Range</span><span class="stat-val nerf">2</span><span class="stat-arrow">→</span><span class="stat-val buff">3</span></div>
+          <div class="stat"><span class="stat-key">Sichtweite</span><span class="stat-val buff">fix 3</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <span class="card-tag tag-new">Fähigkeit</span>
+        <div class="card-title">🏗️ Tribok – Flächenbrand</div>
+        <p>Kostet <strong>3 🪵</strong>. Wähle ein Feld in Reichweite: <strong>3 DMG im Zentrum</strong>, <strong>2 DMG</strong> auf alle 6 Nachbarfelder. Trifft Einheiten, Gebäude und Hauptdorf.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-tag tag-new">Fähigkeit</span>
+        <div class="card-title">🐪 Kamelreiter – Parthershot</div>
+        <p>Kostet <strong>1 🪵</strong> (mit Upgrade "Doppelschuss": kostenlos). Erst angreifen, danach nochmal bewegen. Einzige Fernkampfeinheit mit Mobilität nach dem Schuss.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-tag tag-new">Fähigkeit</span>
+        <div class="card-title">🐘 Elefant – Stampede</div>
+        <p>Kostet <strong>3 🪵</strong>. Wähle ein Zielfeld (max. Distanz 2). Elefant trifft <strong>alle Feinde auf dem Weg: 5 DMG</strong>, kein Gegenangriff. Mit "Belagerungsbestie": +5 DMG gegen Gebäude.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-tag tag-new">Fähigkeit</span>
+        <div class="card-title">🛡️ Ritter – Rundumschlag</div>
+        <p>Kostet <strong>3 🪵</strong>. Trifft alle feindlichen Einheiten, Gebäude und Hauptdörfer in Reichweite 1 für <strong>4 DMG</strong> gleichzeitig.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-tag tag-new">Fähigkeit</span>
+        <div class="card-title">💥 Saboteur – Detonation</div>
+        <p>Keine Kosten (Selbstopfer). <strong>8 DMG</strong> AoE auf sich + alle 6 Nachbarn. Mit "Instabiler Kern": <strong>10 DMG</strong>. Zerstört Gebäude, Mauern, Tunnel.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-tag tag-new">Fähigkeit</span>
+        <div class="card-title">🪓 Berserker – Blutrausch</div>
+        <p>Kostet <strong>2 🪵</strong>. Stellt die Aktion des Berserkers wieder her – er kann nochmals bewegen und angreifen. Lebensbedrohlicher Angreifer im Nahkampf.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-tag tag-new">Fähigkeit</span>
+        <div class="card-title">🗡️ Assassine – Unsichtbarkeit</div>
+        <p>Kostet <strong>2 🪵</strong>. Assassine wird für Feinde <strong>nicht mehr anvisierbar</strong>. Bricht sofort bei eigenem Angriff. Ideal zum Infiltrieren feindlicher Linien.</p>
+      </div>
+    </div>
+
+    <!-- VETERAN SYSTEM -->
+    <div class="mechanic-block" style="margin-top: 16px;">
+      <div class="mechanic-title">⭐ Veteranen-System</div>
+      <ul>
+        <li>Nach <strong>2 Kills</strong> wird eine Einheit zum Veteranen → <strong>+1 DMG permanent</strong></li>
+        <li>Veteranen-Status bleibt über Runden erhalten und ist am ⭐-Icon erkennbar</li>
+        <li>Schaden skaliert außerdem mit verbleibenden HP: Eine halb-tote Einheit macht weniger Schaden</li>
+        <li>Hügel-Bonus: Fernkämpfer auf Hügeln machen <strong>+1 DMG</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============================= -->
+  <!-- 8. DIPLOMATIE -->
+  <!-- ============================= -->
+  <div class="section" id="diplomatie">
+    <div class="section-header">
+      <div class="section-icon">🤝</div>
+      <div>
+        <div class="section-title">Diplomatie & Team-Sieg</div>
+        <div class="section-desc">Bündnisse sind jetzt echte strategische Entscheidungen – mit Kosten und Konsequenzen.</div>
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-icon">🏆</div>
+      <div class="callout-body">
+        <div class="callout-title">Team-Sieg NEU</div>
+        Wenn alle verbleibenden Spieler Verbündete sind, gewinnen sie <strong>gemeinsam</strong>. Kein Einzelsieger nötig. Koordinierte Bündnisse können das Spiel früher beenden!
+      </div>
+    </div>
+
+    <div class="dip-flow">
+      <div class="dip-step">✉️ Anfrage senden<br><small style="color: var(--muted);">5💰 + 5🪵</small></div>
+      <div class="dip-arrow">→</div>
+      <div class="dip-step">📬 Gegner erhält Anfrage<br><small style="color: var(--muted);">in seinem Zug</small></div>
+      <div class="dip-arrow">→</div>
+      <div class="dip-step">✅ Annehmen<br><small style="color: var(--muted);">5💰 + 5🪵</small></div>
+      <div class="dip-arrow">→</div>
+      <div class="dip-step">🤝 Bündnis aktiv<br><small style="color: var(--muted);">kein FF möglich</small></div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <span class="card-tag tag-new">Neu</span>
+        <div class="card-title">💰 Bündnis-Kosten</div>
+        <p>Bündnis anfragen: <strong>5💰 + 5🪵</strong> (vom Anfragenden). Annehmen: ebenfalls <strong>5💰 + 5🪵</strong>. Insgesamt kostet ein Bündnis beide Seiten Ressourcen.</p>
+      </div>
+      <div class="card">
+        <span class="card-tag tag-changed">Mechanik</span>
+        <div class="card-title">💔 Bündnis brechen</div>
+        <p>Bündnis aufkündigen kostet keine Ressourcen, führt aber zu einer <strong>automatischen Waffenruhe</strong> für die laufende Runde – kein Sofort-Angriff möglich.</p>
+      </div>
+      <div class="card">
+        <span class="card-tag tag-new">Feste Teams</span>
+        <div class="card-title">⚔️ Team-Modus (optional)</div>
+        <p>Beim Spielstart kann ein fester Team-Modus aktiviert werden. Teams können nicht gebrochen werden. Alle Team-Mitglieder gewinnen oder verlieren gemeinsam.</p>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+</div>
+
+<div class="footer">
+  „Das Mittelalter war nie so taktisch." — Dark Age v2.0 · Stein & Stahl
+</div>
+
+</body>
+</html>
