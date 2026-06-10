@@ -127,7 +127,7 @@ window.openResearch = function () {
             const isBought = pState.u.includes(id); const canAfford = pState.g >= upg.g && pState.m >= upg.m;
             let cls = "card"; let onClick = "";
             if (isBought) { cls += " bought"; } else if (!canAfford) { cls += " disabled"; } else { onClick = `onclick="buyUpgrade(${id})"`; }
-            researchCardsContainer.innerHTML += `<div class="${cls}" ${onClick}><h3>${upg.name}</h3><p>${upg.desc}</p><div class="cost">${isBought ? "Gekauft" : `💰 ${upg.g} Gold | 🪵 ${upg.m} Holz`}</div></div>`;
+            researchCardsContainer.innerHTML += `<div class="${cls}" ${onClick}><h3>${upg.name}</h3><p>${upg.desc}</p><div class="cost">${isBought ? "Gekauft" : `🪵 ${upg.m} Holz`}</div></div>`;
         }
     });
     researchOverlay.style.display = 'flex';
@@ -152,9 +152,10 @@ window.buyUnit = function (type) {
             let nextId = Math.max(...gameState.u.map(u => u.i), 0) + 1;
             let fb = 0;
             if (pState.f.includes(0)) {
-                fb = Object.values(gameState.v).filter(v => v === gameState.cp).length;
+                fb = Math.floor(Object.values(gameState.v).filter(v => v === gameState.cp).length / 2);
             }
             const unitObj = { i: nextId, p: gameState.cp, t: type, x: selectedHex.x, y: selectedHex.y, fb: fb, a: 1 };
+            if (pState.u.includes(1)) unitObj.vet = 1;
             unitObj.h = getUnitMaxHp(pState, type, unitObj);
             gameState.u.push(unitObj);
             turnActions.push({ x: selectedHex.x, y: selectedHex.y, t: 'buy' });

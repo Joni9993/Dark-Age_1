@@ -74,7 +74,7 @@ const getEntityColor = (id) => id === -1 ? "#888888" : playerColors[id];
 
 // === FACTIONS ===
 const factions = {
-    0: { name: "🏰 Feudalismus", desc: "Passive: Neu rekrutierte Einheiten erhalten +1 Max-HP für jedes Dorf, das du aktuell besitzt.\nSpezial: 🛡️ Ritter & 🏹 Kamelreiter", cost: 10, reqV: 2 },
+    0: { name: "🏰 Feudalismus", desc: "Passive: Neu rekrutierte Einheiten erhalten +1 Max-HP pro 2 Dörfer, die du beim Rekrutieren besitzt.\nSpezial: 🛡️ Ritter & 🏹 Kamelreiter", cost: 10, reqV: 2 },
     1: { name: "🩸 Plünderer", desc: "Passive: +1 DMG für Nahkämpfer.\nSpezial: 🪓 Berserker & 💥 Saboteur", cost: 10, reqV: 2 },
     2: { name: "👁️ Spionage", desc: "Passive: +1 Sichtweite.\nSpezial: 🗡️ Assassine & 🐘 Elefant", cost: 10, reqV: 2 },
     3: { name: "⚖️ Gilden", desc: "Passive: +1 Gold pro Dorf.\nSpezial: 🏗️ Tribok & 🚚 Wagenburg", cost: 10, reqV: 2 }
@@ -82,18 +82,18 @@ const factions = {
 
 // === UPGRADES ===
 const upgrades = {
-    0: { fac: 0, t: 1, name: "Plattenpanzer", desc: "Basis-Schwerter erhalten +5 Max HP.", g: 10, m: 5 },
-    1: { fac: 0, t: 2, name: "Schlachtrosse", desc: "Ritter können im selben Zug laufen & angreifen.", g: 10, m: 5 },
-    2: { fac: 1, t: 1, name: "Kopfgeld", desc: "+3 Gold für jeden Kill.", g: 10, m: 5 },
-    3: { fac: 1, t: 2, name: "Brandschatzer", desc: "Berserker machen +3 DMG gegen Hauptgebäude.", g: 10, m: 5 },
-    4: { fac: 2, t: 1, name: "Waldläufer", desc: "+1 DMG bei Angriffen aus dem Wald heraus.", g: 10, m: 5 },
-    5: { fac: 2, t: 2, name: "Schattenläufer", desc: "Assassinen erhalten +1 Bewegung.", g: 10, m: 5 },
-    6: { fac: 3, t: 1, name: "Söldner-Verträge", desc: "Schwert, Bogen & Pferd kosten -1 Gold.", g: 10, m: 5 },
-    7: { fac: 3, t: 2, name: "Pech & Schwefel", desc: "Triboke machen +2 DMG.", g: 10, m: 5 },
-    8: { fac: 0, t: 3, name: "Doppelschuss", desc: "Parthershot (Kamelreiter) kostet 0 Holz.", g: 10, m: 5 },
-    9: { fac: 1, t: 3, name: "Instabiler Kern", desc: "Saboteur Explosionsschaden +2 (insg. 10 DMG).", g: 10, m: 5 },
-    10: { fac: 2, t: 3, name: "Belagerungsbestie", desc: "Elefant macht +5 DMG gegen Gebäude & Tunnel.", g: 10, m: 5 },
-    11: { fac: 3, t: 3, name: "Verstärkte Beschläge", desc: "Wagenburg: dauerhaft +4 Max HP. Bei Nahkampfangriff erleidet der Angreifer 2 DMG Rückschlag.", g: 10, m: 5 }
+    0: { fac: 0, t: 1, name: "Plattenpanzer", desc: "Basis-Schwerter erhalten +5 Max HP.", g: 0, m: 7 },
+    1: { fac: 0, t: 2, name: "Waffenmeister", desc: "Neu rekrutierte Einheiten starten bereits als Veteran (+1 DMG).", g: 0, m: 7 },
+    2: { fac: 1, t: 1, name: "Kopfgeld", desc: "+3 Gold für jeden Kill.", g: 0, m: 7 },
+    3: { fac: 1, t: 2, name: "Brandschatzer", desc: "Berserker machen +3 DMG gegen Hauptgebäude.", g: 0, m: 7 },
+    4: { fac: 2, t: 1, name: "Spähbogen", desc: "Bogenschützen erhalten +1 Reichweite und +1 Schaden.", g: 0, m: 7 },
+    5: { fac: 2, t: 2, name: "Schattenläufer", desc: "Assassinen erhalten +1 Bewegung und +1 Schaden.", g: 0, m: 7 },
+    6: { fac: 3, t: 1, name: "Söldner-Verträge", desc: "Schwert, Bogen & Pferd kosten -1 Gold.", g: 0, m: 7 },
+    7: { fac: 3, t: 2, name: "Pech & Schwefel", desc: "Triboke machen zusätzlich 20% der Max-HP des Ziels als Schaden (mind. 1).", g: 0, m: 7 },
+    8: { fac: 0, t: 3, name: "Doppelschuss", desc: "Parthershot (Kamelreiter) kostet 0 Holz.", g: 0, m: 7 },
+    9: { fac: 1, t: 3, name: "Instabiler Kern", desc: "Saboteur Explosionsschaden +2 (insg. 10 DMG).", g: 0, m: 7 },
+    10: { fac: 2, t: 3, name: "Belagerungsbestie", desc: "Elefant macht +5 DMG gegen Gebäude & Tunnel.", g: 0, m: 7 },
+    11: { fac: 3, t: 3, name: "Verstärkte Beschläge", desc: "Wagenburg: dauerhaft +4 Max HP. Bei Nahkampfangriff erleidet der Angreifer 2 DMG Rückschlag.", g: 0, m: 7 }
 };
 
 // === UNIT STATS ===

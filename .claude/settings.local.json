@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Joni9\\\\p_projekte\\\\Dark-Age_1\" -Recurse -File -Include \"*.js\", \"*.html\", \"*.ts\", \"*.tsx\")",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\Joni9\\\\p_projekte\\\\Dark-Age_1 - Kopie\\\\supabase\\\\migrations\")",
+      "Bash(Out-Null)",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\Joni9\\\\p_projekte\\\\Dark-Age_1 - Kopie\\\\supabase\\\\functions\\\\notify-turn\")",
+      "Bash(ssh -o StrictHostKeyChecking=no jonathan@217.154.248.67 \"echo '=== System ===' && uname -a && echo '' && echo '=== Running processes ===' && ps aux | grep -E '\\(node|nginx|caddy|pm2\\)' | grep -v grep && echo '' && echo '=== PM2 status ===' && pm2 list 2>/dev/null || echo 'pm2 not found' && echo '' && echo '=== Home dir ===' && ls -la ~/ && echo '' && echo '=== /var/www or /srv ===' && ls /var/www 2>/dev/null || ls /srv 2>/dev/null || echo 'neither exists'\")",
+      "Bash(ssh -V)",
+      "Bash(where plink *)",
+      "PowerShell(Get-Command ssh-keygen 2>$null)",
+      "Bash(ls ~/.ssh/ 2>/dev/null && echo \"Keys found\" || echo \"No .ssh dir\")",
+      "Read(//c/Users/Joni9/.ssh/**)",
+      "Bash(ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 jonathan@217.154.248.67 \"echo 'SSH key auth works' && whoami\")"
     ]
   }
 }

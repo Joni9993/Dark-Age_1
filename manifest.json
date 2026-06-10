@@ -1,0 +1,14 @@
+{
+  "name": "Dark Ages",
+  "short_name": "Dark Ages",
+  "description": "Rundenbasiertes Strategie-Spiel",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "orientation": "any",
+  "icons": [
+    { "src": "Icon.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "Icon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

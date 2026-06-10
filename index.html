@@ -4,7 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dark Ages: URL Tactics (2.5D Fullscreen Edition)</title>
+    <title>Dark Ages</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/game.css">
@@ -13,6 +17,70 @@
 <body>
 
     <div id="toast-container"></div>
+
+    <!-- ── Login Screen ──────────────────────────────────────────────────── -->
+    <div id="login-screen" class="screen-box" style="display:none;">
+        <img src="Icon.png" alt="Dark Ages" class="game-logo">
+        <h3 style="margin:0;font-family:'MedievalSharp',cursive;color:var(--gold);">Dark Ages</h3>
+        <div class="setup-group">
+            <label>Ingame-Name</label>
+            <input type="text" id="login-username-input" placeholder="DeinName" maxlength="20" autocomplete="username">
+        </div>
+        <div class="setup-group">
+            <label>Passwort</label>
+            <input type="password" id="login-password-input" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="current-password">
+        </div>
+        <button id="login-btn" class="action-btn" onclick="handleLogin()">Einloggen</button>
+        <p class="login-hint">Neu hier? Wähle einen Namen und ein Passwort — dein Account wird automatisch erstellt.</p>
+    </div>
+
+    <!-- ── Home Screen ────────────────────────────────────────────────────── -->
+    <div id="home-screen" class="screen-box" style="display:none;">
+        <div class="home-header">
+            <h3>Meine Spiele</h3>
+            <span id="home-username"></span>
+        </div>
+        <div id="game-list"></div>
+        <button class="action-btn" onclick="showCreateGameModal()">+ Neues Spiel</button>
+        <button class="action-btn secondary" onclick="showFriendsPanel()">👥 Freunde</button>
+    </div>
+
+    <!-- ── Lobby Screen ───────────────────────────────────────────────────── -->
+    <div id="lobby-screen" class="screen-box" style="display:none;">
+        <div class="lobby-header">
+            <h3 id="lobby-title" style="margin:0;font-family:'MedievalSharp',cursive;color:var(--gold);font-size:1.1rem;">Lobby</h3>
+            <span id="lobby-player-count" style="font-size:0.8rem;color:var(--text-dim);">0 / 2</span>
+        </div>
+        <div id="lobby-player-list"></div>
+        <div class="invite-section">
+            <p>Einladungslink:</p>
+            <div class="link-row">
+                <input type="text" id="lobby-invite-link" readonly>
+                <button onclick="copyInviteLink()">Kopieren</button>
+            </div>
+        </div>
+        <div id="lobby-friend-invite" style="display:none;width:100%;">
+            <button class="action-btn" style="width:100%;" onclick="openFriendsPicker()">&#128101; Freunde einladen</button>
+        </div>
+        <button id="lobby-start-btn" class="action-btn" style="display:none;" onclick="handleStartGame()">Spiel starten</button>
+        <button class="action-btn secondary" onclick="showHomeScreen()">← Zurück</button>
+    </div>
+
+    <!-- ── Friends Panel ─────────────────────────────────────────────────── -->
+    <div id="friends-panel" class="screen-box" style="display:none;">
+        <h3 style="margin:0;font-family:'MedievalSharp',cursive;color:var(--gold);font-size:1.1rem;">Freunde</h3>
+        <div class="setup-group" style="width:100%;">
+            <label>Spieler suchen & hinzufügen</label>
+            <div class="link-row">
+                <input type="text" id="friend-search-input" placeholder="Ingame-Name...">
+                <button onclick="handleAddFriend()">Anfrage</button>
+            </div>
+        </div>
+        <div id="friend-requests-list"></div>
+        <div id="friends-list"></div>
+        <button class="action-btn secondary" onclick="hideFriendsPanel()">← Zurück</button>
+    </div>
+
     <h2 id="main-title">Dark Ages</h2>
     <div id="game-hud">
         <div id="scoreboard" onclick="toggleScoreboard()">
@@ -38,7 +106,7 @@
         </div>
     </div>
 
-    <div id="setup-screen" class="screen-box">
+    <div id="setup-screen" class="screen-box" style="display:none;">
         <img src="Icon.png" alt="Dark Ages" class="game-logo">
         <h3 style="margin-top: 0; font-family: 'MedievalSharp', cursive; font-size: 1.3rem; color: var(--gold);">Spiel
             erstellen</h3>
@@ -61,7 +129,11 @@
             </select>
         </div>
         <div id="player-names-container"></div>
-        <button id="start-game-btn" class="action-btn">Welt generieren & Starten</button>
+        <!-- Legacy mode button (URL play without server) -->
+        <button id="start-game-btn" class="action-btn" style="display:none;">Welt generieren & Starten</button>
+        <!-- Server mode button -->
+        <button id="create-game-confirm-btn" class="action-btn" style="display:none;" onclick="handleCreateGame()">Spiel erstellen</button>
+        <button id="setup-back-btn" class="action-btn secondary" style="display:none;" onclick="showHomeScreen()">← Zurück</button>
     </div>
 
     <div id="intermission-screen" class="screen-box">
@@ -69,13 +141,23 @@
         <p id="intermission-msg">Kopiere diesen Link und schicke ihn an den nächsten Spieler.</p>
         <textarea id="link-box" rows="5" readonly></textarea>
         <button id="wa-share-btn" class="action-btn wa-btn">Über WhatsApp teilen</button>
+        <button id="intermission-back-btn" class="action-btn secondary" style="display:none;" onclick="showHomeScreen()">← Zur Spielübersicht</button>
     </div>
 
     <div id="win-screen" class="screen-box">
         <h1 style="color: #fff176; margin-top: 0; font-size: 2.5rem;">SIEG!</h1>
         <p id="win-msg" style="font-size: 1.2rem; font-weight: bold;"></p>
-        <button class="action-btn" onclick="window.location.href=window.location.href.split('?')[0]">Neues Spiel
-            starten</button>
+        <button class="action-btn" onclick="showHomeScreen ? showHomeScreen() : (window.location.href=window.location.href.split('?')[0])">Zur Spielübersicht</button>
+    </div>
+
+    <!-- ── Defeat Banner (spectator / eliminated) ─────────────────────────────── -->
+    <div id="defeat-banner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:150; background:#b71c1c; color:#fff; padding:14px 16px; flex-direction:column; align-items:center; gap:10px; text-align:center;">
+        <span style="font-size:1rem; font-weight:bold;">Du wurdest besiegt</span>
+        <span style="font-size:0.85rem; opacity:0.85;">Sieh dir den letzten Spielstand an, dann kannst du zurückgehen.</span>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+            <button class="action-btn secondary" style="min-height:36px;padding:6px 16px;" onclick="document.getElementById('defeat-banner').style.display='none'">Spielstand ansehen</button>
+            <button class="action-btn secondary" style="min-height:36px;padding:6px 16px;" onclick="showHomeScreen()">← Zur Übersicht</button>
+        </div>
     </div>
 
     <div id="draft-overlay" class="overlay">
@@ -109,6 +191,17 @@
         </div>
     </div>
 
+    <!-- ── Friend Picker Overlay ─────────────────────────────────────────────── -->
+    <div id="friend-picker-overlay" class="modal-backdrop" style="display:none;">
+        <div class="screen-box modal-box">
+            <h3 style="margin:0;font-family:'MedievalSharp',cursive;color:var(--gold);font-size:1.1rem;">&#128101; Freunde einladen</h3>
+            <p style="margin:0;font-size:0.8rem;color:var(--text-dim);">Tippe auf einen Freund um ihn auszuwählen.</p>
+            <div id="friend-picker-list"></div>
+            <button id="friend-picker-invite-btn" class="action-btn" onclick="inviteSelectedFriends()">Einladen</button>
+            <button class="action-btn secondary" onclick="closeFriendsPicker()">Abbrechen</button>
+        </div>
+    </div>
+
     <div id="canvas-wrapper"><canvas id="gameCanvas"></canvas></div>
     <div id="ui-container">
         <div id="info-panel">Lade Spielstand...</div>
@@ -123,7 +216,7 @@
                 style="background: #5e35b1; border-color: #7e57c2; display: none; flex: 1;" onclick="openDiplomacy()">🤝
                 Diplomatie</button>
         </div>
-        <button id="end-turn-btn" class="action-btn">Zug beenden & Link generieren</button>
+        <button id="end-turn-btn" class="action-btn">Zug beenden</button>
     </div>
 
     <script src="js/globals.js"></script>
@@ -138,6 +231,10 @@
     <script src="js/diplomacy.js"></script>
     <script src="js/input.js"></script>
     <script src="js/mapgen.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/lobby.js"></script>
     <script src="js/main.js"></script>
 </body>
 

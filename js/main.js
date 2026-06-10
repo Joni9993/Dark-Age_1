@@ -123,12 +123,6 @@ function bootGame() {
     startEvents();
 }
 
-// === URL STATE LOADING ===
-const urlParams = new URLSearchParams(window.location.search);
-const stateParam = urlParams.get('state');
-if (stateParam) {
-    let decoded = null;
-    try { decoded = LZString.decompressFromEncodedURIComponent(stateParam); } catch (e) { }
-    if (!decoded) { try { decoded = atob(stateParam); } catch (e) { } }
-    if (decoded) { try { gameState = JSON.parse(decoded); bootGame(); } catch (e) { renderNameInputs(); } } else { renderNameInputs(); }
-} else { renderNameInputs(); }
+// === APP BOOT ===
+// Routed through auth.js initApp() — handles URL mode, server mode, and login.
+initApp();

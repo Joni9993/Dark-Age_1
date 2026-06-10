@@ -1,5 +1,8 @@
 // === CANVAS CLICK HANDLER ===
 function handleCanvasClick(clientX, clientY) {
+    // Server mode: only the active player may interact with the board
+    if (!isLegacyUrlMode && currentGameId && currentTurnSlot !== currentUserSlot) return;
+
     if (showRecap) { showRecap = false; renderBoard(gameState); }
 
     const rect = canvas.getBoundingClientRect();
@@ -176,7 +179,7 @@ function handleCanvasClick(clientX, clientY) {
                 gameState.tu.push({
                     x1: window.tunnelStart.x, y1: window.tunnelStart.y,
                     x2: clickedX, y2: clickedY,
-                    r: gameState.rn + 1, o: gameState.cp, h: 20
+                    r: gameState.rn + 1, o: gameState.cp, h: 13
                 });
 
                 selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'cap', fx: window.tunnelStart.x, fy: window.tunnelStart.y });
@@ -303,9 +306,29 @@ function handleCanvasClick(clientX, clientY) {
                         }
                     });
                 }
+
+                if (gameState.tw) {
+                    gameState.tw.forEach(tw => {
+                        if (tw.o !== gameState.cp && canAttack(tw.o) && tw.x === t.x && tw.y === t.y) {
+                            tw.h -= t.dmg;
+                            spawnFloatingText(t.x, t.y, `-${t.dmg}`, "#ff5252");
+                        }
+                    });
+                }
+
+                if (gameState.wa) {
+                    gameState.wa.forEach(w => {
+                        if (w.o !== gameState.cp && canAttack(w.o) && w.x === t.x && w.y === t.y) {
+                            w.h -= t.dmg;
+                            spawnFloatingText(t.x, t.y, `-${t.dmg}`, "#ff5252");
+                        }
+                    });
+                }
             });
             gameState.u = gameState.u.filter(u => u.h > 0);
             if (gameState.tu) gameState.tu = gameState.tu.filter(tun => tun.h > 0);
+            if (gameState.tw) gameState.tw = gameState.tw.filter(tw => tw.h > 0);
+            if (gameState.wa) gameState.wa = gameState.wa.filter(w => w.h > 0);
             selectedUnit.a = 1; turnActions.push({ x: targetAttack.x, y: targetAttack.y, t: 'atk', fx: selectedUnit.x, fy: selectedUnit.y });
             selectedUnit = null; validMoves = []; validAttacks = []; window.specialActive = null; renderBoard(gameState); return;
         } else if (window.specialActive === 'tribok') {
@@ -551,7 +574,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                 const expDmg = getExpectedDamage(selectedUnit, 'tunnel', tunnel.o);
                 expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${expDmg} DMG</span>`;
             }
-            infoPanel.innerHTML = `${ownerName} Tunnel (${tunnel.h}/20 HP)${tunnel.r > gameState.rn ? " [Im Bau]" : ""}${expectedDmgText}`;
+            infoPanel.innerHTML = `${ownerName} Tunnel (${tunnel.h}/13 HP)${tunnel.r > gameState.rn ? " [Im Bau]" : ""}${expectedDmgText}`;
         } else if (gameState.wa && gameState.wa.some(w => w.x === clickedX && w.y === clickedY)) {
             const wall = gameState.wa.find(w => w.x === clickedX && w.y === clickedY);
             const ownerName = formatOwnerName(wall.o, gameState.cp);
@@ -858,10 +881,9 @@ function confirmSurrender() {
 
     const alivePlayers = gameState.p.filter(p => p.dead !== 1);
     const teamWinners = checkTeamWin(alivePlayers);
-    if (teamWinners) { showWin(`${teamWinners.map(p => p.n).join(' & ')} gewinnen gemeinsam!`); return; }
-    if (alivePlayers.length === 1) { showWin(`${alivePlayers[0].n} hat als Letzter überlebt! (${surrenderingName} hat aufgegeben)`); return; }
+    const isWin = teamWinners || alivePlayers.length === 1;
 
-    if (gameState.rn > 1) {
+    if (!isWin && gameState.rn > 1) {
         const pState = gameState.p[gameState.cp];
         const income = calculateIncome(gameState.cp);
         pState.g += income.g;
@@ -906,21 +928,33 @@ function confirmSurrender() {
         if (u.dp === undefined) u.dp = 0;
     });
 
-    const baseUrl = window.location.href.split('?')[0];
-    const newUrl = baseUrl + "?state=" + encodedState;
-    try { window.history.pushState({ path: newUrl }, '', newUrl); } catch (e) { }
-
     const nextPlayer = gameState.p[gameState.cp];
-    canvasWrapper.style.display = 'none';
-    uiContainer.style.display = 'none';
-    gameHud.style.display = 'none';
-    intermissionMsg.innerText = `${surrenderingName} hat aufgegeben! Kopiere diesen Link und schicke ihn an ${nextPlayer.n}.`;
-    linkBox.value = newUrl;
-    intermissionScreen.style.display = 'flex';
-    waShareBtn.onclick = () => {
-        window.open(`https://wa.me/?text=${encodeURIComponent(`Dein Zug in Dark Ages, ${nextPlayer.n}!\n${surrenderingName} hat aufgegeben.\nKlicke hier: ${newUrl}`)}`, '_blank');
-    };
-    navigator.clipboard.writeText(newUrl).catch(err => { });
+    if (teamWinners) {
+        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true);
+        showWin(`${teamWinners.map(p => p.n).join(' & ')} gewinnen gemeinsam!`);
+        return;
+    }
+    if (alivePlayers.length === 1) {
+        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true);
+        showWin(`${alivePlayers[0].n} hat als Letzter überlebt! (${surrenderingName} hat aufgegeben)`);
+        return;
+    }
+    if (!isLegacyUrlMode && currentGameId) {
+        submitTurnToServer(encodedState, nextPlayer.n);
+    } else {
+        const baseUrl = window.location.href.split('?')[0];
+        const newUrl = baseUrl + "?state=" + encodedState;
+        try { window.history.pushState({ path: newUrl }, '', newUrl); } catch (e) { }
+        canvasWrapper.style.display = 'none'; uiContainer.style.display = 'none'; gameHud.style.display = 'none';
+        document.getElementById('link-box').style.display = '';
+        document.getElementById('wa-share-btn').style.display = '';
+        document.getElementById('intermission-back-btn').style.display = 'none';
+        intermissionMsg.innerText = `${surrenderingName} hat aufgegeben! Kopiere diesen Link und schicke ihn an ${nextPlayer.n}.`;
+        linkBox.value = newUrl;
+        intermissionScreen.style.display = 'flex';
+        waShareBtn.onclick = () => { window.open(`https://wa.me/?text=${encodeURIComponent(`Dein Zug in Dark Ages, ${nextPlayer.n}!\n${surrenderingName} hat aufgegeben.\nKlicke hier: ${newUrl}`)}`, '_blank'); };
+        navigator.clipboard.writeText(newUrl).catch(() => {});
+    }
 }
 
 window.confirmSurrender = confirmSurrender;
@@ -964,13 +998,12 @@ endTurnBtn.addEventListener('click', () => {
 
     const alivePlayers = gameState.p.filter(p => p.dead !== 1);
     const teamWinners2 = checkTeamWin(alivePlayers);
-    if (teamWinners2) { showWin(`${teamWinners2.map(p => p.n).join(' & ')} gewinnen gemeinsam!`); return; }
-    if (alivePlayers.length === 1) { showWin(`${alivePlayers[0].n} hat als Letzter überlebt!`); return; }
+    const isWin = teamWinners2 || alivePlayers.length === 1;
 
     const pId = gameState.cp; const pState = gameState.p[pId];
     let healsThisTurn = [];
 
-    if (gameState.rn > 1) {
+    if (!isWin && gameState.rn > 1) {
         const income = calculateIncome(pId);
         pState.g += income.g;
         pState.m += income.m;
@@ -1029,13 +1062,52 @@ endTurnBtn.addEventListener('click', () => {
         if (u.dp === undefined) u.dp = 0;
     });
 
-    const baseUrl = window.location.href.split('?')[0];
-    const newUrl = baseUrl + "?state=" + encodedState;
-    try { window.history.pushState({ path: newUrl }, '', newUrl); } catch (e) { }
-
-    canvasWrapper.style.display = 'none'; uiContainer.style.display = 'none'; gameHud.style.display = 'none';
-    intermissionMsg.innerText = `Kopiere diesen Link und schicke ihn an ${pState.n}.`;
-    linkBox.value = newUrl; intermissionScreen.style.display = 'flex';
-    waShareBtn.onclick = () => { window.open(`https://wa.me/?text=${encodeURIComponent(`Dein Zug in Dark Ages, ${pState.n}!\nKlicke hier: ${newUrl}`)}`, '_blank'); };
-    navigator.clipboard.writeText(newUrl).catch(err => { });
+    if (teamWinners2) {
+        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true);
+        showWin(`${teamWinners2.map(p => p.n).join(' & ')} gewinnen gemeinsam!`);
+        return;
+    }
+    if (alivePlayers.length === 1) {
+        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true);
+        showWin(`${alivePlayers[0].n} hat als Letzter überlebt!`);
+        return;
+    }
+    if (!isLegacyUrlMode && currentGameId) {
+        submitTurnToServer(encodedState, pState.n);
+    } else {
+        const baseUrl = window.location.href.split('?')[0];
+        const newUrl = baseUrl + "?state=" + encodedState;
+        try { window.history.pushState({ path: newUrl }, '', newUrl); } catch (e) { }
+        canvasWrapper.style.display = 'none'; uiContainer.style.display = 'none'; gameHud.style.display = 'none';
+        document.getElementById('link-box').style.display = '';
+        document.getElementById('wa-share-btn').style.display = '';
+        document.getElementById('intermission-back-btn').style.display = 'none';
+        intermissionMsg.innerText = `Kopiere diesen Link und schicke ihn an ${pState.n}.`;
+        linkBox.value = newUrl; intermissionScreen.style.display = 'flex';
+        waShareBtn.onclick = () => { window.open(`https://wa.me/?text=${encodeURIComponent(`Dein Zug in Dark Ages, ${pState.n}!\nKlicke hier: ${newUrl}`)}`, '_blank'); };
+        navigator.clipboard.writeText(newUrl).catch(() => {});
+    }
 });
+
+// === SERVER TURN SUBMISSION ===
+async function submitTurnToServer(encodedState, nextPlayerName, isFinished = false) {
+    endTurnBtn.disabled = true;
+
+    const eliminatedSlots = gameState.p
+        .map((p, i) => (p.dead === 1 ? i : null))
+        .filter(i => i !== null);
+
+    try {
+        await api.post(`/api/games/${currentGameId}/turn`, {
+            state_blob:       encodedState,
+            next_slot:        gameState.cp,
+            next_round:       gameState.rn,
+            eliminated_slots: eliminatedSlots,
+            game_finished:    isFinished,
+        });
+        if (!isFinished) showServerIntermission(nextPlayerName);
+    } catch (err) {
+        showToast('Fehler: ' + err.message);
+        endTurnBtn.disabled = false;
+    }
+}

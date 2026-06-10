@@ -16,6 +16,7 @@ const getUnitMove = (pState, type, unit) => {
 
 const getUnitRange = (pState, unit) => {
     if (unit.t === 11 && unit.dp === 1) return 2;
+    if (unit.t === 1 && pState.u.includes(4)) return unitStats[unit.t].range + 1;
     return unitStats[unit.t].range;
 };
 
@@ -43,8 +44,17 @@ const getExpectedDamage = (attackerUnit, targetType, targetOwnerId, targetUnit) 
 
     if (pState.f.includes(1) && stats.isMelee) dmg += 1;
     if (attackerUnit.t === 4 && (targetType === 'building' || targetType === 'tunnel') && pState.u.includes(3)) dmg += 3;
-    if (pState.u.includes(4) && getTerrainType(gameState, attackerUnit.x, attackerUnit.y) === 'forest') dmg += 1;
-    if (attackerUnit.t === 6 && pState.u.includes(7)) dmg += 2;
+    if (attackerUnit.t === 1 && pState.u.includes(4)) dmg += 1;
+    if (attackerUnit.t === 5 && pState.u.includes(5)) dmg += 1;
+    if (attackerUnit.t === 6 && pState.u.includes(7)) {
+        let targetMaxHp = 10;
+        if (targetType === 'unit' && targetUnit) targetMaxHp = getUnitMaxHp(gameState.p[targetUnit.p], targetUnit.t, targetUnit);
+        else if (targetType === 'building') targetMaxHp = 30;
+        else if (targetType === 'tower') targetMaxHp = 15;
+        else if (targetType === 'wall') targetMaxHp = 10;
+        else if (targetType === 'tunnel') targetMaxHp = 13;
+        dmg += Math.max(1, Math.round(targetMaxHp * 0.2));
+    }
     if (attackerUnit.t === 9 && (targetType === 'building' || targetType === 'tunnel' || targetType === 'wall' || targetType === 'tower') && pState.u.includes(10)) dmg += 5;
     if (!stats.isMelee && getTerrainType(gameState, attackerUnit.x, attackerUnit.y) === 'hill') dmg += 1;
     dmg += getVeteranBonus(attackerUnit);

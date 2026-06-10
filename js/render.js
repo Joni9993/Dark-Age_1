@@ -343,10 +343,10 @@ function drawScene(state) {
     if (state.tu) {
         state.tu.forEach(t => {
             if (vis.has(`${t.x1},${t.y1}`)) {
-                renderQueue.push({ py: getHexCenter(t.x1, t.y1).py, type: 'building', vx: t.x1, vy: t.y1, ownerId: t.o, hp: t.h, maxHp: 20, spriteKey: "tunnel", isTunnel: true, rr: t.r });
+                renderQueue.push({ py: getHexCenter(t.x1, t.y1).py, type: 'building', vx: t.x1, vy: t.y1, ownerId: t.o, hp: t.h, maxHp: 13, spriteKey: "tunnel", isTunnel: true, rr: t.r });
             }
             if (vis.has(`${t.x2},${t.y2}`)) {
-                renderQueue.push({ py: getHexCenter(t.x2, t.y2).py, type: 'building', vx: t.x2, vy: t.y2, ownerId: t.o, hp: t.h, maxHp: 20, spriteKey: "tunnel", isTunnel: true, rr: t.r });
+                renderQueue.push({ py: getHexCenter(t.x2, t.y2).py, type: 'building', vx: t.x2, vy: t.y2, ownerId: t.o, hp: t.h, maxHp: 13, spriteKey: "tunnel", isTunnel: true, rr: t.r });
             }
         });
     }

@@ -6,9 +6,9 @@ function renderNameInputs() {
 playerCountSelect.addEventListener('change', renderNameInputs);
 
 // === MAP GENERATION ===
-startGameBtn.addEventListener('click', () => {
-    const count = parseInt(playerCountSelect.value);
-    const radius = parseInt(mapSizeSelect.value);
+// buildInitialGameState: called by both legacy button and server lobby start
+function buildInitialGameState(playerNames, radius) {
+    const count = playerNames.length;
     const size = radius * 2 + 1;
     const seed = Math.floor(Math.random() * 10000);
     const rng = createPRNG(seed);
@@ -52,7 +52,7 @@ startGameBtn.addEventListener('click', () => {
 
     for (let i = 0; i < count; i++) {
         const svLoc = `${startPos[i].vx},${startPos[i].vy}`;
-        players.push({ n: document.getElementById(`p-name-${i}`).value.trim() || `Spieler ${i + 1}`, g: 3, m: 1, s: 0, f: [], of: [], u: [], e: [], sv: svLoc, dead: 0, sh: 30 });
+        players.push({ n: (playerNames[i] || '').trim() || `Spieler ${i + 1}`, g: 3, m: 1, s: 0, f: [], of: [], u: [], e: [], sv: svLoc, dead: 0, sh: 30 });
         villages[svLoc] = i;
         units.push({ i: i + 1, p: i, t: 0, x: startPos[i].ux, y: startPos[i].uy, h: 10, a: 0 });
     }
@@ -199,10 +199,10 @@ startGameBtn.addEventListener('click', () => {
         attemptsSt++;
     }
 
-    gameState = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [] };
+    const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [] };
 
     if (count >= 4 && count % 2 === 0) {
-        gameState.at = 1;
+        state.at = 1;
         const idx = Array.from({ length: count }, (_, i) => i);
         for (let i = idx.length - 1; i > 0; i--) {
             const j = Math.floor(rng() * (i + 1));
@@ -214,5 +214,16 @@ startGameBtn.addEventListener('click', () => {
         }
     }
 
+    return state;
+}
+
+// Legacy button: used in URL mode and for local (no-server) play
+startGameBtn.addEventListener('click', () => {
+    const count  = parseInt(playerCountSelect.value);
+    const radius = parseInt(mapSizeSelect.value);
+    const names  = Array.from({ length: count }, (_, i) =>
+        (document.getElementById(`p-name-${i}`)?.value.trim()) || `Spieler ${i + 1}`
+    );
+    gameState = buildInitialGameState(names, radius);
     bootGame();
 });

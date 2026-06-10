@@ -164,6 +164,16 @@ window.useAbility = function (type) {
                 });
                 gameState.wa = gameState.wa.filter(w => w.h > 0);
             }
+
+            if (gameState.tw) {
+                gameState.tw.forEach(tw => {
+                    if (tw.x === t.x && tw.y === t.y) {
+                        tw.h -= detDmg;
+                        spawnFloatingText(t.x, t.y, `-${detDmg}`, "#ff5252");
+                    }
+                });
+                gameState.tw = gameState.tw.filter(tw => tw.h > 0);
+            }
         });
 
         selectedUnit.h = 0;

@@ -69,3 +69,12 @@ let initialCamX = 0, initialCamY = 0;
 
 // === SCOREBOARD ===
 let scoreboardOpen = false;
+
+// === SERVER MODE ===
+let currentUser = null;
+let currentProfile = null;
+let currentGameId = null;
+let currentUserSlot = null;
+let currentTurnSlot = null;   // server-authoritative: whose turn it is (never changed by client)
+let isSpectator = false;
+let isLegacyUrlMode = false;
