@@ -61,7 +61,11 @@ function updateUI() {
     resourceHud.innerHTML = `💰 ${pState.g} <span class="income-text">(+${income.g})</span> | 🪵 ${pState.m} <span class="income-text">(+${income.m})</span> | 🪨 ${pState.s || 0}`;
 
     infoPanel.style.color = playerColors[pId];
-    if (!selectedUnit && !selectedHex && window.specialActive !== 'tribok') infoPanel.innerHTML = `Runde ${gameState.rn} | ${pState.n} ist am Zug.<div class="info-detail">Tippe auf Einheiten oder Dörfer für Details.</div>`;
+    if (!selectedUnit && !selectedHex && window.specialActive !== 'tribok') {
+        const actualTurnId = (currentTurnSlot !== null && currentTurnSlot !== undefined) ? currentTurnSlot : gameState.cp;
+        const actualTurnName = gameState.p[actualTurnId]?.n ?? pState.n;
+        infoPanel.innerHTML = `Runde ${gameState.rn} | ${actualTurnName} ist am Zug.<div class="info-detail">Tippe auf Einheiten oder Dörfer für Details.</div>`;
+    }
 
     upgradeBtn.style.display = 'block'; researchBtn.style.display = pState.f.length > 0 ? 'block' : 'none';
     const _n = gameState.p.length;

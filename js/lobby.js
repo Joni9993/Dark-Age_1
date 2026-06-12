@@ -38,9 +38,10 @@ async function refreshGameList() {
             else if (myTurn)              badge = '<span class="game-badge turn-badge">Du bist dran!</span>';
             else                          badge = `<span class="game-badge wait-badge">Warte auf ${escHtml(row.current_player_username || '?')}...</span>`;
 
-            const canDelete = row.status === 'lobby' && row.slot === 0;
+            const canDelete = row.status === 'lobby' ? row.slot === 0 : row.status === 'active';
+            const deleteTitle = row.status === 'lobby' ? 'Lobby löschen' : 'Spiel aufgeben';
             const deleteBtn = canDelete
-                ? `<button class="game-delete-btn" title="Lobby löschen" onclick="event.stopPropagation();deleteGame('${escHtml(row.id)}')">🗑️</button>`
+                ? `<button class="game-delete-btn" title="${deleteTitle}" onclick="event.stopPropagation();deleteGame('${escHtml(row.id)}','${escHtml(row.status)}')">🗑️</button>`
                 : '';
 
             const card = document.createElement('div');
@@ -320,7 +321,10 @@ function _setReadOnly(readonly) {
     endTurnBtn.disabled = readonly;
     const sb = document.getElementById('surrender-btn');
     if (sb) sb.style.display = readonly ? 'none' : '';
-    if (readonly && !isSpectator) showToast('Warte auf deinen Zug...');
+    if (readonly && !isSpectator) {
+        const actualPlayer = (currentTurnSlot !== null && currentTurnSlot !== undefined) ? gameState?.p?.[currentTurnSlot] : null;
+        showToast(actualPlayer ? `Warte auf ${actualPlayer.n}s Zug...` : 'Warte auf deinen Zug...');
+    }
 }
 
 // ── Join Lobby by Token ───────────────────────────────────────────────────────
@@ -409,13 +413,23 @@ function showServerIntermission(nextPlayerName) {
 
 // ── Delete Game ───────────────────────────────────────────────────────────────
 
-async function deleteGame(gameId) {
-    if (!confirm('Lobby wirklich löschen?')) return;
-    try {
-        await api.del(`/api/games/${gameId}`);
-        await refreshGameList();
-    } catch (err) {
-        showToast('Fehler: ' + err.message);
+async function deleteGame(gameId, status) {
+    if (status === 'active') {
+        if (!confirm('Spiel aufgeben? Du wirst als aufgegeben markiert und das Spiel läuft ohne dich weiter.')) return;
+        try {
+            await api.post(`/api/games/${gameId}/abandon`, {});
+            await refreshGameList();
+        } catch (err) {
+            showToast('Fehler: ' + err.message);
+        }
+    } else {
+        if (!confirm('Lobby wirklich löschen?')) return;
+        try {
+            await api.del(`/api/games/${gameId}`);
+            await refreshGameList();
+        } catch (err) {
+            showToast('Fehler: ' + err.message);
+        }
     }
 }
 

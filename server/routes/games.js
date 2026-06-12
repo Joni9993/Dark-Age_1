@@ -2,6 +2,26 @@ const router = require('express').Router();
 const { pool } = require('../db');
 const { authMiddleware } = require('../auth');
 const { notifyPlayer } = require('../push');
+const LZString = require('lz-string');
+
+// Apply server-side eliminations to a parsed state object.
+// Returns true if the state was modified.
+function applyEliminationsToState(state, eliminatedSlots) {
+    let modified = false;
+    for (const slot of eliminatedSlots) {
+        if (!state.p[slot] || state.p[slot].dead === 1) continue;
+        state.p[slot].dead = 1;
+        state.u = state.u.filter(u => u.p !== slot);
+        for (const k of Object.keys(state.v || {})) {
+            if (state.v[k] === slot) delete state.v[k];
+        }
+        if (state.wa) state.wa = state.wa.filter(w => w.o !== slot);
+        if (state.tw) state.tw = state.tw.filter(t => t.o !== slot);
+        if (state.tu) state.tu = state.tu.filter(t => t.o !== slot);
+        modified = true;
+    }
+    return modified;
+}
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 async function getGamePlayers(gameId) {
@@ -23,7 +43,7 @@ router.get('/', authMiddleware, async (req, res) => {
          JOIN games g ON g.id = gp.game_id
          LEFT JOIN game_players cp_gp ON cp_gp.game_id = g.id AND cp_gp.slot = g.current_slot
          LEFT JOIN profiles cp ON cp.id = cp_gp.profile_id
-         WHERE gp.profile_id = $1 AND g.status != 'finished'
+         WHERE gp.profile_id = $1 AND g.status != 'finished' AND gp.left_game = FALSE
          ORDER BY g.updated_at DESC`,
         [req.profileId]
     );
@@ -114,12 +134,47 @@ router.post('/:id/turn', authMiddleware, async (req, res) => {
         );
     }
 
+    // Re-apply any server-side eliminations (e.g. from /abandon) the client may not have seen
+    let finalBlob = state_blob;
+    let finalNextSlot = next_slot;
+    let finalNextRound = next_round;
+    try {
+        const { rows: serverElimRows } = await pool.query(
+            'SELECT slot FROM game_players WHERE game_id = $1 AND eliminated = TRUE',
+            [req.params.id]
+        );
+        const serverElimSlots = serverElimRows.map(r => r.slot);
+        if (serverElimSlots.length > 0) {
+            const decoded = LZString.decompressFromEncodedURIComponent(state_blob);
+            const stateObj = JSON.parse(decoded);
+            const modified = applyEliminationsToState(stateObj, serverElimSlots);
+            if (modified) {
+                // If next_slot is now dead, advance to next alive player
+                if (stateObj.p[finalNextSlot] && stateObj.p[finalNextSlot].dead === 1) {
+                    let guard = 0;
+                    let ns = finalNextSlot;
+                    let nr = finalNextRound;
+                    do {
+                        ns = (ns + 1) % stateObj.p.length;
+                        if (ns === 0) nr++;
+                        guard++;
+                    } while (stateObj.p[ns] && stateObj.p[ns].dead === 1 && guard < stateObj.p.length);
+                    finalNextSlot = ns;
+                    finalNextRound = nr;
+                    stateObj.cp = ns;
+                    stateObj.rn = nr;
+                }
+                finalBlob = LZString.compressToEncodedURIComponent(JSON.stringify(stateObj));
+            }
+        }
+    } catch (_) {}
+
     // Write new state
     const newStatus = game_finished ? 'finished' : 'active';
     await pool.query(
         `UPDATE games SET state_blob = $1, current_slot = $2, round = $3, status = $4, updated_at = NOW()
          WHERE id = $5`,
-        [state_blob, next_slot, next_round, newStatus, req.params.id]
+        [finalBlob, finalNextSlot, finalNextRound, newStatus, req.params.id]
     );
 
     const url = `${process.env.APP_URL}?game=${req.params.id}`;
@@ -138,7 +193,7 @@ router.post('/:id/turn', authMiddleware, async (req, res) => {
         // Notify next player
         pool.query(
             'SELECT profile_id FROM game_players WHERE game_id = $1 AND slot = $2 AND eliminated = FALSE',
-            [req.params.id, next_slot]
+            [req.params.id, finalNextSlot]
         ).then(({ rows: [nextPlayer] }) => {
             if (!nextPlayer) return;
             notifyPlayer(nextPlayer.profile_id, 'Dark Ages', `Du bist dran in ${row.name}!`, url).catch(() => {});
@@ -166,6 +221,77 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     await pool.query('DELETE FROM game_players WHERE game_id = $1', [req.params.id]);
     await pool.query('DELETE FROM games WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
+});
+
+// ── POST /api/games/:id/abandon  — any player surrenders from menu ────────────
+router.post('/:id/abandon', authMiddleware, async (req, res) => {
+    const { rows: [playerRow] } = await pool.query(
+        `SELECT gp.slot, gp.eliminated, g.status, g.state_blob, g.current_slot, g.round, g.name
+         FROM game_players gp JOIN games g ON g.id = gp.game_id
+         WHERE gp.game_id = $1 AND gp.profile_id = $2`,
+        [req.params.id, req.profileId]
+    );
+    if (!playerRow) return res.status(403).json({ error: 'Nicht im Spiel' });
+    if (playerRow.status !== 'active') return res.status(400).json({ error: 'Spiel nicht aktiv' });
+    if (playerRow.eliminated) return res.status(400).json({ error: 'Bereits aufgegeben' });
+
+    const slot = playerRow.slot;
+
+    let state;
+    try {
+        const decoded = LZString.decompressFromEncodedURIComponent(playerRow.state_blob);
+        state = JSON.parse(decoded);
+    } catch (e) {
+        return res.status(500).json({ error: 'Spielstand konnte nicht geladen werden' });
+    }
+
+    applyEliminationsToState(state, [slot]);
+
+    const alivePlayers = state.p.filter(p => p.dead !== 1);
+    const gameFinished = alivePlayers.length <= 1;
+
+    let nextSlot = state.cp;
+    let nextRound = state.rn;
+
+    if (!gameFinished && state.cp === slot) {
+        let guard = 0;
+        do {
+            nextSlot = (nextSlot + 1) % state.p.length;
+            if (nextSlot === 0) nextRound++;
+            guard++;
+        } while (state.p[nextSlot].dead === 1 && guard < state.p.length);
+        state.cp = nextSlot;
+        state.rn = nextRound;
+    }
+
+    const newBlob = LZString.compressToEncodedURIComponent(JSON.stringify(state));
+    const newStatus = gameFinished ? 'finished' : 'active';
+
+    await pool.query(
+        `UPDATE games SET state_blob = $1, current_slot = $2, round = $3, status = $4, updated_at = NOW() WHERE id = $5`,
+        [newBlob, nextSlot, nextRound, newStatus, req.params.id]
+    );
+    await pool.query(
+        'UPDATE game_players SET eliminated = TRUE, left_game = TRUE WHERE game_id = $1 AND profile_id = $2',
+        [req.params.id, req.profileId]
+    );
+
+    const abandoningName = state.p[slot].n;
+    const url = `${process.env.APP_URL}?game=${req.params.id}`;
+
+    pool.query(
+        'SELECT profile_id FROM game_players WHERE game_id = $1 AND profile_id != $2',
+        [req.params.id, req.profileId]
+    ).then(({ rows: others }) => {
+        for (const o of others) {
+            const msg = gameFinished
+                ? `${abandoningName} hat aufgegeben — Spiel beendet!`
+                : `${abandoningName} hat "${playerRow.name}" aufgegeben!`;
+            notifyPlayer(o.profile_id, 'Dark Ages', msg, url).catch(() => {});
+        }
+    }).catch(() => {});
+
+    res.json({ ok: true, game_finished: gameFinished });
 });
 
 // ── GET /api/lobby/:token  — public lobby preview ────────────────────────────

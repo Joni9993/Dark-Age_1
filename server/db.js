@@ -50,10 +50,13 @@ async function initSchema() {
             slot       INT     NOT NULL,
             profile_id UUID    REFERENCES profiles(id),
             eliminated BOOLEAN DEFAULT FALSE,
+            left_game  BOOLEAN DEFAULT FALSE,
             joined_at  TIMESTAMPTZ DEFAULT NOW(),
             PRIMARY KEY (game_id, slot),
             UNIQUE (game_id, profile_id)
         );
+
+        ALTER TABLE game_players ADD COLUMN IF NOT EXISTS left_game BOOLEAN DEFAULT FALSE;
 
         CREATE TABLE IF NOT EXISTS friendships (
             requester_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
