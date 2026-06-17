@@ -20,6 +20,7 @@ function bootGame() {
     if (!gameState.wa) gameState.wa = [];
     if (!gameState.st) gameState.st = [];
     if (!gameState.tw) gameState.tw = [];
+    if (!gameState.ct) gameState.ct = { x: gameState.rad, y: gameState.rad, ctrl: -1 };
     gameState.u.forEach((u, idx) => {
         if (u.a === undefined) u.a = 0;
         if (!u.i) u.i = idx + 1;
