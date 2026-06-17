@@ -420,14 +420,7 @@ function drawScene(state) {
             ctx.save();
             ctx.strokeStyle = "#ffd700";
             ctx.lineWidth = 2;
-            ctx.beginPath();
-            for (let i = 0; i < 6; i++) {
-                const angle = 2 * Math.PI / 6 * (i + 0.5);
-                const hx = px + hexSize * Math.cos(angle);
-                const hy = py + (hexSize * Math.sin(angle)) * yCompress;
-                i === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
-            }
-            ctx.closePath();
+            drawHexPath(px, py);
             ctx.stroke();
             ctx.restore();
             drawEntity(item.vx, item.vy, item.color, false, undefined, undefined, "watchtower", false);
