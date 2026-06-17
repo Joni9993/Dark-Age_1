@@ -422,9 +422,9 @@ function drawScene(state) {
             ctx.lineWidth = 2;
             ctx.beginPath();
             for (let i = 0; i < 6; i++) {
-                const angle = Math.PI / 180 * (60 * i - 30);
-                const hx = px + 28 * Math.cos(angle);
-                const hy = py + 28 * Math.sin(angle);
+                const angle = 2 * Math.PI / 6 * (i + 0.5);
+                const hx = px + hexSize * Math.cos(angle);
+                const hy = py + (hexSize * Math.sin(angle)) * yCompress;
                 i === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
             }
             ctx.closePath();
