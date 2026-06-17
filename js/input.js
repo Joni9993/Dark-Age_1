@@ -460,6 +460,12 @@ function handleCanvasClick(clientX, clientY) {
 
             selectedUnit.x = targetX; selectedUnit.y = targetY;
 
+            if (gameState.ct && gameState.ct.x === targetX && gameState.ct.y === targetY && gameState.ct.ctrl !== gameState.cp) {
+                gameState.ct.ctrl = gameState.cp;
+                spawnFloatingText(targetX, targetY, "Wachturm erobert!", "#ffd700");
+                showToast('🗼 Wachturm erobert!', 'gold');
+            }
+
             if (selectedUnit.iv === 1) {
                 const targetLoc = `${targetX},${targetY}`;
                 const vOwner = gameState.v[targetLoc];
@@ -587,6 +593,10 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
         } else if (gameState.st && gameState.st.some(s => s.x === clickedX && s.y === clickedY && s.h > 0) && isVisible) {
             const st = gameState.st.find(s => s.x === clickedX && s.y === clickedY);
             infoPanel.innerHTML = `Steinvorkommen (${st.h}/40)<div class="info-detail">Benötigt Arbeiter zum Abbau</div>`;
+        } else if (gameState.ct && gameState.ct.x === clickedX && gameState.ct.y === clickedY) {
+            const ctOwnerName = gameState.ct.ctrl === -1 ? "Neutraler" : formatOwnerName(gameState.ct.ctrl, gameState.cp);
+            const ctRange = Math.ceil(gameState.rad * 0.7);
+            infoPanel.innerHTML = `🗼 ${ctOwnerName} Wachturm<div class="info-detail">Kartenzentrum · gewährt ${ctRange} Felder Sichtweite</div>`;
         } else if (gameState.tw && gameState.tw.some(tw => tw.x === clickedX && tw.y === clickedY && tw.h > 0) && isVisible) {
             const tw = gameState.tw.find(tw => tw.x === clickedX && tw.y === clickedY);
             const ownerName = formatOwnerName(tw.o, gameState.cp);

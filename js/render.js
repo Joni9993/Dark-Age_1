@@ -375,6 +375,11 @@ function drawScene(state) {
         });
     }
 
+    if (state.ct) {
+        const ctColor = state.ct.ctrl === -1 ? "#888888" : getEntityColor(state.ct.ctrl);
+        renderQueue.push({ py: getHexCenter(state.ct.x, state.ct.y).py, type: 'centerTower', vx: state.ct.x, vy: state.ct.y, color: ctColor });
+    }
+
     for (const [key, ownerId] of Object.entries(state.v)) {
         if (vis.has(key) || ownerId === gameState.cp || (ownerId === -1 && explored.includes(parseInt(key.split(',')[1]) * state.bw + parseInt(key.split(',')[0])))) {
             const [vx, vy] = key.split(',').map(Number);
@@ -410,6 +415,22 @@ function drawScene(state) {
             drawEntity(item.vx, item.vy, "#9e9e9e", false, item.hp, item.maxHp, item.spriteKey, false);
         } else if (item.type === 'tower') {
             drawEntity(item.vx, item.vy, getEntityColor(item.ownerId), item.acted === 1, item.hp, item.maxHp, item.spriteKey, false);
+        } else if (item.type === 'centerTower') {
+            const { px, py } = getHexCenter(item.vx, item.vy);
+            ctx.save();
+            ctx.strokeStyle = "#ffd700";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = Math.PI / 180 * (60 * i - 30);
+                const hx = px + 28 * Math.cos(angle);
+                const hy = py + 28 * Math.sin(angle);
+                i === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+            drawEntity(item.vx, item.vy, item.color, false, undefined, undefined, "watchtower", false);
         }
     });
 

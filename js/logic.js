@@ -230,6 +230,10 @@ function getVisibleHexes(playerId) {
                         if (hexDistance({ x, y }, { x: tw.x, y: tw.y }) <= 2) { isVis = true; break; }
                     }
                 }
+                if (!isVis && gameState.ct && gameState.ct.ctrl === pId) {
+                    const ctRange = Math.ceil(gameState.rad * 0.7);
+                    if (hexDistance({ x, y }, { x: gameState.ct.x, y: gameState.ct.y }) <= ctRange) isVis = true;
+                }
                 if (isVis) visible.add(`${x},${y}`);
             }
         }

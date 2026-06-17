@@ -199,7 +199,7 @@ function buildInitialGameState(playerNames, radius) {
         attemptsSt++;
     }
 
-    const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [] };
+    const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [], ct: { x: cx, y: cy, ctrl: -1 } };
 
     if (count >= 4 && count % 2 === 0) {
         state.at = 1;
