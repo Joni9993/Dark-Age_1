@@ -416,13 +416,6 @@ function drawScene(state) {
         } else if (item.type === 'tower') {
             drawEntity(item.vx, item.vy, getEntityColor(item.ownerId), item.acted === 1, item.hp, item.maxHp, item.spriteKey, false);
         } else if (item.type === 'centerTower') {
-            const { px, py } = getHexCenter(item.vx, item.vy);
-            ctx.save();
-            ctx.strokeStyle = "#ffd700";
-            ctx.lineWidth = 2;
-            drawHexPath(px, py);
-            ctx.stroke();
-            ctx.restore();
             drawEntity(item.vx, item.vy, item.color, false, undefined, undefined, "watchtower", false);
         }
     });
