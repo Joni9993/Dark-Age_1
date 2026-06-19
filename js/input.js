@@ -432,7 +432,7 @@ function handleCanvasClick(clientX, clientY) {
                     checkVeteran(selectedUnit);
 
                     const isMainBuilding = gameState.p.some(p => p.dead !== 1 && p.sv === `${clickedX},${clickedY}`);
-                    if (unitStats[selectedUnit.t].range === 1 && !isMainBuilding) {
+                    if (getUnitRange(pState, selectedUnit) === 1 && !isMainBuilding) {
                         selectedUnit.x = clickedX;
                         selectedUnit.y = clickedY;
                     }
