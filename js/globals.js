@@ -59,6 +59,9 @@ let validAttacks = [];
 let selectedTower = null;
 window.highlightedTunnelEnd = null;
 
+// === UNDO ===
+let undoStack = [];
+
 // === INPUT ===
 let isDragging = false;
 let hasMoved = false;

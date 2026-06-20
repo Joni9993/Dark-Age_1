@@ -61,6 +61,7 @@ function handleCanvasClick(clientX, clientY) {
                     }
                 }
                 if (targetUnit || targetTower || targetWall || targetTunnel || targetBuildingOwner >= 0) {
+                    saveUndoState();
                     spawnAttackAnim(t.x, t.y, clickedX, clickedY, 'arrow');
                     spawnFloatingText(clickedX, clickedY, `-5`, "#ff5252");
                     if (targetUnit) {
@@ -175,6 +176,7 @@ function handleCanvasClick(clientX, clientY) {
                     return;
                 }
 
+                saveUndoState();
                 pState.s = (pState.s || 0) - 4;
                 if (!gameState.tu) gameState.tu = [];
                 gameState.tu.push({
@@ -192,6 +194,7 @@ function handleCanvasClick(clientX, clientY) {
             return;
         } else if (window.specialActive === 'wall_step1') {
             if (validMoves.some(m => m.x === clickedX && m.y === clickedY)) {
+                saveUndoState();
                 pState.s = (pState.s || 0) - 1;
                 if (!gameState.wa) gameState.wa = [];
                 gameState.wa.push({ x: clickedX, y: clickedY, o: gameState.cp, h: 10 });
@@ -205,6 +208,7 @@ function handleCanvasClick(clientX, clientY) {
             return;
         } else if (window.specialActive === 'tower_step1') {
             if (validMoves.some(m => m.x === clickedX && m.y === clickedY)) {
+                saveUndoState();
                 pState.s = (pState.s || 0) - 5;
                 if (!gameState.tw) gameState.tw = [];
                 gameState.tw.push({ x: clickedX, y: clickedY, o: gameState.cp, h: 15, a: 1 });
@@ -219,6 +223,7 @@ function handleCanvasClick(clientX, clientY) {
 
         if (window.specialActive === 'elefant_stampede') {
             if (targetAttack && targetAttack.isStampede) {
+                saveUndoState();
                 const fromX = selectedUnit.x, fromY = selectedUnit.y;
                 const toX = clickedX, toY = clickedY;
                 const dist = hexDistance({ x: fromX, y: fromY }, { x: toX, y: toY });
@@ -276,6 +281,7 @@ function handleCanvasClick(clientX, clientY) {
         }
 
         if (window.specialActive === 'tribok' && targetAttack && targetAttack.isTribokAoE) {
+            saveUndoState();
             spawnAttackAnim(selectedUnit.x, selectedUnit.y, targetAttack.x, targetAttack.y, 'fire');
             let targets = [{ x: targetAttack.x, y: targetAttack.y, dmg: 3 }];
             getNeighbors(targetAttack.x, targetAttack.y).forEach(n => targets.push({ x: n.x, y: n.y, dmg: 2 }));
@@ -337,6 +343,7 @@ function handleCanvasClick(clientX, clientY) {
         }
 
         if (selectedUnit && targetAttack) {
+            saveUndoState();
             if (selectedUnit.iv === 1) { delete selectedUnit.iv; selectedUnit.cd = 2; }
 
             let targetType = 'unit';
@@ -445,6 +452,7 @@ function handleCanvasClick(clientX, clientY) {
             selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
         }
         else if (selectedUnit && validMoves.some(m => m.x === clickedX && m.y === clickedY)) {
+            saveUndoState();
             const prevX = selectedUnit.x, prevY = selectedUnit.y;
 
             let targetX = clickedX; let targetY = clickedY; let teleported = false;
@@ -824,6 +832,13 @@ canvas.addEventListener('touchmove', e => {
 
 canvas.addEventListener('touchend', e => { if (e.touches.length < 2) initialPinchDist = null; });
 
+document.addEventListener('keydown', e => {
+    if (e.key === 'Backspace' && !e.target.matches('input, textarea')) {
+        e.preventDefault();
+        undoLastAction();
+    }
+});
+
 // === CAMERA FOCUS ===
 function focusCamera() {
     let targetHex = null;
@@ -992,6 +1007,9 @@ endTurnBtn.addEventListener('click', () => {
     endTurnBtn.disabled = true;
 
     gameState.la = turnActions; turnActions = [];
+    undoStack = [];
+    const undoBtn = document.getElementById('undo-btn');
+    if (undoBtn) undoBtn.style.display = 'none';
 
     processAutoMining(gameState.cp);
     floatingTexts = [];

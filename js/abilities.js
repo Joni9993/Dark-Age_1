@@ -2,6 +2,7 @@
 window.useAbility = function (type) {
     const pState = gameState.p[gameState.cp];
     if (!selectedUnit) return;
+    saveUndoState();
 
     if (type === 'ritter') {
         pState.m -= 3;
@@ -211,6 +212,7 @@ window.useAbility = function (type) {
 
 window.startMining = function () {
     if (!selectedUnit || selectedUnit.t !== 7) return;
+    saveUndoState();
     const adj = (gameState.st || []).filter(s => s.h > 0 && hexDistance({ x: s.x, y: s.y }, { x: selectedUnit.x, y: selectedUnit.y }) === 1);
     if (adj.length === 0) { showToast("Kein Steinhaufen neben dir.", "error"); return; }
     adj.sort((a, b) => b.h - a.h);
@@ -222,6 +224,7 @@ window.startMining = function () {
 
 window.stopMining = function () {
     if (!selectedUnit || selectedUnit.t !== 7) return;
+    saveUndoState();
     delete selectedUnit.mi;
     hideActionMenu();
     infoPanel.innerHTML = `⛏️ Abbau gestoppt.`;
@@ -230,6 +233,7 @@ window.stopMining = function () {
 
 window.toggleDeploy = function () {
     if (!selectedUnit || selectedUnit.t !== 11) return;
+    saveUndoState();
     selectedUnit.dp = selectedUnit.dp === 1 ? 0 : 1;
     selectedUnit.a = 1;
     hideActionMenu();
@@ -239,6 +243,7 @@ window.toggleDeploy = function () {
 
 window.demolishTunnel = function (x1, y1) {
     if (!selectedUnit || !gameState.tu) return;
+    saveUndoState();
     const tunnel = gameState.tu.find(t => t.x1 === x1 && t.y1 === y1 && t.o === gameState.cp);
     if (!tunnel) return;
     gameState.tu = gameState.tu.filter(t => t !== tunnel);
@@ -250,6 +255,7 @@ window.demolishTunnel = function (x1, y1) {
 
 window.demolishWall = function (wx, wy) {
     if (!selectedUnit || !gameState.wa) return;
+    saveUndoState();
     gameState.wa = gameState.wa.filter(w => !(w.x === wx && w.y === wy && w.o === gameState.cp));
     selectedUnit.a = 1;
     selectedUnit = null; validMoves = []; validAttacks = [];
@@ -258,6 +264,7 @@ window.demolishWall = function (wx, wy) {
 
 window.useTunnel = function () {
     if (!selectedUnit) return;
+    saveUndoState();
     if (gameState.tu) {
         let tunnel = gameState.tu.find(t => t.r <= gameState.rn && ((t.x1 === selectedUnit.x && t.y1 === selectedUnit.y) || (t.x2 === selectedUnit.x && t.y2 === selectedUnit.y)));
         if (tunnel) {

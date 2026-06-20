@@ -1,3 +1,25 @@
+// === UNDO ===
+function saveUndoState() {
+    undoStack.push({ gs: JSON.parse(JSON.stringify(gameState)), ta: [...turnActions] });
+    if (undoStack.length > 10) undoStack.shift();
+    const btn = document.getElementById('undo-btn');
+    if (btn) btn.style.display = '';
+}
+
+window.undoLastAction = function () {
+    if (undoStack.length === 0) { showToast('Nichts rückgängig zu machen.', 'error'); return; }
+    const snap = undoStack.pop();
+    gameState = snap.gs;
+    turnActions = snap.ta;
+    selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
+    window.highlightedTunnelEnd = null; window.specialActive = null;
+    hideActionMenu();
+    const btn = document.getElementById('undo-btn');
+    if (btn) btn.style.display = undoStack.length === 0 ? 'none' : '';
+    renderBoard(gameState);
+    showToast('↩ Rückgängig', 'info');
+};
+
 // === TOAST ===
 function showToast(msg, type = 'info') {
     const t = document.createElement('div');
@@ -152,6 +174,7 @@ window.buyUnit = function (type) {
         const pState = gameState.p[gameState.cp];
         const cost = getUnitCost(pState, type);
         if (pState.g >= cost) {
+            saveUndoState();
             pState.g -= cost;
             let nextId = Math.max(...gameState.u.map(u => u.i), 0) + 1;
             let fb = 0;
@@ -171,6 +194,7 @@ window.buyUnit = function (type) {
 // === VILLAGE CAPTURE ===
 window.startCapture = function () {
     if (selectedUnit) {
+        saveUndoState();
         if (selectedUnit.iv === 1) {
             delete selectedUnit.iv;
             selectedUnit.cd = 2;

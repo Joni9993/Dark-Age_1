@@ -675,6 +675,20 @@ canvas {
 }
 
 /* === AUFGEBEN BUTTON === */
+#undo-btn {
+    padding: 4px 8px;
+    background: linear-gradient(180deg, #1a2a3a 0%, #0f1f2e 100%);
+    color: #90caf9;
+    border: 1px solid rgba(100, 180, 255, 0.35);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+#undo-btn:hover { background: linear-gradient(180deg, #1e3a50 0%, #122840 100%); border-color: rgba(100, 180, 255, 0.65); }
+#undo-btn:active { transform: scale(0.97); }
+
 #surrender-btn {
     padding: 4px 10px;
     background: linear-gradient(180deg, #5a1a1a 0%, #3a0f0f 100%);
