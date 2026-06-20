@@ -57,6 +57,7 @@ let selectedUnit = null;
 let validMoves = [];
 let validAttacks = [];
 let selectedTower = null;
+window.highlightedTunnelEnd = null;
 
 // === INPUT ===
 let isDragging = false;

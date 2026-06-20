@@ -237,6 +237,25 @@ window.toggleDeploy = function () {
     renderBoard(gameState);
 };
 
+window.demolishTunnel = function (x1, y1) {
+    if (!selectedUnit || !gameState.tu) return;
+    const tunnel = gameState.tu.find(t => t.x1 === x1 && t.y1 === y1 && t.o === gameState.cp);
+    if (!tunnel) return;
+    gameState.tu = gameState.tu.filter(t => t !== tunnel);
+    gameState.p[gameState.cp].s = (gameState.p[gameState.cp].s || 0) + 2;
+    selectedUnit.a = 1;
+    selectedUnit = null; validMoves = []; validAttacks = []; window.highlightedTunnelEnd = null;
+    hideActionMenu(); infoPanel.innerHTML = `🚇 Tunnel abgerissen! +2🪨`; renderBoard(gameState);
+};
+
+window.demolishWall = function (wx, wy) {
+    if (!selectedUnit || !gameState.wa) return;
+    gameState.wa = gameState.wa.filter(w => !(w.x === wx && w.y === wy && w.o === gameState.cp));
+    selectedUnit.a = 1;
+    selectedUnit = null; validMoves = []; validAttacks = [];
+    hideActionMenu(); infoPanel.innerHTML = `🧱 Mauer abgerissen!`; renderBoard(gameState);
+};
+
 window.useTunnel = function () {
     if (!selectedUnit) return;
     if (gameState.tu) {

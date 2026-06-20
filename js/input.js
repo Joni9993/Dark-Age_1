@@ -38,6 +38,7 @@ function handleCanvasClick(clientX, clientY) {
     }
 
     if (closest && minDist < hexSize) {
+        window.highlightedTunnelEnd = null;
         const clickedX = closest.x; const clickedY = closest.y;
         const vis = getVisibleHexes(gameState.cp); const isVisible = vis.has(`${clickedX},${clickedY}`);
 
@@ -580,6 +581,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                 const expDmg = getExpectedDamage(selectedUnit, 'tunnel', tunnel.o);
                 expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${expDmg} DMG</span>`;
             }
+            window.highlightedTunnelEnd = { x: tunnel.x1 === clickedX ? tunnel.x2 : tunnel.x1, y: tunnel.y1 === clickedY ? tunnel.y2 : tunnel.y1 };
             infoPanel.innerHTML = `${ownerName} Tunnel (${tunnel.h}/13 HP)${tunnel.r > gameState.rn ? " [Im Bau]" : ""}${expectedDmgText}`;
         } else if (gameState.wa && gameState.wa.some(w => w.x === clickedX && w.y === clickedY)) {
             const wall = gameState.wa.find(w => w.x === clickedX && w.y === clickedY);
@@ -676,10 +678,25 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
             }
 
             if (gameState.tu) {
-                let tunnel = gameState.tu.find(t => t.r <= gameState.rn && ((t.x1 === clickedUnit.x && t.y1 === clickedUnit.y) || (t.x2 === clickedUnit.x && t.y2 === clickedUnit.y)));
-                if (tunnel && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
-                    menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #8d6e63;" onclick="useTunnel()">🚇 Durch Tunnel gehen</button>`;
+                let onTunnel = gameState.tu.find(t => (t.x1 === clickedUnit.x && t.y1 === clickedUnit.y) || (t.x2 === clickedUnit.x && t.y2 === clickedUnit.y));
+                if (onTunnel) {
+                    window.highlightedTunnelEnd = { x: onTunnel.x1 === clickedUnit.x ? onTunnel.x2 : onTunnel.x1, y: onTunnel.y1 === clickedUnit.y ? onTunnel.y2 : onTunnel.y1 };
+                    if (onTunnel.r <= gameState.rn && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
+                        menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #8d6e63;" onclick="useTunnel()">🚇 Durch Tunnel gehen</button>`;
+                    }
                 }
+                if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
+                    const adjTunnel = gameState.tu.find(t => t.o === gameState.cp && (
+                        hexDistance({ x: t.x1, y: t.y1 }, { x: clickedUnit.x, y: clickedUnit.y }) === 1 ||
+                        hexDistance({ x: t.x2, y: t.y2 }, { x: clickedUnit.x, y: clickedUnit.y }) === 1
+                    ));
+                    if (adjTunnel) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4e342e;" onclick="demolishTunnel(${adjTunnel.x1},${adjTunnel.y1})">🚇 Tunnel abreißen (+2🪨)</button>`;
+                }
+            }
+            if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2) && gameState.wa) {
+                gameState.wa.filter(w => w.o === gameState.cp && hexDistance({ x: w.x, y: w.y }, { x: clickedUnit.x, y: clickedUnit.y }) === 1).forEach(w => {
+                    menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4e342e;" onclick="demolishWall(${w.x},${w.y})">🧱 Mauer abreißen</button>`;
+                });
             }
 
             const canCapture = (villageOwner === -1)
