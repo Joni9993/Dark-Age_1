@@ -204,7 +204,14 @@ function processAutoMining(pId) {
 function getVisibleHexes(playerId) {
     let visible = new Set();
     const mainState = gameState.p[playerId];
-    if (mainState.dead) return visible;
+    if (mainState.dead) {
+        if (isSpectator) {
+            for (let y = 0; y < gameState.bh; y++)
+                for (let x = 0; x < gameState.bw; x++)
+                    if (isInsideMap(gameState, x, y)) visible.add(`${x},${y}`);
+        }
+        return visible;
+    }
 
     const addV = (pId) => {
         const pState = gameState.p[pId];

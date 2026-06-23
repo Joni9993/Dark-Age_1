@@ -1,9 +1,13 @@
 // === UNDO ===
+function updateUndoButton() {
+    const item = document.getElementById('menu-undo-item');
+    if (item) item.disabled = undoStack.length === 0;
+}
+
 function saveUndoState() {
     undoStack.push({ gs: JSON.parse(JSON.stringify(gameState)), ta: [...turnActions] });
     if (undoStack.length > 10) undoStack.shift();
-    const btn = document.getElementById('undo-btn');
-    if (btn) btn.style.display = '';
+    updateUndoButton();
 }
 
 window.undoLastAction = function () {
@@ -14,11 +18,28 @@ window.undoLastAction = function () {
     selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
     window.highlightedTunnelEnd = null; window.specialActive = null;
     hideActionMenu();
-    const btn = document.getElementById('undo-btn');
-    if (btn) btn.style.display = undoStack.length === 0 ? 'none' : '';
+    updateUndoButton();
     renderBoard(gameState);
     showToast('↩ Rückgängig', 'info');
 };
+
+// === GAME MENU ===
+window.toggleGameMenu = function () {
+    const popup = document.getElementById('game-menu-popup');
+    if (!popup) return;
+    popup.style.display = popup.style.display === 'none' ? '' : 'none';
+};
+
+window.closeGameMenu = function () {
+    const popup = document.getElementById('game-menu-popup');
+    if (popup) popup.style.display = 'none';
+};
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('#game-menu-popup') && !e.target.closest('#menu-btn')) {
+        closeGameMenu();
+    }
+});
 
 // === TOAST ===
 function showToast(msg, type = 'info') {

@@ -1008,8 +1008,7 @@ endTurnBtn.addEventListener('click', () => {
 
     gameState.la = turnActions; turnActions = [];
     undoStack = [];
-    const undoBtn = document.getElementById('undo-btn');
-    if (undoBtn) undoBtn.style.display = 'none';
+    updateUndoButton();
 
     processAutoMining(gameState.cp);
     floatingTexts = [];

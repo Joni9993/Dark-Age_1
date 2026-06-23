@@ -319,7 +319,7 @@ function _activateSpectatorMode() {
 
 function _setReadOnly(readonly) {
     endTurnBtn.disabled = readonly;
-    const sb = document.getElementById('surrender-btn');
+    const sb = document.getElementById('menu-surrender-item');
     if (sb) sb.style.display = readonly ? 'none' : '';
     if (readonly && !isSpectator) {
         const actualPlayer = (currentTurnSlot !== null && currentTurnSlot !== undefined) ? gameState?.p?.[currentTurnSlot] : null;

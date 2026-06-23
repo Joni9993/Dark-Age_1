@@ -90,8 +90,13 @@
         <div id="resource-hud">💰 0 <span class="income-text">(+0)</span> | 🪵 0 <span class="income-text">(+0)</span> |
             🪨 0
         </div>
-        <button id="undo-btn" onclick="undoLastAction()" title="Rückgängig (Backspace)" style="display:none;">↩</button>
-    <button id="surrender-btn" onclick="openSurrenderDialog()">🏳 Aufgeben</button>
+        <button id="menu-btn" onclick="toggleGameMenu()">☰</button>
+    </div>
+
+    <div id="game-menu-popup" style="display:none;">
+        <button id="menu-undo-item" onclick="undoLastAction(); closeGameMenu()" disabled>↩ Rückgängig</button>
+        <button id="menu-surrender-item" onclick="openSurrenderDialog(); closeGameMenu()">🏳 Aufgeben</button>
+        <button onclick="showHomeScreen(); closeGameMenu()">← Hauptmenü</button>
     </div>
 
     <div id="surrender-overlay">
