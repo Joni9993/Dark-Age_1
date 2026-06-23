@@ -13,6 +13,12 @@ async function showHomeScreen() {
     document.getElementById('lobby-screen').style.display   = 'none';
     document.getElementById('friends-panel').style.display  = 'none';
     setupScreen.style.display                               = 'none';
+    canvasWrapper.style.display                             = 'none';
+    uiContainer.style.display                               = 'none';
+    gameHud.style.display                                   = 'none';
+    intermissionScreen.style.display                        = 'none';
+    winScreen.style.display                                 = 'none';
+    closeGameMenu();
     document.getElementById('home-screen').style.display    = 'flex';
     document.getElementById('home-username').textContent    = currentProfile?.username ?? '';
     await refreshGameList();
