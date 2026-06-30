@@ -117,7 +117,7 @@ function handleCanvasClick(clientX, clientY) {
                 if (w.h > 0 && w.o !== gameState.cp && canAttack(w.o) && hexDistance({ x: clickedTower.x, y: clickedTower.y }, { x: w.x, y: w.y }) <= 2)
                     validAttacks.push({ x: w.x, y: w.y, isTowerShot: true });
             if (gameState.tu) for (let tu of gameState.tu)
-                if (tu.h > 0 && tu.o !== gameState.cp && canAttack(tu.o) && tu.r <= gameState.rn) {
+                if (tu.h > 0 && tu.o !== gameState.cp && canAttack(tu.o)) {
                     if (hexDistance({ x: clickedTower.x, y: clickedTower.y }, { x: tu.x1, y: tu.y1 }) <= 2)
                         validAttacks.push({ x: tu.x1, y: tu.y1, isTowerShot: true, isTunnelShot: true, tunnel: tu });
                     if (hexDistance({ x: clickedTower.x, y: clickedTower.y }, { x: tu.x2, y: tu.y2 }) <= 2)
@@ -1001,10 +1001,142 @@ function confirmSurrender() {
 
 window.confirmSurrender = confirmSurrender;
 
-// === END TURN ===
-endTurnBtn.addEventListener('click', () => {
-    if (endTurnBtn.disabled) return;
-    endTurnBtn.disabled = true;
+// === END TURN CONFIRM DIALOG ===
+const endTurnConfirmOverlay = document.getElementById('end-turn-confirm-overlay');
+const endTurnConfirmMsg = document.getElementById('end-turn-confirm-msg');
+
+function hasRemainingActions() {
+    if (!gameState) return false;
+    const pId = gameState.cp;
+    const pState = gameState.p[pId];
+
+    const myUnits = gameState.u.filter(u => u.p === pId);
+
+    for (const unit of myUnits) {
+        // Einheit kann sich noch bewegen oder angreifen
+        if (!unit.a) {
+            const moves = calculateMoves(unit);
+            if (moves.length > 0) return true;
+            const attacks = calculateAttacks(unit);
+            if (attacks.length > 0) return true;
+        }
+
+        // Arbeiter: Fähigkeiten prüfen (Tunnel, Mauer, Turm bauen; Mining starten/stoppen)
+        if (unit.t === 7 && !unit.a) {
+            return true; // Arbeiter mit Aktion hat immer Optionen
+        }
+
+        // Spezielle Fähigkeiten die kein unit.a verbrauchen
+        // Assassine: Unsichtbarkeit (noch nicht aktiv)
+        if (unit.t === 5 && !unit.iv && !unit.a && pState.m >= 2) return true;
+        // Ritter: Rundumschlag
+        if (unit.t === 3 && !unit.a && pState.m >= 3) return true;
+        // Berserker: Blutrausch (noch nicht used)
+        if (unit.t === 4 && !unit.a && pState.m >= 2) return true;
+        // Tribok: Spezial
+        if (unit.t === 6 && !unit.a && pState.m >= 3) return true;
+        // Elefant: Stampede
+        if (unit.t === 9 && !unit.a && pState.m >= 3) return true;
+        // Kamelreiter: Parthershot (und hat noch keine ps)
+        if (unit.t === 10 && !unit.a && !unit.ps) return true;
+        // Wagenburg: Aufstellen/Einpacken (verbraucht Aktion)
+        if (unit.t === 11 && !unit.a) return true;
+    }
+
+    // Einheit kaufen: gibt es Dörfer des Spielers auf denen noch keine Einheit steht?
+    const myVillageKeys = Object.entries(gameState.v)
+        .filter(([k, v]) => v === pId)
+        .map(([k]) => k);
+    // Kaufbare Typen: Basis 0,1,2 + Fraktions-Einheiten
+    const factionUnitMap = { 0: [3], 1: [4], 2: [5, 6], 3: [6, 7] };
+    let buyableTypes = [0, 1, 2];
+    if (pState.f) pState.f.forEach(fId => { if (factionUnitMap[fId]) buyableTypes = buyableTypes.concat(factionUnitMap[fId]); });
+    const cheapest = Math.min(...buyableTypes.map(t => getUnitCost(pState, t)));
+    for (const vk of myVillageKeys) {
+        const [vx, vy] = vk.split(',').map(Number);
+        const hasUnit = gameState.u.some(u => u.x === vx && u.y === vy);
+        if (!hasUnit && pState.g >= cheapest) return true;
+    }
+
+    // Turm schießen: hat der Spieler Türme die noch schießen können?
+    if (gameState.tw) {
+        for (const tw of gameState.tw) {
+            if (tw.o === pId && tw.h > 0 && !tw.a) return true;
+        }
+    }
+
+    // Dorf einnehmen: Einheit steht auf feindlichem/neutralem Dorf und hat noch Aktion
+    for (const unit of myUnits) {
+        if (!unit.a) {
+            const loc = `${unit.x},${unit.y}`;
+            if (gameState.v[loc] !== undefined && gameState.v[loc] !== pId) return true;
+        }
+    }
+
+    // Upgrade kaufen: Forschungsbaum
+    if (pState.f && pState.f.length > 0) {
+        const canBuyUpgrade = Object.entries(upgrades).some(([idStr, upg]) => {
+            const id = parseInt(idStr);
+            return pState.f.includes(upg.fac) && !pState.u.includes(id) && pState.g >= upg.g && pState.m >= upg.m;
+        });
+        if (canBuyUpgrade) return true;
+    }
+
+    return false;
+}
+
+function openEndTurnConfirm() {
+    const actions = [];
+    const pId = gameState.cp;
+    const pState = gameState.p[pId];
+    const myUnits = gameState.u.filter(u => u.p === pId);
+
+    // Sammle konkrete Hinweise
+    for (const unit of myUnits) {
+        if (!unit.a) {
+            const moves = calculateMoves(unit);
+            const attacks = calculateAttacks(unit);
+            if (moves.length > 0) { actions.push(`${unitStats[unit.t].name} kann sich noch bewegen`); break; }
+            if (attacks.length > 0) { actions.push(`${unitStats[unit.t].name} kann noch angreifen`); break; }
+        }
+    }
+
+    if (gameState.tw && gameState.tw.some(tw => tw.o === pId && tw.h > 0 && !tw.a)) {
+        actions.push('Ein Turm kann noch schießen');
+    }
+
+    const myVillageKeys = Object.entries(gameState.v).filter(([k, v]) => v === pId).map(([k]) => k);
+    if (actions.length === 0 && myVillageKeys.length > 0) {
+        const factionUnitMap = { 0: [3], 1: [4], 2: [5, 6], 3: [6, 7] };
+        let buyableTypes = [0, 1, 2];
+        if (pState.f) pState.f.forEach(fId => { if (factionUnitMap[fId]) buyableTypes = buyableTypes.concat(factionUnitMap[fId]); });
+        const cheapest = Math.min(...buyableTypes.map(t => getUnitCost(pState, t)));
+        for (const vk of myVillageKeys) {
+            const [vx, vy] = vk.split(',').map(Number);
+            if (!gameState.u.some(u => u.x === vx && u.y === vy) && pState.g >= cheapest) {
+                actions.push('Du könntest noch eine Einheit kaufen');
+                break;
+            }
+        }
+    }
+
+    const hint = actions.length > 0 ? actions[0] + '.' : 'Du hast noch mögliche Aktionen.';
+    endTurnConfirmMsg.textContent = hint + ' Trotzdem beenden?';
+    endTurnConfirmOverlay.classList.add('open');
+}
+
+function closeEndTurnConfirm() {
+    endTurnConfirmOverlay.classList.remove('open');
+}
+
+function cancelEndTurn() {
+    closeEndTurnConfirm();
+    endTurnBtn.disabled = false;
+}
+
+window.closeEndTurnConfirm = cancelEndTurn;
+
+function doEndTurn() {
 
     gameState.la = turnActions; turnActions = [];
     undoStack = [];
@@ -1131,7 +1263,26 @@ endTurnBtn.addEventListener('click', () => {
         waShareBtn.onclick = () => { window.open(`https://wa.me/?text=${encodeURIComponent(`Dein Zug in Dark Ages, ${pState.n}!\nKlicke hier: ${newUrl}`)}`, '_blank'); };
         navigator.clipboard.writeText(newUrl).catch(() => {});
     }
+}
+
+// === END TURN ===
+endTurnBtn.addEventListener('click', () => {
+    if (endTurnBtn.disabled) return;
+    endTurnBtn.disabled = true;
+    if (hasRemainingActions()) {
+        openEndTurnConfirm();
+    } else {
+        doEndTurn();
+    }
 });
+
+function confirmEndTurn() {
+    closeEndTurnConfirm();
+    endTurnBtn.disabled = true;
+    doEndTurn();
+}
+window.confirmEndTurn = confirmEndTurn;
+
 
 // === SERVER TURN SUBMISSION ===
 async function submitTurnToServer(encodedState, nextPlayerName, isFinished = false) {

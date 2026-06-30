@@ -112,6 +112,20 @@
         </div>
     </div>
 
+    <!-- ── Zug beenden Bestätigungs-Overlay ─────────────────────────────────── -->
+    <div id="end-turn-confirm-overlay">
+        <div class="end-turn-confirm-card">
+            <div class="end-turn-confirm-icon">⚔️</div>
+            <h3>Zug wirklich beenden?</h3>
+            <p id="end-turn-confirm-msg">Du hast noch Aktionen die du ausführen könntest.</p>
+            <div class="end-turn-confirm-actions">
+                <button class="btn-confirm-end-turn" onclick="confirmEndTurn()">Ja, beenden</button>
+                <button class="btn-cancel-end-turn" onclick="closeEndTurnConfirm()">Zurück</button>
+            </div>
+        </div>
+    </div>
+
+
     <div id="setup-screen" class="screen-box" style="display:none;">
         <img src="Icon.png" alt="Dark Ages" class="game-logo">
         <h3 style="margin-top: 0; font-family: 'MedievalSharp', cursive; font-size: 1.3rem; color: var(--gold);">Spiel
