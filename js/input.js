@@ -1125,16 +1125,15 @@ function openEndTurnConfirm() {
     endTurnConfirmOverlay.classList.add('open');
 }
 
-function closeEndTurnConfirm() {
+function hideEndTurnConfirm() {
     endTurnConfirmOverlay.classList.remove('open');
 }
 
 function cancelEndTurn() {
-    closeEndTurnConfirm();
+    hideEndTurnConfirm();
     endTurnBtn.disabled = false;
 }
-
-window.closeEndTurnConfirm = cancelEndTurn;
+window.cancelEndTurn = cancelEndTurn;
 
 function doEndTurn() {
 
@@ -1277,7 +1276,7 @@ endTurnBtn.addEventListener('click', () => {
 });
 
 function confirmEndTurn() {
-    closeEndTurnConfirm();
+    hideEndTurnConfirm();
     endTurnBtn.disabled = true;
     doEndTurn();
 }
