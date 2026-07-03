@@ -443,6 +443,11 @@ function handleCanvasClick(clientX, clientY) {
                     if (getUnitRange(pState, selectedUnit) === 1 && !isMainBuilding) {
                         selectedUnit.x = clickedX;
                         selectedUnit.y = clickedY;
+                        if (gameState.ct && gameState.ct.x === clickedX && gameState.ct.y === clickedY && gameState.ct.ctrl !== gameState.cp) {
+                            gameState.ct.ctrl = gameState.cp;
+                            spawnFloatingText(clickedX, clickedY, "Wachturm erobert!", "#ffd700");
+                            showToast('🗼 Wachturm erobert!', 'gold');
+                        }
                     }
                     if (pState.u.includes(2)) { pState.g += 3; infoPanel.innerHTML = `Angriff! (-${finalDmg} HP) | +3G Kopfgeld!`; } else { infoPanel.innerHTML = `Angriff! (-${finalDmg} HP)`; }
                 } else { infoPanel.innerHTML = `Angriff! (-${finalDmg} HP)`; }
