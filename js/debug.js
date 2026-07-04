@@ -85,21 +85,7 @@ handleCanvasClick = function (clientX, clientY) {
 };
 
 function debugPickHex(clientX, clientY) {
-    const rect = canvas.getBoundingClientRect();
-    const rawX = (clientX - rect.left) * (canvas.width / rect.width);
-    const rawY = (clientY - rect.top) * (canvas.height / rect.height);
-    const mx = (rawX - camX) / camScale;
-    const my = (rawY - camY) / camScale;
-    let best = null, bd = Infinity;
-    for (let y = 0; y < gameState.bh; y++) {
-        for (let x = 0; x < gameState.bw; x++) {
-            if (!isInsideMap(gameState, x, y)) continue;
-            const c = getHexCenter(x, y);
-            const d = Math.sqrt((mx - c.px) ** 2 + ((my - c.py) / yCompress) ** 2);
-            if (d < bd) { bd = d; best = { x, y }; }
-        }
-    }
-    return (best && bd < hexSize * 1.5) ? best : null;
+    return Renderer.pickHex(clientX, clientY, 1.5);
 }
 
 function debugApplyTool(hex) {

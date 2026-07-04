@@ -14,12 +14,21 @@ function drawPixelSprite(ctx, cx, cy, spriteKey, playerColor) {
 }
 
 // === ANIMATION SYSTEM ===
+// Globale Delegates — der aktive Renderer (2D oder 3D) übernimmt die Umsetzung.
 function spawnFloatingText(x, y, text, color) {
+    Renderer.spawnFloatingText(x, y, text, color);
+}
+
+function spawnAttackAnim(fromX, fromY, toX, toY, type) {
+    Renderer.spawnAttackAnim(fromX, fromY, toX, toY, type);
+}
+
+function _spawnFloatingText2D(x, y, text, color) {
     floatingTexts.push({ x, y, text, color, life: 1.0, dy: 0 });
     if (!isAnimating) { isAnimating = true; requestAnimationFrame(animateLoop); }
 }
 
-function spawnAttackAnim(fromX, fromY, toX, toY, type) {
+function _spawnAttackAnim2D(fromX, fromY, toX, toY, type) {
     attackAnims.push({ fromX, fromY, toX, toY, type, progress: 0 });
     if (!isAnimating) { isAnimating = true; requestAnimationFrame(animateLoop); }
 }
@@ -300,7 +309,7 @@ function drawEntity(x, y, color, hasActed, hp, maxHp, spriteKey, isStealth, unit
 
 // === SCENE ===
 function renderBoard(state) {
-    if (!isAnimating) drawScene(state);
+    if (!isAnimating) Renderer.render(state);
 }
 
 function drawScene(state) {
@@ -424,3 +433,107 @@ function drawScene(state) {
     ctx.restore();
     updateUI();
 }
+
+// === RENDERER FACADE ===
+// Schnittstelle zwischen Spiellogik/Input und dem aktiven Renderer.
+// render3d.js kann `Renderer` durch eine 3D-Implementierung ersetzen —
+// Logik und Input sprechen nur noch über dieses Objekt mit der Grafik.
+let _gestureStart = null;
+
+function _requestRender() {
+    if (!isAnimating) requestAnimationFrame(() => drawScene(gameState));
+}
+
+const Renderer2D = {
+    init() {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+    },
+
+    resize() {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+    },
+
+    render(state) {
+        drawScene(state);
+    },
+
+    // Liefert das angeklickte Hex {x,y} oder null. thresholdFactor > 1 erlaubt
+    // großzügigeres Treffen (Debug-Werkzeuge).
+    pickHex(clientX, clientY, thresholdFactor = 1) {
+        const rect = canvas.getBoundingClientRect();
+        const rawX = (clientX - rect.left) * (canvas.width / rect.width);
+        const rawY = (clientY - rect.top) * (canvas.height / rect.height);
+        const mouseX = (rawX - camX) / camScale;
+        const mouseY = (rawY - camY) / camScale;
+
+        let closest = null; let minDist = Infinity; let closestIsHill = false;
+
+        for (let y = 0; y < gameState.bh; y++) {
+            for (let x = 0; x < gameState.bw; x++) {
+                if (!isInsideMap(gameState, x, y)) continue;
+                const center = getHexCenter(x, y);
+                const tType = getTerrainType(gameState, x, y);
+                const isHill = tType === 'hill';
+                const topFaceY = isHill ? center.py - 6 : center.py;
+                let dist = Math.sqrt((mouseX - center.px) ** 2 + ((mouseY - topFaceY) / yCompress) ** 2);
+
+                if (isHill) {
+                    const sideBottom = center.py + thickness;
+                    if (mouseY > topFaceY && mouseY < sideBottom && Math.abs(mouseX - center.px) < hexWidth * 0.5) {
+                        const sideDist = Math.abs(mouseX - center.px) + 4;
+                        dist = Math.min(dist, sideDist);
+                    }
+                }
+
+                if (dist < minDist - 1 || (dist < minDist + 1 && isHill && !closestIsHill)) {
+                    minDist = dist; closest = { x, y }; closestIsHill = isHill;
+                }
+            }
+        }
+
+        return (closest && minDist < hexSize * thresholdFactor) ? closest : null;
+    },
+
+    // Gesten laufen relativ zum Zustand bei beginGesture (kein Drift bei Pinch).
+    beginGesture() {
+        _gestureStart = { x: camX, y: camY, scale: camScale };
+    },
+
+    gesturePan(dx, dy) {
+        if (!_gestureStart) return;
+        camX = _gestureStart.x + dx;
+        camY = _gestureStart.y + dy;
+        _requestRender();
+    },
+
+    gestureZoom(factor, centerX, centerY) {
+        if (!_gestureStart) return;
+        camScale = Math.max(0.4, Math.min(_gestureStart.scale * factor, 3.0));
+        camX = centerX - (centerX - _gestureStart.x) * (camScale / _gestureStart.scale);
+        camY = centerY - (centerY - _gestureStart.y) * (camScale / _gestureStart.scale);
+        _requestRender();
+    },
+
+    wheelZoom(factor, centerX, centerY) {
+        const newScale = Math.max(0.4, Math.min(camScale * factor, 3.0));
+        const applied = newScale / camScale;
+        camX = centerX - (centerX - camX) * applied;
+        camY = centerY - (centerY - camY) * applied;
+        camScale = newScale;
+        _requestRender();
+    },
+
+    centerOn(hexX, hexY, scale) {
+        if (scale !== undefined) camScale = scale;
+        const center = getHexCenter(hexX, hexY);
+        camX = (canvas.width / 2) - center.px;
+        camY = (canvas.height / 2) - center.py;
+    },
+
+    spawnFloatingText: _spawnFloatingText2D,
+    spawnAttackAnim: _spawnAttackAnim2D
+};
+
+let Renderer = Renderer2D;

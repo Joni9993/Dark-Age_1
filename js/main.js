@@ -37,8 +37,7 @@ function bootGame() {
     gameHud.style.display = 'flex';
     endTurnBtn.disabled = false;
 
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
+    Renderer.init();
 
     showRecap = false;
     focusCamera();
@@ -70,9 +69,7 @@ function bootGame() {
             const action = recapActions[recapIndex];
             recapIndex++;
 
-            const target = getHexCenter(action.x, action.y);
-            camX = (canvas.width / 2) - target.px;
-            camY = (canvas.height / 2) - target.py;
+            Renderer.centerOn(action.x, action.y);
             renderBoard(gameState);
 
             const icon = recapIcons[action.t] || '•';

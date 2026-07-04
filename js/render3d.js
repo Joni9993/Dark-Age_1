@@ -1,0 +1,667 @@
+// === 3D-RENDERER (Three.js) ===
+// Implementiert die Renderer-Fassade aus render.js in echtem 3D:
+// Hex-Tiles als Prismen, Einheiten/Gebäude als Voxel-Figuren aus den
+// bestehenden 10×10-pixelSprites. Aktivierung (Entwicklung): index.html?r3d=1
+// Die Spiellogik bleibt unberührt — dieses Modul liest nur gameState + die
+// bestehenden Globals (validMoves, validAttacks, selectedHex, showRecap, ...).
+
+(function () {
+    if (typeof THREE === 'undefined') {
+        console.warn('render3d: Three.js nicht geladen — bleibe beim 2D-Renderer.');
+        return;
+    }
+
+    // ── Konstanten ────────────────────────────────────────────────────────────
+    const TILE_H = thickness;              // Grundhöhe Gras/Wald (12)
+    const HILL_H = thickness * 2;          // Hügel (24)
+    const ROW_Z = hexSize * 1.5;           // Zeilenabstand in Weltkoordinaten
+    const CAM_ELEV = Math.asin(yCompress); // ~40.5° — entspricht dem 2D-Look
+    const FOV = 45;
+    const VOXEL_CAP = 20000;               // Instanz-Budget für alle Entity-Voxel
+
+    const COL_UNEXPLORED = new THREE.Color('#141414');
+    const SHROUD_MUL = 0.35;
+
+    function worldPos(x, y) {
+        return {
+            wx: (x + 0.5 * (y % 2)) * hexWidth,
+            wz: y * ROW_Z
+        };
+    }
+
+    function tileHeight(tType) { return tType === 'hill' ? HILL_H : TILE_H; }
+
+    // ── Modul-Zustand ─────────────────────────────────────────────────────────
+    let canvas3d = null, renderer = null, scene = null, camera = null;
+    let tileMesh = null;                   // InstancedMesh aller Tiles
+    let tileIndex = [];                    // instanceId -> {x, y, tType}
+    let tileLookup = {};                   // "x,y" -> instanceId
+    let builtSeed = null;
+    let treeGroup = null;                  // Wald-Deko (pro Render neu)
+    let voxelMesh = null;                  // alle Entity-Voxel
+    let shadowMesh = null;                 // Boden-Schatten unter Entities
+    let overlayGroup = null;               // Highlights (Move/Attack/Selektion/...)
+    let spriteGroup = null;                // HP-Balken, Veteranen-Stern, ⛏
+    let lastState = null;
+    let cam3d = { tx: 0, tz: 0, scale: 1.0 };
+    let gestureStart = null;
+    let anims3d = [];                      // Projektil-Animationen
+    let floats3d = [];                     // DOM-Schadenszahlen
+    let animRunning = false;
+    const raycaster = new THREE.Raycaster();
+    const texCache = {};
+
+    function baseDist() {
+        // Distanz, bei der 1 Welteinheit ≈ 1 CSS-Pixel entspricht (Parität zu camScale=1)
+        const h = canvas3d ? canvas3d.clientHeight : 800;
+        return (h / 2) / Math.tan((FOV / 2) * Math.PI / 180);
+    }
+
+    function applyCamera() {
+        const dist = baseDist() / cam3d.scale;
+        camera.position.set(
+            cam3d.tx,
+            dist * Math.sin(CAM_ELEV),
+            cam3d.tz + dist * Math.cos(CAM_ELEV)
+        );
+        camera.lookAt(cam3d.tx, 0, cam3d.tz);
+    }
+
+    function requestRender3d() {
+        if (lastState && !animRunning) Renderer3D.render(lastState);
+    }
+
+    // ── Aufbau ────────────────────────────────────────────────────────────────
+    function ensureInit() {
+        if (renderer) return;
+
+        canvas3d = document.createElement('canvas');
+        canvas3d.id = 'gameCanvas3d';
+        canvasWrapper.insertBefore(canvas3d, canvasWrapper.firstChild);
+        canvas.style.display = 'none';
+
+        renderer = new THREE.WebGLRenderer({
+            canvas: canvas3d,
+            antialias: false,
+            powerPreference: 'low-power'
+        });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color('#050505');
+
+        const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+        const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+        sun.position.set(-0.4, 1, 0.6);
+        scene.add(ambient, sun);
+
+        camera = new THREE.PerspectiveCamera(FOV, 1, 10, 8000);
+
+        treeGroup = new THREE.Group();
+        overlayGroup = new THREE.Group();
+        spriteGroup = new THREE.Group();
+        scene.add(treeGroup, overlayGroup, spriteGroup);
+
+        Renderer3D.resize();
+    }
+
+    function buildTiles(state) {
+        if (tileMesh) { scene.remove(tileMesh); tileMesh.geometry.dispose(); }
+        tileIndex = []; tileLookup = {};
+
+        const coords = [];
+        for (let y = 0; y < state.bh; y++) {
+            for (let x = 0; x < state.bw; x++) {
+                if (!isInsideMap(state, x, y)) continue;
+                coords.push({ x, y, tType: getTerrainType(state, x, y) });
+            }
+        }
+
+        // Einheits-Prisma (Höhe 1, Spitze nach Norden), per Instanz in Y skaliert
+        const geo = new THREE.CylinderGeometry(hexSize, hexSize, 1, 6, 1, false);
+        const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        tileMesh = new THREE.InstancedMesh(geo, mat, coords.length);
+        // Instanzen liegen über die ganze Karte verteilt — Three würde sonst anhand
+        // der Geometrie-Bounds am Ursprung cullen und das Mesh beim Reinzoomen verwerfen
+        tileMesh.frustumCulled = false;
+        tileMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(coords.length * 3), 3);
+
+        const m = new THREE.Matrix4();
+        coords.forEach((c, i) => {
+            const { wx, wz } = worldPos(c.x, c.y);
+            const h = tileHeight(c.tType);
+            m.makeScale(0.985, h, 0.985);       // minimale Fuge zwischen Tiles
+            m.setPosition(wx, h / 2, wz);
+            tileMesh.setMatrixAt(i, m);
+            tileIndex.push(c);
+            tileLookup[`${c.x},${c.y}`] = i;
+        });
+        tileMesh.instanceMatrix.needsUpdate = true;
+        scene.add(tileMesh);
+        builtSeed = `${state.sd}|${state.bw}|${state.bh}|${state.rad}`;
+    }
+
+    function updateTileColors(state, vis, explored) {
+        const col = new THREE.Color();
+        tileIndex.forEach((c, i) => {
+            const idx = c.y * state.bw + c.x;
+            if (!explored.includes(idx)) {
+                col.copy(COL_UNEXPLORED);
+            } else {
+                col.set(terrainColors[c.tType].top);
+                if (!vis.has(`${c.x},${c.y}`)) col.multiplyScalar(SHROUD_MUL);
+            }
+            tileMesh.setColorAt(i, col);
+        });
+        tileMesh.instanceColor.needsUpdate = true;
+    }
+
+    function rebuildTrees(state, vis) {
+        treeGroup.clear();
+        const forests = tileIndex.filter(c => c.tType === 'forest' && vis.has(`${c.x},${c.y}`));
+        if (forests.length === 0) return;
+
+        const treeColors = ['#0d140e', '#1b3a1e', '#15291a', '#0a1f0d', '#2a4430'];
+        const treePositions = [
+            { dx: 0, dy: -4, sz: 7 }, { dx: -9, dy: 2, sz: 6 }, { dx: 8, dy: 3, sz: 5 },
+            { dx: -4, dy: -1, sz: 5 }, { dx: 5, dy: -2, sz: 4 }
+        ];
+        const coneGeo = new THREE.ConeGeometry(1, 1, 5);
+        const mesh = new THREE.InstancedMesh(coneGeo, new THREE.MeshLambertMaterial({ color: 0xffffff }), forests.length * treePositions.length);
+        mesh.frustumCulled = false;
+        mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(mesh.count * 3), 3);
+
+        const m = new THREE.Matrix4();
+        const col = new THREE.Color();
+        let n = 0;
+        forests.forEach(c => {
+            const { wx, wz } = worldPos(c.x, c.y);
+            const rng = createPRNG(c.x * 1000 + c.y);   // gleiche Zufallsversätze wie im 2D-Renderer
+            treePositions.forEach((t, ti) => {
+                const tx = wx + t.dx + (rng() - 0.5) * 3;
+                const tz = wz + t.dy + (rng() - 0.5) * 2;
+                const height = t.sz * 2.4;
+                m.makeScale(t.sz, height, t.sz);
+                m.setPosition(tx, TILE_H + height / 2, tz);
+                mesh.setMatrixAt(n, m);
+                col.set(treeColors[ti % treeColors.length]).multiplyScalar(1.6);
+                mesh.setColorAt(n, col);
+                n++;
+            });
+        });
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.instanceColor.needsUpdate = true;
+        treeGroup.add(mesh);
+    }
+
+    // ── Entities als Voxel ────────────────────────────────────────────────────
+    function ensureVoxelMesh() {
+        if (voxelMesh) return;
+        const geo = new THREE.BoxGeometry(1, 1, 1);
+        voxelMesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff }), VOXEL_CAP);
+        voxelMesh.frustumCulled = false;
+        voxelMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(VOXEL_CAP * 3), 3);
+        scene.add(voxelMesh);
+
+        const shadowGeo = new THREE.CircleGeometry(12, 16);
+        shadowGeo.rotateX(-Math.PI / 2);
+        shadowMesh = new THREE.InstancedMesh(shadowGeo, new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.4, depthWrite: false }), 512);
+        shadowMesh.frustumCulled = false;
+        scene.add(shadowMesh);
+    }
+
+    const _vm = new THREE.Matrix4();
+    const _vc = new THREE.Color();
+    let _voxelCount = 0;
+    let _shadowCount = 0;
+    const _bottomRowCache = {};
+
+    // Unterste gefüllte Pixelzeile eines Sprites — viele Sprites haben unten
+    // transparente Zeilen und würden sonst über dem Boden schweben
+    function spriteBottomRow(spriteKey) {
+        if (_bottomRowCache[spriteKey] !== undefined) return _bottomRowCache[spriteKey];
+        const arr = pixelSprites[spriteKey];
+        let bottom = 9;
+        for (let row = 9; row >= 0; row--) {
+            if (arr.slice(row * 10, row * 10 + 10).some(v => v !== 0)) { bottom = row; break; }
+        }
+        _bottomRowCache[spriteKey] = bottom;
+        return bottom;
+    }
+
+    // Zeichnet ein pixelSprite als "Pappaufsteller" aus Voxeln (Fläche zur Kamera)
+    function addVoxelSprite(spriteKey, wx, wz, groundY, playerColor, dimFactor, tint) {
+        const arr = pixelSprites[spriteKey];
+        if (!arr) return;
+        const s = (spriteKey === 9) ? 3.3 : 2.5;
+        const bottom = spriteBottomRow(spriteKey);
+
+        for (let i = 0; i < 100; i++) {
+            const val = arr[i];
+            if (val === 0) continue;
+            if (_voxelCount >= VOXEL_CAP) return;
+            const colIdx = i % 10, rowIdx = Math.floor(i / 10);
+            _vm.makeScale(s, s, s);
+            _vm.setPosition(
+                wx + (colIdx - 4.5) * s,
+                groundY + (bottom - rowIdx + 0.5) * s,
+                wz
+            );
+            voxelMesh.setMatrixAt(_voxelCount, _vm);
+            _vc.set(val === P ? playerColor : pal[val]);
+            if (tint) _vc.lerp(tint, 0.45);
+            if (dimFactor !== 1) _vc.multiplyScalar(dimFactor);
+            voxelMesh.setColorAt(_voxelCount, _vc);
+            _voxelCount++;
+        }
+    }
+
+    // Kleine Besitzer-Flagge neben Gebäuden (Pendant zur 2D-Flagge)
+    function addFlag(wx, wz, groundY, color) {
+        const s = 2.5;
+        const parts = [
+            { dx: 11, dy: 2, c: '#111111' }, { dx: 11, dy: 4, c: '#111111' }, { dx: 11, dy: 6, c: '#111111' },
+            { dx: 13.5, dy: 6, c: color }, { dx: 16, dy: 6, c: color }
+        ];
+        for (const pt of parts) {
+            if (_voxelCount >= VOXEL_CAP) return;
+            _vm.makeScale(s, s, s);
+            _vm.setPosition(wx + pt.dx, groundY + pt.dy * s, wz);
+            voxelMesh.setMatrixAt(_voxelCount, _vm);
+            _vc.set(pt.c === '#888888' ? '#e0e0e0' : pt.c);
+            voxelMesh.setColorAt(_voxelCount, _vc);
+            _voxelCount++;
+        }
+    }
+
+    function addShadow(wx, wz, groundY) {
+        if (_shadowCount >= 512) return;
+        _vm.makeScale(1, 1, 0.55);
+        _vm.setPosition(wx, groundY + 0.3, wz);
+        shadowMesh.setMatrixAt(_shadowCount, _vm);
+        _shadowCount++;
+    }
+
+    // ── HP-Zahlen & Icons (kamera-orientierte Sprites) ────────────────────────
+    function textTexture(text, color) {
+        const key = text + color;
+        if (texCache[key]) return texCache[key];
+        const c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        const g = c.getContext('2d');
+        g.font = "bold 40px 'Courier New', monospace";
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.lineWidth = 8; g.strokeStyle = '#000';
+        g.strokeText(text, 32, 34);
+        g.fillStyle = color;
+        g.fillText(text, 32, 34);
+        const tex = new THREE.CanvasTexture(c);
+        texCache[key] = tex;
+        return tex;
+    }
+
+    // HP als Zahl: align -1 = links über der Einheit, +1 = rechts über dem Gebäude,
+    // 0 = mittig (Steinhaufen). Unter 15% wechselt die Farbe auf Rot.
+    function addHpText(value, wx, wz, y, align, isLow) {
+        const color = isLow ? '#ff5252' : '#ffffff';
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(String(value), color), depthTest: false, transparent: true }));
+        sp.scale.set(11, 11, 1);
+        sp.position.set(wx + align * 12, y, wz);
+        spriteGroup.add(sp);
+    }
+
+    function addIcon(char, color, wx, wz, y, size) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(char, color), depthTest: false, transparent: true }));
+        sp.scale.set(size, size, 1);
+        sp.position.set(wx, y, wz);
+        spriteGroup.add(sp);
+    }
+
+    // ── Highlights ────────────────────────────────────────────────────────────
+    const overlayGeo = new THREE.CylinderGeometry(hexSize * 0.98, hexSize * 0.98, 1, 6);
+
+    function addOverlay(x, y, colorHex, opacity, state) {
+        const tType = getTerrainType(state, x, y);
+        const { wx, wz } = worldPos(x, y);
+        const mesh = new THREE.Mesh(overlayGeo, new THREE.MeshBasicMaterial({
+            color: colorHex, transparent: true, opacity, depthWrite: false
+        }));
+        mesh.position.set(wx, tileHeight(tType) + 0.6, wz);
+        overlayGroup.add(mesh);
+    }
+
+    // ── Haupt-Render ──────────────────────────────────────────────────────────
+    function drawScene3d(state) {
+        ensureInit();
+        lastState = state;
+
+        updateExploration();
+        const vis = getVisibleHexes(state.cp);
+        const explored = state.p[state.cp].e || [];
+
+        const seedKey = `${state.sd}|${state.bw}|${state.bh}|${state.rad}`;
+        if (builtSeed !== seedKey) buildTiles(state);
+        updateTileColors(state, vis, explored);
+        rebuildTrees(state, vis);
+        ensureVoxelMesh();
+
+        // Sprite-Layer leeren (HP-Balken etc. sind billige Objekte, Rebuild pro Frame ok)
+        spriteGroup.clear();
+        overlayGroup.clear();
+        _voxelCount = 0;
+        _shadowCount = 0;
+
+        const visibleRecaps = (state.la || []).filter(a => {
+            if (!vis.has(`${a.x},${a.y}`)) return false;
+            return !state.u.some(u => u.p !== state.cp && u.iv === 1 && u.x === a.x && u.y === a.y);
+        });
+
+        // Entity-Sammlung — identische Sichtbarkeitsregeln wie drawScene (render.js)
+        const entities = [];
+
+        if (state.tu) state.tu.forEach(t => {
+            [[t.x1, t.y1], [t.x2, t.y2]].forEach(([ex, ey]) => {
+                if (vis.has(`${ex},${ey}`)) entities.push({ x: ex, y: ey, spriteKey: 'tunnel', ownerId: t.o, hp: t.h, maxHp: 13, dim: (t.r > state.rn) ? 0.4 : 1, flag: true });
+            });
+        });
+        if (state.wa) state.wa.forEach(w => {
+            if (vis.has(`${w.x},${w.y}`)) entities.push({ x: w.x, y: w.y, spriteKey: 'wall', ownerId: w.o, hp: w.h, maxHp: 10 });
+        });
+        if (state.st) state.st.forEach(s => {
+            if (s.h > 0 && vis.has(`${s.x},${s.y}`)) entities.push({ x: s.x, y: s.y, spriteKey: 'stone', color: '#9e9e9e', hp: s.h, maxHp: 40 });
+        });
+        if (state.tw) state.tw.forEach(tw => {
+            if (tw.h > 0 && vis.has(`${tw.x},${tw.y}`)) entities.push({ x: tw.x, y: tw.y, spriteKey: 'tower', ownerId: tw.o, hp: tw.h, maxHp: 15, dim: tw.a === 1 ? 0.45 : 1 });
+        });
+        if (state.ct) {
+            entities.push({ x: state.ct.x, y: state.ct.y, spriteKey: 'watchtower', color: state.ct.ctrl === -1 ? '#888888' : getEntityColor(state.ct.ctrl) });
+        }
+        for (const [key, ownerId] of Object.entries(state.v)) {
+            const [vx, vy] = key.split(',').map(Number);
+            const idx = vy * state.bw + vx;
+            if (vis.has(key) || ownerId === state.cp || (ownerId === -1 && explored.includes(idx))) {
+                let hp, spriteKey = 'village';
+                if (ownerId !== -1 && state.p[ownerId] && state.p[ownerId].sv === key) {
+                    hp = state.p[ownerId].sh; spriteKey = 'startVillage';
+                }
+                entities.push({ x: vx, y: vy, spriteKey, ownerId, hp, maxHp: 30, flag: true });
+            }
+        }
+        state.u.forEach(unit => {
+            if (!window.DEBUG_NO_FOG && unit.p !== state.cp && unit.iv === 1) return;
+            if (vis.has(`${unit.x},${unit.y}`) || unit.p === state.cp) {
+                entities.push({ unit });
+            }
+        });
+
+        const stealthTint = new THREE.Color('#64c8ff');
+        entities.forEach(e => {
+            if (e.unit) {
+                const u = e.unit;
+                const tType = getTerrainType(state, u.x, u.y);
+                const { wx, wz } = worldPos(u.x, u.y);
+                const gy = tileHeight(tType);
+                const maxHp = getUnitMaxHp(state.p[u.p], u.t, u);
+                let spriteKey = u.t;
+                if (spriteKey === 11 && u.dp === 1) spriteKey = 'wagen_dp';
+                const isStealth = u.iv === 1;
+                const dim = isStealth ? (u.a === 1 ? 0.35 : 0.8) : (u.a === 1 ? 0.45 : 1);
+                addShadow(wx, wz, gy);
+                if (isStealth && u.a !== 1) {
+                    // Geister-Doppelbild wie im 2D-Renderer (versetzte, stark gedimmte Kopien)
+                    addVoxelSprite(spriteKey, wx - 2, wz + 0.6, gy, playerColors[u.p], 0.25, stealthTint);
+                    addVoxelSprite(spriteKey, wx + 2, wz + 0.6, gy, playerColors[u.p], 0.25, stealthTint);
+                }
+                addVoxelSprite(spriteKey, wx, wz, gy, playerColors[u.p], dim, isStealth ? stealthTint : null);
+                addHpText(u.h, wx, wz, gy + 30, -1, u.h / maxHp < 0.15);
+                if (u.vet) addIcon('★', '#e8b84a', wx, wz, gy + 34, 9);
+                if (u.mi) addIcon('⛏', '#fff176', wx + 12, wz, gy + 28, 11);
+            } else {
+                const tType = getTerrainType(state, e.x, e.y);
+                const { wx, wz } = worldPos(e.x, e.y);
+                const gy = tileHeight(tType);
+                const color = e.color || getEntityColor(e.ownerId);
+                addShadow(wx, wz, gy);
+                addVoxelSprite(e.spriteKey, wx, wz, gy, color, e.dim || 1, null);
+                if (e.flag) addFlag(wx, wz, gy, color);
+                if (e.hp !== undefined && e.maxHp !== undefined) {
+                    if (e.spriteKey === 'stone') {
+                        // Stein-Restmenge mittig, immer weiß — dicht über dem Stein
+                        addHpText(e.hp, wx, wz, gy + 16, 0, false);
+                    } else {
+                        addHpText(e.hp, wx, wz, gy + 30, 1, e.hp / e.maxHp < 0.15);
+                    }
+                }
+            }
+        });
+
+        // Nicht genutzte Instanzen "parken"
+        _vm.makeScale(0, 0, 0); _vm.setPosition(0, -1000, 0);
+        for (let i = _voxelCount; i < voxelMesh.count; i++) voxelMesh.setMatrixAt(i, _vm);
+        for (let i = _shadowCount; i < shadowMesh.count; i++) shadowMesh.setMatrixAt(i, _vm);
+        voxelMesh.count = Math.max(_voxelCount, 1);
+        shadowMesh.count = Math.max(_shadowCount, 1);
+        voxelMesh.instanceMatrix.needsUpdate = true;
+        voxelMesh.instanceColor.needsUpdate = true;
+        shadowMesh.instanceMatrix.needsUpdate = true;
+
+        // Highlights — liest dieselben Globals wie der 2D-Renderer
+        if (showRecap) visibleRecaps.forEach(a => addOverlay(a.x, a.y, 0xffa500, 0.4, state));
+        validMoves.forEach(mv => addOverlay(mv.x, mv.y, 0x64ff64, 0.3, state));
+        validAttacks.forEach(a => addOverlay(a.x, a.y, 0xff6464, 0.5, state));
+        if (selectedHex) addOverlay(selectedHex.x, selectedHex.y, 0xffffff, 0.25, state);
+        if (window.highlightedTunnelEnd) addOverlay(window.highlightedTunnelEnd.x, window.highlightedTunnelEnd.y, 0x4fc3f7, 0.45, state);
+
+        applyCamera();
+        renderer.render(scene, camera);
+        updateUI();
+    }
+
+    // ── Animationen ───────────────────────────────────────────────────────────
+    function hexTop(state, x, y) {
+        const { wx, wz } = worldPos(x, y);
+        return new THREE.Vector3(wx, tileHeight(getTerrainType(state, x, y)), wz);
+    }
+
+    function toScreen(v3) {
+        const v = v3.clone().project(camera);
+        const rect = canvas3d.getBoundingClientRect();
+        return {
+            x: (v.x * 0.5 + 0.5) * rect.width,
+            y: (-v.y * 0.5 + 0.5) * rect.height
+        };
+    }
+
+    function startAnimLoop() {
+        if (animRunning) return;
+        animRunning = true;
+        requestAnimationFrame(animLoop3d);
+    }
+
+    function animLoop3d() {
+        if (anims3d.length === 0 && floats3d.length === 0) {
+            animRunning = false;
+            if (lastState) drawScene3d(lastState);
+            return;
+        }
+
+        const alive = [];
+        for (const a of anims3d) {
+            a.progress += a.type === 'slash' ? 0.03 : 0.06;
+            if (a.progress > 1) { scene.remove(a.obj); continue; }
+            alive.push(a);
+            const p = a.progress;
+
+            if (a.type === 'arrow') {
+                a.obj.position.lerpVectors(a.from, a.to, p);
+                a.obj.position.y += Math.sin(p * Math.PI) * 20 + 14;
+                a.obj.lookAt(a.to.x, a.to.y + 14, a.to.z);
+            } else if (a.type === 'slash') {
+                const alpha = p < 0.5 ? p * 2 : (1 - p) * 2;
+                a.obj.material.opacity = alpha;
+                a.obj.scale.setScalar(0.7 + p * 0.9);
+            } else if (a.type === 'fire') {
+                const alpha = p < 0.4 ? 1 : Math.max(0, 1 - (p - 0.4) / 0.6);
+                a.obj.material.opacity = alpha;
+                a.obj.position.y = a.to.y + p * 18;
+            }
+        }
+        anims3d = alive;
+
+        const aliveFloats = [];
+        for (const f of floats3d) {
+            f.life -= 0.025;
+            f.dy -= 0.8;
+            if (f.life > 0) aliveFloats.push(f); else { f.el.remove(); continue; }
+            const s = toScreen(f.pos);
+            f.el.style.left = s.x + 'px';
+            f.el.style.top = (s.y - 25 + f.dy) + 'px';
+            f.el.style.opacity = Math.max(0, f.life);
+        }
+        floats3d = aliveFloats;
+
+        if (lastState) drawScene3d(lastState);
+        requestAnimationFrame(animLoop3d);
+    }
+
+    // ── Fassaden-Implementierung ──────────────────────────────────────────────
+    const Renderer3D = {
+        init() {
+            ensureInit();
+            Renderer3D.resize();
+        },
+
+        resize() {
+            ensureInit();
+            const w = canvasWrapper.clientWidth || window.innerWidth;
+            const h = canvasWrapper.clientHeight || window.innerHeight;
+            renderer.setSize(w, h, false);
+            canvas3d.style.width = '100%';
+            canvas3d.style.height = '100%';
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+        },
+
+        render(state) {
+            drawScene3d(state);
+        },
+
+        pickHex(clientX, clientY) {
+            if (!renderer || !tileMesh) return null;
+            const rect = canvas3d.getBoundingClientRect();
+            const ndc = new THREE.Vector2(
+                ((clientX - rect.left) / rect.width) * 2 - 1,
+                -((clientY - rect.top) / rect.height) * 2 + 1
+            );
+            raycaster.setFromCamera(ndc, camera);
+            const hits = raycaster.intersectObject(tileMesh);
+            if (hits.length === 0) return null;
+            const c = tileIndex[hits[0].instanceId];
+            return c ? { x: c.x, y: c.y } : null;
+        },
+
+        beginGesture() {
+            gestureStart = { tx: cam3d.tx, tz: cam3d.tz, scale: cam3d.scale };
+        },
+
+        gesturePan(dx, dy) {
+            if (!gestureStart) return;
+            const wpp = 1 / cam3d.scale;   // Welt-Einheiten pro CSS-Pixel (bei baseDist-Kalibrierung)
+            cam3d.tx = gestureStart.tx - dx * wpp;
+            cam3d.tz = gestureStart.tz - (dy * wpp) / yCompress;
+            requestRender3d();
+        },
+
+        gestureZoom(factor, centerX, centerY) {
+            if (!gestureStart) return;
+            const rect = canvas3d.getBoundingClientRect();
+            const dx = centerX - rect.left - rect.width / 2;
+            const dy = centerY - rect.top - rect.height / 2;
+            // Weltpunkt unter dem Pinch-Zentrum festhalten
+            const wx = gestureStart.tx + dx / gestureStart.scale;
+            const wz = gestureStart.tz + dy / (gestureStart.scale * yCompress);
+            cam3d.scale = Math.max(0.4, Math.min(gestureStart.scale * factor, 3.0));
+            cam3d.tx = wx - dx / cam3d.scale;
+            cam3d.tz = wz - dy / (cam3d.scale * yCompress);
+            requestRender3d();
+        },
+
+        wheelZoom(factor, centerX, centerY) {
+            const rect = canvas3d.getBoundingClientRect();
+            const dx = centerX - rect.left - rect.width / 2;
+            const dy = centerY - rect.top - rect.height / 2;
+            // Weltpunkt unter dem Cursor festhalten (Parität zum 2D-Zoom)
+            const wx = cam3d.tx + dx / cam3d.scale;
+            const wz = cam3d.tz + dy / (cam3d.scale * yCompress);
+            cam3d.scale = Math.max(0.4, Math.min(cam3d.scale * factor, 3.0));
+            cam3d.tx = wx - dx / cam3d.scale;
+            cam3d.tz = wz - dy / (cam3d.scale * yCompress);
+            requestRender3d();
+        },
+
+        centerOn(hexX, hexY, scale) {
+            if (scale !== undefined) cam3d.scale = scale;
+            const { wx, wz } = worldPos(hexX, hexY);
+            cam3d.tx = wx;
+            cam3d.tz = wz;
+        },
+
+        spawnFloatingText(x, y, text, color) {
+            ensureInit();
+            const el = document.createElement('div');
+            el.className = 'float-text';
+            el.style.color = color;
+            el.textContent = text;
+            document.getElementById('float-layer').appendChild(el);
+            floats3d.push({ el, pos: hexTop(gameState, x, y), life: 1.0, dy: 0 });
+            startAnimLoop();
+        },
+
+        spawnAttackAnim(fromX, fromY, toX, toY, type) {
+            ensureInit();
+            const from = hexTop(gameState, fromX, fromY);
+            const to = hexTop(gameState, toX, toY);
+            let obj;
+
+            if (type === 'arrow') {
+                obj = new THREE.Mesh(
+                    new THREE.ConeGeometry(2, 10, 6),
+                    new THREE.MeshBasicMaterial({ color: 0xc0c0c0 })
+                );
+                obj.geometry.rotateX(Math.PI / 2);
+            } else if (type === 'slash') {
+                obj = new THREE.Mesh(
+                    new THREE.TorusGeometry(12, 1.6, 6, 24, Math.PI * 0.9),
+                    new THREE.MeshBasicMaterial({ color: 0xff6e40, transparent: true, opacity: 0, depthTest: false })
+                );
+                obj.position.set(to.x, to.y + 14, to.z);
+                obj.lookAt(camera.position);
+            } else { // fire
+                const rng = createPRNG(7);
+                const pts = [];
+                for (let i = 0; i < 8; i++) {
+                    pts.push(new THREE.Vector3(
+                        to.x + (rng() - 0.5) * 24,
+                        to.y + 6 + (rng() - 0.5) * 10,
+                        to.z + (rng() - 0.5) * 16
+                    ));
+                }
+                obj = new THREE.Points(
+                    new THREE.BufferGeometry().setFromPoints(pts),
+                    new THREE.PointsMaterial({ color: 0xff6e40, size: 5, transparent: true, opacity: 1, depthTest: false })
+                );
+            }
+
+            scene.add(obj);
+            anims3d.push({ obj, from, to, type, progress: 0 });
+            startAnimLoop();
+        }
+    };
+
+    window.Renderer3D = Renderer3D;
+
+    // Aktivierung während der Entwicklung per URL-Flag; später wird 3D Standard
+    if (new URLSearchParams(location.search).has('r3d')) {
+        Renderer = Renderer3D;
+    }
+})();

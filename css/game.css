@@ -301,6 +301,30 @@ canvas {
     height: 100%;
 }
 
+#canvas-wrapper canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* Overlay für DOM-basierte Schadenszahlen (3D-Renderer) */
+#float-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 5;
+}
+
+.float-text {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    font: bold 24px 'Courier New', monospace;
+    -webkit-text-stroke: 4px #000;
+    paint-order: stroke fill;
+    white-space: nowrap;
+}
+
 #ui-container {
     position: fixed;
     bottom: 0;

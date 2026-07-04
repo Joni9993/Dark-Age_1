@@ -5,39 +5,10 @@ function handleCanvasClick(clientX, clientY) {
 
     if (showRecap) { showRecap = false; renderBoard(gameState); }
 
-    const rect = canvas.getBoundingClientRect();
-    const rawX = (clientX - rect.left) * (canvas.width / rect.width);
-    const rawY = (clientY - rect.top) * (canvas.height / rect.height);
+    hideActionMenu();
+    const closest = Renderer.pickHex(clientX, clientY);
 
-    const mouseX = (rawX - camX) / camScale;
-    const mouseY = (rawY - camY) / camScale;
-
-    let closest = null; let minDist = Infinity; let closestIsHill = false; hideActionMenu();
-
-    for (let y = 0; y < gameState.bh; y++) {
-        for (let x = 0; x < gameState.bw; x++) {
-            if (!isInsideMap(gameState, x, y)) continue;
-            const center = getHexCenter(x, y);
-            const tType = getTerrainType(gameState, x, y);
-            const isHill = tType === 'hill';
-            const topFaceY = isHill ? center.py - 6 : center.py;
-            let dist = Math.sqrt((mouseX - center.px) ** 2 + ((mouseY - topFaceY) / yCompress) ** 2);
-
-            if (isHill) {
-                const sideBottom = center.py + thickness;
-                if (mouseY > topFaceY && mouseY < sideBottom && Math.abs(mouseX - center.px) < hexWidth * 0.5) {
-                    const sideDist = Math.abs(mouseX - center.px) + 4;
-                    dist = Math.min(dist, sideDist);
-                }
-            }
-
-            if (dist < minDist - 1 || (dist < minDist + 1 && isHill && !closestIsHill)) {
-                minDist = dist; closest = { x, y }; closestIsHill = isHill;
-            }
-        }
-    }
-
-    if (closest && minDist < hexSize) {
+    if (closest) {
         window.highlightedTunnelEnd = null;
         const clickedX = closest.x; const clickedY = closest.y;
         const vis = getVisibleHexes(gameState.cp); const isVisible = vis.has(`${clickedX},${clickedY}`);
@@ -772,70 +743,54 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
 }
 
 // === POINTER / TOUCH EVENTS ===
-canvas.addEventListener('pointerdown', (e) => {
+canvasWrapper.addEventListener('pointerdown', (e) => {
     isDragging = true;
     hasMoved = false;
     dragStartX = e.clientX; dragStartY = e.clientY;
-    camStartX = camX; camStartY = camY;
-    canvas.setPointerCapture(e.pointerId);
+    Renderer.beginGesture();
+    canvasWrapper.setPointerCapture(e.pointerId);
 });
 
-canvas.addEventListener('pointermove', (e) => {
+canvasWrapper.addEventListener('pointermove', (e) => {
     if (!isDragging) return;
     const dx = e.clientX - dragStartX; const dy = e.clientY - dragStartY;
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) hasMoved = true;
-    camX = camStartX + dx; camY = camStartY + dy;
-    if (!isAnimating) requestAnimationFrame(() => drawScene(gameState));
+    Renderer.gesturePan(dx, dy);
 });
 
-canvas.addEventListener('pointerup', (e) => {
+canvasWrapper.addEventListener('pointerup', (e) => {
     isDragging = false;
-    canvas.releasePointerCapture(e.pointerId);
+    canvasWrapper.releasePointerCapture(e.pointerId);
     if (!hasMoved) handleCanvasClick(e.clientX, e.clientY);
 });
 
-canvas.addEventListener('wheel', (e) => {
+canvasWrapper.addEventListener('wheel', (e) => {
     e.preventDefault();
     const zoomIntensity = 0.1;
     const wheel = e.deltaY < 0 ? 1 : -1;
     const zoom = Math.exp(wheel * zoomIntensity);
-
-    camX = e.clientX - (e.clientX - camX) * zoom;
-    camY = e.clientY - (e.clientY - camY) * zoom;
-    camScale *= zoom;
-    camScale = Math.max(0.4, Math.min(camScale, 3.0));
-
-    if (!isAnimating) requestAnimationFrame(() => drawScene(gameState));
+    Renderer.wheelZoom(zoom, e.clientX, e.clientY);
 }, { passive: false });
 
-canvas.addEventListener('touchstart', e => {
+canvasWrapper.addEventListener('touchstart', e => {
     if (e.touches.length === 2) {
         isDragging = false;
         initialPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        initialCamScale = camScale;
-        initialCamX = camX; initialCamY = camY;
+        Renderer.beginGesture();
     }
 }, { passive: false });
 
-canvas.addEventListener('touchmove', e => {
+canvasWrapper.addEventListener('touchmove', e => {
     if (e.touches.length === 2 && initialPinchDist) {
         e.preventDefault();
         const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        const zoom = dist / initialPinchDist;
         const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-
-        camScale = initialCamScale * zoom;
-        camScale = Math.max(0.4, Math.min(camScale, 3.0));
-
-        camX = centerX - (centerX - initialCamX) * (camScale / initialCamScale);
-        camY = centerY - (centerY - initialCamY) * (camScale / initialCamScale);
-
-        if (!isAnimating) requestAnimationFrame(() => drawScene(gameState));
+        Renderer.gestureZoom(dist / initialPinchDist, centerX, centerY);
     }
 }, { passive: false });
 
-canvas.addEventListener('touchend', e => { if (e.touches.length < 2) initialPinchDist = null; });
+canvasWrapper.addEventListener('touchend', e => { if (e.touches.length < 2) initialPinchDist = null; });
 
 document.addEventListener('keydown', e => {
     if (e.key === 'Backspace' && !e.target.matches('input, textarea')) {
@@ -870,17 +825,13 @@ function focusCamera() {
     }
 
     if (targetHex) {
-        const center = getHexCenter(targetHex.x, targetHex.y);
-        camScale = 1.0;
-        camX = (canvas.width / 2) - center.px;
-        camY = (canvas.height / 2) - center.py;
+        Renderer.centerOn(targetHex.x, targetHex.y, 1.0);
     }
 }
 
 window.addEventListener('resize', () => {
     if (canvasWrapper.style.display === 'block') {
-        canvas.width = canvas.clientWidth;
-        canvas.height = canvas.clientHeight;
+        Renderer.resize();
         if (gameState) { focusCamera(); renderBoard(gameState); }
     }
 });

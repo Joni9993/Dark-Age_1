@@ -10,6 +10,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+    <!-- Three.js: Version ≤ r152 gepinnt — neuere Releases liefern kein klassisches UMD-Build mehr -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.152.2/three.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/game.css">
 </head>
@@ -222,7 +224,7 @@
         </div>
     </div>
 
-    <div id="canvas-wrapper"><canvas id="gameCanvas"></canvas></div>
+    <div id="canvas-wrapper"><canvas id="gameCanvas"></canvas><div id="float-layer"></div></div>
     <div id="ui-container">
         <div id="info-panel">Lade Spielstand...</div>
         <div id="action-menu"></div>
@@ -245,6 +247,7 @@
     <script src="js/hex.js"></script>
     <script src="js/logic.js"></script>
     <script src="js/render.js"></script>
+    <script src="js/render3d.js"></script>
     <script src="js/events.js"></script>
     <script src="js/abilities.js"></script>
     <script src="js/ui.js"></script>

@@ -66,10 +66,7 @@ let undoStack = [];
 let isDragging = false;
 let hasMoved = false;
 let dragStartX = 0, dragStartY = 0;
-let camStartX = 0, camStartY = 0;
 let initialPinchDist = null;
-let initialCamScale = 1;
-let initialCamX = 0, initialCamY = 0;
 
 // === SCOREBOARD ===
 let scoreboardOpen = false;

@@ -150,6 +150,7 @@ function buildInitialGameState(playerNames, radius) {
     // Stone placement
     const stones = [];
     const isOccupied = (x, y) => {
+        if (x === cx && y === cy) return true; // zentraler Wachturm
         if (units.some(u => u.x === x && u.y === y)) return true;
         if (villages[`${x},${y}`] !== undefined) return true;
         return false;
