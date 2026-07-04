@@ -988,6 +988,11 @@ function confirmSurrender() {
     }
     if (!isLegacyUrlMode && currentGameId) {
         submitTurnToServer(encodedState, nextPlayer.n);
+    } else if (window.DEBUG_HOTSEAT) {
+        const debugUrl = window.location.href.split('?')[0] + "?debug=1&state=" + encodedState;
+        try { window.history.pushState({ path: debugUrl }, '', debugUrl); } catch (e) { }
+        bootGame();
+        if (typeof refreshDebugPanel === 'function') refreshDebugPanel();
     } else {
         const baseUrl = window.location.href.split('?')[0];
         const newUrl = baseUrl + "?state=" + encodedState;
@@ -1254,6 +1259,12 @@ function doEndTurn() {
     }
     if (!isLegacyUrlMode && currentGameId) {
         submitTurnToServer(encodedState, pState.n);
+    } else if (window.DEBUG_HOTSEAT) {
+        // Debug-Hotseat: kein Link-Screen — direkt als nächster Spieler weiterspielen
+        const debugUrl = window.location.href.split('?')[0] + "?debug=1&state=" + encodedState;
+        try { window.history.pushState({ path: debugUrl }, '', debugUrl); } catch (e) { }
+        bootGame();
+        if (typeof refreshDebugPanel === 'function') refreshDebugPanel();
     } else {
         const baseUrl = window.location.href.split('?')[0];
         const newUrl = baseUrl + "?state=" + encodedState;

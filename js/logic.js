@@ -203,6 +203,12 @@ function processAutoMining(pId) {
 // === VISIBILITY & FOG ===
 function getVisibleHexes(playerId) {
     let visible = new Set();
+    if (window.DEBUG_NO_FOG) {
+        for (let y = 0; y < gameState.bh; y++)
+            for (let x = 0; x < gameState.bw; x++)
+                if (isInsideMap(gameState, x, y)) visible.add(`${x},${y}`);
+        return visible;
+    }
     const mainState = gameState.p[playerId];
     if (mainState.dead) {
         if (isSpectator) {

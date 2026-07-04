@@ -393,7 +393,7 @@ function drawScene(state) {
     }
 
     state.u.forEach(unit => {
-        if (unit.p !== gameState.cp && unit.iv === 1) return;
+        if (!window.DEBUG_NO_FOG && unit.p !== gameState.cp && unit.iv === 1) return;
         if (vis.has(`${unit.x},${unit.y}`) || unit.p === gameState.cp) {
             renderQueue.push({ py: getHexCenter(unit.x, unit.y).py, type: 'unit', unit });
         }

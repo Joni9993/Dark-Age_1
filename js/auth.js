@@ -2,13 +2,17 @@
 // Username + Password login. JWT stored in localStorage via api.js.
 
 async function initApp() {
+    const urlParams  = new URLSearchParams(window.location.search);
+    const stateParam = urlParams.get('state');
+
+    // Debug-/Testmodus — ?debug überspringt Login & Server komplett (js/debug.js)
+    if (urlParams.has('debug')) { initDebugMode(stateParam); return; }
+
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
 
     // Legacy URL mode — ?state= keeps working as before
-    const urlParams  = new URLSearchParams(window.location.search);
-    const stateParam = urlParams.get('state');
     if (stateParam) {
         isLegacyUrlMode = true;
         let decoded = null;
