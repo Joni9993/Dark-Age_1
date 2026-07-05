@@ -80,7 +80,7 @@ async function handleLogin() {
 // ── After Login ───────────────────────────────────────────────────────────────
 
 async function afterLogin() {
-    registerPush().catch(() => {});
+    registerPush().catch(err => console.error('[push] Auto-Registrierung fehlgeschlagen:', err));
 
     const urlParams  = new URLSearchParams(window.location.search);
     const lobbyParam = sessionStorage.getItem('da_pending_lobby') || urlParams.get('lobby');
@@ -109,24 +109,34 @@ if ('serviceWorker' in navigator) {
             endpoint: sub.endpoint,
             p256dh:   sub.keys.p256dh,
             auth:     sub.keys.auth,
-        }).catch(() => {});
+        }).catch(err => console.error('[push] Resubscribe-Update fehlgeschlagen:', err));
     });
 }
 
 // ── Push Registration ─────────────────────────────────────────────────────────
 
-async function registerPush() {
-    if (!('Notification' in window) || !('PushManager' in window)) return;
-    if (Notification.permission === 'denied') return;
-    if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY === 'YOUR_VAPID_PUBLIC_KEY') return;
+function pushSupported() {
+    return 'Notification' in window && 'PushManager' in window && 'serviceWorker' in navigator;
+}
+
+// registerPush() darf NICHT von selbst den Permission-Prompt auslösen, wenn es
+// automatisch nach dem Login läuft (mehrere awaits von einem Klick entfernt) —
+// Safari/WebKit auf iOS verwirft den Prompt sonst stillschweigend, weil die
+// User-Gesture-Aktivierung schon abgelaufen ist. Der Prompt wird daher nur gezeigt,
+// wenn `fromUserGesture` true ist (Klick auf den "Benachrichtigungen aktivieren"-Button).
+async function registerPush(fromUserGesture = false) {
+    if (!pushSupported()) return false;
+    if (Notification.permission === 'denied') return false;
+    if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY === 'YOUR_VAPID_PUBLIC_KEY') return false;
 
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
 
     if (!sub) {
         if (Notification.permission !== 'granted') {
+            if (!fromUserGesture) return false;
             const perm = await Notification.requestPermission();
-            if (perm !== 'granted') return;
+            if (perm !== 'granted') return false;
         }
         sub = await reg.pushManager.subscribe({
             userVisibleOnly:      true,
@@ -136,13 +146,45 @@ async function registerPush() {
 
     const key  = sub.getKey('p256dh');
     const auth = sub.getKey('auth');
-    if (!key || !auth) return;
+    if (!key || !auth) return false;
 
     await api.post('/api/push/subscribe', {
         endpoint: sub.endpoint,
         p256dh:   btoa(String.fromCharCode(...new Uint8Array(key))),
         auth:     btoa(String.fromCharCode(...new Uint8Array(auth))),
     });
+    return true;
+}
+
+// Zeigt den manuellen "Benachrichtigungen aktivieren"-Button nur, wenn Push
+// unterstützt wird, aber noch keine aktive Subscription vorliegt (nötig als
+// direkter Tap-Trigger für iOS, und als sichtbarer Retry-Weg bei Fehlern).
+async function updateEnablePushButton() {
+    const btn = document.getElementById('enable-push-btn');
+    if (!btn) return;
+    if (!pushSupported() || Notification.permission === 'denied') { btn.style.display = 'none'; return; }
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        btn.style.display = sub ? 'none' : 'block';
+    } catch {
+        btn.style.display = 'none';
+    }
+}
+
+async function handleEnablePush() {
+    const btn = document.getElementById('enable-push-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Bitte warten...'; }
+    try {
+        const ok = await registerPush(true);
+        showToast(ok ? 'Benachrichtigungen aktiviert!' : 'Berechtigung wurde nicht erteilt.');
+    } catch (err) {
+        console.error('[push] Manuelle Registrierung fehlgeschlagen:', err);
+        showToast('Aktivierung fehlgeschlagen — siehe Konsole.');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🔔 Benachrichtigungen aktivieren'; }
+        updateEnablePushButton();
+    }
 }
 
 function urlBase64ToUint8Array(base64String) {

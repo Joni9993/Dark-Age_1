@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dark Ages</title>
     <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="Icon.png">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -45,6 +46,7 @@
         <div id="game-list"></div>
         <button class="action-btn" onclick="showCreateGameModal()">+ Neues Spiel</button>
         <button class="action-btn secondary" onclick="showFriendsPanel()">👥 Freunde</button>
+        <button id="enable-push-btn" class="action-btn secondary" onclick="handleEnablePush()" style="display:none;">🔔 Benachrichtigungen aktivieren</button>
     </div>
 
     <!-- ── Lobby Screen ───────────────────────────────────────────────────── -->

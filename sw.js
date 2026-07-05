@@ -1,6 +1,17 @@
 // Service Worker — Dark Ages
 // Receives Web Push notifications and shows them.
 
+// Ohne skipWaiting/clients.claim bleibt ein alter SW (ohne Push-Fix) in bereits
+// offenen PWA-Fenstern aktiv, bis die App komplett geschlossen und neu geöffnet wird —
+// bei installierten mobilen PWAs passiert das selten von selbst.
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener('push', event => {
   let data = { title: 'Dark Ages', body: 'Du bist dran!', url: '/' };
   try { data = event.data ? event.data.json() : data; } catch (_) {}
