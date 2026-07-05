@@ -469,7 +469,43 @@ function handleCanvasClick(clientX, clientY) {
             renderBoard(gameState); return;
         }
 
-        if (selectedUnit && targetAttack) {
+        // Mehrdeutigkeit Bewegen vs. Angreifen: ein Hex kann gleichzeitig gültiges
+        // Bewegungsziel UND gültiges Angriffsziel sein — bei Lufteinheiten immer (Boden
+        // blockiert die Flugbewegung nicht) und bei Fernkampf-Bodeneinheiten, wenn dort
+        // eine Lufteinheit steht (die Bodenebene des Feldes bleibt ja frei). Bisher gewann
+        // der Angriff automatisch — jetzt lässt sich explizit wählen.
+        const isMoveTarget = selectedUnit && validMoves.some(m => m.x === clickedX && m.y === clickedY);
+        const moveAttackAmbiguous = selectedUnit && !!targetAttack && isMoveTarget;
+
+        if (moveAttackAmbiguous) {
+            showMoveAttackChoiceUI(clickedX, clickedY, targetAttack);
+        }
+        else if (selectedUnit && targetAttack) {
+            executeAttackOnTarget(clickedX, clickedY, targetAttack);
+        }
+        else if (isMoveTarget) {
+            executeMoveTo(clickedX, clickedY);
+        }
+        else {
+            // Teilen sich Boden und Luft ein Hex, erst beide zur Auswahl anbieten —
+            // unabhängig von der aktuellen Ansicht (Ground/Air-View). Ein eigener Turm
+            // wurde oben bereits behandelt (ownReadyTower), hier also nie mehr relevant.
+            if (clickedGround && clickedAirUnconditional) {
+                showMultiChoiceTileUI(clickedX, clickedY, { ground: clickedGround, air: clickedAirUnconditional });
+            } else {
+                showTileUI(clickedX, clickedY, clickedUnit);
+            }
+        }
+        renderBoard(gameState);
+    }
+}
+
+// Führt den Angriff von `selectedUnit` auf `targetAttack` aus (Einheit, Hauptgebäude,
+// Tunnel, Palisade oder Turm). Extrahiert, damit sowohl der normale Klick-Flow als auch
+// die Bewegen-vs-Angreifen-Auswahl (showMoveAttackChoiceUI) dieselbe Logik nutzen.
+function executeAttackOnTarget(clickedX, clickedY, targetAttack) {
+    const pState = gameState.p[gameState.cp];
+    {
             saveUndoState();
             if (selectedUnit.iv === 1) { delete selectedUnit.iv; selectedUnit.cd = 2; }
 
@@ -603,8 +639,16 @@ function handleCanvasClick(clientX, clientY) {
             turnActions.push({ x: clickedX, y: clickedY, t: 'atk', fx: selectedUnit.x, fy: selectedUnit.y });
             if (selectedUnit.ps) { selectedUnit.a = 4; selectedUnit.ps = 0; } else { selectedUnit.a = 1; }
             selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
-        }
-        else if (selectedUnit && validMoves.some(m => m.x === clickedX && m.y === clickedY)) {
+    }
+}
+
+// Führt die Bewegung von `selectedUnit` nach (clickedX, clickedY) aus (Tunnel-Teleport,
+// Feuer-Betreten, Wachturm-Erobern, Folge-Aktionsmenü). Extrahiert, damit sowohl der
+// normale Klick-Flow als auch die Bewegen-vs-Angreifen-Auswahl (showMoveAttackChoiceUI)
+// dieselbe Logik nutzen.
+function executeMoveTo(clickedX, clickedY) {
+    const pState = gameState.p[gameState.cp];
+    {
             saveUndoState();
             const prevX = selectedUnit.x, prevY = selectedUnit.y;
 
@@ -695,20 +739,55 @@ function handleCanvasClick(clientX, clientY) {
             } else {
                 selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
             }
-        }
-        else {
-            // Teilen sich Boden und Luft ein Hex, erst beide zur Auswahl anbieten —
-            // unabhängig von der aktuellen Ansicht (Ground/Air-View). Ein eigener Turm
-            // wurde oben bereits behandelt (ownReadyTower), hier also nie mehr relevant.
-            if (clickedGround && clickedAirUnconditional) {
-                showMultiChoiceTileUI(clickedX, clickedY, { ground: clickedGround, air: clickedAirUnconditional });
-            } else {
-                showTileUI(clickedX, clickedY, clickedUnit);
-            }
-        }
-        renderBoard(gameState);
     }
 }
+
+// === BEWEGEN-VS-ANGREIFEN-MEHRDEUTIGKEIT ===
+// Ein Hex kann für den Angreifer gleichzeitig gültiges Bewegungs- UND Angriffsziel sein:
+// bei Lufteinheiten immer (Boden blockiert Flugbewegung nicht), bei Fernkampf-
+// Bodeneinheiten, wenn dort eine Lufteinheit steht (Bodenebene des Feldes bleibt frei).
+// Statt automatisch den Angriff zu bevorzugen, bietet eine Mini-Auswahl beide Optionen an.
+window._moveAttackChoice = null;
+
+function showMoveAttackChoiceUI(x, y, targetAttack) {
+    window._moveAttackChoice = { x, y, targetAttack };
+    hideActionMenu();
+
+    let targetType = 'unit';
+    let targetOwnerId = targetAttack.target ? targetAttack.target.p : -1;
+    if (targetAttack.isBuilding) { targetType = 'building'; targetOwnerId = targetAttack.owner; }
+    else if (targetAttack.isTunnelTarget) { targetType = 'tunnel'; targetOwnerId = targetAttack.targetOwner; }
+    else if (targetAttack.isTowerTarget) { targetType = 'tower'; targetOwnerId = targetAttack.tower.o; }
+    else if (targetAttack.isWallTarget) { targetType = 'wall'; targetOwnerId = targetAttack.wall.o; }
+    const expDmg = targetAttack.ignite ? unitStats[15].igniteDmg : getExpectedDamage(selectedUnit, targetType, targetOwnerId, targetAttack.target);
+
+    const label = targetAttack.target ? unitStats[targetAttack.target.t].name
+        : targetAttack.isBuilding ? 'Hauptgebäude'
+        : targetAttack.isTowerTarget ? 'Turm'
+        : targetAttack.isWallTarget ? 'Palisade'
+        : targetAttack.isTunnelTarget ? 'Tunnel' : 'Ziel';
+
+    const moveLabel = isFlying(selectedUnit) ? '✈️ Hierher fliegen' : '🚶 Hierher laufen';
+
+    const attackCard = `<div class="stack-card" style="border-color:#ff5252" onclick="window.resolveMoveAttackChoice('attack')">
+        <span style="color:#ff5252; font-weight:bold;">⚔️ Angreifen</span>
+        <span class="info-detail" style="display:inline; margin:0 0 0 4px;">${label} (~${expDmg} DMG)</span>
+    </div>`;
+    const moveCard = `<div class="stack-card" style="border-color:#4fc3f7" onclick="window.resolveMoveAttackChoice('move')">
+        <span style="color:#4fc3f7; font-weight:bold;">${moveLabel}</span>
+    </div>`;
+
+    infoPanel.innerHTML = `<div class="stack-picker">${attackCard}${moveCard}</div><div class="info-detail" style="color:#fff176;">Feld ist frei — ${label} ist nur in Reichweite. Was möchtest du tun?</div>`;
+}
+
+window.resolveMoveAttackChoice = function (choice) {
+    const c = window._moveAttackChoice;
+    if (!c) return;
+    window._moveAttackChoice = null;
+    if (choice === 'attack') executeAttackOnTarget(c.x, c.y, c.targetAttack);
+    else executeMoveTo(c.x, c.y);
+    renderBoard(gameState);
+};
 
 // === MEHRFACH-AUSWAHL (Boden + Luft + eigener Turm auf einem Hex) ===
 // Statt stillschweigend nach Ansicht oder Priorität zu entscheiden, werden alle
@@ -1015,7 +1094,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                 ? (clickedUnit.a === 0 || clickedUnit.a === 2)
                 : (clickedUnit.a === 0);
 
-            if (villageOwner !== undefined && villageOwner !== gameState.cp && !isStart && canCapture && !(pState.al && pState.al.includes(villageOwner)) && !(pState.tc && pState.tc.includes(villageOwner))) {
+            if (!isFlying(clickedUnit) && villageOwner !== undefined && villageOwner !== gameState.cp && !isStart && canCapture && !(pState.al && pState.al.includes(villageOwner)) && !(pState.tc && pState.tc.includes(villageOwner))) {
                 menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #ff1744;" onclick="startCapture()">Dorf einnehmen</button>`;
             }
 

@@ -217,7 +217,7 @@ window.buyUnit = function (type) {
 
 // === VILLAGE CAPTURE ===
 window.startCapture = function () {
-    if (selectedUnit) {
+    if (selectedUnit && !isFlying(selectedUnit)) {
         saveUndoState();
         if (selectedUnit.iv === 1) {
             delete selectedUnit.iv;
