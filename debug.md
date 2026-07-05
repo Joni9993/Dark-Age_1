@@ -2,7 +2,7 @@
 
 Öffne `index.html?debug=1` im Browser — kein Login, kein Server.
 
-Für 3D tests: ?debug=1&r3d=1
+3D ist der Standard-Renderer. Für den alten 2D-Modus: ?debug=1&r2d=1
 
 ## Panel (rechts oben, 🐞-Button)
 

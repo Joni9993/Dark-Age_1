@@ -1,7 +1,7 @@
 // === 3D-RENDERER (Three.js) ===
 // Implementiert die Renderer-Fassade aus render.js in echtem 3D:
 // Hex-Tiles als Prismen, Einheiten/Gebäude als Voxel-Figuren aus den
-// bestehenden 10×10-pixelSprites. Aktivierung (Entwicklung): index.html?r3d=1
+// bestehenden 10×10-pixelSprites. Standard-Renderer; ?r2d=1 erzwingt den alten 2D-Modus.
 // Die Spiellogik bleibt unberührt — dieses Modul liest nur gameState + die
 // bestehenden Globals (validMoves, validAttacks, selectedHex, showRecap, ...).
 
@@ -44,7 +44,7 @@
     let overlayGroup = null;               // Highlights (Move/Attack/Selektion/...)
     let spriteGroup = null;                // HP-Balken, Veteranen-Stern, ⛏
     let lastState = null;
-    let cam3d = { tx: 0, tz: 0, scale: 1.0, elev: CAM_ELEV };
+    let cam3d = { tx: 0, tz: 0, scale: 1.0, elev: CAM_ELEV, azim: 0 };
     let gestureStart = null;
     let anims3d = [];                      // Projektil-Animationen
     let floats3d = [];                     // DOM-Schadenszahlen
@@ -67,12 +67,22 @@
 
     function applyCamera() {
         const dist = baseDist() / cam3d.scale;
+        const horiz = dist * Math.cos(cam3d.elev);
         camera.position.set(
-            cam3d.tx,
+            cam3d.tx + horiz * Math.sin(cam3d.azim),
             dist * Math.sin(cam3d.elev),
-            cam3d.tz + dist * Math.cos(cam3d.elev)
+            cam3d.tz + horiz * Math.cos(cam3d.azim)
         );
         camera.lookAt(cam3d.tx, 0, cam3d.tz);
+    }
+
+    // Boden-Achsen der Kamera, mit dem Azimut mitgedreht (Standard bei azim=0:
+    // rechts = Welt-X, "zur Kamera hin" = Welt-Z) — gemeinsame Basis für Pan,
+    // Zoom-Mittelpunkt und das horizontale Billboarding der Voxel-Sprites.
+    function camGroundAxes() {
+        const a = cam3d.azim;
+        const cosA = Math.cos(a), sinA = Math.sin(a);
+        return { rx: cosA, rz: -sinA, fx: sinA, fz: cosA };
     }
 
     function requestRender3d() {
@@ -229,6 +239,10 @@
 
     const _vm = new THREE.Matrix4();
     const _vc = new THREE.Color();
+    const _sPos = new THREE.Vector3();
+    const _sScale = new THREE.Vector3(1, 1, 0.55);
+    const _sQuat = new THREE.Quaternion();
+    const _sEuler = new THREE.Euler();
     let _voxelCount = 0;
     let _airVoxelCount = 0;
     let _voxelAir = false;                 // Routing-Flag: addVoxelSprite -> Luft-Mesh
@@ -256,22 +270,27 @@
         const bottom = spriteBottomRow(spriteKey);
 
         const mesh = _voxelAir ? airVoxelMesh : voxelMesh;
-        // Sprites kippen mit der Kamera mit (Anker: unterste Zeile), damit sie
-        // auch in der 75°-Vogelperspektive lesbar bleiben
+        // Sprites kippen mit der Kamera-Neigung (Anker: unterste Zeile), damit sie
+        // auch in der 75°-Vogelperspektive lesbar bleiben, und drehen sich um die
+        // Hochachse mit dem Kamera-Azimut mit, damit sie beim Rotieren immer mit
+        // der Fläche zur Kamera stehen bleiben ("Pappaufsteller" folgt dem Blick).
         const pitch = cam3d.elev - CAM_ELEV;
         const cosP = Math.cos(pitch), sinP = Math.sin(pitch);
+        const { rx, rz, fx, fz } = camGroundAxes();
         for (let i = 0; i < 100; i++) {
             const val = arr[i];
             if (val === 0) continue;
             const idx = _voxelAir ? _airVoxelCount : _voxelCount;
             if (idx >= VOXEL_CAP) return;
             const colIdx = i % 10, rowIdx = Math.floor(i / 10);
+            const across = (colIdx - 4.5) * s;
             const dy = (bottom - rowIdx + 0.5) * s;
+            const depth = dy * sinP;
             _vm.makeScale(s, s, s);
             _vm.setPosition(
-                wx + (colIdx - 4.5) * s,
+                wx + across * rx + depth * fx,
                 groundY + dy * cosP,
-                wz + dy * sinP
+                wz + across * rz + depth * fz
             );
             mesh.setMatrixAt(idx, _vm);
             _vc.set(val === P ? playerColor : pal[val]);
@@ -289,10 +308,11 @@
             { dx: 11, dy: 2, c: '#111111' }, { dx: 11, dy: 4, c: '#111111' }, { dx: 11, dy: 6, c: '#111111' },
             { dx: 13.5, dy: 6, c: color }, { dx: 16, dy: 6, c: color }
         ];
+        const { rx, rz } = camGroundAxes();
         for (const pt of parts) {
             if (_voxelCount >= VOXEL_CAP) return;
             _vm.makeScale(s, s, s);
-            _vm.setPosition(wx + pt.dx, groundY + pt.dy * s, wz);
+            _vm.setPosition(wx + pt.dx * rx, groundY + pt.dy * s, wz + pt.dx * rz);
             voxelMesh.setMatrixAt(_voxelCount, _vm);
             _vc.set(pt.c === '#888888' ? '#e0e0e0' : pt.c);
             voxelMesh.setColorAt(_voxelCount, _vc);
@@ -302,8 +322,13 @@
 
     function addShadow(wx, wz, groundY) {
         if (_shadowCount >= 512) return;
-        _vm.makeScale(1, 1, 0.55);
-        _vm.setPosition(wx, groundY + 0.3, wz);
+        // Die Schatten-Ellipse ist entlang der Blickachse gestaucht (Perspektive) —
+        // muss sich mit dem Kamera-Azimut mitdrehen, sonst zeigt die Stauchung nach
+        // dem Rotieren in die falsche Richtung.
+        _sPos.set(wx, groundY + 0.3, wz);
+        _sEuler.set(0, cam3d.azim, 0);
+        _sQuat.setFromEuler(_sEuler);
+        _vm.compose(_sPos, _sQuat, _sScale);
         shadowMesh.setMatrixAt(_shadowCount, _vm);
         _shadowCount++;
     }
@@ -332,14 +357,16 @@
         const color = isLow ? '#ff5252' : '#ffffff';
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(String(value), color), depthTest: false, transparent: true, opacity: alpha }));
         sp.scale.set(11, 11, 1);
-        sp.position.set(wx + align * 12, y, wz);
+        const { rx, rz } = camGroundAxes();
+        sp.position.set(wx + align * 12 * rx, y, wz + align * 12 * rz);
         spriteGroup.add(sp);
     }
 
-    function addIcon(char, color, wx, wz, y, size, alpha = 1) {
+    function addIcon(char, color, wx, wz, y, size, alpha = 1, align = 0) {
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(char, color), depthTest: false, transparent: true, opacity: alpha }));
         sp.scale.set(size, size, 1);
-        sp.position.set(wx, y, wz);
+        const { rx, rz } = camGroundAxes();
+        sp.position.set(wx + align * 12 * rx, y, wz + align * 12 * rz);
         spriteGroup.add(sp);
     }
 
@@ -452,9 +479,9 @@
                 _voxelAir = false;
                 addHpText(u.h, wx, wz, gy + hover + 30, -1, u.h / maxHp < 0.15, uiA);
                 if (u.vet) addIcon('★', '#e8b84a', wx, wz, gy + hover + 34, 9, uiA);
-                if (u.mi) addIcon('⛏', '#fff176', wx + 12, wz, gy + hover + 28, 11, uiA);
-                if (u.bn) addIcon('🔥', '#ff6e40', wx + 12, wz, gy + hover + 30, 11, uiA);
-                if (u.cg) addIcon('📦', '#ffcc80', wx + 12, wz, gy + hover + 20, 10, uiA);
+                if (u.mi) addIcon('⛏', '#fff176', wx, wz, gy + hover + 28, 11, uiA, 1);
+                if (u.bn) addIcon('🔥', '#ff6e40', wx, wz, gy + hover + 30, 11, uiA, 1);
+                if (u.cg) addIcon('📦', '#ffcc80', wx, wz, gy + hover + 20, 10, uiA, 1);
             } else {
                 const tType = getTerrainType(state, e.x, e.y);
                 const { wx, wz } = worldPos(e.x, e.y);
@@ -471,7 +498,7 @@
                         addHpText(e.hp, wx, wz, gy + 30, 1, e.hp / e.maxHp < 0.15);
                     }
                 }
-                if (e.bn) addIcon('🔥', '#ff6e40', wx - 12, wz, gy + 30, 11);
+                if (e.bn) addIcon('🔥', '#ff6e40', wx, wz, gy + 30, 11, 1, -1);
             }
         });
 
@@ -623,14 +650,24 @@
         },
 
         beginGesture() {
-            gestureStart = { tx: cam3d.tx, tz: cam3d.tz, scale: cam3d.scale };
+            gestureStart = { tx: cam3d.tx, tz: cam3d.tz, scale: cam3d.scale, azim: cam3d.azim };
         },
 
         gesturePan(dx, dy) {
             if (!gestureStart) return;
             const wpp = 1 / cam3d.scale;   // Welt-Einheiten pro CSS-Pixel (bei baseDist-Kalibrierung)
-            cam3d.tx = gestureStart.tx - dx * wpp;
-            cam3d.tz = gestureStart.tz - (dy * wpp) / Math.sin(cam3d.elev);
+            const a = gestureStart.azim;
+            const cosA = Math.cos(a), sinA = Math.sin(a);
+            const rx = cosA, rz = -sinA, fx = sinA, fz = cosA;
+            const dyF = (dy * wpp) / Math.sin(cam3d.elev);
+            cam3d.tx = gestureStart.tx - dx * wpp * rx - dyF * fx;
+            cam3d.tz = gestureStart.tz - dx * wpp * rz - dyF * fz;
+            requestRender3d();
+        },
+
+        gestureOrbit(dAzim) {
+            if (!gestureStart) return;
+            cam3d.azim = gestureStart.azim + dAzim;
             requestRender3d();
         },
 
@@ -640,12 +677,17 @@
             const dx = centerX - rect.left - rect.width / 2;
             const dy = centerY - rect.top - rect.height / 2;
             const sinE = Math.sin(cam3d.elev);
+            const a = gestureStart.azim;
+            const cosA = Math.cos(a), sinA = Math.sin(a);
+            const rx = cosA, rz = -sinA, fx = sinA, fz = cosA;
+            const dxW = dx / gestureStart.scale, dyW = dy / (gestureStart.scale * sinE);
             // Weltpunkt unter dem Pinch-Zentrum festhalten
-            const wx = gestureStart.tx + dx / gestureStart.scale;
-            const wz = gestureStart.tz + dy / (gestureStart.scale * sinE);
+            const wx = gestureStart.tx + dxW * rx + dyW * fx;
+            const wz = gestureStart.tz + dxW * rz + dyW * fz;
             cam3d.scale = Math.max(0.4, Math.min(gestureStart.scale * factor, 3.0));
-            cam3d.tx = wx - dx / cam3d.scale;
-            cam3d.tz = wz - dy / (cam3d.scale * sinE);
+            const dxW2 = dx / cam3d.scale, dyW2 = dy / (cam3d.scale * sinE);
+            cam3d.tx = wx - dxW2 * rx - dyW2 * fx;
+            cam3d.tz = wz - dxW2 * rz - dyW2 * fz;
             requestRender3d();
         },
 
@@ -654,12 +696,15 @@
             const dx = centerX - rect.left - rect.width / 2;
             const dy = centerY - rect.top - rect.height / 2;
             const sinE = Math.sin(cam3d.elev);
+            const { rx, rz, fx, fz } = camGroundAxes();
+            const dxW = dx / cam3d.scale, dyW = dy / (cam3d.scale * sinE);
             // Weltpunkt unter dem Cursor festhalten (Parität zum 2D-Zoom)
-            const wx = cam3d.tx + dx / cam3d.scale;
-            const wz = cam3d.tz + dy / (cam3d.scale * sinE);
+            const wx = cam3d.tx + dxW * rx + dyW * fx;
+            const wz = cam3d.tz + dxW * rz + dyW * fz;
             cam3d.scale = Math.max(0.4, Math.min(cam3d.scale * factor, 3.0));
-            cam3d.tx = wx - dx / cam3d.scale;
-            cam3d.tz = wz - dy / (cam3d.scale * sinE);
+            const dxW2 = dx / cam3d.scale, dyW2 = dy / (cam3d.scale * sinE);
+            cam3d.tx = wx - dxW2 * rx - dyW2 * fx;
+            cam3d.tz = wz - dxW2 * rz - dyW2 * fz;
             requestRender3d();
         },
 
@@ -737,8 +782,8 @@
 
     window.Renderer3D = Renderer3D;
 
-    // Aktivierung während der Entwicklung per URL-Flag; später wird 3D Standard
-    if (new URLSearchParams(location.search).has('r3d')) {
+    // 3D ist Standard-Renderer; ?r2d=1 erzwingt den alten 2D-Renderer (Legacy-Fallback)
+    if (!new URLSearchParams(location.search).has('r2d')) {
         Renderer = Renderer3D;
     }
 })();

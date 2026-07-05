@@ -67,6 +67,7 @@ let isDragging = false;
 let hasMoved = false;
 let dragStartX = 0, dragStartY = 0;
 let initialPinchDist = null;
+let initialPinchAngle = null;
 
 // === SCOREBOARD ===
 let scoreboardOpen = false;

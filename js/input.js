@@ -1192,7 +1192,9 @@ canvasWrapper.addEventListener('wheel', (e) => {
 canvasWrapper.addEventListener('touchstart', e => {
     if (e.touches.length === 2) {
         isDragging = false;
-        initialPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        const [t0, t1] = e.touches;
+        initialPinchDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        initialPinchAngle = Math.atan2(t1.clientY - t0.clientY, t1.clientX - t0.clientX);
         Renderer.beginGesture();
     }
 }, { passive: false });
@@ -1200,14 +1202,20 @@ canvasWrapper.addEventListener('touchstart', e => {
 canvasWrapper.addEventListener('touchmove', e => {
     if (e.touches.length === 2 && initialPinchDist) {
         e.preventDefault();
-        const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-        const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        const [t0, t1] = e.touches;
+        const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        const angle = Math.atan2(t1.clientY - t0.clientY, t1.clientX - t0.clientX);
+        const centerX = (t0.clientX + t1.clientX) / 2;
+        const centerY = (t0.clientY + t1.clientY) / 2;
         Renderer.gestureZoom(dist / initialPinchDist, centerX, centerY);
+        // Zwei-Finger-Drehung: Winkel zwischen den Fingern rotiert die Kamera um die Hochachse (Azimut)
+        if (Renderer.gestureOrbit) Renderer.gestureOrbit(angle - initialPinchAngle);
     }
 }, { passive: false });
 
-canvasWrapper.addEventListener('touchend', e => { if (e.touches.length < 2) initialPinchDist = null; });
+canvasWrapper.addEventListener('touchend', e => {
+    if (e.touches.length < 2) { initialPinchDist = null; initialPinchAngle = null; }
+});
 
 document.addEventListener('keydown', e => {
     if (e.key === 'Backspace' && !e.target.matches('input, textarea')) {

@@ -520,6 +520,9 @@ const Renderer2D = {
         _requestRender();
     },
 
+    // Reine Draufsicht — keine Kamera-Rotation möglich, No-Op für Fassaden-Parität mit dem 3D-Renderer.
+    gestureOrbit() {},
+
     wheelZoom(factor, centerX, centerY) {
         const newScale = Math.max(0.4, Math.min(camScale * factor, 3.0));
         const applied = newScale / camScale;

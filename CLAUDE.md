@@ -39,7 +39,7 @@ node maptest/analyze_maps.js # runs 1000 map simulations and prints stats
 | `js/hex.js` | Hex math: odd-r offset coords, `oddRToCube`, `hexDistance`, `getNeighbors`, `getTerrainType`, `getHexCenter` |
 | `js/logic.js` | Rules: `calculateMoves` (BFS), `calculateAttacks`, `getExpectedDamage` (all modifiers), `getVisibleHexes`, `getUnitMove/MaxHp/Cost`, `checkVeteran` |
 | `js/render.js` | 2D canvas renderer + **`Renderer` facade** (see below) |
-| `js/render3d.js` | Three.js renderer (hex prisms + voxelized pixel sprites), active with `?r3d=1` |
+| `js/render3d.js` | Three.js renderer (hex prisms + voxelized pixel sprites), default renderer; `?r2d=1` forces the legacy 2D canvas renderer |
 | `js/input.js` | Canvas click handling, action flow, attack/counter-attack resolution, `doEndTurn` (serialization), pointer/touch/camera gestures |
 | `js/abilities.js` | Special abilities: mining, wall/tunnel/tower building, detonate, deploy, AoE |
 | `js/ui.js` | HUD, scoreboard, action menu, `buyUnit`, faction/upgrade purchase, undo (`saveUndoState`) |
@@ -51,7 +51,7 @@ node maptest/analyze_maps.js # runs 1000 map simulations and prints stats
 
 ## Renderer Facade (important)
 
-All rendering, picking, and camera access goes through the global `Renderer` object (defined at the bottom of `js/render.js`, interface: `init/resize/render/pickHex/beginGesture/gesturePan/gestureZoom/wheelZoom/centerOn/spawnFloatingText/spawnAttackAnim`). `js/render3d.js` replaces `Renderer` with a Three.js implementation when `?r3d=1` is in the URL (3D will become the default after playtesting; 2D stays as fallback).
+All rendering, picking, and camera access goes through the global `Renderer` object (defined at the bottom of `js/render.js`, interface: `init/resize/render/pickHex/beginGesture/gesturePan/gestureZoom/gestureOrbit/wheelZoom/centerOn/spawnFloatingText/spawnAttackAnim`). `js/render3d.js` replaces `Renderer` with a Three.js implementation by default; `?r2d=1` in the URL keeps the legacy 2D canvas renderer. The 3D camera supports touch-only left/right orbit (two-finger twist, `gestureOrbit`) around a fixed elevation angle; `gestureOrbit` is a no-op on the 2D renderer (pure top-down, no rotation).
 
 Rules:
 - Game logic must never touch `camX/camY/camScale`, `ctx`, or hex hit-testing directly — always go through `Renderer`.
@@ -97,4 +97,4 @@ Hex grid uses **odd-r offset** coordinates (pointy-top). `oddRToCube(x, y)` conv
 
 ## Planned / In Progress
 
-Three.js port (Phase 1) is code-complete behind `?r3d=1`; air units (Lufteinheiten, unit types 12–15, one per faction) are planned as Phase 2 — design docs in `Lufteinheiten/`.
+Three.js port (Phase 1) is the default renderer (`?r2d=1` for the legacy 2D fallback); air units (Lufteinheiten, unit types 12–15, one per faction) are planned as Phase 2 — design docs in `Lufteinheiten/`.
