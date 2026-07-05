@@ -16,9 +16,10 @@ Requires PostgreSQL and `server/.env` (see `README.md` for setup: DATABASE_URL, 
 
 **Map analysis scripts:**
 ```bash
-node maptest/gen_maps.js     # generates test map links as HTML
-node maptest/analyze_maps.js # runs 1000 map simulations and prints stats
+node maptest/gen_maps.js [spieler] [radius]  # generates test map links as HTML (default 6 / 12)
+node maptest/analyze_maps.js [numMaps]       # spawn fairness stats for all map sizes × player counts
 ```
+Both load the real `js/mapgen.js` via `maptest/load_game.js` — no logic copies to keep in sync.
 
 ## Architecture
 
@@ -44,7 +45,7 @@ node maptest/analyze_maps.js # runs 1000 map simulations and prints stats
 | `js/abilities.js` | Special abilities: mining, wall/tunnel/tower building, detonate, deploy, AoE |
 | `js/ui.js` | HUD, scoreboard, action menu, `buyUnit`, faction/upgrade purchase, undo (`saveUndoState`) |
 | `js/events.js`, `js/diplomacy.js` | Random round events; alliances/truces/team win |
-| `js/mapgen.js` | Initial state + map generation (`buildInitialGameState`) |
+| `js/mapgen.js` | Initial state + map generation (`buildInitialGameState`, `SPAWN_BUDGETS`) |
 | `js/api.js`, `js/auth.js`, `js/lobby.js`, `js/config.js` | Server mode: fetch wrapper with JWT, login, home/lobby screens, game list, friends, push registration |
 | `js/debug.js` | `?debug=1` test mode (hotseat, click tools, scenarios) |
 | `js/main.js` | `bootGame()` (state normalization + recap + events), calls `initApp()` |
@@ -88,6 +89,8 @@ Hex grid uses **odd-r offset** coordinates (pointy-top). `oddRToCube(x, y)` conv
 **Factions** (keys 0–3): Feudalism, Plunderers, Espionage, Guilds. Each unlocks 2 special units and 3 research upgrades; chosen via draft overlay when owning enough villages. Faction special units per player: `{0:[3,10], 1:[4,8], 2:[5,9], 3:[6,11]}`.
 
 **Units** (`unitStats`, types 0–11): Sword, Bow, Horse, Knight, Berserker, Assassin, Trebuchet(Tribok), Worker, Saboteur, Elephant, Camel Rider, War Wagon. Stats are pure data; runtime modifiers (upgrades, terrain, veterancy, faction passives, HP scaling) are computed in `getExpectedDamage` and getters like `getUnitMove`, `getUnitMaxHp`.
+
+**Fair spawn placement** (`js/mapgen.js`): start villages are spread evenly along the ring at `radius - 1` (exact corner positions for 2/3/6 players, near-equal arcs for 4/5). Neutral villages and stones come from the `SPAWN_BUDGETS` table (per map radius 5/7/12 × player count 2–6): every player gets the same number of spawns in identical distance bands around their start village; the remainder goes only to "contested" hexes (roughly equidistant to the two nearest players), distributed round-robin across sector borders. Placement uses candidate-list sampling (exact counts guaranteed, no retry caps) with per-round shuffled player order; on saturated maps constraints are relaxed stepwise (allow contested → lower min spacing → widen band). Min spacing: villages ≥ 3, stones ≥ 2. Fairness is measured by `node maptest/analyze_maps.js` — run it after tuning `SPAWN_BUDGETS`.
 
 **Combat flow** (`js/input.js`): attack → damage → counter-attack after 600 ms `setTimeout` if the target survives and has the attacker in range → melee killers advance onto the target hex. Veterancy at 2 kills (+1 dmg).
 

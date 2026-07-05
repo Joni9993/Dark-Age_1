@@ -6,6 +6,32 @@ function renderNameInputs() {
 playerCountSelect.addEventListener('change', renderNameInputs);
 
 // === MAP GENERATION ===
+// Spawn-Budgets pro Kartengröße: Distanz-Bänder vom eigenen Startdorf für
+// garantierte Pro-Spieler-Spawns + Anzahl "umkämpfter" Spawns (Felder, die zu
+// den zwei nächsten Spielern etwa gleich weit sind). Die Bänder sind so
+// gewählt, dass sie mit den Mindestabständen (Dörfer >= 3, Steine >= 2) auf
+// der jeweiligen Kartengröße tatsächlich erfüllbar sind.
+const SPAWN_BUDGETS = {
+    5: {
+        villageBands:      { 2: [[3, 3], [3, 4]], 3: [[3, 3], [3, 4]], 4: [[3, 3], [3, 4]], 5: [[3, 3], [3, 4]], 6: [[3, 3], [3, 4]] },
+        contestedVillages: { 2: 2, 3: 2, 4: 1, 5: 0, 6: 0 },
+        stoneBands:        { 2: [[2, 3], [4, 5]], 3: [[2, 3], [4, 5]], 4: [[2, 3]], 5: [[2, 3]], 6: [[2, 3]] },
+        contestedStones:   { 2: 1, 3: 0, 4: 2, 5: 1, 6: 0 }
+    },
+    7: {
+        villageBands:      { 2: [[3, 3], [3, 4], [6, 7]], 3: [[3, 3], [3, 4], [6, 7]], 4: [[3, 3], [3, 4], [5, 7]], 5: [[3, 3], [3, 4]], 6: [[3, 3], [3, 4]] },
+        contestedVillages: { 2: 5, 3: 4, 4: 3, 5: 2, 6: 2 },
+        stoneBands:        { 2: [[2, 3], [4, 6]], 3: [[2, 3], [4, 6]], 4: [[2, 3], [4, 6]], 5: [[2, 3], [4, 6]], 6: [[2, 3], [4, 6]] },
+        contestedStones:   { 2: 2, 3: 3, 4: 3, 5: 2, 6: 2 }
+    },
+    12: {
+        villageBands:      { 2: [[3, 3], [3, 4], [5, 7], [8, 10]], 3: [[3, 3], [3, 4], [5, 7], [8, 10]], 4: [[3, 3], [3, 4], [5, 7], [8, 10]], 5: [[3, 3], [3, 4], [5, 7]], 6: [[3, 3], [3, 4], [5, 7]] },
+        contestedVillages: { 2: 10, 3: 9, 4: 8, 5: 8, 6: 8 },
+        stoneBands:        { 2: [[2, 3], [5, 8]], 3: [[2, 3], [5, 8]], 4: [[2, 3], [5, 8]], 5: [[2, 3], [5, 8]], 6: [[2, 3], [5, 8]] },
+        contestedStones:   { 2: 3, 3: 3, 4: 4, 5: 4, 6: 4 }
+    }
+};
+
 // buildInitialGameState: called by both legacy button and server lobby start
 function buildInitialGameState(playerNames, radius) {
     const count = playerNames.length;
@@ -16,6 +42,7 @@ function buildInitialGameState(playerNames, radius) {
     let players = []; let villages = {}; let units = [];
 
     const cx = radius; const cy = radius;
+    const center = { x: cx, y: cy };
     const cubeCenter = oddRToCube(cx, cy);
     const sr = radius - 1;
 
@@ -24,31 +51,31 @@ function buildInitialGameState(playerNames, radius) {
         { x: -1, y: 1, z: 0 }, { x: -1, y: 0, z: 1 }, { x: 0, y: -1, z: 1 }
     ];
 
-    const pIndices = {
-        2: [0, 3],
-        3: [0, 2, 4],
-        4: [0, 1, 3, 4],
-        5: [0, 1, 2, 3, 4],
-        6: [0, 1, 2, 3, 4, 5]
-    }[count];
+    // Startdörfer gleichmäßig über den Umfang des Rings bei sr verteilen.
+    // Der Ring hat 6*sr Felder (Ecke k liegt bei Index k*sr); für 2/3/6
+    // Spieler landen die Starts exakt auf den Ecken wie bisher, für 4/5
+    // Spieler sind die Abstände jetzt (nahezu) gleich statt 60°/120° gemischt.
+    const ringHexes = [];
+    let cur = { x: cubeCenter.x + cubeDirs[0].x * sr, y: cubeCenter.y + cubeDirs[0].y * sr, z: cubeCenter.z + cubeDirs[0].z * sr };
+    for (let k = 0; k < 6; k++) {
+        const d = cubeDirs[(k + 2) % 6];
+        for (let j = 0; j < sr; j++) {
+            ringHexes.push(cubeToOddR(cur));
+            cur = { x: cur.x + d.x, y: cur.y + d.y, z: cur.z + d.z };
+        }
+    }
 
-    const startPos = pIndices.map(dirIdx => {
-        const svCube = {
-            x: cubeCenter.x + cubeDirs[dirIdx].x * sr,
-            y: cubeCenter.y + cubeDirs[dirIdx].y * sr,
-            z: cubeCenter.z + cubeDirs[dirIdx].z * sr
-        };
-        const svPos = cubeToOddR(svCube);
-
-        const uCube = {
-            x: cubeCenter.x + cubeDirs[dirIdx].x * (sr - 1),
-            y: cubeCenter.y + cubeDirs[dirIdx].y * (sr - 1),
-            z: cubeCenter.z + cubeDirs[dirIdx].z * (sr - 1)
-        };
-        const uPos = cubeToOddR(uCube);
-
-        return { vx: svPos.x, vy: svPos.y, ux: uPos.x, uy: uPos.y };
-    });
+    const startPos = [];
+    for (let i = 0; i < count; i++) {
+        const sv = ringHexes[Math.round(i * ringHexes.length / count) % ringHexes.length];
+        const svCube = oddRToCube(sv.x, sv.y);
+        let u = null; // Starteinheit: Nachbarfeld Richtung Kartenmitte
+        for (const d of cubeDirs) {
+            const n = cubeToOddR({ x: svCube.x + d.x, y: svCube.y + d.y, z: svCube.z + d.z });
+            if (!u || hexDistance(n, center) < hexDistance(u, center)) u = n;
+        }
+        startPos.push({ vx: sv.x, vy: sv.y, ux: u.x, uy: u.y });
+    }
 
     for (let i = 0; i < count; i++) {
         const svLoc = `${startPos[i].vx},${startPos[i].vy}`;
@@ -59,146 +86,102 @@ function buildInitialGameState(playerNames, radius) {
 
     const tempState = { bw: size, bh: size, rad: radius };
 
-    // Phase 1: guaranteed starting villages (2 per player at distance 3)
-    for (let i = 0; i < count; i++) {
-        const svX = startPos[i].vx;
-        const svY = startPos[i].vy;
-        const svCube = oddRToCube(svX, svY);
-
-        let candidates = [];
-        for (let dx = -3; dx <= 3; dx++) {
-            for (let dy = Math.max(-3, -dx - 3); dy <= Math.min(3, -dx + 3); dy++) {
-                let dz = -dx - dy;
-                if (Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) === 3) {
-                    const candidateCube = { x: svCube.x + dx, y: svCube.y + dy, z: svCube.z + dz };
-                    const candidatePos = cubeToOddR(candidateCube);
-                    candidates.push(candidatePos);
-                }
-            }
-        }
-
-        let validCandidates = [];
-        let minDistOther = 3;
-        let minDistStart = 3;
-
-        while (validCandidates.length < 2 && minDistOther >= 0) {
-            validCandidates = candidates.filter(c => {
-                let valid = isInsideMap(tempState, c.x, c.y);
-                if (hexDistance(c, { x: cx, y: cy }) >= radius) valid = false;
-                if (valid) {
-                    for (let key in villages) {
-                        let [vx, vy] = key.split(',').map(Number);
-                        let isStartVillage = false;
-                        for (let pIdx = 0; pIdx < count; pIdx++) {
-                            if (startPos[pIdx].vx === vx && startPos[pIdx].vy === vy) {
-                                isStartVillage = true;
-                                break;
-                            }
-                        }
-                        let minDist = isStartVillage ? minDistStart : minDistOther;
-                        if (hexDistance(c, { x: vx, y: vy }) < minDist) valid = false;
-                    }
-                }
-                return valid;
-            });
-
-            if (validCandidates.length < 2) {
-                minDistOther--;
-                if (minDistOther < 2) minDistStart = 2;
-            }
-        }
-
-        if (validCandidates.length > 0) {
-            for (let j = validCandidates.length - 1; j > 0; j--) {
-                const k = Math.floor(rng() * (j + 1));
-                const temp = validCandidates[j];
-                validCandidates[j] = validCandidates[k];
-                validCandidates[k] = temp;
-            }
-
-            const toPlace = Math.min(2, validCandidates.length);
-            for (let j = 0; j < toPlace; j++) {
-                const c = validCandidates[j];
-                villages[`${c.x},${c.y}`] = -1;
-            }
+    // Sektor-Zuordnung: jedes Feld gehört dem nächstgelegenen Spieler.
+    // Felder, deren Distanz zu den zwei nächsten Spielern sich um <= 1
+    // unterscheidet, bilden den umkämpften Pool (fair per Konstruktion).
+    const cells = [];
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            if (!isInsideMap(tempState, x, y)) continue;
+            if (hexDistance({ x, y }, center) >= radius) continue;
+            if (x === cx && y === cy) continue; // zentraler Wachturm
+            const dists = startPos.map(s => hexDistance({ x, y }, { x: s.vx, y: s.vy }));
+            let owner = 0;
+            for (let i = 1; i < count; i++) if (dists[i] < dists[owner]) owner = i;
+            let second = -1;
+            for (let i = 0; i < count; i++) if (i !== owner && (second === -1 || dists[i] < dists[second])) second = i;
+            const contested = dists[second] - dists[owner] <= 1;
+            cells.push({ x, y, dists, owner, contested, pair: Math.min(owner, second) + ',' + Math.max(owner, second) });
         }
     }
 
-    // Phase 2: additional random neutral villages
-    const totalNeutralTarget = Math.floor((radius + count + 1) * 4 / 3);
-    let placedNeutral = Object.values(villages).filter(v => v === -1).length;
-    let neutralCount = Math.max(0, totalNeutralTarget - placedNeutral);
-    let attempts = 0;
-
-    while (neutralCount > 0 && attempts < 400) {
-        let nx = Math.floor(rng() * size);
-        let ny = Math.floor(rng() * size);
-
-        let valid = isInsideMap(tempState, nx, ny);
-        if (hexDistance({ x: nx, y: ny }, { x: cx, y: cy }) >= radius) valid = false;
-
-        if (valid) {
-            for (let key in villages) {
-                let [vx, vy] = key.split(',').map(Number);
-                if (hexDistance({ x: nx, y: ny }, { x: vx, y: vy }) < 3) valid = false;
-            }
+    const shuffled = arr => {
+        const a = arr.slice();
+        for (let j = a.length - 1; j > 0; j--) {
+            const k = Math.floor(rng() * (j + 1));
+            [a[j], a[k]] = [a[k], a[j]];
         }
-        if (valid) { villages[`${nx},${ny}`] = -1; neutralCount--; }
-        attempts++;
-    }
-
-    // Stone placement
-    const stones = [];
-    const isOccupied = (x, y) => {
-        if (x === cx && y === cy) return true; // zentraler Wachturm
-        if (units.some(u => u.x === x && u.y === y)) return true;
-        if (villages[`${x},${y}`] !== undefined) return true;
-        return false;
+        return a;
     };
-    const isValidStone = (x, y) => {
-        if (!isInsideMap(tempState, x, y)) return false;
-        if (hexDistance({ x, y }, { x: cx, y: cy }) >= radius) return false;
-        if (isOccupied(x, y)) return false;
-        if (stones.some(s => hexDistance({ x, y }, { x: s.x, y: s.y }) < 2)) return false;
+    const pickRandom = arr => arr.length ? arr[Math.floor(rng() * arr.length)] : null;
+
+    const villageOK = (x, y, minDist) => {
         for (let key in villages) {
             const [vx, vy] = key.split(',').map(Number);
-            if (hexDistance({ x, y }, { x: vx, y: vy }) < 2) return false;
+            if (hexDistance({ x, y }, { x: vx, y: vy }) < minDist) return false;
         }
         return true;
     };
 
-    for (let i = 0; i < count; i++) {
-        const [svX, svY] = players[i].sv.split(',').map(Number);
-        const svCube = oddRToCube(svX, svY);
-        let pick = null;
-        for (let ring = 2; ring <= 4 && !pick; ring++) {
-            let candidates = [];
-            for (let dx = -ring; dx <= ring; dx++) {
-                for (let dy = Math.max(-ring, -dx - ring); dy <= Math.min(ring, -dx + ring); dy++) {
-                    let dz = -dx - dy;
-                    if (Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) === ring) {
-                        const cPos = cubeToOddR({ x: svCube.x + dx, y: svCube.y + dy, z: svCube.z + dz });
-                        candidates.push(cPos);
-                    }
+    const stones = [];
+    const stoneOK = (x, y, minDist) => {
+        if (units.some(u => u.x === x && u.y === y)) return false;
+        if (stones.some(s => hexDistance({ x, y }, { x: s.x, y: s.y }) < minDist)) return false;
+        for (let key in villages) {
+            const [vx, vy] = key.split(',').map(Number);
+            if (hexDistance({ x, y }, { x: vx, y: vy }) < minDist) return false;
+        }
+        return true;
+    };
+
+    // Pro Band reihum ein Spawn pro Spieler (Reihenfolge pro Runde zufällig,
+    // damit kein Spieler systematisch zuerst wählt). Auf vollen Karten (kleine
+    // Karte, viele Spieler) sind fast alle Felder umkämpft und die Abstände
+    // knapp — dann wird schrittweise gelockert (umkämpfte Felder erlauben,
+    // Mindestabstand senken, Band aufweiten), damit die Anzahl pro Spieler
+    // garantiert bleibt.
+    const placeForPlayers = (bands, okFn, minSpacing, place) => {
+        for (const band of bands) {
+            for (const i of shuffled(Array.from({ length: count }, (_, p) => p))) {
+                const own = c => c.dists[i] === c.dists[c.owner]; // Spieler i ist nächster (oder gleich naher) Start
+                const inBand = c => c.dists[i] >= band[0] && c.dists[i] <= band[1];
+                const pools = [
+                    [c => c.owner === i && !c.contested && inBand(c), minSpacing],
+                    [c => own(c) && inBand(c), minSpacing],
+                    [c => own(c) && inBand(c), minSpacing - 1],
+                    [c => own(c) && c.dists[i] >= band[0], minSpacing],
+                    [c => own(c), minSpacing - 1]
+                ];
+                for (const [poolFilter, spacing] of pools) {
+                    const pick = pickRandom(cells.filter(c => poolFilter(c) && okFn(c.x, c.y, spacing)));
+                    if (pick) { place(pick); break; }
                 }
             }
-            for (let j = candidates.length - 1; j > 0; j--) {
-                const k = Math.floor(rng() * (j + 1));
-                const tmp = candidates[j]; candidates[j] = candidates[k]; candidates[k] = tmp;
-            }
-            pick = candidates.find(c => isValidStone(c.x, c.y));
         }
-        if (pick) stones.push({ x: pick.x, y: pick.y, h: 40 });
-    }
+    };
+    // Umkämpfte Spawns reihum über die Sektorgrenzen (Spielerpaare) verteilen,
+    // damit nicht eine Grenze zufällig alles bekommt.
+    const placeContested = (n, okFn, minSpacing, place) => {
+        const pairs = shuffled([...new Set(cells.filter(c => c.contested).map(c => c.pair))]);
+        let k = 0, idle = 0;
+        while (n > 0 && idle < pairs.length) {
+            const pair = pairs[k % pairs.length]; k++;
+            let pick = pickRandom(cells.filter(c => c.contested && c.pair === pair && okFn(c.x, c.y, minSpacing)));
+            if (!pick) pick = pickRandom(cells.filter(c => c.contested && c.pair === pair && okFn(c.x, c.y, minSpacing - 1)));
+            if (pick) { place(pick); n--; idle = 0; } else idle++;
+        }
+    };
 
-    let neutralToPlace = 2 * count;
-    let attemptsSt = 0;
-    while (neutralToPlace > 0 && attemptsSt < 800) {
-        let nx = Math.floor(rng() * size);
-        let ny = Math.floor(rng() * size);
-        if (isValidStone(nx, ny)) { stones.push({ x: nx, y: ny, h: 40 }); neutralToPlace--; }
-        attemptsSt++;
-    }
+    const cnt = Math.min(6, Math.max(2, count));
+    const budget = SPAWN_BUDGETS[[5, 7, 12].reduce((a, b) => Math.abs(b - radius) < Math.abs(a - radius) ? b : a)];
+
+    const placeVillage = c => { villages[`${c.x},${c.y}`] = -1; };
+    const placeStone = c => stones.push({ x: c.x, y: c.y, h: 40 });
+
+    placeForPlayers(budget.villageBands[cnt], villageOK, 3, placeVillage);
+    placeContested(budget.contestedVillages[cnt], villageOK, 3, placeVillage);
+    placeForPlayers(budget.stoneBands[cnt], stoneOK, 2, placeStone);
+    placeContested(budget.contestedStones[cnt], stoneOK, 2, placeStone);
 
     const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [], ct: { x: cx, y: cy, ctrl: -1 } };
 
