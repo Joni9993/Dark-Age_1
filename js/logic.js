@@ -49,7 +49,6 @@ const getUnitMove = (pState, type, unit) => {
 
 const getUnitRange = (pState, unit) => {
     if (unit.t === 11 && unit.dp === 1) return 2;
-    if (unit.t === 1 && pState.u.includes(4)) return unitStats[unit.t].range + 1;
     return unitStats[unit.t].range;
 };
 

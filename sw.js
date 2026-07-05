@@ -16,6 +16,18 @@ self.addEventListener('push', event => {
   );
 });
 
+// Der Browser kann eine bestehende Push-Subscription jederzeit ungültig machen/rotieren
+// (z.B. Chrome/Android periodisch) — ohne diesen Handler würde der Server danach ins Leere senden.
+self.addEventListener('pushsubscriptionchange', event => {
+  event.waitUntil(
+    self.registration.pushManager.subscribe(event.oldSubscription ? event.oldSubscription.options : { userVisibleOnly: true })
+      .then(newSub => self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+        list.forEach(c => c.postMessage({ type: 'push-resubscribed', subscription: newSub.toJSON() }));
+      }))
+      .catch(() => {})
+  );
+});
+
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const target = event.notification.data?.url || '/';

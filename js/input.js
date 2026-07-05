@@ -199,6 +199,22 @@ function handleCanvasClick(clientX, clientY) {
                 window.specialActive = null; selectedUnit = null; validMoves = []; renderBoard(gameState);
             }
             return;
+        } else if (window.specialActive === 'demolish_wall') {
+            const target = window.demolishTargets.find(t => t.x === clickedX && t.y === clickedY);
+            if (target) {
+                demolishWall(target.x, target.y);
+            } else {
+                window.specialActive = null; window.demolishTargets = []; selectedUnit = null; renderBoard(gameState);
+            }
+            return;
+        } else if (window.specialActive === 'demolish_tunnel') {
+            const target = window.demolishTargets.find(t => t.x === clickedX && t.y === clickedY);
+            if (target) {
+                demolishTunnel(target.x1, target.y1);
+            } else {
+                window.specialActive = null; window.demolishTargets = []; selectedUnit = null; renderBoard(gameState);
+            }
+            return;
         }
 
         if (window.specialActive === 'elefant_stampede') {
@@ -699,8 +715,8 @@ function executeMoveTo(clickedX, clickedY) {
                 }
             }
 
-            if (teleported) { selectedUnit.a = 0; }
-            else if (selectedUnit.a === 4) { selectedUnit.a = 1; }
+            if (selectedUnit.a === 4) { selectedUnit.a = 1; }
+            else if (teleported) { selectedUnit.a = 0; }
             else if ((selectedUnit.t === 3 && pState.u.includes(1)) || selectedUnit.t === 8) { selectedUnit.a = 2; }
             else { selectedUnit.a = 2; }
 
@@ -771,7 +787,7 @@ function showMoveAttackChoiceUI(x, y, targetAttack) {
 
     const attackCard = `<div class="stack-card" style="border-color:#ff5252" onclick="window.resolveMoveAttackChoice('attack')">
         <span style="color:#ff5252; font-weight:bold;">⚔️ Angreifen</span>
-        <span class="info-detail" style="display:inline; margin:0 0 0 4px;">${label} (~${expDmg} DMG)</span>
+        <span class="info-detail">${label} (~${expDmg} DMG)</span>
     </div>`;
     const moveCard = `<div class="stack-card" style="border-color:#4fc3f7" onclick="window.resolveMoveAttackChoice('move')">
         <span style="color:#4fc3f7; font-weight:bold;">${moveLabel}</span>
@@ -803,8 +819,6 @@ function showMultiChoiceTileUI(x, y, { ground, air, tower } = {}) {
     hideActionMenu();
     window._stackChoice = { x, y, ground, air, tower };
 
-    // Einzeilig halten (Name + HP nebeneinander), sonst sprengt die Karte die
-    // 70px-Panelhöhe und die HP-Zeile wird abgeschnitten
     const unitCard = (unit, layer) => {
         const maxHp = getUnitMaxHp(gameState.p[unit.p], unit.t, unit);
         const ownerName = formatOwnerName(unit.p, gameState.cp);
@@ -812,14 +826,14 @@ function showMultiChoiceTileUI(x, y, { ground, air, tower } = {}) {
         const icon = layer === 'air' ? '✈️' : '⛰️';
         return `<div class="stack-card" style="border-color:${color}" onclick="window.pickStackChoice('${layer}')">
             <span style="color:${color}; font-weight:bold;">${icon} ${ownerName} ${unitStats[unit.t].name}</span>
-            <span class="info-detail" style="display:inline; margin:0 0 0 4px;">${unit.h}/${maxHp} HP</span>
+            <span class="info-detail">${unit.h}/${maxHp} HP</span>
         </div>`;
     };
     const towerCard = (tw) => {
         const color = getEntityColor(tw.o);
         return `<div class="stack-card" style="border-color:${color}" onclick="window.pickStackChoice('tower')">
             <span style="color:${color}; font-weight:bold;">🗼 Dein Turm</span>
-            <span class="info-detail" style="display:inline; margin:0 0 0 4px;">${tw.h}/15 HP</span>
+            <span class="info-detail">${tw.h}/15 HP</span>
         </div>`;
     };
 
@@ -1077,17 +1091,16 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                     }
                 }
                 if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
-                    const adjTunnel = gameState.tu.find(t => t.o === gameState.cp && (
+                    const hasAdjTunnel = gameState.tu.some(t => t.o === gameState.cp && (
                         hexDistance({ x: t.x1, y: t.y1 }, { x: clickedUnit.x, y: clickedUnit.y }) === 1 ||
                         hexDistance({ x: t.x2, y: t.y2 }, { x: clickedUnit.x, y: clickedUnit.y }) === 1
                     ));
-                    if (adjTunnel) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4e342e;" onclick="demolishTunnel(${adjTunnel.x1},${adjTunnel.y1})">🚇 Tunnel abreißen (+2🪨)</button>`;
+                    if (hasAdjTunnel) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4e342e;" onclick="startDemolishTunnel()">🚇 Tunnel abreißen (+2🪨)</button>`;
                 }
             }
             if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2) && gameState.wa) {
-                gameState.wa.filter(w => w.o === gameState.cp && hexDistance({ x: w.x, y: w.y }, { x: clickedUnit.x, y: clickedUnit.y }) === 1).forEach(w => {
-                    menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4e342e;" onclick="demolishWall(${w.x},${w.y})">🧱 Mauer abreißen</button>`;
-                });
+                const hasAdjWall = gameState.wa.some(w => w.o === gameState.cp && hexDistance({ x: w.x, y: w.y }, { x: clickedUnit.x, y: clickedUnit.y }) === 1);
+                if (hasAdjWall) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4e342e;" onclick="startDemolishWall()">🧱 Mauer abreißen</button>`;
             }
 
             const canCapture = (villageOwner === -1)
@@ -1155,7 +1168,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
             menuHtml += mkBtn(11, '🚚', 'Wagenburg', '#fff176');
             menuHtml += mkBtn(15, '🎈', 'Ballon', '#4fc3f7');
         }
-        showActionMenu(menuHtml); infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Was möchtest du rekrutieren?</div>`;
+        showActionMenu(`<div class="recruit-scroll">${menuHtml}</div>`); infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Was möchtest du rekrutieren?</div>`;
     } else { selectedUnit = null; validMoves = []; validAttacks = []; }
 }
 
@@ -1641,7 +1654,7 @@ function doEndTurn() {
     }
     gameState.th = healsThisTurn;
 
-    selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = []; window.specialActive = null; hideActionMenu();
+    selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = []; window.specialActive = null; window.demolishTargets = []; hideActionMenu();
 
     gameState.p.forEach(p => {
         if (Array.isArray(p.e)) p.e = compressFog(p.e);

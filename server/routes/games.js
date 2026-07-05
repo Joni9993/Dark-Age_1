@@ -52,11 +52,12 @@ router.get('/', authMiddleware, async (req, res) => {
 
 // ── POST /api/games  — create lobby ──────────────────────────────────────────
 router.post('/', authMiddleware, async (req, res) => {
-    const { max_players = 2, map_radius = 7 } = req.body;
+    const { max_players = 2, map_radius = 7, name: requestedName } = req.body;
     if (max_players < 2 || max_players > 6) return res.status(400).json({ error: 'Ungültige Spieleranzahl' });
 
     const { rows: [profile] } = await pool.query('SELECT username FROM profiles WHERE id = $1', [req.profileId]);
-    const name = `${profile.username}s Spiel`;
+    const trimmedName = typeof requestedName === 'string' ? requestedName.trim().slice(0, 60) : '';
+    const name = trimmedName || `${profile.username}s Spiel`;
 
     const { rows: [game] } = await pool.query(
         `INSERT INTO games (name, host_id, max_players, map_radius)

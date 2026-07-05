@@ -16,7 +16,7 @@ window.undoLastAction = function () {
     gameState = snap.gs;
     turnActions = snap.ta;
     selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
-    window.highlightedTunnelEnd = null; window.specialActive = null;
+    window.highlightedTunnelEnd = null; window.specialActive = null; window.demolishTargets = [];
     hideActionMenu();
     updateUndoButton();
     renderBoard(gameState);

@@ -58,6 +58,7 @@ let validMoves = [];
 let validAttacks = [];
 let selectedTower = null;
 window.highlightedTunnelEnd = null;
+window.demolishTargets = [];
 
 // === UNDO ===
 let undoStack = [];

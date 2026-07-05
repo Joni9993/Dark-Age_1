@@ -133,7 +133,7 @@ function debugApplyTool(hex) {
 // ── Aktionen ──────────────────────────────────────────────────────────────────
 function debugSwitchPlayer(idx) {
     gameState.cp = idx;
-    selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = []; window.specialActive = null;
+    selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = []; window.specialActive = null; window.demolishTargets = [];
     turnActions = []; undoStack = [];
     updateUndoButton();
     hideActionMenu();

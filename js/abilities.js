@@ -396,6 +396,37 @@ window.toggleDeploy = function () {
     renderBoard(gameState);
 };
 
+window.startDemolishWall = function () {
+    if (!selectedUnit || !gameState.wa) return;
+    const adjWalls = gameState.wa.filter(w => w.o === gameState.cp && hexDistance({ x: w.x, y: w.y }, { x: selectedUnit.x, y: selectedUnit.y }) === 1);
+    if (adjWalls.length === 0) return;
+    if (adjWalls.length === 1) { demolishWall(adjWalls[0].x, adjWalls[0].y); return; }
+
+    window.specialActive = 'demolish_wall';
+    window.demolishTargets = adjWalls.map(w => ({ x: w.x, y: w.y }));
+    hideActionMenu();
+    infoPanel.innerHTML = `🧱 Mauer abreißen<br><div class="info-detail" style="color: #ffb74d;">Wähle eine markierte Mauer.</div>`;
+    renderBoard(gameState);
+};
+
+window.startDemolishTunnel = function () {
+    if (!selectedUnit || !gameState.tu) return;
+    const adjTunnels = [];
+    gameState.tu.forEach(t => {
+        if (t.o !== gameState.cp) return;
+        if (hexDistance({ x: t.x1, y: t.y1 }, { x: selectedUnit.x, y: selectedUnit.y }) === 1) adjTunnels.push({ x: t.x1, y: t.y1, x1: t.x1, y1: t.y1 });
+        else if (hexDistance({ x: t.x2, y: t.y2 }, { x: selectedUnit.x, y: selectedUnit.y }) === 1) adjTunnels.push({ x: t.x2, y: t.y2, x1: t.x1, y1: t.y1 });
+    });
+    if (adjTunnels.length === 0) return;
+    if (adjTunnels.length === 1) { demolishTunnel(adjTunnels[0].x1, adjTunnels[0].y1); return; }
+
+    window.specialActive = 'demolish_tunnel';
+    window.demolishTargets = adjTunnels;
+    hideActionMenu();
+    infoPanel.innerHTML = `🚇 Tunnel abreißen<br><div class="info-detail" style="color: #ffb74d;">Wähle einen markierten Tunnel.</div>`;
+    renderBoard(gameState);
+};
+
 window.demolishTunnel = function (x1, y1) {
     if (!selectedUnit || !gameState.tu) return;
     saveUndoState();
@@ -405,6 +436,7 @@ window.demolishTunnel = function (x1, y1) {
     gameState.p[gameState.cp].s = (gameState.p[gameState.cp].s || 0) + 2;
     selectedUnit.a = 1;
     selectedUnit = null; validMoves = []; validAttacks = []; window.highlightedTunnelEnd = null;
+    window.specialActive = null; window.demolishTargets = [];
     hideActionMenu(); infoPanel.innerHTML = `🚇 Tunnel abgerissen! +2🪨`; renderBoard(gameState);
 };
 
@@ -414,6 +446,7 @@ window.demolishWall = function (wx, wy) {
     gameState.wa = gameState.wa.filter(w => !(w.x === wx && w.y === wy && w.o === gameState.cp));
     selectedUnit.a = 1;
     selectedUnit = null; validMoves = []; validAttacks = [];
+    window.specialActive = null; window.demolishTargets = [];
     hideActionMenu(); infoPanel.innerHTML = `🧱 Mauer abgerissen!`; renderBoard(gameState);
 };
 

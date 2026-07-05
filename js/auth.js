@@ -98,6 +98,21 @@ async function afterLogin() {
     }
 }
 
+// ── Push Resubscribe ───────────────────────────────────────────────────────────
+// Der Service Worker feuert 'pushsubscriptionchange', wenn der Browser eine
+// Subscription rotiert/invalidiert, und meldet die neue per postMessage zurück.
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', event => {
+        const sub = event.data && event.data.type === 'push-resubscribed' && event.data.subscription;
+        if (!sub) return;
+        api.post('/api/push/subscribe', {
+            endpoint: sub.endpoint,
+            p256dh:   sub.keys.p256dh,
+            auth:     sub.keys.auth,
+        }).catch(() => {});
+    });
+}
+
 // ── Push Registration ─────────────────────────────────────────────────────────
 
 async function registerPush() {

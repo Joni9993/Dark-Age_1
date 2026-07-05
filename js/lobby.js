@@ -78,12 +78,13 @@ function showCreateGameModal() {
 async function handleCreateGame() {
     const maxPlayers = parseInt(playerCountSelect.value);
     const mapRadius  = parseInt(mapSizeSelect.value);
+    const gameName   = document.getElementById('game-name').value.trim();
 
     const btn = document.getElementById('create-game-confirm-btn');
     btn.disabled = true; btn.textContent = 'Erstelle...';
 
     try {
-        const game = await api.post('/api/games', { max_players: maxPlayers, map_radius: mapRadius });
+        const game = await api.post('/api/games', { max_players: maxPlayers, map_radius: mapRadius, name: gameName });
         currentGameId = game.id;
         setupScreen.style.display = 'none';
         await openLobbyScreen(game.id);

@@ -531,6 +531,7 @@
         validAttacks.forEach(a => addOverlay(a.x, a.y, 0xff6464, 0.5, state));
         if (selectedHex) addOverlay(selectedHex.x, selectedHex.y, 0xffffff, 0.25, state);
         if (window.highlightedTunnelEnd) addOverlay(window.highlightedTunnelEnd.x, window.highlightedTunnelEnd.y, 0x4fc3f7, 0.45, state);
+        if (window.demolishTargets) window.demolishTargets.forEach(t => addOverlay(t.x, t.y, 0xff9800, 0.5, state));
 
         applyCamera();
         renderer.render(scene, camera);
