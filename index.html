@@ -92,7 +92,6 @@
         <div id="resource-hud">💰 0 <span class="income-text">(+0)</span> | 🪵 0 <span class="income-text">(+0)</span> |
             🪨 0
         </div>
-        <button id="air-view-btn" onclick="toggleAirView()" title="Luftansicht umschalten">✈️</button>
         <button id="menu-btn" onclick="toggleGameMenu()">☰</button>
     </div>
 
@@ -243,7 +242,11 @@
                 style="background: #5e35b1; border-color: #7e57c2; display: none; flex: 1;" onclick="openDiplomacy()">🤝
                 Diplomatie</button>
         </div>
-        <button id="end-turn-btn" class="action-btn">Zug beenden</button>
+        <div style="display: flex; gap: 10px; width: 100%;">
+            <button id="end-turn-btn" class="action-btn" style="flex: 1;">Zug beenden</button>
+            <button id="air-view-btn" class="action-btn" onclick="toggleAirView()"
+                title="Luftansicht umschalten">✈️ Luftansicht</button>
+        </div>
     </div>
 
     <script src="js/globals.js"></script>

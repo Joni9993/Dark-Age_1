@@ -142,7 +142,7 @@ Sprites funktionieren automatisch in 2D und 3D (Voxelisierung). **Abnahme**: Ich
 
 **`js/render.js` (2D-Fallback, minimal)**: Flieger 10 % Alpha + ✈-Marker; brennende Felder orange Overlay; `setAirView` = Opacity-Flip ohne Kipp.
 
-**`index.html`**: `#air-view-btn` im `#game-hud`.
+**`index.html`**: `#air-view-btn` unten im `#ui-container`, teilt sich die Zeile 50/50 mit `#end-turn-btn`.
 
 ## 7. Meilensteine (Spiel bleibt nach jedem spielbar)
 

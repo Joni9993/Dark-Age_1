@@ -782,20 +782,14 @@ canvas {
 #menu-btn:hover { background: linear-gradient(180deg, #2a2a3a 0%, #1a1a28 100%); border-color: rgba(200, 184, 154, 0.6); }
 #menu-btn:active { transform: scale(0.95); }
 
+/* Luftansicht-Toggle: teilt sich die untere Leiste 50/50 mit "Zug beenden" */
 #air-view-btn {
-    padding: 4px 9px;
+    flex: 1;
     background: linear-gradient(180deg, #1e1e2a 0%, #13131c 100%);
     color: #c8b89a;
-    border: 1px solid rgba(200, 184, 154, 0.3);
-    border-radius: 6px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-    line-height: 1;
+    border-color: rgba(200, 184, 154, 0.3);
 }
 #air-view-btn:hover { background: linear-gradient(180deg, #2a2a3a 0%, #1a1a28 100%); border-color: rgba(200, 184, 154, 0.6); }
-#air-view-btn:active { transform: scale(0.95); }
 #air-view-btn.active {
     background: linear-gradient(180deg, #1a3a5c 0%, #102840 100%);
     color: #4fc3f7;
