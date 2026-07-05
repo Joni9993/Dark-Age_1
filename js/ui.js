@@ -194,6 +194,9 @@ window.buyUnit = function (type) {
     if (selectedHex) {
         const pState = gameState.p[gameState.cp];
         const cost = getUnitCost(pState, type);
+        // Ebenen-Check: Flieger brauchen freie Luft-Ebene, Bodeneinheiten freie Boden-Ebene
+        const blocked = unitStats[type].isAir ? airUnitAt(selectedHex.x, selectedHex.y) : groundUnitAt(selectedHex.x, selectedHex.y);
+        if (blocked) { showToast(unitStats[type].isAir ? 'Luft-Ebene über dem Dorf ist belegt!' : 'Auf dem Dorf steht schon eine Einheit!', 'error'); return; }
         if (pState.g >= cost) {
             saveUndoState();
             pState.g -= cost;

@@ -389,6 +389,38 @@ canvas {
     transition: opacity 0.3s ease;
 }
 
+/* Mehrfach-Auswahl: Boden- und Lufteinheit teilen sich ein Hex */
+.stack-picker {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+}
+
+.stack-card {
+    flex: 1 1 0;
+    max-width: 220px;
+    min-height: 44px;
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    /* #info-panel ist normalerweise reiner Text (pointer-events:none) —
+       die Karten müssen Klicks aber gezielt wieder annehmen */
+    pointer-events: auto;
+}
+
+.stack-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+}
+
+.stack-card:active {
+    transform: translateY(1px);
+}
+
 #link-box {
     width: 100%;
     padding: 12px;
@@ -713,6 +745,26 @@ canvas {
 }
 #menu-btn:hover { background: linear-gradient(180deg, #2a2a3a 0%, #1a1a28 100%); border-color: rgba(200, 184, 154, 0.6); }
 #menu-btn:active { transform: scale(0.95); }
+
+#air-view-btn {
+    padding: 4px 9px;
+    background: linear-gradient(180deg, #1e1e2a 0%, #13131c 100%);
+    color: #c8b89a;
+    border: 1px solid rgba(200, 184, 154, 0.3);
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    line-height: 1;
+}
+#air-view-btn:hover { background: linear-gradient(180deg, #2a2a3a 0%, #1a1a28 100%); border-color: rgba(200, 184, 154, 0.6); }
+#air-view-btn:active { transform: scale(0.95); }
+#air-view-btn.active {
+    background: linear-gradient(180deg, #1a3a5c 0%, #102840 100%);
+    color: #4fc3f7;
+    border-color: rgba(79, 195, 247, 0.6);
+}
 
 #game-menu-popup {
     position: fixed;

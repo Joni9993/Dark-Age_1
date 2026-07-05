@@ -1,5 +1,5 @@
 // === PALETTE & SPRITE CONSTANTS ===
-const pal = { 1: "#111", 2: "#ffccaa", 3: "#cfd8dc", 4: "#795548", 5: "#9e9e9e", 6: "#424242", 7: "#ffb300" };
+const pal = { 1: "#111", 2: "#ffccaa", 3: "#cfd8dc", 4: "#795548", 5: "#9e9e9e", 6: "#424242", 7: "#ffb300", 8: "#ff6e40" };
 const P = 9;
 
 const pixelSprites = {
@@ -77,6 +77,72 @@ const pixelSprites = {
         0, 1, 3, 3, 3, 3, 3, 3, 1, 0,
         0, 1, 3, 3, 3, 3, 3, 3, 1, 0,
         7, 7, 7, 7, 7, 7, 7, 7, 7, 7
+    ],
+    // === LUFTEINHEITEN (Da-Vinci-Stil) ===
+    // 12 Luftschraube: spiralförmiges Segeldach über Gondel
+    12: [
+        0, 0, 0, 1, 1, 1, 1, 0, 0, 0,
+        0, 1, 3, 3, 4, 3, 3, 1, 0, 0,
+        1, 3, 4, 3, 3, 4, 3, 3, 1, 0,
+        0, 1, 1, 4, 3, 3, 1, 1, 0, 0,
+        0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+        0, 0, 0, 1, 1, 1, 1, 0, 0, 0,
+        0, 0, 1, P, P, P, P, 1, 0, 0,
+        0, 0, 1, P, 2, 2, P, 1, 0, 0,
+        0, 0, 0, 1, 1, 1, 1, 0, 0, 0
+    ],
+    // 13 Gleiter: gepfeilte Flügel mit Spielerfarben-Segel, hängender Pilot
+    13: [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        1, 1, 0, 0, 0, 0, 0, 0, 1, 1,
+        1, P, 1, 1, 0, 0, 1, 1, P, 1,
+        0, 1, P, P, 1, 1, P, P, 1, 0,
+        0, 1, 4, P, P, P, P, 4, 1, 0,
+        0, 0, 1, 4, P, P, 4, 1, 0, 0,
+        0, 0, 0, 1, 4, 4, 1, 0, 0, 0,
+        0, 0, 0, 0, 1, 2, 1, 0, 0, 0,
+        0, 0, 0, 0, 1, 2, 1, 0, 0, 0,
+        0, 0, 0, 0, 0, 1, 0, 0, 0, 0
+    ],
+    // 14 Fallschirmspringer (fliegend): Schirmkuppel, Seile, hängende Figur
+    14: [
+        0, 0, 0, 1, 1, 1, 1, 0, 0, 0,
+        0, 1, P, P, P, P, P, 1, 0, 0,
+        1, P, P, P, P, P, P, P, 1, 0,
+        1, 1, P, 1, P, P, 1, P, 1, 0,
+        0, 1, 0, 1, 0, 0, 1, 0, 1, 0,
+        0, 0, 1, 0, 1, 1, 0, 1, 0, 0,
+        0, 0, 0, 1, 2, 2, 1, 0, 0, 0,
+        0, 0, 0, 1, 6, 6, 1, 0, 0, 0,
+        0, 0, 0, 0, 1, 1, 0, 0, 0, 0,
+        0, 0, 0, 0, 1, 1, 0, 0, 0, 0
+    ],
+    // 14 gelandet: Figur mit Schleuder, gepacktes Schirmbündel auf dem Rücken
+    "fallschirm_ld": [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 1, 1, 1, 1, 0, 0, 0,
+        0, 0, 1, 6, 2, 2, 6, 1, 0, 0,
+        0, 0, 1, P, P, P, P, 1, 0, 0,
+        0, 1, 4, 1, P, P, 1, 0, 3, 0,
+        0, 1, 4, 1, 6, 6, 1, 3, 0, 0,
+        0, 0, 1, 1, 6, 6, 1, 1, 0, 0,
+        0, 0, 0, 1, 6, 6, 1, 0, 0, 0,
+        0, 0, 0, 1, 0, 0, 1, 0, 0, 0,
+        0, 0, 1, 1, 0, 0, 1, 1, 0, 0
+    ],
+    // 15 Bombenballon: runde Hülle mit Gold-Naht, Glut, Korb
+    15: [
+        0, 0, 0, 1, 1, 1, 1, 0, 0, 0,
+        0, 1, P, P, 7, P, P, 1, 0, 0,
+        1, P, P, P, 7, P, P, P, 1, 0,
+        1, P, P, P, 7, P, P, P, 1, 0,
+        1, P, P, P, P, P, P, P, 1, 0,
+        0, 1, P, P, P, P, P, 1, 0, 0,
+        0, 0, 1, 1, P, 1, 1, 0, 0, 0,
+        0, 0, 0, 1, 8, 1, 0, 0, 0, 0,
+        0, 0, 1, 4, 4, 4, 1, 0, 0, 0,
+        0, 0, 0, 1, 1, 1, 0, 0, 0, 0
     ]
 };
 
@@ -86,10 +152,10 @@ const getEntityColor = (id) => id === -1 ? "#888888" : playerColors[id];
 
 // === FACTIONS ===
 const factions = {
-    0: { name: "🏰 Feudalismus", desc: "Passive: Neu rekrutierte Einheiten erhalten +1 Max-HP pro 2 Dörfer, die du beim Rekrutieren besitzt.\nSpezial: 🛡️ Ritter & 🏹 Kamelreiter", cost: 10, reqV: 2 },
-    1: { name: "🩸 Plünderer", desc: "Passive: +1 DMG für Nahkämpfer.\nSpezial: 🪓 Berserker & 💥 Saboteur", cost: 10, reqV: 2 },
-    2: { name: "👁️ Spionage", desc: "Passive: +1 Sichtweite.\nSpezial: 🗡️ Assassine & 🐘 Elefant", cost: 10, reqV: 2 },
-    3: { name: "⚖️ Gilden", desc: "Passive: +1 Gold pro Dorf.\nSpezial: 🏗️ Tribok & 🚚 Wagenburg", cost: 10, reqV: 2 }
+    0: { name: "🏰 Feudalismus", desc: "Passive: Neu rekrutierte Einheiten erhalten +1 Max-HP pro 2 Dörfer, die du beim Rekrutieren besitzt.\nSpezial: 🛡️ Ritter, 🏹 Kamelreiter & 🚁 Luftschraube", cost: 10, reqV: 2 },
+    1: { name: "🩸 Plünderer", desc: "Passive: +1 DMG für Nahkämpfer.\nSpezial: 🪓 Berserker, 💥 Saboteur & 🛩️ Gleiter", cost: 10, reqV: 2 },
+    2: { name: "👁️ Spionage", desc: "Passive: +1 Sichtweite.\nSpezial: 🗡️ Assassine, 🐘 Elefant & 🪂 Fallschirmspringer", cost: 10, reqV: 2 },
+    3: { name: "⚖️ Gilden", desc: "Passive: +1 Gold pro Dorf.\nSpezial: 🏗️ Tribok, 🚚 Wagenburg & 🎈 Bombenballon", cost: 10, reqV: 2 }
 };
 
 // === UPGRADES ===
@@ -121,5 +187,12 @@ const unitStats = {
     8: { dmg: 0, range: 0, move: 2, name: "Saboteur", cost: 8, maxHp: 8, isMelee: false },
     9: { dmg: 8, range: 1, move: 1, name: "Elefant", cost: 9, maxHp: 30, isMelee: true },
     10: { dmg: 6, range: 2, move: 2, name: "Kamelreiter", cost: 6, maxHp: 12, isMelee: false },
-    11: { dmg: 6, range: 1, move: 2, name: "Wagenburg", cost: 7, maxHp: 18, isMelee: true }
+    11: { dmg: 6, range: 1, move: 2, name: "Wagenburg", cost: 7, maxHp: 18, isMelee: true },
+    // Lufteinheiten (isAir): fliegen über der Bodenebene, hitsAir/hitsGround steuern die Ziel-Matrix.
+    // Fallschirmspringer (14): fliegend nur Luft-Ziele; nach Absprung (u.ld=1) Bodeneinheit mit move 2.
+    // Bombenballon (15): greift nie Luft an; Normalangriff = Anzünden (4 sofort + 4 nächster Zug), Feuersturm für 5 Holz.
+    12: { dmg: 5, range: 1, move: 2, name: "Luftschraube", cost: 7, maxHp: 14, isMelee: true, isAir: true, hitsAir: true, hitsGround: true },
+    13: { dmg: 5, range: 1, move: 4, name: "Gleiter", cost: 6, maxHp: 8, isMelee: true, isAir: true, hitsAir: true, hitsGround: true },
+    14: { dmg: 4, range: 2, move: 3, name: "Fallschirmspringer", cost: 4, maxHp: 10, isMelee: false, isAir: true, hitsAir: true, hitsGround: false, ldMove: 2 },
+    15: { dmg: 4, range: 1, move: 2, name: "Bombenballon", cost: 9, maxHp: 14, isMelee: false, isAir: true, hitsAir: false, hitsGround: true, igniteDmg: 4, fsCost: 5 }
 };

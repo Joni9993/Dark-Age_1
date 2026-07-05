@@ -1,3 +1,35 @@
+// === LUFT-EBENE ===
+// Boden und Luft teilen sich ein Hex: pro Hex max. 1 Bodeneinheit UND 1 Lufteinheit.
+// Ein gelandeter Fallschirmspringer (u.ld === 1) zählt dauerhaft als Bodeneinheit.
+function isFlying(u) {
+    return !!unitStats[u.t].isAir && u.ld !== 1;
+}
+
+function groundUnitAt(x, y) {
+    return gameState.u.find(u => u.x === x && u.y === y && !isFlying(u));
+}
+
+function airUnitAt(x, y) {
+    return gameState.u.find(u => u.x === x && u.y === y && isFlying(u));
+}
+
+// Komplette Luft-Ziel-Matrix. MUSS an genau drei Stellen verwendet werden:
+// calculateAttacks, Konterschlag-Block (input.js), Turmschuss-Zielauflösung.
+function canTargetUnit(attacker, target) {
+    const aStats = unitStats[attacker.t];
+    if (isFlying(target)) {
+        // Fliegendes Ziel: nur Fernkampf-Boden, oder Flieger mit hitsAir
+        if (isFlying(attacker)) return !!aStats.hitsAir;
+        return !aStats.isMelee;
+    }
+    // Bodenziel (inkl. gelandetem Fallschirm)
+    if (isFlying(attacker)) {
+        if (attacker.t === 14) return false;          // fliegender Fallschirm trifft nur Luft
+        return aStats.hitsGround !== false;
+    }
+    return true;                                      // Boden vs. Boden: bestehende Regeln
+}
+
 // === UNIT STAT HELPERS ===
 const getUnitMaxHp = (pState, type, unit) => {
     let hp = (type === 0 && pState.u.includes(0)) ? 15 : unitStats[type].maxHp;
@@ -11,6 +43,7 @@ const getUnitCost = (pState, type) =>
 
 const getUnitMove = (pState, type, unit) => {
     if (type === 11 && unit && unit.dp === 1) return 0;
+    if (type === 14 && unit && unit.ld === 1) return unitStats[14].ldMove;
     return (type === 5 && pState.u.includes(5)) ? unitStats[type].move + 1 : unitStats[type].move;
 };
 
@@ -56,7 +89,8 @@ const getExpectedDamage = (attackerUnit, targetType, targetOwnerId, targetUnit) 
         dmg += Math.max(1, Math.round(targetMaxHp * 0.2));
     }
     if (attackerUnit.t === 9 && (targetType === 'building' || targetType === 'tunnel' || targetType === 'wall' || targetType === 'tower') && pState.u.includes(10)) dmg += 5;
-    if (!stats.isMelee && getTerrainType(gameState, attackerUnit.x, attackerUnit.y) === 'hill') dmg += 1;
+    // Hügel-Bonus nur für Bodeneinheiten — ein Flieger steht nicht auf dem Hügel
+    if (!stats.isMelee && !(stats.isAir && isFlying(attackerUnit)) && getTerrainType(gameState, attackerUnit.x, attackerUnit.y) === 'hill') dmg += 1;
     dmg += getVeteranBonus(attackerUnit);
 
     const maxHp = getUnitMaxHp(pState, attackerUnit.t, attackerUnit);
@@ -93,6 +127,7 @@ function calculateMoves(unit) {
     let moves = [];
     let queue = [{ x: unit.x, y: unit.y, steps: 0 }];
     let visited = new Set([`${unit.x},${unit.y}`]);
+    const flying = isFlying(unit);
 
     while (queue.length > 0) {
         let current = queue.shift();
@@ -100,6 +135,16 @@ function calculateMoves(unit) {
         if (current.steps < moveStat) {
             for (let n of getNeighbors(current.x, current.y)) {
                 const key = `${n.x},${n.y}`;
+                if (visited.has(key)) continue;
+
+                if (flying) {
+                    // Luft-BFS: ignoriert alle Bodenhindernisse — nur andere Flieger blockieren
+                    if (airUnitAt(n.x, n.y)) continue;
+                    visited.add(key);
+                    queue.push({ x: n.x, y: n.y, steps: current.steps + 1 });
+                    continue;
+                }
+
                 let isAliveSV = false;
                 for (let i = 0; i < gameState.p.length; i++) {
                     if (i !== unit.p && gameState.p[i].dead === 0 && gameState.p[i].sv === key) isAliveSV = true;
@@ -112,7 +157,7 @@ function calculateMoves(unit) {
                 const hasWall = gameState.wa && gameState.wa.some(w => w.x === n.x && w.y === n.y);
                 const hasStone = gameState.st && gameState.st.some(s => s.x === n.x && s.y === n.y && s.h > 0);
                 const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === n.x && tw.y === n.y && tw.h > 0);
-                if (!visited.has(key) && !gameState.u.find(u => u.x === n.x && u.y === n.y) && !isAliveSV && !isEnemyTunnel && !hasWall && !hasStone && !hasTower) {
+                if (!groundUnitAt(n.x, n.y) && !isAliveSV && !isEnemyTunnel && !hasWall && !hasStone && !hasTower) {
                     visited.add(key);
                     queue.push({ x: n.x, y: n.y, steps: current.steps + 1 });
                 }
@@ -129,11 +174,16 @@ function calculateAttacks(unit) {
     const canAttack = (targetId) => !(pState.al && pState.al.includes(targetId)) && !(pState.tc && pState.tc.includes(targetId));
     const range = getUnitRange(gameState.p[unit.p], unit);
 
+    // Fliegende Angreifer, die keine Bodenziele treffen (Fallschirm), greifen keine Strukturen an
+    const canHitStructures = !isFlying(unit) || (stats.hitsGround !== false && unit.t !== 14);
+
     for (let enemy of gameState.u.filter(u => u.p !== unit.p && u.iv !== 1 && canAttack(u.p))) {
+        if (!canTargetUnit(unit, enemy)) continue;
         if (hexDistance({ x: unit.x, y: unit.y }, { x: enemy.x, y: enemy.y }) <= range) {
-            attacks.push({ x: enemy.x, y: enemy.y, target: enemy });
+            attacks.push({ x: enemy.x, y: enemy.y, target: enemy, air: isFlying(enemy) ? 1 : 0 });
         }
     }
+    if (!canHitStructures) return attacks;
     for (let i = 0; i < gameState.p.length; i++) {
         if (i !== unit.p && gameState.p[i].dead === 0 && canAttack(i)) {
             let [vx, vy] = gameState.p[i].sv.split(',').map(Number);
@@ -172,6 +222,10 @@ function calculateAttacks(unit) {
             }
         }
     }
+    // Bombenballon: sein Normalangriff ist Anzünden (4 sofort + 4 nächster Zug)
+    if (unit.t === 15) attacks.forEach(a => a.ignite = true);
+    // UI-Regel: Luftziele sind nur in der Luftansicht (✈️) anvisierbar
+    if (!window.airView) attacks = attacks.filter(a => !a.air);
     return attacks;
 }
 

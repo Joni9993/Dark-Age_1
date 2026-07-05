@@ -38,16 +38,24 @@
     let tileLookup = {};                   // "x,y" -> instanceId
     let builtSeed = null;
     let treeGroup = null;                  // Wald-Deko (pro Render neu)
-    let voxelMesh = null;                  // alle Entity-Voxel
+    let voxelMesh = null;                  // Boden-Entity-Voxel
+    let airVoxelMesh = null;               // Luft-Ebene (transparent umschaltbar)
     let shadowMesh = null;                 // Boden-Schatten unter Entities
     let overlayGroup = null;               // Highlights (Move/Attack/Selektion/...)
     let spriteGroup = null;                // HP-Balken, Veteranen-Stern, ⛏
     let lastState = null;
-    let cam3d = { tx: 0, tz: 0, scale: 1.0 };
+    let cam3d = { tx: 0, tz: 0, scale: 1.0, elev: CAM_ELEV };
     let gestureStart = null;
     let anims3d = [];                      // Projektil-Animationen
     let floats3d = [];                     // DOM-Schadenszahlen
     let animRunning = false;
+    // Luftansicht: Kamera fährt in die Vogelperspektive, Flieger werden voll sichtbar.
+    // ⚙️ Zum Experimentieren: Zahl unten = Blickwinkel in Grad über dem Horizont
+    //    (90 = senkrecht von oben, ~40.5 = normale Bodenansicht)
+    const AIR_VIEW_ELEV = 50 * Math.PI / 180;
+    const AIR_ALPHA_GROUND = 0.1;          // Deckkraft der Flieger in der Bodenansicht
+    let airAlpha = AIR_ALPHA_GROUND;
+    let viewTween = null;                  // {start, dur, from:{elev,alpha}, to:{elev,alpha}}
     const raycaster = new THREE.Raycaster();
     const texCache = {};
 
@@ -61,8 +69,8 @@
         const dist = baseDist() / cam3d.scale;
         camera.position.set(
             cam3d.tx,
-            dist * Math.sin(CAM_ELEV),
-            cam3d.tz + dist * Math.cos(CAM_ELEV)
+            dist * Math.sin(cam3d.elev),
+            cam3d.tz + dist * Math.cos(cam3d.elev)
         );
         camera.lookAt(cam3d.tx, 0, cam3d.tz);
     }
@@ -203,6 +211,15 @@
         voxelMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(VOXEL_CAP * 3), 3);
         scene.add(voxelMesh);
 
+        // Eigenes transparentes Mesh für die Luft-Ebene (Flieger 10% <-> 100%)
+        airVoxelMesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({
+            color: 0xffffff, transparent: true, opacity: airAlpha, depthWrite: false
+        }), VOXEL_CAP);
+        airVoxelMesh.frustumCulled = false;
+        airVoxelMesh.renderOrder = 10;   // nach allem anderen zeichnen (Transparenz-Sortierung)
+        airVoxelMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(VOXEL_CAP * 3), 3);
+        scene.add(airVoxelMesh);
+
         const shadowGeo = new THREE.CircleGeometry(12, 16);
         shadowGeo.rotateX(-Math.PI / 2);
         shadowMesh = new THREE.InstancedMesh(shadowGeo, new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.4, depthWrite: false }), 512);
@@ -213,6 +230,8 @@
     const _vm = new THREE.Matrix4();
     const _vc = new THREE.Color();
     let _voxelCount = 0;
+    let _airVoxelCount = 0;
+    let _voxelAir = false;                 // Routing-Flag: addVoxelSprite -> Luft-Mesh
     let _shadowCount = 0;
     const _bottomRowCache = {};
 
@@ -236,23 +255,30 @@
         const s = (spriteKey === 9) ? 3.3 : 2.5;
         const bottom = spriteBottomRow(spriteKey);
 
+        const mesh = _voxelAir ? airVoxelMesh : voxelMesh;
+        // Sprites kippen mit der Kamera mit (Anker: unterste Zeile), damit sie
+        // auch in der 75°-Vogelperspektive lesbar bleiben
+        const pitch = cam3d.elev - CAM_ELEV;
+        const cosP = Math.cos(pitch), sinP = Math.sin(pitch);
         for (let i = 0; i < 100; i++) {
             const val = arr[i];
             if (val === 0) continue;
-            if (_voxelCount >= VOXEL_CAP) return;
+            const idx = _voxelAir ? _airVoxelCount : _voxelCount;
+            if (idx >= VOXEL_CAP) return;
             const colIdx = i % 10, rowIdx = Math.floor(i / 10);
+            const dy = (bottom - rowIdx + 0.5) * s;
             _vm.makeScale(s, s, s);
             _vm.setPosition(
                 wx + (colIdx - 4.5) * s,
-                groundY + (bottom - rowIdx + 0.5) * s,
-                wz
+                groundY + dy * cosP,
+                wz + dy * sinP
             );
-            voxelMesh.setMatrixAt(_voxelCount, _vm);
+            mesh.setMatrixAt(idx, _vm);
             _vc.set(val === P ? playerColor : pal[val]);
             if (tint) _vc.lerp(tint, 0.45);
             if (dimFactor !== 1) _vc.multiplyScalar(dimFactor);
-            voxelMesh.setColorAt(_voxelCount, _vc);
-            _voxelCount++;
+            mesh.setColorAt(idx, _vc);
+            if (_voxelAir) _airVoxelCount++; else _voxelCount++;
         }
     }
 
@@ -302,16 +328,16 @@
 
     // HP als Zahl: align -1 = links über der Einheit, +1 = rechts über dem Gebäude,
     // 0 = mittig (Steinhaufen). Unter 15% wechselt die Farbe auf Rot.
-    function addHpText(value, wx, wz, y, align, isLow) {
+    function addHpText(value, wx, wz, y, align, isLow, alpha = 1) {
         const color = isLow ? '#ff5252' : '#ffffff';
-        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(String(value), color), depthTest: false, transparent: true }));
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(String(value), color), depthTest: false, transparent: true, opacity: alpha }));
         sp.scale.set(11, 11, 1);
         sp.position.set(wx + align * 12, y, wz);
         spriteGroup.add(sp);
     }
 
-    function addIcon(char, color, wx, wz, y, size) {
-        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(char, color), depthTest: false, transparent: true }));
+    function addIcon(char, color, wx, wz, y, size, alpha = 1) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(char, color), depthTest: false, transparent: true, opacity: alpha }));
         sp.scale.set(size, size, 1);
         sp.position.set(wx, y, wz);
         spriteGroup.add(sp);
@@ -349,7 +375,10 @@
         spriteGroup.clear();
         overlayGroup.clear();
         _voxelCount = 0;
+        _airVoxelCount = 0;
+        _voxelAir = false;
         _shadowCount = 0;
+        airVoxelMesh.material.opacity = airAlpha;
 
         const visibleRecaps = (state.la || []).filter(a => {
             if (!vis.has(`${a.x},${a.y}`)) return false;
@@ -361,17 +390,17 @@
 
         if (state.tu) state.tu.forEach(t => {
             [[t.x1, t.y1], [t.x2, t.y2]].forEach(([ex, ey]) => {
-                if (vis.has(`${ex},${ey}`)) entities.push({ x: ex, y: ey, spriteKey: 'tunnel', ownerId: t.o, hp: t.h, maxHp: 13, dim: (t.r > state.rn) ? 0.4 : 1, flag: true });
+                if (vis.has(`${ex},${ey}`)) entities.push({ x: ex, y: ey, spriteKey: 'tunnel', ownerId: t.o, hp: t.h, maxHp: 13, dim: (t.r > state.rn) ? 0.4 : 1, flag: true, bn: t.bn });
             });
         });
         if (state.wa) state.wa.forEach(w => {
-            if (vis.has(`${w.x},${w.y}`)) entities.push({ x: w.x, y: w.y, spriteKey: 'wall', ownerId: w.o, hp: w.h, maxHp: 10 });
+            if (vis.has(`${w.x},${w.y}`)) entities.push({ x: w.x, y: w.y, spriteKey: 'wall', ownerId: w.o, hp: w.h, maxHp: 10, bn: w.bn });
         });
         if (state.st) state.st.forEach(s => {
             if (s.h > 0 && vis.has(`${s.x},${s.y}`)) entities.push({ x: s.x, y: s.y, spriteKey: 'stone', color: '#9e9e9e', hp: s.h, maxHp: 40 });
         });
         if (state.tw) state.tw.forEach(tw => {
-            if (tw.h > 0 && vis.has(`${tw.x},${tw.y}`)) entities.push({ x: tw.x, y: tw.y, spriteKey: 'tower', ownerId: tw.o, hp: tw.h, maxHp: 15, dim: tw.a === 1 ? 0.45 : 1 });
+            if (tw.h > 0 && vis.has(`${tw.x},${tw.y}`)) entities.push({ x: tw.x, y: tw.y, spriteKey: 'tower', ownerId: tw.o, hp: tw.h, maxHp: 15, dim: tw.a === 1 ? 0.45 : 1, bn: tw.bn });
         });
         if (state.ct) {
             entities.push({ x: state.ct.x, y: state.ct.y, spriteKey: 'watchtower', color: state.ct.ctrl === -1 ? '#888888' : getEntityColor(state.ct.ctrl) });
@@ -380,11 +409,11 @@
             const [vx, vy] = key.split(',').map(Number);
             const idx = vy * state.bw + vx;
             if (vis.has(key) || ownerId === state.cp || (ownerId === -1 && explored.includes(idx))) {
-                let hp, spriteKey = 'village';
+                let hp, spriteKey = 'village', bn;
                 if (ownerId !== -1 && state.p[ownerId] && state.p[ownerId].sv === key) {
-                    hp = state.p[ownerId].sh; spriteKey = 'startVillage';
+                    hp = state.p[ownerId].sh; spriteKey = 'startVillage'; bn = state.p[ownerId].svb;
                 }
-                entities.push({ x: vx, y: vy, spriteKey, ownerId, hp, maxHp: 30, flag: true });
+                entities.push({ x: vx, y: vy, spriteKey, ownerId, hp, maxHp: 30, flag: true, bn });
             }
         }
         state.u.forEach(unit => {
@@ -404,18 +433,28 @@
                 const maxHp = getUnitMaxHp(state.p[u.p], u.t, u);
                 let spriteKey = u.t;
                 if (spriteKey === 11 && u.dp === 1) spriteKey = 'wagen_dp';
+                if (spriteKey === 14 && u.ld === 1) spriteKey = 'fallschirm_ld';
+                // Flieger schweben über der Bodenebene; ihr Schatten bleibt am Boden
+                const flying = isFlying(u);
+                const hover = flying ? hexSize * 1.4 : 0;
+                // Flieger-Voxel ins transparente Luft-Mesh; ihre Texte/Icons dämpfen mit
+                _voxelAir = flying;
+                const uiA = flying ? Math.max(airAlpha, 0.25) : 1;
                 const isStealth = u.iv === 1;
                 const dim = isStealth ? (u.a === 1 ? 0.35 : 0.8) : (u.a === 1 ? 0.45 : 1);
                 addShadow(wx, wz, gy);
                 if (isStealth && u.a !== 1) {
                     // Geister-Doppelbild wie im 2D-Renderer (versetzte, stark gedimmte Kopien)
-                    addVoxelSprite(spriteKey, wx - 2, wz + 0.6, gy, playerColors[u.p], 0.25, stealthTint);
-                    addVoxelSprite(spriteKey, wx + 2, wz + 0.6, gy, playerColors[u.p], 0.25, stealthTint);
+                    addVoxelSprite(spriteKey, wx - 2, wz + 0.6, gy + hover, playerColors[u.p], 0.25, stealthTint);
+                    addVoxelSprite(spriteKey, wx + 2, wz + 0.6, gy + hover, playerColors[u.p], 0.25, stealthTint);
                 }
-                addVoxelSprite(spriteKey, wx, wz, gy, playerColors[u.p], dim, isStealth ? stealthTint : null);
-                addHpText(u.h, wx, wz, gy + 30, -1, u.h / maxHp < 0.15);
-                if (u.vet) addIcon('★', '#e8b84a', wx, wz, gy + 34, 9);
-                if (u.mi) addIcon('⛏', '#fff176', wx + 12, wz, gy + 28, 11);
+                addVoxelSprite(spriteKey, wx, wz, gy + hover, playerColors[u.p], dim, isStealth ? stealthTint : null);
+                _voxelAir = false;
+                addHpText(u.h, wx, wz, gy + hover + 30, -1, u.h / maxHp < 0.15, uiA);
+                if (u.vet) addIcon('★', '#e8b84a', wx, wz, gy + hover + 34, 9, uiA);
+                if (u.mi) addIcon('⛏', '#fff176', wx + 12, wz, gy + hover + 28, 11, uiA);
+                if (u.bn) addIcon('🔥', '#ff6e40', wx + 12, wz, gy + hover + 30, 11, uiA);
+                if (u.cg) addIcon('📦', '#ffcc80', wx + 12, wz, gy + hover + 20, 10, uiA);
             } else {
                 const tType = getTerrainType(state, e.x, e.y);
                 const { wx, wz } = worldPos(e.x, e.y);
@@ -432,18 +471,32 @@
                         addHpText(e.hp, wx, wz, gy + 30, 1, e.hp / e.maxHp < 0.15);
                     }
                 }
+                if (e.bn) addIcon('🔥', '#ff6e40', wx - 12, wz, gy + 30, 11);
             }
         });
 
         // Nicht genutzte Instanzen "parken"
         _vm.makeScale(0, 0, 0); _vm.setPosition(0, -1000, 0);
         for (let i = _voxelCount; i < voxelMesh.count; i++) voxelMesh.setMatrixAt(i, _vm);
+        for (let i = _airVoxelCount; i < airVoxelMesh.count; i++) airVoxelMesh.setMatrixAt(i, _vm);
         for (let i = _shadowCount; i < shadowMesh.count; i++) shadowMesh.setMatrixAt(i, _vm);
         voxelMesh.count = Math.max(_voxelCount, 1);
+        airVoxelMesh.count = Math.max(_airVoxelCount, 1);
         shadowMesh.count = Math.max(_shadowCount, 1);
         voxelMesh.instanceMatrix.needsUpdate = true;
         voxelMesh.instanceColor.needsUpdate = true;
+        airVoxelMesh.instanceMatrix.needsUpdate = true;
+        airVoxelMesh.instanceColor.needsUpdate = true;
         shadowMesh.instanceMatrix.needsUpdate = true;
+
+        // Brennende Felder (Feuersturm): orange Tönung + Flammen-Marker
+        (state.fi || []).forEach(f => {
+            if (f.r >= state.rn && vis.has(`${f.x},${f.y}`)) {
+                addOverlay(f.x, f.y, 0xff6e40, 0.4, state);
+                const { wx, wz } = worldPos(f.x, f.y);
+                addIcon('🔥', '#ff6e40', wx, wz, tileHeight(getTerrainType(state, f.x, f.y)) + 12, 12);
+            }
+        });
 
         // Highlights — liest dieselben Globals wie der 2D-Renderer
         if (showRecap) visibleRecaps.forEach(a => addOverlay(a.x, a.y, 0xffa500, 0.4, state));
@@ -479,10 +532,19 @@
     }
 
     function animLoop3d() {
-        if (anims3d.length === 0 && floats3d.length === 0) {
+        if (anims3d.length === 0 && floats3d.length === 0 && !viewTween) {
             animRunning = false;
             if (lastState) drawScene3d(lastState);
             return;
+        }
+
+        // Luftansicht-Übergang: Kamera-Elevation + Flieger-Deckkraft weich blenden
+        if (viewTween) {
+            const p = Math.min(1, (performance.now() - viewTween.start) / viewTween.dur);
+            const e = p * p * (3 - 2 * p);   // smoothstep
+            cam3d.elev = viewTween.from.elev + (viewTween.to.elev - viewTween.from.elev) * e;
+            airAlpha = viewTween.from.alpha + (viewTween.to.alpha - viewTween.from.alpha) * e;
+            if (p >= 1) viewTween = null;
         }
 
         const alive = [];
@@ -568,7 +630,7 @@
             if (!gestureStart) return;
             const wpp = 1 / cam3d.scale;   // Welt-Einheiten pro CSS-Pixel (bei baseDist-Kalibrierung)
             cam3d.tx = gestureStart.tx - dx * wpp;
-            cam3d.tz = gestureStart.tz - (dy * wpp) / yCompress;
+            cam3d.tz = gestureStart.tz - (dy * wpp) / Math.sin(cam3d.elev);
             requestRender3d();
         },
 
@@ -577,12 +639,13 @@
             const rect = canvas3d.getBoundingClientRect();
             const dx = centerX - rect.left - rect.width / 2;
             const dy = centerY - rect.top - rect.height / 2;
+            const sinE = Math.sin(cam3d.elev);
             // Weltpunkt unter dem Pinch-Zentrum festhalten
             const wx = gestureStart.tx + dx / gestureStart.scale;
-            const wz = gestureStart.tz + dy / (gestureStart.scale * yCompress);
+            const wz = gestureStart.tz + dy / (gestureStart.scale * sinE);
             cam3d.scale = Math.max(0.4, Math.min(gestureStart.scale * factor, 3.0));
             cam3d.tx = wx - dx / cam3d.scale;
-            cam3d.tz = wz - dy / (cam3d.scale * yCompress);
+            cam3d.tz = wz - dy / (cam3d.scale * sinE);
             requestRender3d();
         },
 
@@ -590,12 +653,13 @@
             const rect = canvas3d.getBoundingClientRect();
             const dx = centerX - rect.left - rect.width / 2;
             const dy = centerY - rect.top - rect.height / 2;
+            const sinE = Math.sin(cam3d.elev);
             // Weltpunkt unter dem Cursor festhalten (Parität zum 2D-Zoom)
             const wx = cam3d.tx + dx / cam3d.scale;
-            const wz = cam3d.tz + dy / (cam3d.scale * yCompress);
+            const wz = cam3d.tz + dy / (cam3d.scale * sinE);
             cam3d.scale = Math.max(0.4, Math.min(cam3d.scale * factor, 3.0));
             cam3d.tx = wx - dx / cam3d.scale;
-            cam3d.tz = wz - dy / (cam3d.scale * yCompress);
+            cam3d.tz = wz - dy / (cam3d.scale * sinE);
             requestRender3d();
         },
 
@@ -614,6 +678,19 @@
             el.textContent = text;
             document.getElementById('float-layer').appendChild(el);
             floats3d.push({ el, pos: hexTop(gameState, x, y), life: 1.0, dy: 0 });
+            startAnimLoop();
+        },
+
+        setAirView(on) {
+            // Fährt die Kamera in die Vogelperspektive (75° von oben) und blendet
+            // die Flieger von 10% auf 100% — bzw. zurück
+            ensureInit();
+            viewTween = {
+                start: performance.now(),
+                dur: 400,
+                from: { elev: cam3d.elev, alpha: airAlpha },
+                to: on ? { elev: AIR_VIEW_ELEV, alpha: 1.0 } : { elev: CAM_ELEV, alpha: AIR_ALPHA_GROUND }
+            };
             startAnimLoop();
         },
 

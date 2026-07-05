@@ -94,8 +94,10 @@ function debugApplyTool(hex) {
     const unitAt = gameState.u.find(u => u.x === x && u.y === y);
 
     if (tool === 'spawn') {
-        if (unitAt) { showToast('Feld belegt.'); return; }
         const t = parseInt(document.getElementById('dbg-spawn-type').value);
+        // Ebenenbewusst: Flieger blockieren nur Flieger, Boden nur Boden
+        const blocked = unitStats[t].isAir ? airUnitAt(x, y) : groundUnitAt(x, y);
+        if (blocked) { showToast('Ebene belegt.'); return; }
         const owner = parseInt(document.getElementById('dbg-spawn-owner').value);
         const nextId = gameState.u.reduce((m, u) => Math.max(m, u.i || 0), 0) + 1;
         gameState.u.push({ i: nextId, p: owner, t, x, y, h: getUnitMaxHp(gameState.p[owner], t), a: 0, dp: 0 });

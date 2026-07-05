@@ -8,7 +8,7 @@ window.useAbility = function (type) {
         pState.m -= 3;
         let dmgDone = false;
         const canAttack = (targetId) => !(pState.al && pState.al.includes(targetId)) && !(pState.tc && pState.tc.includes(targetId));
-        gameState.u.filter(u => u.p !== gameState.cp && canAttack(u.p) && hexDistance({ x: u.x, y: u.y }, { x: selectedUnit.x, y: selectedUnit.y }) <= 1).forEach(enemy => {
+        gameState.u.filter(u => u.p !== gameState.cp && canAttack(u.p) && !isFlying(u) && hexDistance({ x: u.x, y: u.y }, { x: selectedUnit.x, y: selectedUnit.y }) <= 1).forEach(enemy => {
             enemy.h -= 4; spawnFloatingText(enemy.x, enemy.y, "-4", "#ff5252"); dmgDone = true;
         });
         gameState.u = gameState.u.filter(u => u.h > 0);
@@ -79,7 +79,7 @@ window.useAbility = function (type) {
             const hasWall = gameState.wa && gameState.wa.some(w => w.x === n.x && w.y === n.y);
             const hasStone = gameState.st && gameState.st.some(s => s.x === n.x && s.y === n.y && s.h > 0);
             const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === n.x && tw.y === n.y && tw.h > 0);
-            if (!gameState.u.some(u => u.x === n.x && u.y === n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower) {
+            if (!groundUnitAt(n.x, n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower) {
                 validMoves.push({ x: n.x, y: n.y });
             }
         }
@@ -95,7 +95,7 @@ window.useAbility = function (type) {
             const hasWall = gameState.wa && gameState.wa.some(w => w.x === n.x && w.y === n.y);
             const hasStone = gameState.st && gameState.st.some(s => s.x === n.x && s.y === n.y && s.h > 0);
             const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === n.x && tw.y === n.y && tw.h > 0);
-            if (!gameState.u.some(u => u.x === n.x && u.y === n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower) {
+            if (!groundUnitAt(n.x, n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower) {
                 validMoves.push({ x: n.x, y: n.y });
             }
         }
@@ -111,7 +111,7 @@ window.useAbility = function (type) {
             const hasWall = gameState.wa && gameState.wa.some(w => w.x === n.x && w.y === n.y);
             const hasStone = gameState.st && gameState.st.some(s => s.x === n.x && s.y === n.y && s.h > 0);
             const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === n.x && tw.y === n.y && tw.h > 0);
-            if (!gameState.u.some(u => u.x === n.x && u.y === n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower) {
+            if (!groundUnitAt(n.x, n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower) {
                 validMoves.push({ x: n.x, y: n.y });
             }
         }
@@ -129,7 +129,7 @@ window.useAbility = function (type) {
             spawnAttackAnim(cx, cy, t.x, t.y, 'fire');
 
             gameState.u.forEach(u => {
-                if (u.x === t.x && u.y === t.y && u !== selectedUnit) {
+                if (u.x === t.x && u.y === t.y && u !== selectedUnit && !isFlying(u)) {
                     u.h -= detDmg;
                     spawnFloatingText(u.x, u.y, `-${detDmg}`, "#ff5252");
                 }
@@ -208,6 +208,161 @@ window.useAbility = function (type) {
         infoPanel.innerHTML = `🏹 Parthershot aktiviert! Greife jetzt an – danach kannst du dich noch einmal bewegen.`;
         renderBoard(gameState);
     }
+    else if (type === 'absprung') {
+        // Fallschirmspringer: Ziel-Hex im Umkreis 3 wählen — Landung ist PERMANENT,
+        // zählt wie Bewegung (a=2), danach darf er noch schießen
+        window.specialActive = 'absprung';
+        validAttacks = []; validMoves = [];
+        for (let y = 0; y < gameState.bh; y++) {
+            for (let x = 0; x < gameState.bw; x++) {
+                if (!isInsideMap(gameState, x, y)) continue;
+                if (hexDistance({ x, y }, { x: selectedUnit.x, y: selectedUnit.y }) > 3) continue;
+                if (groundUnitAt(x, y)) continue;
+                const key = `${x},${y}`;
+                let isAliveSV = false;
+                for (let i = 0; i < gameState.p.length; i++) {
+                    if (gameState.p[i].dead === 0 && gameState.p[i].sv === key) isAliveSV = true;
+                }
+                const hasWall = gameState.wa && gameState.wa.some(w => w.x === x && w.y === y);
+                const hasStone = gameState.st && gameState.st.some(s => s.x === x && s.y === y && s.h > 0);
+                const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === x && tw.y === y && tw.h > 0);
+                const isEnemyTunnel = gameState.tu && gameState.tu.some(t => t.o !== gameState.cp && ((t.x1 === x && t.y1 === y) || (t.x2 === x && t.y2 === y)));
+                if (!isAliveSV && !hasWall && !hasStone && !hasTower && !isEnemyTunnel) {
+                    validMoves.push({ x, y });
+                }
+            }
+        }
+        hideActionMenu();
+        infoPanel.innerHTML = `🪂 Absprung – Landeplatz wählen<br><div class="info-detail" style="color: #4fc3f7;">Freies Boden-Feld im Umkreis 3. Die Landung ist endgültig — danach darfst du noch schießen.</div>`;
+        renderBoard(gameState);
+    }
+    else if (type === 'aufladen') {
+        // Luftschraube: benachbarte (oder darunter stehende) EIGENE Bodeneinheit aufnehmen
+        window.specialActive = 'aufladen';
+        validAttacks = []; validMoves = [];
+        const candidates = [{ x: selectedUnit.x, y: selectedUnit.y }, ...getNeighbors(selectedUnit.x, selectedUnit.y)];
+        candidates.forEach(c => {
+            const g = groundUnitAt(c.x, c.y);
+            if (g && g.p === gameState.cp && !(g.t === 11 && g.dp === 1)) validMoves.push({ x: c.x, y: c.y });
+        });
+        hideActionMenu();
+        infoPanel.innerHTML = `🚁 Aufladen – Einheit wählen<br><div class="info-detail" style="color: #4fc3f7;">Eigene Bodeneinheit im Umkreis 1 (stationierte Wagenburg muss erst abbauen).</div>`;
+        renderBoard(gameState);
+    }
+    else if (type === 'absetzen') {
+        // Luftschraube: Fracht auf freiem Boden-Hex im Umkreis 1 absetzen
+        window.specialActive = 'absetzen';
+        validAttacks = []; validMoves = [];
+        const candidates = [{ x: selectedUnit.x, y: selectedUnit.y }, ...getNeighbors(selectedUnit.x, selectedUnit.y)];
+        candidates.forEach(c => {
+            if (groundUnitAt(c.x, c.y)) return;
+            const key = `${c.x},${c.y}`;
+            let isAliveSV = false;
+            for (let i = 0; i < gameState.p.length; i++) {
+                if (gameState.p[i].dead === 0 && gameState.p[i].sv === key) isAliveSV = true;
+            }
+            const hasWall = gameState.wa && gameState.wa.some(w => w.x === c.x && w.y === c.y);
+            const hasStone = gameState.st && gameState.st.some(s => s.x === c.x && s.y === c.y && s.h > 0);
+            const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === c.x && tw.y === c.y && tw.h > 0);
+            const isEnemyTunnel = gameState.tu && gameState.tu.some(t => t.o !== gameState.cp && ((t.x1 === c.x && t.y1 === c.y) || (t.x2 === c.x && t.y2 === c.y)));
+            if (!isAliveSV && !hasWall && !hasStone && !hasTower && !isEnemyTunnel) validMoves.push({ x: c.x, y: c.y });
+        });
+        hideActionMenu();
+        infoPanel.innerHTML = `⬇️ Absetzen – Feld wählen<br><div class="info-detail" style="color: #4fc3f7;">Freies Boden-Feld im Umkreis 1. Die abgesetzte Einheit hat diese Runde keine Aktion mehr.</div>`;
+        renderBoard(gameState);
+    }
+    else if (type === 'sturzangriff') {
+        // Gleiter: opfert sich für 9 Schaden auf ein Ziel im Umkreis 1 (Boden, Luft oder Gebäude)
+        window.specialActive = 'sturzangriff';
+        validMoves = [];
+        validAttacks = [];
+        const canAttack = (targetId) => !(pState.al && pState.al.includes(targetId)) && !(pState.tc && pState.tc.includes(targetId));
+        const candidates = [{ x: selectedUnit.x, y: selectedUnit.y }, ...getNeighbors(selectedUnit.x, selectedUnit.y)];
+        candidates.forEach(c => {
+            if (c.x === selectedUnit.x && c.y === selectedUnit.y) {
+                // eigenes Hex: nur die Bodeneinheit darunter kann Ziel sein
+                const g = groundUnitAt(c.x, c.y);
+                if (g && g.p !== gameState.cp && g.iv !== 1 && canAttack(g.p)) validAttacks.push({ x: c.x, y: c.y, isSturz: true });
+                return;
+            }
+            const g = groundUnitAt(c.x, c.y);
+            const a = airUnitAt(c.x, c.y);
+            let hit = (g && g.p !== gameState.cp && g.iv !== 1 && canAttack(g.p)) || (a && a.p !== gameState.cp && a.iv !== 1 && canAttack(a.p));
+            if (!hit) {
+                const key = `${c.x},${c.y}`;
+                for (let i = 0; i < gameState.p.length; i++) {
+                    if (i !== gameState.cp && gameState.p[i].dead === 0 && canAttack(i) && gameState.p[i].sv === key) hit = true;
+                }
+                if (gameState.wa && gameState.wa.some(w => w.o !== gameState.cp && canAttack(w.o) && w.x === c.x && w.y === c.y)) hit = true;
+                if (gameState.tw && gameState.tw.some(tw => tw.h > 0 && tw.o !== gameState.cp && canAttack(tw.o) && tw.x === c.x && tw.y === c.y)) hit = true;
+                if (gameState.tu && gameState.tu.some(t => t.o !== gameState.cp && canAttack(t.o) && ((t.x1 === c.x && t.y1 === c.y) || (t.x2 === c.x && t.y2 === c.y)))) hit = true;
+            }
+            if (hit) validAttacks.push({ x: c.x, y: c.y, isSturz: true });
+        });
+        hideActionMenu();
+        infoPanel.innerHTML = `💥 Sturzangriff – Ziel wählen<br><div class="info-detail" style="color: #4fc3f7;">9 DMG auf Boden-, Luft- oder Gebäudeziel im Umkreis 1. Der Gleiter zerschellt dabei!</div>`;
+        renderBoard(gameState);
+    }
+    else if (type === 'feuersturm') {
+        // Bombenballon: zündet das Feld direkt unter sich + alle 6 Nachbarn an.
+        // Sofort 4 Schaden auf ALLE Bodeneinheiten und Gebäude (auch eigene — Friendly Fire!),
+        // die Felder brennen diese + nächste Runde weiter (fi[]). Luft ist immun.
+        pState.m -= unitStats[15].fsCost;
+        const cx = selectedUnit.x, cy = selectedUnit.y;
+        const targets = [{ x: cx, y: cy }, ...getNeighbors(cx, cy)];
+        if (!gameState.fi) gameState.fi = [];
+
+        targets.forEach(t => {
+            spawnAttackAnim(cx, cy, t.x, t.y, 'fire');
+
+            gameState.u.forEach(u => {
+                if (u.x === t.x && u.y === t.y && !isFlying(u)) {
+                    u.h -= 4;
+                    spawnFloatingText(u.x, u.y, `-4`, "#ff5252");
+                }
+            });
+
+            for (let i = 0; i < gameState.p.length; i++) {
+                if (gameState.p[i].dead === 0 && gameState.p[i].sv === `${t.x},${t.y}`) {
+                    gameState.p[i].sh -= 4;
+                    spawnFloatingText(t.x, t.y, `-4`, "#ff5252");
+                    if (gameState.p[i].sh <= 0) {
+                        gameState.p[i].dead = 1;
+                        gameState.u = gameState.u.filter(un => un.p !== i);
+                        gameState.v[`${t.x},${t.y}`] = i === gameState.cp ? -1 : gameState.cp;
+                    }
+                }
+            }
+
+            if (gameState.tu) gameState.tu.forEach(tun => {
+                if ((tun.x1 === t.x && tun.y1 === t.y) || (tun.x2 === t.x && tun.y2 === t.y)) {
+                    tun.h -= 4; spawnFloatingText(t.x, t.y, `-4`, "#ff5252");
+                }
+            });
+            if (gameState.wa) gameState.wa.forEach(w => {
+                if (w.x === t.x && w.y === t.y) { w.h -= 4; spawnFloatingText(t.x, t.y, `-4`, "#ff5252"); }
+            });
+            if (gameState.tw) gameState.tw.forEach(tw => {
+                if (tw.x === t.x && tw.y === t.y) { tw.h -= 4; spawnFloatingText(t.x, t.y, `-4`, "#ff5252"); }
+            });
+
+            // Feld in Brand setzen (brennt bis Ende der nächsten Runde)
+            const existing = gameState.fi.find(f => f.x === t.x && f.y === t.y);
+            if (existing) existing.r = gameState.rn + 1;
+            else gameState.fi.push({ x: t.x, y: t.y, r: gameState.rn + 1 });
+        });
+
+        gameState.u = gameState.u.filter(u => u.h > 0);
+        if (gameState.tu) gameState.tu = gameState.tu.filter(tun => tun.h > 0);
+        if (gameState.wa) gameState.wa = gameState.wa.filter(w => w.h > 0);
+        if (gameState.tw) gameState.tw = gameState.tw.filter(tw => tw.h > 0);
+
+        selectedUnit.a = 1;
+        turnActions.push({ x: cx, y: cy, t: 'atk' });
+        selectedUnit = null; validMoves = []; validAttacks = []; window.specialActive = null;
+        hideActionMenu(); infoPanel.innerHTML = "🌋 FEUERSTURM! 7 Felder stehen in Flammen!";
+        renderBoard(gameState);
+    }
 };
 
 window.startMining = function () {
@@ -263,14 +418,14 @@ window.demolishWall = function (wx, wy) {
 };
 
 window.useTunnel = function () {
-    if (!selectedUnit) return;
+    if (!selectedUnit || isFlying(selectedUnit)) return; // Lufteinheiten ignorieren Tunnel
     saveUndoState();
     if (gameState.tu) {
         let tunnel = gameState.tu.find(t => t.r <= gameState.rn && ((t.x1 === selectedUnit.x && t.y1 === selectedUnit.y) || (t.x2 === selectedUnit.x && t.y2 === selectedUnit.y)));
         if (tunnel) {
             let linkX = tunnel.x1 === selectedUnit.x ? tunnel.x2 : tunnel.x1;
             let linkY = tunnel.y1 === selectedUnit.y ? tunnel.y2 : tunnel.y1;
-            if (!gameState.u.some(u => u.x === linkX && u.y === linkY) && !gameState.v[`${linkX},${linkY}`]) {
+            if (!groundUnitAt(linkX, linkY) && !gameState.v[`${linkX},${linkY}`]) {
                 const prevX = selectedUnit.x, prevY = selectedUnit.y;
                 selectedUnit.x = linkX; selectedUnit.y = linkY;
                 selectedUnit.a = 0;

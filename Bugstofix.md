@@ -8,3 +8,7 @@ Reminder, das & schwertkämpfer +5hp upgrade prüfen, bekommt wirklich nur schwe
 
 
 Vielleicht ist das bogenschützen upgrade etwas zu stark
+
+kein bug soll aber auch angepasst werden, spieler wollen die möglichkeit beim erstellen der Lobby ihr einen spezifischen namen zu geben damit sie nicht immer z.B "Jonis Spiel" heißt
+
+push notifications funktionieren nicht 100% hier muss optimiert werden, was für möglichkeiten haben wir um das sicher zu bauen?!

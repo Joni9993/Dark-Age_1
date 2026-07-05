@@ -233,6 +233,7 @@ function drawHex(x, y, terrainType, applyShroud, isRecap) {
     if (validMoves.some(m => m.x === x && m.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(100, 255, 100, 0.3)"; ctx.fill(); }
     if (validAttacks.some(a => a.x === x && a.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
     if (window.highlightedTunnelEnd && window.highlightedTunnelEnd.x === x && window.highlightedTunnelEnd.y === y) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(79, 195, 247, 0.45)"; ctx.fill(); ctx.strokeStyle = "#4fc3f7"; ctx.lineWidth = 2; ctx.stroke(); }
+    if (gameState.fi && gameState.fi.some(f => f.x === x && f.y === y && f.r >= gameState.rn)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 110, 64, 0.45)"; ctx.fill(); }
 }
 
 function drawEntity(x, y, color, hasActed, hp, maxHp, spriteKey, isStealth, unit) {
@@ -240,7 +241,10 @@ function drawEntity(x, y, color, hasActed, hp, maxHp, spriteKey, isStealth, unit
     const tType = getTerrainType(gameState, x, y);
     const elevation = tType === 'hill' ? -6 : 0;
 
-    ctx.globalAlpha = isStealth ? (hasActed ? 0.3 : 0.85) : (hasActed ? 0.4 : 1.0);
+    let entityAlpha = isStealth ? (hasActed ? 0.3 : 0.85) : (hasActed ? 0.4 : 1.0);
+    // Flieger: standardmäßig fast durchsichtig, in der Luftansicht voll sichtbar
+    if (unit && unitStats[unit.t] && unitStats[unit.t].isAir && isFlying(unit)) entityAlpha *= window.airView ? 1 : 0.15;
+    ctx.globalAlpha = entityAlpha;
 
     if (isStealth) {
         ctx.fillStyle = "rgba(100, 200, 255, 0.5)";
@@ -533,7 +537,37 @@ const Renderer2D = {
     },
 
     spawnFloatingText: _spawnFloatingText2D,
-    spawnAttackAnim: _spawnAttackAnim2D
+    spawnAttackAnim: _spawnAttackAnim2D,
+
+    setAirView() {
+        if (gameState) drawScene(gameState);
+    }
 };
 
 let Renderer = Renderer2D;
+
+// === LUFTANSICHT-TOGGLE ===
+// Standard: Flieger ~10% sichtbar. Luftansicht: Flieger 100%, Kamera fährt
+// in die Vogelperspektive (nur 3D). window.airView steuert zusätzlich die
+// Klick-Priorität bei gestapelten Hexes (input.js).
+window.airView = false;
+window.toggleAirView = function () {
+    window.airView = !window.airView;
+    const btn = document.getElementById('air-view-btn');
+    if (btn) btn.classList.toggle('active', window.airView);
+
+    if (selectedUnit) {
+        if (!window.airView && typeof isFlying === 'function' && isFlying(selectedUnit)) {
+            // Flieger sind in der Bodenansicht nicht "beachtet" — Auswahl aufheben
+            selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
+            window.specialActive = null; hideActionMenu();
+        } else if (selectedUnit.a === 0 || selectedUnit.a === 2 || selectedUnit.a === 4) {
+            // Highlights an die neue Ebenen-Sicht anpassen (Luftziele ein-/ausblenden)
+            validMoves = (selectedUnit.a === 0 || selectedUnit.a === 4) ? calculateMoves(selectedUnit) : [];
+            validAttacks = (selectedUnit.a === 0 || selectedUnit.a === 2) ? calculateAttacks(selectedUnit) : [];
+        }
+    }
+
+    if (Renderer.setAirView) Renderer.setAirView(window.airView);
+    else if (gameState) renderBoard(gameState);
+};

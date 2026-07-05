@@ -20,6 +20,7 @@ function bootGame() {
     if (!gameState.wa) gameState.wa = [];
     if (!gameState.st) gameState.st = [];
     if (!gameState.tw) gameState.tw = [];
+    if (!gameState.fi) gameState.fi = [];
     if (!gameState.ct) gameState.ct = { x: gameState.rad, y: gameState.rad, ctrl: -1 };
     gameState.u.forEach((u, idx) => {
         if (u.a === undefined) u.a = 0;
@@ -113,6 +114,14 @@ function bootGame() {
                 gameState.th.forEach(h => spawnFloatingText(h.x, h.y, `+${h.val}`, "#81c784"));
                 gameState.th = [];
             }, 500);
+        }
+
+        // Brand-Schäden (Feuer-System) anzeigen
+        if (gameState.bd && gameState.bd.length > 0) {
+            setTimeout(() => {
+                gameState.bd.forEach(b => spawnFloatingText(b.x, b.y, `-${b.val}🔥`, "#ff7043"));
+                gameState.bd = [];
+            }, 700);
         }
     }
 

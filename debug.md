@@ -2,6 +2,8 @@
 
 Öffne `index.html?debug=1` im Browser — kein Login, kein Server.
 
+Für 3D tests: ?debug=1&r3d=1
+
 ## Panel (rechts oben, 🐞-Button)
 
 | Sektion | Was es tut |
