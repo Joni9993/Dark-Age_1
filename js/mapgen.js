@@ -13,21 +13,21 @@ playerCountSelect.addEventListener('change', renderNameInputs);
 // der jeweiligen Kartengröße tatsächlich erfüllbar sind.
 const SPAWN_BUDGETS = {
     5: {
-        villageBands:      { 2: [[3, 3], [3, 4]], 3: [[3, 3], [3, 4]], 4: [[3, 3], [3, 4]], 5: [[3, 3], [3, 4]], 6: [[3, 3], [3, 4]] },
+        villageBands:      { 2: [[2, 2], [3, 4]], 3: [[2, 2], [3, 4]], 4: [[2, 2], [3, 4]], 5: [[2, 2], [3, 4]], 6: [[2, 2], [3, 4]] },
         contestedVillages: { 2: 2, 3: 2, 4: 1, 5: 0, 6: 0 },
-        stoneBands:        { 2: [[2, 3], [4, 5]], 3: [[2, 3], [4, 5]], 4: [[2, 3]], 5: [[2, 3]], 6: [[2, 3]] },
+        stoneBands:        { 2: [[2, 2], [4, 5]], 3: [[2, 2], [4, 5]], 4: [[2, 2]], 5: [[2, 2]], 6: [[2, 2]] },
         contestedStones:   { 2: 1, 3: 0, 4: 2, 5: 1, 6: 0 }
     },
     7: {
-        villageBands:      { 2: [[3, 3], [3, 4], [6, 7]], 3: [[3, 3], [3, 4], [6, 7]], 4: [[3, 3], [3, 4], [5, 7]], 5: [[3, 3], [3, 4]], 6: [[3, 3], [3, 4]] },
+        villageBands:      { 2: [[2, 2], [3, 4], [6, 7]], 3: [[2, 2], [3, 4], [6, 7]], 4: [[2, 2], [3, 4], [5, 7]], 5: [[2, 2], [3, 4]], 6: [[2, 2], [3, 4]] },
         contestedVillages: { 2: 5, 3: 4, 4: 3, 5: 2, 6: 2 },
-        stoneBands:        { 2: [[2, 3], [4, 6]], 3: [[2, 3], [4, 6]], 4: [[2, 3], [4, 6]], 5: [[2, 3], [4, 6]], 6: [[2, 3], [4, 6]] },
+        stoneBands:        { 2: [[2, 2], [4, 6]], 3: [[2, 2], [4, 6]], 4: [[2, 2], [4, 6]], 5: [[2, 2], [4, 6]], 6: [[2, 2], [4, 6]] },
         contestedStones:   { 2: 2, 3: 3, 4: 3, 5: 2, 6: 2 }
     },
     12: {
-        villageBands:      { 2: [[3, 3], [3, 4], [5, 7], [8, 10]], 3: [[3, 3], [3, 4], [5, 7], [8, 10]], 4: [[3, 3], [3, 4], [5, 7], [8, 10]], 5: [[3, 3], [3, 4], [5, 7]], 6: [[3, 3], [3, 4], [5, 7]] },
+        villageBands:      { 2: [[2, 2], [3, 4], [5, 7], [8, 10]], 3: [[2, 2], [3, 4], [5, 7], [8, 10]], 4: [[2, 2], [3, 4], [5, 7], [8, 10]], 5: [[2, 2], [3, 4], [5, 7]], 6: [[2, 2], [3, 4], [5, 7]] },
         contestedVillages: { 2: 10, 3: 9, 4: 8, 5: 8, 6: 8 },
-        stoneBands:        { 2: [[2, 3], [5, 8]], 3: [[2, 3], [5, 8]], 4: [[2, 3], [5, 8]], 5: [[2, 3], [5, 8]], 6: [[2, 3], [5, 8]] },
+        stoneBands:        { 2: [[2, 2], [5, 8]], 3: [[2, 2], [5, 8]], 4: [[2, 2], [5, 8]], 5: [[2, 2], [5, 8]], 6: [[2, 2], [5, 8]] },
         contestedStones:   { 2: 3, 3: 3, 4: 4, 5: 4, 6: 4 }
     }
 };
@@ -65,9 +65,19 @@ function buildInitialGameState(playerNames, radius) {
         }
     }
 
+    // Bei 4 Spielern liegt Index 0 sonst exakt auf einer Hex-Ecke und Index
+    // 2 exakt auf der gegenüberliegenden Ecke, während 1/3 auf Kantenmitten
+    // landen — Ecke vs. Kantenmitte ist geometrisch nicht gleichwertig
+    // (unterschiedlich "spitzer" Sektor), das erzeugt ein systematisches
+    // Nachbarschafts-Ungleichgewicht (empirisch geprüft: bis zu 40% mehr
+    // Dörfer für die Eck-Spieler). Ein Phasenversatz von 1/6 verschiebt alle
+    // 4 Spieler gleichermaßen von den Ecken weg und macht die Sektoren
+    // messbar gleich groß (siehe maptest/analyze_maps.js).
+    const phaseOffset = count === 4 ? 1 / 6 : 0;
+
     const startPos = [];
     for (let i = 0; i < count; i++) {
-        const sv = ringHexes[Math.round(i * ringHexes.length / count) % ringHexes.length];
+        const sv = ringHexes[Math.round((i + phaseOffset) * ringHexes.length / count) % ringHexes.length];
         const svCube = oddRToCube(sv.x, sv.y);
         let u = null; // Starteinheit: Nachbarfeld Richtung Kartenmitte
         for (const d of cubeDirs) {
@@ -96,12 +106,15 @@ function buildInitialGameState(playerNames, radius) {
             if (hexDistance({ x, y }, center) >= radius) continue;
             if (x === cx && y === cy) continue; // zentraler Wachturm
             const dists = startPos.map(s => hexDistance({ x, y }, { x: s.vx, y: s.vy }));
+            // Distanz zur Starteinheit (nicht zum Startdorf) — das ist, was für
+            // "in N Zügen erreichbar" tatsächlich zählt, da die Einheit läuft.
+            const udists = startPos.map(s => hexDistance({ x, y }, { x: s.ux, y: s.uy }));
             let owner = 0;
             for (let i = 1; i < count; i++) if (dists[i] < dists[owner]) owner = i;
             let second = -1;
             for (let i = 0; i < count; i++) if (i !== owner && (second === -1 || dists[i] < dists[second])) second = i;
             const contested = dists[second] - dists[owner] <= 1;
-            cells.push({ x, y, dists, owner, contested, pair: Math.min(owner, second) + ',' + Math.max(owner, second) });
+            cells.push({ x, y, dists, udists, owner, contested, pair: Math.min(owner, second) + ',' + Math.max(owner, second) });
         }
     }
 
@@ -140,16 +153,21 @@ function buildInitialGameState(playerNames, radius) {
     // knapp — dann wird schrittweise gelockert (umkämpfte Felder erlauben,
     // Mindestabstand senken, Band aufweiten), damit die Anzahl pro Spieler
     // garantiert bleibt.
-    const placeForPlayers = (bands, okFn, minSpacing, place) => {
+    // distKey: 'dists' misst vom Startdorf (Standard, für die weiter entfernten
+    // Bänder), 'udists' von der Starteinheit — nötig, wenn eine exakte
+    // Zugzahl-Distanz garantiert werden soll (z.B. "in 2 Zügen erreichbar").
+    // Die Sektor-/Contested-Zuordnung (owner) bleibt immer dorfbasiert, damit
+    // die Fairness-Aufteilung der Karte unverändert bleibt.
+    const placeForPlayers = (bands, okFn, minSpacing, place, distKey = 'dists') => {
         for (const band of bands) {
             for (const i of shuffled(Array.from({ length: count }, (_, p) => p))) {
                 const own = c => c.dists[i] === c.dists[c.owner]; // Spieler i ist nächster (oder gleich naher) Start
-                const inBand = c => c.dists[i] >= band[0] && c.dists[i] <= band[1];
+                const inBand = c => c[distKey][i] >= band[0] && c[distKey][i] <= band[1];
                 const pools = [
                     [c => c.owner === i && !c.contested && inBand(c), minSpacing],
                     [c => own(c) && inBand(c), minSpacing],
                     [c => own(c) && inBand(c), minSpacing - 1],
-                    [c => own(c) && c.dists[i] >= band[0], minSpacing],
+                    [c => own(c) && c[distKey][i] >= band[0], minSpacing],
                     [c => own(c), minSpacing - 1]
                 ];
                 for (const [poolFilter, spacing] of pools) {
@@ -178,9 +196,18 @@ function buildInitialGameState(playerNames, radius) {
     const placeVillage = c => { villages[`${c.x},${c.y}`] = -1; };
     const placeStone = c => stones.push({ x: c.x, y: c.y, h: 40 });
 
-    placeForPlayers(budget.villageBands[cnt], villageOK, 3, placeVillage);
+    // Das jeweils erste (nächste) Dorf/Steinvorkommen wird exakt von der
+    // Starteinheit aus bemessen: bei Bewegungsreichweite 1 pro Zug liegt eine
+    // Distanz von 2 genau so, dass Zug 1 = hinlaufen (1 Feld), Zug 2 = ankommen
+    // + einnehmen (Dorf) bzw. angrenzen (Stein).
+    const [firstVillageBand, ...restVillageBands] = budget.villageBands[cnt];
+    const [firstStoneBand, ...restStoneBands] = budget.stoneBands[cnt];
+
+    placeForPlayers([firstVillageBand], villageOK, 3, placeVillage, 'udists');
+    placeForPlayers(restVillageBands, villageOK, 3, placeVillage);
     placeContested(budget.contestedVillages[cnt], villageOK, 3, placeVillage);
-    placeForPlayers(budget.stoneBands[cnt], stoneOK, 2, placeStone);
+    placeForPlayers([firstStoneBand], stoneOK, 2, placeStone, 'udists');
+    placeForPlayers(restStoneBands, stoneOK, 2, placeStone);
     placeContested(budget.contestedStones[cnt], stoneOK, 2, placeStone);
 
     const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [], ct: { x: cx, y: cy, ctrl: -1 } };
