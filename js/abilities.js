@@ -79,7 +79,8 @@ window.useAbility = function (type) {
             const hasWall = gameState.wa && gameState.wa.some(w => w.x === n.x && w.y === n.y);
             const hasStone = gameState.st && gameState.st.some(s => s.x === n.x && s.y === n.y && s.h > 0);
             const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === n.x && tw.y === n.y && tw.h > 0);
-            if (!groundUnitAt(n.x, n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower) {
+            const hasCenterTower = gameState.ct && gameState.ct.x === n.x && gameState.ct.y === n.y;
+            if (!groundUnitAt(n.x, n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower && !hasCenterTower) {
                 validMoves.push({ x: n.x, y: n.y });
             }
         }
@@ -95,7 +96,8 @@ window.useAbility = function (type) {
             const hasWall = gameState.wa && gameState.wa.some(w => w.x === n.x && w.y === n.y);
             const hasStone = gameState.st && gameState.st.some(s => s.x === n.x && s.y === n.y && s.h > 0);
             const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === n.x && tw.y === n.y && tw.h > 0);
-            if (!groundUnitAt(n.x, n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower) {
+            const hasCenterTower = gameState.ct && gameState.ct.x === n.x && gameState.ct.y === n.y;
+            if (!groundUnitAt(n.x, n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower && !hasCenterTower) {
                 validMoves.push({ x: n.x, y: n.y });
             }
         }
@@ -111,7 +113,8 @@ window.useAbility = function (type) {
             const hasWall = gameState.wa && gameState.wa.some(w => w.x === n.x && w.y === n.y);
             const hasStone = gameState.st && gameState.st.some(s => s.x === n.x && s.y === n.y && s.h > 0);
             const hasTower = gameState.tw && gameState.tw.some(tw => tw.x === n.x && tw.y === n.y && tw.h > 0);
-            if (!groundUnitAt(n.x, n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower) {
+            const hasCenterTower = gameState.ct && gameState.ct.x === n.x && gameState.ct.y === n.y;
+            if (!groundUnitAt(n.x, n.y) && !hasVillage && !hasTunnel && !hasWall && !hasStone && !hasTower && !hasCenterTower) {
                 validMoves.push({ x: n.x, y: n.y });
             }
         }
@@ -243,10 +246,10 @@ window.useAbility = function (type) {
         const candidates = [{ x: selectedUnit.x, y: selectedUnit.y }, ...getNeighbors(selectedUnit.x, selectedUnit.y)];
         candidates.forEach(c => {
             const g = groundUnitAt(c.x, c.y);
-            if (g && g.p === gameState.cp && !(g.t === 11 && g.dp === 1)) validMoves.push({ x: c.x, y: c.y });
+            if (g && g.p === gameState.cp && !isHeavyUnit(g)) validMoves.push({ x: c.x, y: c.y });
         });
         hideActionMenu();
-        infoPanel.innerHTML = `🚁 Aufladen – Einheit wählen<br><div class="info-detail" style="color: #4fc3f7;">Eigene Bodeneinheit im Umkreis 1 (stationierte Wagenburg muss erst abbauen).</div>`;
+        infoPanel.innerHTML = `🚁 Aufladen – Einheit wählen<br><div class="info-detail" style="color: #4fc3f7;">Eigene leichte Bodeneinheit im Umkreis 1 (schwere Einheiten wie Elefant & Wagenburg können nicht transportiert werden).</div>`;
         renderBoard(gameState);
     }
     else if (type === 'absetzen') {
@@ -305,51 +308,57 @@ window.useAbility = function (type) {
     }
     else if (type === 'feuersturm') {
         // Bombenballon: zündet das Feld direkt unter sich + alle 6 Nachbarn an.
-        // Sofort 4 Schaden auf ALLE Bodeneinheiten und Gebäude (auch eigene — Friendly Fire!),
-        // die Felder brennen diese + nächste Runde weiter (fi[]). Luft ist immun.
+        // Sofort fsDmg Schaden auf ALLE Bodeneinheiten und Gebäude (auch eigene — Friendly Fire!),
+        // Überlebende bekommen das Brand-Tag (bn/bo) — Folgeschaden über doEndTurn, exakt wie
+        // beim Einzelziel-Anzünden. Luft ist immun.
         pState.m -= unitStats[15].fsCost;
         const cx = selectedUnit.x, cy = selectedUnit.y;
+        const fsDmg = unitStats[15].fsDmg;
         const targets = [{ x: cx, y: cy }, ...getNeighbors(cx, cy)];
-        if (!gameState.fi) gameState.fi = [];
 
         targets.forEach(t => {
             spawnAttackAnim(cx, cy, t.x, t.y, 'fire');
 
             gameState.u.forEach(u => {
                 if (u.x === t.x && u.y === t.y && !isFlying(u)) {
-                    u.h -= 4;
-                    spawnFloatingText(u.x, u.y, `-4`, "#ff5252");
+                    u.h -= fsDmg;
+                    spawnFloatingText(u.x, u.y, `-${fsDmg}`, "#ff5252");
+                    if (u.h > 0) { u.bn = fsDmg; u.bo = gameState.cp; }
                 }
             });
 
             for (let i = 0; i < gameState.p.length; i++) {
                 if (gameState.p[i].dead === 0 && gameState.p[i].sv === `${t.x},${t.y}`) {
-                    gameState.p[i].sh -= 4;
-                    spawnFloatingText(t.x, t.y, `-4`, "#ff5252");
+                    gameState.p[i].sh -= fsDmg;
+                    spawnFloatingText(t.x, t.y, `-${fsDmg}`, "#ff5252");
                     if (gameState.p[i].sh <= 0) {
                         gameState.p[i].dead = 1;
                         gameState.u = gameState.u.filter(un => un.p !== i);
                         gameState.v[`${t.x},${t.y}`] = i === gameState.cp ? -1 : gameState.cp;
+                    } else {
+                        gameState.p[i].bn = fsDmg; gameState.p[i].bo = gameState.cp;
                     }
                 }
             }
 
             if (gameState.tu) gameState.tu.forEach(tun => {
                 if ((tun.x1 === t.x && tun.y1 === t.y) || (tun.x2 === t.x && tun.y2 === t.y)) {
-                    tun.h -= 4; spawnFloatingText(t.x, t.y, `-4`, "#ff5252");
+                    tun.h -= fsDmg; spawnFloatingText(t.x, t.y, `-${fsDmg}`, "#ff5252");
+                    if (tun.h > 0) { tun.bn = fsDmg; tun.bo = gameState.cp; }
                 }
             });
             if (gameState.wa) gameState.wa.forEach(w => {
-                if (w.x === t.x && w.y === t.y) { w.h -= 4; spawnFloatingText(t.x, t.y, `-4`, "#ff5252"); }
+                if (w.x === t.x && w.y === t.y) {
+                    w.h -= fsDmg; spawnFloatingText(t.x, t.y, `-${fsDmg}`, "#ff5252");
+                    if (w.h > 0) { w.bn = fsDmg; w.bo = gameState.cp; }
+                }
             });
             if (gameState.tw) gameState.tw.forEach(tw => {
-                if (tw.x === t.x && tw.y === t.y) { tw.h -= 4; spawnFloatingText(t.x, t.y, `-4`, "#ff5252"); }
+                if (tw.x === t.x && tw.y === t.y) {
+                    tw.h -= fsDmg; spawnFloatingText(t.x, t.y, `-${fsDmg}`, "#ff5252");
+                    if (tw.h > 0) { tw.bn = fsDmg; tw.bo = gameState.cp; }
+                }
             });
-
-            // Feld in Brand setzen (brennt bis Ende der nächsten Runde)
-            const existing = gameState.fi.find(f => f.x === t.x && f.y === t.y);
-            if (existing) existing.r = gameState.rn + 1;
-            else gameState.fi.push({ x: t.x, y: t.y, r: gameState.rn + 1 });
         });
 
         gameState.u = gameState.u.filter(u => u.h > 0);
@@ -360,7 +369,7 @@ window.useAbility = function (type) {
         selectedUnit.a = 1;
         turnActions.push({ x: cx, y: cy, t: 'atk' });
         selectedUnit = null; validMoves = []; validAttacks = []; window.specialActive = null;
-        hideActionMenu(); infoPanel.innerHTML = "🌋 FEUERSTURM! 7 Felder stehen in Flammen!";
+        hideActionMenu(); infoPanel.innerHTML = "🌋 FEUERSTURM! Alle getroffenen Ziele brennen!";
         renderBoard(gameState);
     }
 };
@@ -451,7 +460,7 @@ window.demolishWall = function (wx, wy) {
 };
 
 window.useTunnel = function () {
-    if (!selectedUnit || isFlying(selectedUnit)) return; // Lufteinheiten ignorieren Tunnel
+    if (!selectedUnit || isFlying(selectedUnit) || isHeavyUnit(selectedUnit)) return; // Lufteinheiten & schwere Einheiten ignorieren Tunnel
     saveUndoState();
     if (gameState.tu) {
         let tunnel = gameState.tu.find(t => t.r <= gameState.rn && ((t.x1 === selectedUnit.x && t.y1 === selectedUnit.y) || (t.x2 === selectedUnit.x && t.y2 === selectedUnit.y)));

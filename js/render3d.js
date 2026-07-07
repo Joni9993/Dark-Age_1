@@ -438,7 +438,7 @@
             if (vis.has(key) || ownerId === state.cp || (ownerId === -1 && explored.includes(idx))) {
                 let hp, spriteKey = 'village', bn;
                 if (ownerId !== -1 && state.p[ownerId] && state.p[ownerId].sv === key) {
-                    hp = state.p[ownerId].sh; spriteKey = 'startVillage'; bn = state.p[ownerId].svb;
+                    hp = state.p[ownerId].sh; spriteKey = 'startVillage'; bn = state.p[ownerId].bn;
                 }
                 entities.push({ x: vx, y: vy, spriteKey, ownerId, hp, maxHp: 30, flag: true, bn });
             }
@@ -515,15 +515,6 @@
         airVoxelMesh.instanceMatrix.needsUpdate = true;
         airVoxelMesh.instanceColor.needsUpdate = true;
         shadowMesh.instanceMatrix.needsUpdate = true;
-
-        // Brennende Felder (Feuersturm): orange Tönung + Flammen-Marker
-        (state.fi || []).forEach(f => {
-            if (f.r >= state.rn && vis.has(`${f.x},${f.y}`)) {
-                addOverlay(f.x, f.y, 0xff6e40, 0.4, state);
-                const { wx, wz } = worldPos(f.x, f.y);
-                addIcon('🔥', '#ff6e40', wx, wz, tileHeight(getTerrainType(state, f.x, f.y)) + 12, 12);
-            }
-        });
 
         // Highlights — liest dieselben Globals wie der 2D-Renderer
         if (showRecap) visibleRecaps.forEach(a => addOverlay(a.x, a.y, 0xffa500, 0.4, state));

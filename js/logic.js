@@ -13,6 +13,11 @@ function airUnitAt(x, y) {
     return gameState.u.find(u => u.x === x && u.y === y && isFlying(u));
 }
 
+// Schwere Bodeneinheiten (Elefant, Wagenburg): kein Tunnel, kein Lufttransport
+function isHeavyUnit(u) {
+    return !!unitStats[u.t].heavy;
+}
+
 // Komplette Luft-Ziel-Matrix. MUSS an genau drei Stellen verwendet werden:
 // calculateAttacks, Konterschlag-Block (input.js), Turmschuss-Zielauflösung.
 function canTargetUnit(attacker, target) {

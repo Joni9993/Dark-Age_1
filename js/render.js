@@ -234,7 +234,6 @@ function drawHex(x, y, terrainType, applyShroud, isRecap) {
     if (validAttacks.some(a => a.x === x && a.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
     if (window.highlightedTunnelEnd && window.highlightedTunnelEnd.x === x && window.highlightedTunnelEnd.y === y) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(79, 195, 247, 0.45)"; ctx.fill(); ctx.strokeStyle = "#4fc3f7"; ctx.lineWidth = 2; ctx.stroke(); }
     if (window.demolishTargets && window.demolishTargets.some(t => t.x === x && t.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 152, 0, 0.5)"; ctx.fill(); ctx.strokeStyle = "#ff9800"; ctx.lineWidth = 2; ctx.stroke(); }
-    if (gameState.fi && gameState.fi.some(f => f.x === x && f.y === y && f.r >= gameState.rn)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 110, 64, 0.45)"; ctx.fill(); }
 }
 
 function drawEntity(x, y, color, hasActed, hp, maxHp, spriteKey, isStealth, unit) {
