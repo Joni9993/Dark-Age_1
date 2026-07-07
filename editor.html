@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Dark Age — Art-Editor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.152.2/three.min.js"></script>
+<style>
+    :root {
+        --bg: #14121c; --panel: #1d1a29; --panel2: #262236; --line: #37324c;
+        --text: #d8d4e8; --dim: #8f89a8; --acc: #7c6cff; --good: #4caf7d;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; font-size: 14px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    header { display: flex; align-items: center; gap: 12px; padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+    header h1 { font-size: 16px; margin: 0 12px 0 0; color: #fff; }
+    main { flex: 1; display: flex; min-height: 0; }
+    button { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px; }
+    button:hover { border-color: var(--acc); }
+    button.active { background: var(--acc); color: #fff; border-color: var(--acc); }
+    button.primary { background: var(--acc); color: #fff; border-color: var(--acc); font-weight: 600; }
+    button.danger:hover { border-color: #e05555; color: #ff9d9d; }
+    select, input[type=text] { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+    input[type=color] { width: 26px; height: 26px; border: none; background: none; padding: 0; cursor: pointer; }
+
+    /* Linke Spalte: Assets */
+    #assets { width: 210px; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 8px; }
+    #assets h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); margin: 12px 4px 6px; }
+    .asset { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+    .asset:hover { background: var(--panel2); }
+    .asset.sel { background: var(--panel2); border-color: var(--acc); }
+    .asset canvas { image-rendering: pixelated; background: #3c5a3f; border-radius: 3px; flex: none; }
+    .asset span { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Mitte: Zeichenfläche */
+    #center { flex: 1; display: flex; flex-direction: column; align-items: center; overflow: auto; padding: 10px; }
+    #toolbar { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
+    #layerbar { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    #layerbar .lbl { color: var(--dim); font-size: 12px; }
+    #grid { image-rendering: pixelated; cursor: crosshair; border: 1px solid var(--line); border-radius: 4px; touch-action: none; }
+    #hint { color: var(--dim); font-size: 12px; margin-top: 8px; text-align: center; max-width: 560px; }
+
+    /* Rechte Spalte */
+    #side { width: 330px; overflow-y: auto; background: var(--panel); border-left: 1px solid var(--line); padding: 10px; display: flex; flex-direction: column; gap: 14px; }
+    .box { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+    .box h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); }
+    #palette { display: flex; flex-wrap: wrap; gap: 5px; }
+    .swatch { width: 34px; height: 34px; border-radius: 6px; border: 2px solid var(--line); cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; text-shadow: 0 1px 2px #000; }
+    .swatch.sel { border-color: #fff; box-shadow: 0 0 0 2px var(--acc); }
+    .swatch input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .swatch.transparent { background-image: repeating-conic-gradient(#3a3550 0 25%, #2a2640 0 50%); background-size: 12px 12px; }
+    #preview3dWrap canvas { border-radius: 6px; cursor: grab; }
+    .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+    .row label { flex: 1; font-size: 13px; color: var(--text); }
+    .mini { font-size: 11px; color: var(--dim); }
+    #preview2d { image-rendering: pixelated; background: #3c5a3f; border-radius: 6px; }
+    #exportArea { width: 100%; height: 80px; background: var(--bg); color: var(--dim); border: 1px solid var(--line); border-radius: 6px; font-family: monospace; font-size: 10px; }
+    .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--good); color: #fff; padding: 8px 18px; border-radius: 8px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 99; }
+    .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+    <h1>🎨 Dark Age — Art-Editor</h1>
+    <span class="mini">Spielerfarbe für Vorschau:</span>
+    <select id="playerColorSel"></select>
+    <span style="flex:1"></span>
+    <button id="btnResetAsset" class="danger" title="Aktuelles Asset auf den Stand von js/art.js zurücksetzen">↩ Asset zurücksetzen</button>
+    <button id="btnResetAll" class="danger" title="ALLE Änderungen verwerfen und js/art.js neu laden">⟲ Alles zurücksetzen</button>
+    <button id="btnCopy">📋 art.js kopieren</button>
+    <button id="btnDownload" class="primary">💾 art.js herunterladen</button>
+</header>
+<main>
+    <div id="assets"></div>
+    <div id="center">
+        <div id="toolbar">
+            <button data-tool="pen" class="active" title="Stift (Linksklick malen, Rechtsklick löschen)">✏️ Stift</button>
+            <button data-tool="fill" title="Zusammenhängende Fläche füllen">🪣 Füllen</button>
+            <button data-tool="pick" title="Farbe aus dem Bild aufnehmen">💉 Pipette</button>
+            <button id="btnMirror" title="Symmetrisch malen (links/rechts gespiegelt)">🪞 Spiegeln: aus</button>
+            <span style="width:12px"></span>
+            <button id="btnUndo" title="Strg+Z">↶</button>
+            <button id="btnRedo" title="Strg+Y">↷</button>
+            <span style="width:12px"></span>
+            <button data-shift="-1,0">←</button>
+            <button data-shift="1,0">→</button>
+            <button data-shift="0,-1">↑</button>
+            <button data-shift="0,1">↓</button>
+            <button id="btnClear" class="danger">🗑 Leeren</button>
+        </div>
+        <div id="layerbar" style="display:none">
+            <span class="lbl">Ebene (hinten → vorne):</span>
+            <button id="lyPrev">◀</button>
+            <span id="lyInfo" style="min-width:60px;text-align:center"></span>
+            <button id="lyNext">▶</button>
+            <button id="lyAdd" title="Ebene hinter der aktuellen einfügen (Kopie)">+ Kopie</button>
+            <button id="lyDel" class="danger" title="Aktuelle Ebene löschen">− Löschen</button>
+            <label class="mini"><input type="checkbox" id="lyOnion" checked> Onion-Skin</label>
+            <span class="lbl" style="margin-left:10px">Voxelgröße:</span>
+            <input type="text" id="mScale" style="width:44px">
+        </div>
+        <canvas id="grid"></canvas>
+        <div id="hint">Linksklick: malen · Rechtsklick: löschen · Bei Voxelmodellen zeigt der Onion-Skin die Ebene dahinter.
+        Änderungen werden automatisch im Browser gespeichert — „art.js herunterladen" erzeugt die fertige Datei, die <b>js/art.js</b> im Spiel ersetzt.</div>
+    </div>
+    <div id="side">
+        <div class="box">
+            <h3>Palette</h3>
+            <div id="palette"></div>
+            <div class="mini" style="margin-top:6px">Klick = Farbe wählen · Doppelklick = Farbwert ändern · P/p = Spielerfarbe hell/dunkel</div>
+        </div>
+        <div class="box">
+            <h3>Vorschau</h3>
+            <div class="row" style="flex-wrap:wrap;justify-content:center"><canvas id="preview2d" width="120" height="120"></canvas>
+                <div id="preview3dWrap"></div></div>
+            <div class="mini">3D-Vorschau: ziehen zum Drehen</div>
+        </div>
+        <div class="box">
+            <h3>Terrainfarben</h3>
+            <div id="terrainColors"></div>
+        </div>
+        <div class="box">
+            <h3>Spielerfarben</h3>
+            <div id="playerColorsBox" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        </div>
+        <div class="box">
+            <h3>Export</h3>
+            <textarea id="exportArea" readonly placeholder="Über die Buttons oben rechts exportieren…"></textarea>
+        </div>
+    </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+    // Der Editor bearbeitet immer den NEW_*-Datensatz (Redesign in Arbeit),
+    // unabhängig davon ob die Seite mit ?debug=1 geöffnet wurde.
+    window.FORCE_NEW_ART = true;
+</script>
+<script src="js/art.js"></script>
+<script>
+"use strict";
+// ============================================================================
+// Dark Age Art-Editor — bearbeitet pixelSprites, voxelModels, Paletten &
+// Terrainfarben und exportiert eine vollständige neue js/art.js.
+// ============================================================================
+
+const LS_KEY = "darkage_art_editor_v1";
+
+// Anzeigenamen + Reihenfolge
+const GROUPS = [
+    ["Einheiten", [
+        [0, "Schwertkämpfer"], [1, "Bogenschütze"], [2, "Pferd"], [3, "Ritter"],
+        [4, "Berserker"], [5, "Assassine"], [6, "Tribok"], [7, "Arbeiter"],
+        [8, "Saboteur"], [9, "Elefant"], [10, "Kamelreiter"], [11, "Wagenburg"],
+        ["wagen_dp", "Wagenburg (verschanzt)"]
+    ]],
+    ["Lufteinheiten (Da Vinci)", [
+        [12, "Luftschraube"], [13, "Gleiter"], [14, "Fallschirmspringer"],
+        ["fallschirm_ld", "Fallschirm (gelandet)"], [15, "Bombenballon"]
+    ]],
+    ["Gebäude — 2D-Sprites", [
+        ["village", "Dorf"], ["startVillage", "Startdorf"], ["tower", "Wachturm"],
+        ["watchtower", "Zentralturm"], ["wall", "Mauer"], ["tunnel", "Tunnel"], ["stone", "Steinhaufen"]
+    ]],
+    ["Gebäude — 3D-Voxelmodelle", [
+        ["vox:village", "Dorf (3D)"], ["vox:startVillage", "Startdorf (3D)"], ["vox:tower", "Wachturm (3D)"],
+        ["vox:watchtower", "Zentralturm (3D)"], ["vox:wall", "Mauer (3D)"], ["vox:tunnel", "Tunnel (3D)"], ["vox:stone", "Steinhaufen (3D)"]
+    ]]
+];
+const NAME_BY_KEY = {};
+GROUPS.forEach(([g, items]) => items.forEach(([k, n]) => NAME_BY_KEY[String(k)] = n));
+
+// Zeichenpool für neu angelegte Palettenfarben beim Export
+const CHAR_POOL = "BCEJKMNOQTUYZbceghijkmnoqtuxyz1234567890";
+
+// ── Arbeitszustand ──────────────────────────────────────────────────────────
+function freshWorkFromFile() {
+    const sprites = {};
+    for (const [k, arr] of Object.entries(pixelSprites)) {
+        const size = Math.round(Math.sqrt(arr.length));
+        sprites[k] = { size, px: [...arr] };
+    }
+    const models = {};
+    for (const [k, m] of Object.entries(voxelModels)) {
+        models[k] = { s: m.s || 2.5, layers: m.layers.map(l => l.map(row => [...row])) };
+    }
+    return {
+        pal: { ...pal },
+        playerColors: [...playerColors],
+        terrainColors: JSON.parse(JSON.stringify(terrainColors)),
+        sprites, models
+    };
+}
+const FILE_STATE = freshWorkFromFile();
+
+let work;
+try {
+    const saved = localStorage.getItem(LS_KEY);
+    work = saved ? JSON.parse(saved) : freshWorkFromFile();
+    // Neue Assets aus der Datei übernehmen, die im gespeicherten Stand fehlen
+    for (const k of Object.keys(FILE_STATE.sprites)) if (!work.sprites[k]) work.sprites[k] = FILE_STATE.sprites[k];
+    for (const k of Object.keys(FILE_STATE.models)) if (!work.models[k]) work.models[k] = FILE_STATE.models[k];
+} catch (e) { work = freshWorkFromFile(); }
+
+function persist() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(work)); } catch (e) { /* voll/blockiert — ignorieren */ }
+}
+
+// ── Auswahl / aktuelle Leinwand ─────────────────────────────────────────────
+let curKey = "0";            // Asset-Key ("vox:xyz" für Modelle)
+let curLayer = 0;            // aktuelle Ebene (nur Modelle)
+let tool = "pen";
+let mirror = false;
+let colorIdx = 1;            // gewählter Palettenindex (0 = löschen)
+let previewPlayer = 0;
+
+const isVox = () => curKey.startsWith("vox:");
+const voxKey = () => curKey.slice(4);
+
+// Aktuelle bearbeitbare Fläche: {w, h, get(x,y), set(x,y,v)}
+function surface() {
+    if (isVox()) {
+        const m = work.models[voxKey()];
+        const layer = m.layers[curLayer];
+        return {
+            w: layer[0].length, h: layer.length,
+            get: (x, y) => layer[y][x],
+            set: (x, y, v) => { layer[y][x] = v; }
+        };
+    }
+    const sp = work.sprites[curKey];
+    return {
+        w: sp.size, h: sp.size,
+        get: (x, y) => sp.px[y * sp.size + x],
+        set: (x, y, v) => { sp.px[y * sp.size + x] = v; }
+    };
+}
+
+// ── Undo/Redo (pro Asset) ───────────────────────────────────────────────────
+const history = {};   // key -> {undo: [], redo: []}
+function hist() { return history[curKey] || (history[curKey] = { undo: [], redo: [] }); }
+function snapshot() {
+    return JSON.stringify(isVox() ? work.models[voxKey()] : work.sprites[curKey]);
+}
+function pushUndo() {
+    const h = hist();
+    h.undo.push(snapshot());
+    if (h.undo.length > 60) h.undo.shift();
+    h.redo.length = 0;
+}
+function restore(json) {
+    if (isVox()) work.models[voxKey()] = JSON.parse(json);
+    else work.sprites[curKey] = JSON.parse(json);
+    if (isVox()) curLayer = Math.min(curLayer, work.models[voxKey()].layers.length - 1);
+    afterChange();
+}
+function doUndo() { const h = hist(); if (!h.undo.length) return; h.redo.push(snapshot()); restore(h.undo.pop()); }
+function doRedo() { const h = hist(); if (!h.redo.length) return; h.undo.push(snapshot()); restore(h.redo.pop()); }
+
+// ── Farb-Helfer ─────────────────────────────────────────────────────────────
+function colorOf(idx) {
+    if (idx === P) return work.playerColors[previewPlayer];
+    if (idx === PD) return darkenHexColor(work.playerColors[previewPlayer], 0.55);
+    return work.pal[idx] || "#ff00ff";
+}
+
+// ── Asset-Liste ─────────────────────────────────────────────────────────────
+const assetsEl = document.getElementById("assets");
+const assetCanvases = {};
+function buildAssetList() {
+    assetsEl.innerHTML = "";
+    for (const [group, items] of GROUPS) {
+        const h = document.createElement("h3");
+        h.textContent = group;
+        assetsEl.appendChild(h);
+        for (const [k] of items) {
+            const key = String(k);
+            const div = document.createElement("div");
+            div.className = "asset" + (key === curKey ? " sel" : "");
+            div.dataset.key = key;
+            const c = document.createElement("canvas");
+            c.width = c.height = 30;
+            assetCanvases[key] = c;
+            div.appendChild(c);
+            const s = document.createElement("span");
+            s.textContent = NAME_BY_KEY[key] || key;
+            div.appendChild(s);
+            div.onclick = () => { curKey = key; curLayer = 0; refreshAll(); };
+            assetsEl.appendChild(div);
+        }
+    }
+    drawAssetPreviews();
+}
+function drawAssetPreviews() {
+    for (const [key, c] of Object.entries(assetCanvases)) {
+        const g = c.getContext("2d");
+        g.clearRect(0, 0, 30, 30);
+        let w, h, get;
+        if (key.startsWith("vox:")) {
+            // Frontebene als Mini-Vorschau
+            const m = work.models[key.slice(4)];
+            const layer = m.layers[m.layers.length - 1];
+            w = layer[0].length; h = layer.length;
+            get = (x, y) => layer[y][x];
+        } else {
+            const sp = work.sprites[key];
+            w = sp.size; h = sp.size;
+            get = (x, y) => sp.px[y * sp.size + x];
+        }
+        const z = Math.min(30 / w, 30 / h);
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+            const v = get(x, y);
+            if (!v) continue;
+            g.fillStyle = colorOf(v);
+            g.fillRect(x * z, y * z, z + 0.5, z + 0.5);
+        }
+    }
+}
+
+// ── Zeichenfläche ───────────────────────────────────────────────────────────
+const gridC = document.getElementById("grid");
+const gg = gridC.getContext("2d");
+let cell = 32;
+
+function drawGrid() {
+    const sf = surface();
+    cell = Math.max(14, Math.min(40, Math.floor(520 / Math.max(sf.w, sf.h))));
+    gridC.width = sf.w * cell;
+    gridC.height = sf.h * cell;
+
+    // Transparenz-Schachbrett
+    for (let y = 0; y < sf.h; y++) for (let x = 0; x < sf.w; x++) {
+        gg.fillStyle = (x + y) % 2 ? "#232030" : "#2a2740";
+        gg.fillRect(x * cell, y * cell, cell, cell);
+    }
+    // Onion-Skin: Ebene dahinter (nur Voxelmodelle)
+    if (isVox() && document.getElementById("lyOnion").checked && curLayer > 0) {
+        const prev = work.models[voxKey()].layers[curLayer - 1];
+        gg.globalAlpha = 0.28;
+        for (let y = 0; y < sf.h; y++) for (let x = 0; x < sf.w; x++) {
+            const v = prev[y][x];
+            if (!v) continue;
+            gg.fillStyle = colorOf(v);
+            gg.fillRect(x * cell, y * cell, cell, cell);
+        }
+        gg.globalAlpha = 1;
+    }
+    // Pixel
+    for (let y = 0; y < sf.h; y++) for (let x = 0; x < sf.w; x++) {
+        const v = sf.get(x, y);
+        if (!v) continue;
+        gg.fillStyle = colorOf(v);
+        gg.fillRect(x * cell, y * cell, cell, cell);
+    }
+    // Gitterlinien + Mittelachse
+    gg.strokeStyle = "rgba(255,255,255,0.07)";
+    gg.lineWidth = 1;
+    for (let x = 0; x <= sf.w; x++) { gg.beginPath(); gg.moveTo(x * cell + .5, 0); gg.lineTo(x * cell + .5, sf.h * cell); gg.stroke(); }
+    for (let y = 0; y <= sf.h; y++) { gg.beginPath(); gg.moveTo(0, y * cell + .5); gg.lineTo(sf.w * cell, y * cell + .5); gg.stroke(); }
+    gg.strokeStyle = "rgba(124,108,255,0.35)";
+    gg.beginPath(); gg.moveTo(sf.w / 2 * cell + .5, 0); gg.lineTo(sf.w / 2 * cell + .5, sf.h * cell); gg.stroke();
+}
+
+let painting = false, paintErase = false, strokeStarted = false;
+function cellFromEvent(ev) {
+    const r = gridC.getBoundingClientRect();
+    const x = Math.floor((ev.clientX - r.left) / cell);
+    const y = Math.floor((ev.clientY - r.top) / cell);
+    const sf = surface();
+    if (x < 0 || y < 0 || x >= sf.w || y >= sf.h) return null;
+    return { x, y, sf };
+}
+function applyPen(x, y, sf, erase) {
+    const v = erase ? 0 : colorIdx;
+    sf.set(x, y, v);
+    if (mirror) sf.set(sf.w - 1 - x, y, v);
+}
+function floodFill(x, y, sf) {
+    const target = sf.get(x, y);
+    if (target === colorIdx) return;
+    const q = [[x, y]];
+    while (q.length) {
+        const [cx, cy] = q.pop();
+        if (cx < 0 || cy < 0 || cx >= sf.w || cy >= sf.h || sf.get(cx, cy) !== target) continue;
+        sf.set(cx, cy, colorIdx);
+        q.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+    }
+}
+gridC.addEventListener("contextmenu", e => e.preventDefault());
+gridC.addEventListener("pointerdown", e => {
+    const c = cellFromEvent(e);
+    if (!c) return;
+    gridC.setPointerCapture(e.pointerId);
+    if (tool === "pick") {
+        const v = c.sf.get(c.x, c.y);
+        if (v) { colorIdx = v; buildPalette(); }
+        return;
+    }
+    pushUndo();
+    strokeStarted = true;
+    if (tool === "fill") {
+        floodFill(c.x, c.y, c.sf);
+        afterChange();
+        return;
+    }
+    painting = true;
+    paintErase = e.button === 2;
+    applyPen(c.x, c.y, c.sf, paintErase);
+    afterChange(true);
+});
+gridC.addEventListener("pointermove", e => {
+    if (!painting) return;
+    const c = cellFromEvent(e);
+    if (!c) return;
+    applyPen(c.x, c.y, c.sf, paintErase);
+    afterChange(true);
+});
+window.addEventListener("pointerup", () => { if (painting || strokeStarted) { painting = false; strokeStarted = false; afterChange(); } });
+
+// ── Toolbar ─────────────────────────────────────────────────────────────────
+document.querySelectorAll("#toolbar [data-tool]").forEach(b => {
+    b.onclick = () => {
+        tool = b.dataset.tool;
+        document.querySelectorAll("#toolbar [data-tool]").forEach(x => x.classList.toggle("active", x === b));
+    };
+});
+document.getElementById("btnMirror").onclick = function () {
+    mirror = !mirror;
+    this.textContent = "🪞 Spiegeln: " + (mirror ? "an" : "aus");
+    this.classList.toggle("active", mirror);
+};
+document.getElementById("btnUndo").onclick = doUndo;
+document.getElementById("btnRedo").onclick = doRedo;
+document.querySelectorAll("[data-shift]").forEach(b => {
+    b.onclick = () => {
+        const [dx, dy] = b.dataset.shift.split(",").map(Number);
+        pushUndo();
+        const sf = surface();
+        const old = [];
+        for (let y = 0; y < sf.h; y++) { old.push([]); for (let x = 0; x < sf.w; x++) old[y].push(sf.get(x, y)); }
+        for (let y = 0; y < sf.h; y++) for (let x = 0; x < sf.w; x++) {
+            const sx = x - dx, sy = y - dy;
+            sf.set(x, y, (sx >= 0 && sy >= 0 && sx < sf.w && sy < sf.h) ? old[sy][sx] : 0);
+        }
+        afterChange();
+    };
+});
+document.getElementById("btnClear").onclick = () => {
+    pushUndo();
+    const sf = surface();
+    for (let y = 0; y < sf.h; y++) for (let x = 0; x < sf.w; x++) sf.set(x, y, 0);
+    afterChange();
+};
+window.addEventListener("keydown", e => {
+    if (e.ctrlKey && e.key === "z") { e.preventDefault(); doUndo(); }
+    if (e.ctrlKey && (e.key === "y" || (e.shiftKey && e.key === "Z"))) { e.preventDefault(); doRedo(); }
+});
+
+// ── Ebenen-Leiste (Voxelmodelle) ────────────────────────────────────────────
+function refreshLayerbar() {
+    const bar = document.getElementById("layerbar");
+    bar.style.display = isVox() ? "flex" : "none";
+    if (!isVox()) return;
+    const m = work.models[voxKey()];
+    document.getElementById("lyInfo").textContent = (curLayer + 1) + " / " + m.layers.length;
+    document.getElementById("mScale").value = m.s;
+}
+document.getElementById("lyPrev").onclick = () => { if (curLayer > 0) { curLayer--; refreshAll(); } };
+document.getElementById("lyNext").onclick = () => {
+    const m = work.models[voxKey()];
+    if (curLayer < m.layers.length - 1) { curLayer++; refreshAll(); }
+};
+document.getElementById("lyAdd").onclick = () => {
+    pushUndo();
+    const m = work.models[voxKey()];
+    m.layers.splice(curLayer + 1, 0, m.layers[curLayer].map(r => [...r]));
+    curLayer++;
+    afterChange();
+};
+document.getElementById("lyDel").onclick = () => {
+    const m = work.models[voxKey()];
+    if (m.layers.length <= 1) return;
+    pushUndo();
+    m.layers.splice(curLayer, 1);
+    curLayer = Math.max(0, curLayer - 1);
+    afterChange();
+};
+document.getElementById("lyOnion").onchange = () => drawGrid();
+document.getElementById("mScale").onchange = function () {
+    const v = parseFloat(this.value);
+    if (v > 0 && v < 20) { work.models[voxKey()].s = v; afterChange(); }
+};
+
+// ── Palette ─────────────────────────────────────────────────────────────────
+const palEl = document.getElementById("palette");
+function buildPalette() {
+    palEl.innerHTML = "";
+    const entries = [[0, null], ...Object.entries(work.pal).map(([k, v]) => [Number(k), v]), [P, null], [PD, null]];
+    for (const [idx] of entries) {
+        const d = document.createElement("div");
+        d.className = "swatch" + (idx === colorIdx ? " sel" : "") + (idx === 0 ? " transparent" : "");
+        if (idx !== 0) d.style.background = colorOf(idx);
+        d.title = idx === 0 ? "Löschen/Transparent" : (idx === P ? "Spielerfarbe" : idx === PD ? "Spielerfarbe dunkel" : "Farbe " + idx);
+        if (idx === P) d.textContent = "P";
+        if (idx === PD) d.textContent = "p";
+        if (idx === 0) d.textContent = "⌫";
+        d.onclick = () => { colorIdx = idx; buildPalette(); };
+        if (idx !== 0 && idx !== P && idx !== PD) {
+            d.ondblclick = () => d.querySelector("input").click();
+            const inp = document.createElement("input");
+            inp.type = "color";
+            inp.value = work.pal[idx];
+            inp.style.pointerEvents = "none";
+            inp.oninput = () => { work.pal[idx] = inp.value; afterChange(); };
+            d.appendChild(inp);
+            // Doppelklick öffnet den Farbwähler
+            d.ondblclick = (e) => { inp.style.pointerEvents = "auto"; inp.click(); inp.style.pointerEvents = "none"; };
+        }
+        palEl.appendChild(d);
+    }
+    // Neue Farbe anlegen
+    const add = document.createElement("div");
+    add.className = "swatch";
+    add.textContent = "+";
+    add.title = "Neue Palettenfarbe hinzufügen";
+    add.onclick = () => {
+        let idx = 20;
+        while (work.pal[idx] !== undefined || idx === P || idx === PD) idx++;
+        work.pal[idx] = "#aaaaaa";
+        colorIdx = idx;
+        afterChange();
+        buildPalette();
+    };
+    palEl.appendChild(add);
+}
+
+// ── Spielerfarben & Terrain ─────────────────────────────────────────────────
+function buildPlayerColors() {
+    const box = document.getElementById("playerColorsBox");
+    box.innerHTML = "";
+    work.playerColors.forEach((c, i) => {
+        const inp = document.createElement("input");
+        inp.type = "color";
+        inp.value = c;
+        inp.title = "Spieler " + (i + 1);
+        inp.oninput = () => { work.playerColors[i] = inp.value; afterChange(); };
+        box.appendChild(inp);
+    });
+    const sel = document.getElementById("playerColorSel");
+    sel.innerHTML = work.playerColors.map((c, i) => `<option value="${i}">Spieler ${i + 1}</option>`).join("");
+    sel.value = previewPlayer;
+}
+document.getElementById("playerColorSel").onchange = function () { previewPlayer = Number(this.value); refreshAll(); };
+
+function buildTerrain() {
+    const box = document.getElementById("terrainColors");
+    box.innerHTML = "";
+    const labels = { grass: "Gras", forest: "Wald", hill: "Hügel" };
+    for (const t of ["grass", "forest", "hill"]) {
+        for (const part of Object.keys(work.terrainColors[t])) {
+            const row = document.createElement("div");
+            row.className = "row";
+            const lb = document.createElement("label");
+            lb.textContent = labels[t] + " — " + (part === "top" ? "Fläche" : part === "side" ? "Seite" : "Seite unten");
+            const inp = document.createElement("input");
+            inp.type = "color";
+            inp.value = work.terrainColors[t][part];
+            inp.oninput = () => { work.terrainColors[t][part] = inp.value; afterChange(); };
+            row.appendChild(lb);
+            row.appendChild(inp);
+            box.appendChild(row);
+        }
+    }
+}
+
+// ── 2D-Vorschau (Spielgröße) ────────────────────────────────────────────────
+function drawPreview2d() {
+    const c = document.getElementById("preview2d");
+    const g = c.getContext("2d");
+    g.fillStyle = work.terrainColors.grass.top;
+    g.fillRect(0, 0, c.width, c.height);
+    let w, h, get;
+    if (isVox()) {
+        const m = work.models[voxKey()];
+        const layer = m.layers[m.layers.length - 1];
+        w = layer[0].length; h = layer.length;
+        get = (x, y) => layer[y][x];
+    } else {
+        const sp = work.sprites[curKey];
+        w = sp.size; h = sp.size;
+        get = (x, y) => sp.px[y * sp.size + x];
+    }
+    // 1× Spielgröße (2.5px/Pixel) und 3× nebeneinander
+    for (const [zoom, ox, oy] of [[2.5, 8, 40], [7, 42, 8]]) {
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+            const v = get(x, y);
+            if (!v) continue;
+            g.fillStyle = colorOf(v);
+            g.fillRect(ox + x * zoom, oy + y * zoom, zoom + 0.3, zoom + 0.3);
+        }
+    }
+}
+
+// ── 3D-Vorschau (Three.js, wie im Spiel voxelisiert) ────────────────────────
+let p3renderer, p3scene, p3camera, p3group, p3tile;
+let p3azim = 0.5, p3elev = 0.7, p3drag = null;
+function initPreview3d() {
+    const wrap = document.getElementById("preview3dWrap");
+    p3renderer = new THREE.WebGLRenderer({ antialias: false });
+    p3renderer.setSize(160, 160);
+    wrap.appendChild(p3renderer.domElement);
+    p3scene = new THREE.Scene();
+    p3scene.background = new THREE.Color("#0a0c12");
+    p3scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+    sun.position.set(-0.4, 1, 0.6);
+    p3scene.add(sun);
+    p3camera = new THREE.PerspectiveCamera(45, 1, 1, 2000);
+    p3group = new THREE.Group();
+    p3scene.add(p3group);
+    // Hex-Tile als Kontext-Boden
+    const tileGeo = new THREE.CylinderGeometry(24, 24, 12, 6);
+    p3tile = new THREE.Mesh(tileGeo, new THREE.MeshLambertMaterial({ color: work.terrainColors.grass.top }));
+    p3tile.position.y = 6;
+    p3scene.add(p3tile);
+
+    const el = p3renderer.domElement;
+    el.addEventListener("pointerdown", e => { p3drag = { x: e.clientX, y: e.clientY, a: p3azim, e: p3elev }; el.setPointerCapture(e.pointerId); });
+    el.addEventListener("pointermove", e => {
+        if (!p3drag) return;
+        p3azim = p3drag.a + (e.clientX - p3drag.x) * 0.01;
+        p3elev = Math.max(0.15, Math.min(1.4, p3drag.e + (e.clientY - p3drag.y) * 0.01));
+        renderPreview3d(false);
+    });
+    window.addEventListener("pointerup", () => p3drag = null);
+}
+function renderPreview3d(rebuild = true) {
+    if (!p3renderer) return;
+    if (rebuild) {
+        p3group.clear();
+        const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+        const addBox = (x, y, z, s, colIdx) => {
+            const m = new THREE.Mesh(boxGeo, new THREE.MeshLambertMaterial({ color: colorOf(colIdx) }));
+            m.scale.setScalar(s);
+            m.position.set(x, y, z);
+            p3group.add(m);
+        };
+        if (isVox()) {
+            const mdl = work.models[voxKey()];
+            const d = mdl.layers.length, h = mdl.layers[0].length, w = mdl.layers[0][0].length;
+            const at = (x, y, z) => (x < 0 || y < 0 || z < 0 || x >= w || y >= h || z >= d) ? 0 : mdl.layers[z][y][x];
+            for (let z = 0; z < d; z++) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+                const v = at(x, y, z);
+                if (!v) continue;
+                if (at(x-1,y,z) && at(x+1,y,z) && at(x,y-1,z) && at(x,y+1,z) && at(x,y,z-1) && at(x,y,z+1)) continue;
+                addBox((x - (w - 1) / 2) * mdl.s, 12 + (h - 1 - y + 0.5) * mdl.s, (z - (d - 1) / 2) * mdl.s, mdl.s, v);
+            }
+        } else {
+            const sp = work.sprites[curKey];
+            const s = 2.6 * 10 / sp.size;
+            let bottom = sp.size - 1;
+            outer: for (let y = sp.size - 1; y >= 0; y--) {
+                for (let x = 0; x < sp.size; x++) if (sp.px[y * sp.size + x]) { bottom = y; break outer; }
+            }
+            for (let i = 0; i < sp.px.length; i++) {
+                const v = sp.px[i];
+                if (!v) continue;
+                const x = i % sp.size, y = Math.floor(i / sp.size);
+                addBox((x - (sp.size - 1) / 2) * s, 12 + (bottom - y + 0.5) * s, 0, s, v);
+            }
+        }
+        p3tile.material.color.set(work.terrainColors.grass.top);
+    }
+    const dist = 110;
+    p3camera.position.set(
+        Math.sin(p3azim) * Math.cos(p3elev) * dist,
+        Math.sin(p3elev) * dist + 15,
+        Math.cos(p3azim) * Math.cos(p3elev) * dist
+    );
+    p3camera.lookAt(0, 22, 0);
+    p3renderer.render(p3scene, p3camera);
+}
+
+// ── Export: komplette art.js generieren ─────────────────────────────────────
+function charForIndex(idx, extraChars) {
+    if (SPRITE_CHARS_REV[idx]) return SPRITE_CHARS_REV[idx];
+    if (!extraChars.map[idx]) {
+        extraChars.map[idx] = extraChars.pool[extraChars.n++];
+        if (extraChars.map[idx] === undefined) throw new Error("Zeichenpool erschöpft");
+    }
+    return extraChars.map[idx];
+}
+function generateArtJs() {
+    const ec = { map: {}, pool: CHAR_POOL.split(""), n: 0 };
+    const indent = "        ";
+
+    const spriteBlock = Object.entries(work.sprites).map(([k, sp]) => {
+        const rows = [];
+        for (let y = 0; y < sp.size; y++) {
+            rows.push(indent + Array.from({ length: sp.size }, (_, x) => charForIndex2(sp.px[y * sp.size + x], ec)).join(""));
+        }
+        const keyOut = /^\d+$/.test(k) ? k : JSON.stringify(k);
+        return `    // ${NAME_BY_KEY[k] || k}\n    ${keyOut}: SP(\`\n${rows.join("\n")}\`),`;
+    }).join("\n");
+
+    const modelBlock = Object.entries(work.models).map(([k, m]) => {
+        const layers = m.layers.map(layer => {
+            const rows = layer.map(row => indent + row.map(v => charForIndex2(v, ec)).join(""));
+            return `L(\`\n${rows.join("\n")}\`)`;
+        }).join(",\n        ");
+        return `    ${JSON.stringify(k)}: { s: ${m.s}, layers: [\n        ${layers}\n    ] },`;
+    }).join("\n");
+
+    function charForIndex2(idx, ec) {
+        if (idx === 0) return ".";
+        return charForIndex(idx, ec);
+    }
+
+    const palLines = Object.entries(work.pal)
+        .map(([idx, col]) => `    ${idx}: ${JSON.stringify(col)},  // ${charForIndex2(Number(idx), ec)}`)
+        .join("\n");
+
+    const charLines = [`    ".": 0,`];
+    for (const [idx] of Object.entries(work.pal)) {
+        charLines.push(`    ${JSON.stringify(charForIndex2(Number(idx), ec))}: ${idx},`);
+    }
+    charLines.push(`    "P": P,`);
+    charLines.push(`    "p": PD,`);
+
+    const tc = work.terrainColors;
+    const tcStr = Object.entries(tc).map(([t, parts]) =>
+        `    ${t}: { ` + Object.entries(parts).map(([p, c]) => `${p}: ${JSON.stringify(c)}`).join(", ") + ` }`
+    ).join(",\n");
+
+    // CLASSIC_* wird 1:1 aus den aktuell geladenen Globals durchgereicht (der
+    // Editor bearbeitet sie nie) — reines JSON, kein Zeichen-Encoding nötig,
+    // damit das Live-Design beim Ersetzen von js/art.js unangetastet bleibt.
+    const classicPalStr = JSON.stringify(CLASSIC_PAL, null, 4);
+    const classicSpritesStr = JSON.stringify(CLASSIC_PIXEL_SPRITES);
+    const classicTerrainStr = JSON.stringify(CLASSIC_TERRAIN_COLORS, null, 4);
+
+    return `// === ART-DATEN (Paletten, Pixel-Sprites, 3D-Voxelmodelle) ===
+// GENERIERT vom Art-Editor (editor.html) — Änderungen am besten dort machen.
+//
+// CLASSIC_* = unverändertes Live-Design, unangetastet vom Editor durchgereicht.
+// NEW_*     = Redesign in Arbeit, nur sichtbar mit ?debug=1 (oder im Editor).
+// DEBUG_ART entscheidet, welcher Satz aktiv ist — siehe Ende der Datei.
+//
+// Sprite-Format: 1 Zeichen = 1 Pixel ('.' = transparent, 'P'/'p' = Spielerfarbe hell/dunkel).
+// Voxelmodell-Format: Tiefen-Schichten (hinten → vorne), jede Schicht w×h Pixel.
+
+const P = ${P};
+const PD = ${PD};
+
+const SPRITE_CHARS = {
+${charLines.join("\n")}
+};
+const SPRITE_CHARS_REV = Object.fromEntries(Object.entries(SPRITE_CHARS).map(([c, v]) => [v, c]));
+
+const _pdCache = {};
+function darkenHexColor(hex, f) {
+    const key = hex + f;
+    if (_pdCache[key]) return _pdCache[key];
+    const n = parseInt(hex.slice(1), 16);
+    const r = Math.round(((n >> 16) & 255) * f), g = Math.round(((n >> 8) & 255) * f), b = Math.round((n & 255) * f);
+    return (_pdCache[key] = \`rgb(\${r},\${g},\${b})\`);
+}
+function spritePixelColor(val, playerColor) {
+    if (val === P) return playerColor;
+    if (val === PD) return darkenHexColor(playerColor, 0.55);
+    return pal[val];
+}
+
+function decodeSpriteRows(str) {
+    const rows = str.trim().split(/\\s+/);
+    const out = [];
+    for (const row of rows) for (const ch of row) out.push(SPRITE_CHARS[ch] || 0);
+    if (rows.some(r => r.length !== rows[0].length)) console.error("art.js: Sprite-Zeilen ungleich breit:", str);
+    return out;
+}
+const SP = decodeSpriteRows;
+const L = (str) => str.trim().split(/\\s+/).map(r => [...r].map(ch => SPRITE_CHARS[ch] || 0));
+
+const DEBUG_ART = (typeof window !== 'undefined' && window.FORCE_NEW_ART === true)
+    || new URLSearchParams(location.search).has('debug');
+
+// ============================================================================
+// CLASSIC — unverändertes Live-Design (nicht vom Editor bearbeitet)
+// ============================================================================
+const CLASSIC_PAL = ${classicPalStr};
+
+const CLASSIC_PIXEL_SPRITES = ${classicSpritesStr};
+
+const CLASSIC_TERRAIN_COLORS = ${classicTerrainStr};
+
+const CLASSIC_VOXEL_MODELS = {};
+
+// ============================================================================
+// NEW — Redesign in Arbeit (nur ?debug=1 / Editor)
+// ============================================================================
+const NEW_PAL = {
+${palLines}
+};
+
+const NEW_PIXEL_SPRITES = {
+${spriteBlock}
+};
+
+const NEW_VOXEL_MODELS = {
+${modelBlock}
+};
+
+const NEW_TERRAIN_COLORS = {
+${tcStr}
+};
+
+// ============================================================================
+// Aktiver Datensatz
+// ============================================================================
+const pal = DEBUG_ART ? NEW_PAL : CLASSIC_PAL;
+const pixelSprites = DEBUG_ART ? NEW_PIXEL_SPRITES : CLASSIC_PIXEL_SPRITES;
+const terrainColors = DEBUG_ART ? NEW_TERRAIN_COLORS : CLASSIC_TERRAIN_COLORS;
+const voxelModels = DEBUG_ART ? NEW_VOXEL_MODELS : CLASSIC_VOXEL_MODELS;
+
+const playerColors = ${JSON.stringify(work.playerColors)};
+`;
+}
+
+function toast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2200);
+}
+document.getElementById("btnDownload").onclick = () => {
+    try {
+        const src = generateArtJs();
+        document.getElementById("exportArea").value = src;
+        const blob = new Blob([src], { type: "text/javascript" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "art.js";
+        a.click();
+        toast("art.js heruntergeladen — ersetze damit js/art.js im Spielordner");
+    } catch (e) { toast("Fehler: " + e.message); }
+};
+document.getElementById("btnCopy").onclick = async () => {
+    try {
+        const src = generateArtJs();
+        document.getElementById("exportArea").value = src;
+        await navigator.clipboard.writeText(src);
+        toast("art.js in die Zwischenablage kopiert");
+    } catch (e) { toast("Fehler: " + e.message); }
+};
+document.getElementById("btnResetAsset").onclick = () => {
+    pushUndo();
+    if (isVox()) work.models[voxKey()] = JSON.parse(JSON.stringify(FILE_STATE.models[voxKey()]));
+    else work.sprites[curKey] = JSON.parse(JSON.stringify(FILE_STATE.sprites[curKey]));
+    curLayer = 0;
+    afterChange();
+    toast("Asset auf Dateistand zurückgesetzt");
+};
+document.getElementById("btnResetAll").onclick = () => {
+    if (!confirm("Wirklich ALLE Änderungen verwerfen und den Stand aus js/art.js laden?")) return;
+    work = freshWorkFromFile();
+    curLayer = 0;
+    persist();
+    refreshAll();
+    buildPalette(); buildPlayerColors(); buildTerrain();
+    toast("Alles zurückgesetzt");
+};
+
+// ── Refresh-Kette ───────────────────────────────────────────────────────────
+function afterChange(lightweight = false) {
+    drawGrid();
+    drawPreview2d();
+    if (!lightweight) {
+        renderPreview3d(true);
+        drawAssetPreviews();
+        refreshLayerbar();
+        persist();
+    }
+}
+function refreshAll() {
+    document.querySelectorAll(".asset").forEach(a => a.classList.toggle("sel", a.dataset.key === curKey));
+    refreshLayerbar();
+    drawGrid();
+    drawPreview2d();
+    renderPreview3d(true);
+    drawAssetPreviews();
+}
+
+// ── Start ───────────────────────────────────────────────────────────────────
+buildAssetList();
+buildPalette();
+buildPlayerColors();
+buildTerrain();
+initPreview3d();
+refreshAll();
+</script>
+</body>
+</html>

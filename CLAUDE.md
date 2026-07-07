@@ -23,7 +23,11 @@ Both load the real `js/mapgen.js` via `maptest/load_game.js` — no logic copies
 
 ## Architecture
 
-**Frontend**: Vanilla JS + Canvas/WebGL, no framework, no build step, no npm. `index.html` loads `js/*.js` as classic scripts — **load order matters** (globals → data → prng → hex → logic → render → render3d → events → abilities → ui → diplomacy → input → mapgen → config → api → auth → lobby → debug → main). External libs via CDN: `lz-string`, `three.js` (pinned ≤ r152 — newer releases dropped the UMD build).
+**Frontend**: Vanilla JS + Canvas/WebGL, no framework, no build step, no npm. `index.html` loads `js/*.js` as classic scripts — **load order matters** (globals → art → data → prng → hex → logic → render → render3d → events → abilities → ui → diplomacy → input → mapgen → config → api → auth → lobby → debug → main). External libs via CDN: `lz-string`, `three.js` (pinned ≤ r152 — newer releases dropped the UMD build).
+
+**Art redesign is debug-gated**: `js/art.js` holds TWO complete datasets — `CLASSIC_*` (the live/original look, frozen, never hand-edited) and `NEW_*` (the dark-fantasy redesign in progress). A `DEBUG_ART` flag (`?debug=1` in the URL, or `window.FORCE_NEW_ART` set before art.js loads) picks which set is exposed as the actual `pal`/`pixelSprites`/`terrainColors`/`voxelModels` globals. This means opening the live game normally renders byte-identical to before the redesign started; only `?debug=1` (already the recommended dev/test mode) shows the new look. Do not remove this gate without explicit instruction — the redesign is still being iterated and isn't approved for the live game yet. `js/render3d.js` mirrors the same gate for anything visual that isn't sprite data: lighting/background, tile vertex-shading + dirt noise texture, tree style (classic single-cone vs new voxel pine/round/dead variety), ground dirt decals, and the unit-steps-forward-off-3D-buildings offset all check `DEBUG_ART` and fall back to the original behavior when it's false.
+
+**Art editor**: `editor.html` (open directly in a browser, always forces `DEBUG_ART` on via `window.FORCE_NEW_ART`) edits the `NEW_*` dataset — pixel sprites, 3D voxel models (layer-by-layer with onion skin), palette, player colors, terrain colors — with live 2D/3D previews. Work autosaves to localStorage; "art.js herunterladen" generates a complete replacement `js/art.js` containing the edited `NEW_*` block, the untouched `CLASSIC_*` block (passed through verbatim from the currently loaded globals — the editor never touches it), and the `DEBUG_ART` switch (round-trip and classic-passthrough both verified by test). Prefer changing pixels in the editor over hand-editing art.js.
 
 **Backend** (`server/`): Node.js + Express + PostgreSQL. Serves the frontend statically and the API under `/api/*` on the same port. JWT auth (localStorage, `js/api.js`), friends system, lobby with invite tokens, Web Push notifications (VAPID, `sw.js` — push only, no asset caching).
 
@@ -36,7 +40,8 @@ Both load the real `js/mapgen.js` via `maptest/load_game.js` — no logic copies
 | File | Responsibility |
 |---|---|
 | `js/globals.js` | DOM refs + mutable globals (gameState, selection, camera vars) |
-| `js/data.js` | Pure data: `unitStats` (types 0–11), `factions`, `upgrades`, `pixelSprites` (10×10 pixel art, `P`=player color), `playerColors` |
+| `js/art.js` | All look data (edit via `editor.html`): `pal` palette, `pixelSprites` (char-string pixel art, `P`/`p` = player color light/dark via `spritePixelColor`), `voxelModels` (true-3D buildings as depth layers), `playerColors`, `terrainColors` |
+| `js/data.js` | Pure game data: `unitStats` (types 0–15), `factions`, `upgrades` |
 | `js/hex.js` | Hex math: odd-r offset coords, `oddRToCube`, `hexDistance`, `getNeighbors`, `getTerrainType`, `getHexCenter` |
 | `js/logic.js` | Rules: `calculateMoves` (BFS), `calculateAttacks`, `getExpectedDamage` (all modifiers), `getVisibleHexes`, `getUnitMove/MaxHp/Cost`, `checkVeteran` |
 | `js/render.js` | 2D canvas renderer + **`Renderer` facade** (see below) |
@@ -58,7 +63,7 @@ Rules:
 - Game logic must never touch `camX/camY/camScale`, `ctx`, or hex hit-testing directly — always go through `Renderer`.
 - `renderBoard(state)`, `spawnFloatingText`, `spawnAttackAnim` are global delegates that forward to the active renderer; call sites don't change.
 - The 2D canvas context is created eagerly in `globals.js`; the 3D renderer therefore uses its own `#gameCanvas3d` canvas and hides the 2D one. Input listeners are bound to `#canvas-wrapper` so both canvases receive events.
-- 3D units/buildings are voxelized from the same `pixelSprites` data — new sprites automatically work in both renderers.
+- Units are voxelized billboards from `pixelSprites` (any NxN size, scale normalized to 10). Buildings/stones render as true 3D `voxelModels` (world-fixed orientation, enclosed voxels culled, no blob shadow) when a model with the same key exists; the 2D renderer always uses the `pixelSprites` fallback. Tiles get fake-AO via vertex colors + deterministic per-tile color jitter; trees are trunk+double-cone pines. Style guide: ground units/buildings = dark-fantasy middle ages, air units (12–15) = da-Vinci machines (linen `L` + wood tones).
 
 ## Game State Schema
 

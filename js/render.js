@@ -2,14 +2,15 @@
 function drawPixelSprite(ctx, cx, cy, spriteKey, playerColor) {
     const arr = pixelSprites[spriteKey];
     if (!arr) return;
-    const s = (spriteKey === 9) ? 3.3 : 2.5;
-    const startX = cx - (5 * s);
-    const startY = cy - (5 * s) - 6;
-    for (let i = 0; i < 100; i++) {
+    const size = Math.round(Math.sqrt(arr.length));
+    const s = ((spriteKey === 9) ? 3.3 : 2.5) * 10 / size;
+    const startX = cx - (size / 2 * s);
+    const startY = cy - (size / 2 * s) - 6;
+    for (let i = 0; i < arr.length; i++) {
         let val = arr[i];
         if (val === 0) continue;
-        ctx.fillStyle = val === P ? playerColor : pal[val];
-        ctx.fillRect(startX + (i % 10) * s, startY + Math.floor(i / 10) * s, s, s);
+        ctx.fillStyle = spritePixelColor(val, playerColor);
+        ctx.fillRect(startX + (i % size) * s, startY + Math.floor(i / size) * s, s, s);
     }
 }
 

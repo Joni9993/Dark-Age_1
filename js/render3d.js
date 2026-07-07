@@ -17,7 +17,7 @@
     const ROW_Z = hexSize * 1.5;           // Zeilenabstand in Weltkoordinaten
     const CAM_ELEV = Math.asin(yCompress); // ~40.5° — entspricht dem 2D-Look
     const FOV = 45;
-    const VOXEL_CAP = 20000;               // Instanz-Budget für alle Entity-Voxel
+    const VOXEL_CAP = 45000;               // Instanz-Budget für alle Entity-Voxel (inkl. 3D-Gebäude)
 
     const COL_UNEXPLORED = new THREE.Color('#141414');
     const SHROUD_MUL = 0.35;
@@ -38,6 +38,7 @@
     let tileLookup = {};                   // "x,y" -> instanceId
     let builtSeed = null;
     let treeGroup = null;                  // Wald-Deko (pro Render neu)
+    let decoGroup = null;                  // Boden-Schmutz/Pixel-Deko (pro Render neu)
     let voxelMesh = null;                  // Boden-Entity-Voxel
     let airVoxelMesh = null;               // Luft-Ebene (transparent umschaltbar)
     let shadowMesh = null;                 // Boden-Schatten unter Entities
@@ -106,21 +107,71 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
         scene = new THREE.Scene();
-        scene.background = new THREE.Color('#050505');
+        // DEBUG_ART (js/art.js): dunklere/rauere Stimmung nur im Redesign — Live bleibt unverändert
+        scene.background = new THREE.Color(DEBUG_ART ? '#07080d' : '#050505');
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.55);
-        const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+        const ambient = new THREE.AmbientLight(0xffffff, DEBUG_ART ? 0.45 : 0.55);
+        const sun = new THREE.DirectionalLight(0xffffff, DEBUG_ART ? 0.9 : 0.75);
         sun.position.set(-0.4, 1, 0.6);
         scene.add(ambient, sun);
 
         camera = new THREE.PerspectiveCamera(FOV, 1, 10, 8000);
 
         treeGroup = new THREE.Group();
+        decoGroup = new THREE.Group();
         overlayGroup = new THREE.Group();
         spriteGroup = new THREE.Group();
-        scene.add(treeGroup, overlayGroup, spriteGroup);
+        scene.add(treeGroup, decoGroup, overlayGroup, spriteGroup);
 
         Renderer3D.resize();
+    }
+
+    // Grobkörnige Pixel-Noise-Textur (NearestFilter, große "Pixel") für den
+    // dreckigen 8-Bit-Look der Tiles — nur DEBUG_ART, Live bleibt unverändert.
+    let _noiseTex = null;
+    function getNoiseTexture() {
+        if (_noiseTex) return _noiseTex;
+        const size = 16;                     // klein + NearestFilter → sichtbare Pixelblöcke
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const g = c.getContext('2d');
+        const rng = createPRNG(4242);
+        for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+            const v = 160 + Math.floor(rng() * 95);   // starker Kontrast, wirkt grob/dreckig
+            g.fillStyle = `rgb(${v},${v},${v})`;
+            g.fillRect(x, y, 1, 1);
+        }
+        for (let i = 0; i < 40; i++) {
+            const v = 85 + Math.floor(rng() * 55);
+            g.fillStyle = `rgb(${v},${v},${v})`;
+            g.fillRect(Math.floor(rng() * size), Math.floor(rng() * size), 1, 1);
+        }
+        _noiseTex = new THREE.CanvasTexture(c);
+        _noiseTex.magFilter = THREE.NearestFilter;
+        _noiseTex.minFilter = THREE.NearestFilter;
+        _noiseTex.wrapS = _noiseTex.wrapT = THREE.RepeatWrapping;
+        _noiseTex.repeat.set(1.8, 1.8);      // pro Hex mehrfach kacheln → grobe, klar sichtbare Blöcke
+        return _noiseTex;
+    }
+
+    // Alle Hexes, auf denen ein 3D-Gebäudemodell steht (Bäume aussparen, Einheiten vorziehen)
+    function collectBuildingHexes(state) {
+        const set = new Set();
+        if (state.v) for (const key of Object.keys(state.v)) set.add(key);
+        if (state.tu) state.tu.forEach(t => { set.add(`${t.x1},${t.y1}`); set.add(`${t.x2},${t.y2}`); });
+        if (state.tw) state.tw.forEach(t => { if (t.h > 0) set.add(`${t.x},${t.y}`); });
+        if (state.wa) state.wa.forEach(w => set.add(`${w.x},${w.y}`));
+        if (state.st) state.st.forEach(s => { if (s.h > 0) set.add(`${s.x},${s.y}`); });
+        if (state.ct) set.add(`${state.ct.x},${state.ct.y}`);
+        return set;
+    }
+
+    // Alle Hexes, auf denen aktuell eine Einheit steht — Wald dort ausdünnen,
+    // damit man erkennt, was im Wald steht (reine Sicht-Deko, keine Spiellogik)
+    function collectUnitHexes(state) {
+        const set = new Set();
+        if (state.u) state.u.forEach(u => set.add(`${u.x},${u.y}`));
+        return set;
     }
 
     function buildTiles(state) {
@@ -135,9 +186,33 @@
             }
         }
 
-        // Einheits-Prisma (Höhe 1, Spitze nach Norden), per Instanz in Y skaliert
+        // Einheits-Prisma (Höhe 1, Spitze nach Norden), per Instanz in Y skaliert.
         const geo = new THREE.CylinderGeometry(hexSize, hexSize, 1, 6, 1, false);
-        const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        let mat;
+        if (DEBUG_ART) {
+            // Vertex-Farben als Fake-AO: Deckel hell mit sanft abgedunkeltem Rand,
+            // Seiten laufen nach unten dunkler zu, plus dreckige Pixel-Noise-Textur.
+            // Nur im Redesign — Live behält das schlichte Einfarb-Material.
+            const pos = geo.attributes.position, nrm = geo.attributes.normal;
+            const vcol = new Float32Array(pos.count * 3);
+            for (let i = 0; i < pos.count; i++) {
+                const ny = nrm.getY(i);
+                let v;
+                if (ny > 0.9) {
+                    const r = Math.sqrt(pos.getX(i) ** 2 + pos.getZ(i) ** 2) / hexSize;
+                    v = 1.0 - r * 0.12;                       // Deckel: Rand leicht dunkler
+                } else if (ny < -0.9) {
+                    v = 0.4;                                  // Boden (unsichtbar)
+                } else {
+                    v = 0.52 + (pos.getY(i) + 0.5) * 0.26;    // Seiten: unten dunkler
+                }
+                vcol[i * 3] = vcol[i * 3 + 1] = vcol[i * 3 + 2] = v;
+            }
+            geo.setAttribute('color', new THREE.BufferAttribute(vcol, 3));
+            mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, map: getNoiseTexture() });
+        } else {
+            mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        }
         tileMesh = new THREE.InstancedMesh(geo, mat, coords.length);
         // Instanzen liegen über die ganze Karte verteilt — Three würde sonst anhand
         // der Geometrie-Bounds am Ursprung cullen und das Mesh beim Reinzoomen verwerfen
@@ -167,6 +242,11 @@
                 col.copy(COL_UNEXPLORED);
             } else {
                 col.set(terrainColors[c.tType].top);
+                if (DEBUG_ART) {
+                    // Deterministische Farbvariation pro Tile gegen den Flächen-Einheitslook
+                    const j = (((c.x * 73856093) ^ (c.y * 19349663)) >>> 0) % 1000 / 1000;
+                    col.multiplyScalar(0.94 + j * 0.12);
+                }
                 if (!vis.has(`${c.x},${c.y}`)) col.multiplyScalar(SHROUD_MUL);
             }
             tileMesh.setColorAt(i, col);
@@ -174,16 +254,21 @@
         tileMesh.instanceColor.needsUpdate = true;
     }
 
-    function rebuildTrees(state, vis) {
+    function rebuildTrees(state, vis, buildingHexes, unitHexes) {
         treeGroup.clear();
-        const forests = tileIndex.filter(c => c.tType === 'forest' && vis.has(`${c.x},${c.y}`));
+        // Kein Wald-Bewuchs auf Hexes mit Gebäuden — Bäume würden durch die Modelle wachsen
+        const forests = tileIndex.filter(c => c.tType === 'forest' && vis.has(`${c.x},${c.y}`) && !buildingHexes.has(`${c.x},${c.y}`));
         if (forests.length === 0) return;
+        if (DEBUG_ART) rebuildTreesNew(forests, unitHexes); else rebuildTreesClassic(forests);
+    }
 
-        const treeColors = ['#0d140e', '#1b3a1e', '#15291a', '#0a1f0d', '#2a4430'];
+    // Live-Design (unverändert): Tannen aus Stamm + zwei gestaffelten Kronen-Kegeln
+    function rebuildTreesClassic(forests) {
         const treePositions = [
             { dx: 0, dy: -4, sz: 7 }, { dx: -9, dy: 2, sz: 6 }, { dx: 8, dy: 3, sz: 5 },
             { dx: -4, dy: -1, sz: 5 }, { dx: 5, dy: -2, sz: 4 }
         ];
+        const treeColors = ['#0d140e', '#1b3a1e', '#15291a', '#0a1f0d', '#2a4430'];
         const coneGeo = new THREE.ConeGeometry(1, 1, 5);
         const mesh = new THREE.InstancedMesh(coneGeo, new THREE.MeshLambertMaterial({ color: 0xffffff }), forests.length * treePositions.length);
         mesh.frustumCulled = false;
@@ -194,7 +279,7 @@
         let n = 0;
         forests.forEach(c => {
             const { wx, wz } = worldPos(c.x, c.y);
-            const rng = createPRNG(c.x * 1000 + c.y);   // gleiche Zufallsversätze wie im 2D-Renderer
+            const rng = createPRNG(c.x * 1000 + c.y);
             treePositions.forEach((t, ti) => {
                 const tx = wx + t.dx + (rng() - 0.5) * 3;
                 const tz = wz + t.dy + (rng() - 0.5) * 2;
@@ -210,6 +295,140 @@
         mesh.instanceMatrix.needsUpdate = true;
         mesh.instanceColor.needsUpdate = true;
         treeGroup.add(mesh);
+    }
+
+    // Redesign (nur DEBUG_ART): blockige Voxel-Bäume in 3 klar unterscheidbaren
+    // Sorten (Kiefer dunkelgrün, rundes Laub oliv, kahles Totholz grau). Auf
+    // Hexes mit einer Einheit werden weniger/kürzere Bäume gesetzt und nach
+    // außen gerückt, damit man erkennt, was im Wald steht (reine Deko-Regel,
+    // Sichtlinien-Logik/getVisibleHexes bleibt unberührt).
+    const TREE_PARTS = {
+        pine: [
+            { dx: 0, dz: 0, y0: 0, y1: 0.35, w: 0.28, d: 0.28, col: 'trunk' },
+            { dx: 0, dz: 0, yc: 0.48, h: 0.5, w: 1.0, d: 1.0, col: 'lo' },
+            { dx: 0, dz: 0, yc: 0.74, h: 0.46, w: 0.68, d: 0.68, col: 'mid' },
+            { dx: 0, dz: 0, yc: 0.96, h: 0.38, w: 0.4, d: 0.4, col: 'hi' }
+        ],
+        round: [
+            { dx: 0, dz: 0, y0: 0, y1: 0.4, w: 0.26, d: 0.26, col: 'trunk' },
+            { dx: 0, dz: 0, yc: 0.7, h: 0.56, w: 0.8, d: 0.8, col: 'oliveMid' },
+            { dx: -0.5, dz: 0, yc: 0.66, h: 0.44, w: 0.46, d: 0.46, col: 'oliveLo' },
+            { dx: 0.5, dz: 0, yc: 0.66, h: 0.44, w: 0.46, d: 0.46, col: 'oliveLo' },
+            { dx: 0, dz: -0.5, yc: 0.66, h: 0.44, w: 0.46, d: 0.46, col: 'oliveHi' },
+            { dx: 0, dz: 0.5, yc: 0.66, h: 0.44, w: 0.46, d: 0.46, col: 'oliveHi' }
+        ],
+        dead: [
+            { dx: 0, dz: 0, y0: 0, y1: 0.85, w: 0.2, d: 0.2, col: 'dead' },
+            { dx: 0.32, dz: 0, yc: 0.58, h: 0.14, w: 0.46, d: 0.14, col: 'dead' },
+            { dx: -0.28, dz: 0.05, yc: 0.78, h: 0.12, w: 0.38, d: 0.12, col: 'dead' }
+        ]
+    };
+    const TREE_COLORS = {
+        trunk: '#3a281a', lo: '#16280f', mid: '#1e3417', hi: '#294a20',
+        oliveLo: '#4a5424', oliveMid: '#5c6b2a', oliveHi: '#6d7f34',
+        dead: '#5a564e'
+    };
+    const MAX_TREE_PARTS = 6;
+
+    function pickTreeType(rng) {
+        const r = rng();
+        if (r < 0.48) return 'pine';
+        if (r < 0.8) return 'round';
+        return 'dead';
+    }
+
+    function rebuildTreesNew(forests, unitHexes) {
+        const fullPositions = [
+            { dx: -8, dy: -4, sz: 7 }, { dx: 8, dy: 3, sz: 6 }, { dx: -2, dy: 6, sz: 5 }
+        ];
+        const thinPositions = [
+            { dx: -10, dy: -2, sz: 4.5 }, { dx: 10, dy: 5, sz: 4 }
+        ];
+        const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+        const mesh = new THREE.InstancedMesh(boxGeo, new THREE.MeshLambertMaterial({ color: 0xffffff }), forests.length * fullPositions.length * MAX_TREE_PARTS);
+        mesh.frustumCulled = false;
+        mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(mesh.count * 3), 3);
+
+        const m = new THREE.Matrix4();
+        const col = new THREE.Color();
+        let n = 0;
+        forests.forEach(c => {
+            const { wx, wz } = worldPos(c.x, c.y);
+            const rng = createPRNG(c.x * 1000 + c.y);
+            const occupied = unitHexes && unitHexes.has(`${c.x},${c.y}`);
+            const positions = occupied ? thinPositions : fullPositions;
+            const heightMul = occupied ? 0.55 : 1;
+            positions.forEach(t => {
+                const tx = wx + t.dx + (rng() - 0.5) * 3;
+                const tz = wz + t.dy + (rng() - 0.5) * 2;
+                const sz = t.sz * (0.8 + rng() * 0.4);
+                const totalH = sz * 2.6 * heightMul;
+                const type = pickTreeType(rng);
+                const vary = 0.88 + rng() * 0.3;
+                for (const p of TREE_PARTS[type]) {
+                    const w = p.w * sz, d = p.d * sz;
+                    let yCenter, h;
+                    if (p.y0 !== undefined) { h = (p.y1 - p.y0) * totalH; yCenter = TILE_H + p.y0 * totalH + h / 2; }
+                    else { h = p.h * totalH; yCenter = TILE_H + p.yc * totalH; }
+                    if (n >= mesh.count) continue;
+                    m.makeScale(w, h, d);
+                    m.setPosition(tx + p.dx * sz, yCenter, tz + p.dz * sz);
+                    mesh.setMatrixAt(n, m);
+                    col.set(TREE_COLORS[p.col]).multiplyScalar(vary);
+                    mesh.setColorAt(n, col);
+                    n++;
+                }
+            });
+        });
+        mesh.count = Math.max(n, 1);
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.instanceColor.needsUpdate = true;
+        treeGroup.add(mesh);
+    }
+
+    // Pixel-Schmutz auf den Tiles: dunkle Flecken, Steinchen, selten Knochen —
+    // bricht die makellosen Flächen auf (dirty dark 8-bit). Nur DEBUG_ART.
+    function rebuildDeco(state, vis, buildingHexes) {
+        decoGroup.clear();
+        const tiles = tileIndex.filter(c => c.tType !== 'forest' && vis.has(`${c.x},${c.y}`) && !buildingHexes.has(`${c.x},${c.y}`));
+        if (tiles.length === 0) return;
+
+        const geo = new THREE.BoxGeometry(1, 1, 1);
+        const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff }), tiles.length * 6);
+        mesh.frustumCulled = false;
+        mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(mesh.count * 3), 3);
+
+        const m = new THREE.Matrix4();
+        const col = new THREE.Color();
+        const base = new THREE.Color();
+        const bone = new THREE.Color('#a8a290');
+        let n = 0;
+        tiles.forEach(c => {
+            const { wx, wz } = worldPos(c.x, c.y);
+            const gy = tileHeight(c.tType);
+            base.set(terrainColors[c.tType].top);
+            const rng = createPRNG(c.x * 7919 + c.y * 104729);
+            const count = 2 + Math.floor(rng() * 4);
+            for (let i = 0; i < count; i++) {
+                const dx = (rng() - 0.5) * 30;
+                const dz = (rng() - 0.5) * 26;
+                const s = 2 + rng() * 1.6;
+                m.makeScale(s, 1.1, s);
+                m.setPosition(wx + dx, gy + 0.55, wz + dz);
+                mesh.setMatrixAt(n, m);
+                const roll = rng();
+                if (roll < 0.06) col.copy(bone);                                   // Knochen/Gebein
+                else if (roll < 0.45) col.copy(base).multiplyScalar(0.55);         // dunkler Fleck
+                else if (roll < 0.75) col.copy(base).multiplyScalar(0.75);         // Schmutz
+                else col.copy(base).multiplyScalar(1.35);                          // helles Geröll
+                mesh.setColorAt(n, col);
+                n++;
+            }
+        });
+        mesh.count = n;
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.instanceColor.needsUpdate = true;
+        decoGroup.add(mesh);
     }
 
     // ── Entities als Voxel ────────────────────────────────────────────────────
@@ -254,20 +473,22 @@
     function spriteBottomRow(spriteKey) {
         if (_bottomRowCache[spriteKey] !== undefined) return _bottomRowCache[spriteKey];
         const arr = pixelSprites[spriteKey];
-        let bottom = 9;
-        for (let row = 9; row >= 0; row--) {
-            if (arr.slice(row * 10, row * 10 + 10).some(v => v !== 0)) { bottom = row; break; }
+        const size = Math.round(Math.sqrt(arr.length));
+        let bottom = size - 1;
+        for (let row = size - 1; row >= 0; row--) {
+            if (arr.slice(row * size, row * size + size).some(v => v !== 0)) { bottom = row; break; }
         }
-        _bottomRowCache[spriteKey] = bottom;
-        return bottom;
+        _bottomRowCache[spriteKey] = { bottom, size };
+        return _bottomRowCache[spriteKey];
     }
 
     // Zeichnet ein pixelSprite als "Pappaufsteller" aus Voxeln (Fläche zur Kamera)
     function addVoxelSprite(spriteKey, wx, wz, groundY, playerColor, dimFactor, tint) {
         const arr = pixelSprites[spriteKey];
         if (!arr) return;
-        const s = (spriteKey === 9) ? 3.3 : 2.5;
-        const bottom = spriteBottomRow(spriteKey);
+        const { bottom, size } = spriteBottomRow(spriteKey);
+        // Einheiten im 3D-Modus etwas größer als früher — bessere Lesbarkeit bei Zoom-out
+        const s = ((spriteKey === 9) ? 3.4 : 2.6) * 10 / size;
 
         const mesh = _voxelAir ? airVoxelMesh : voxelMesh;
         // Sprites kippen mit der Kamera-Neigung (Anker: unterste Zeile), damit sie
@@ -277,13 +498,13 @@
         const pitch = cam3d.elev - CAM_ELEV;
         const cosP = Math.cos(pitch), sinP = Math.sin(pitch);
         const { rx, rz, fx, fz } = camGroundAxes();
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < arr.length; i++) {
             const val = arr[i];
             if (val === 0) continue;
             const idx = _voxelAir ? _airVoxelCount : _voxelCount;
             if (idx >= VOXEL_CAP) return;
-            const colIdx = i % 10, rowIdx = Math.floor(i / 10);
-            const across = (colIdx - 4.5) * s;
+            const colIdx = i % size, rowIdx = Math.floor(i / size);
+            const across = (colIdx - (size - 1) / 2) * s;
             const dy = (bottom - rowIdx + 0.5) * s;
             const depth = dy * sinP;
             _vm.makeScale(s, s, s);
@@ -293,12 +514,63 @@
                 wz + across * rz + depth * fz
             );
             mesh.setMatrixAt(idx, _vm);
-            _vc.set(val === P ? playerColor : pal[val]);
+            _vc.set(spritePixelColor(val, playerColor));
             if (tint) _vc.lerp(tint, 0.45);
             if (dimFactor !== 1) _vc.multiplyScalar(dimFactor);
             mesh.setColorAt(idx, _vc);
             if (_voxelAir) _airVoxelCount++; else _voxelCount++;
         }
+    }
+
+    // ── Echte 3D-Voxelmodelle (Gebäude, Steine) ───────────────────────────────
+    // Stehen fest in der Welt (kein Billboarding) — beim Orbiten sieht man sie
+    // von allen Seiten. Innenliegende, nie sichtbare Voxel werden weggeworfen.
+    const _modelCache = {};
+    function modelVoxels(key) {
+        if (_modelCache[key]) return _modelCache[key];
+        const m = voxelModels[key];
+        const d = m.layers.length, h = m.layers[0].length, w = m.layers[0][0].length;
+        const at = (x, y, z) => (x < 0 || y < 0 || z < 0 || x >= w || y >= h || z >= d) ? 0 : m.layers[z][y][x];
+        const voxels = [];
+        for (let z = 0; z < d; z++) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+            const val = at(x, y, z);
+            if (!val) continue;
+            if (at(x - 1, y, z) && at(x + 1, y, z) && at(x, y - 1, z) && at(x, y + 1, z) && at(x, y, z - 1) && at(x, y, z + 1)) continue;
+            voxels.push({ x, y, z, val });
+        }
+        _modelCache[key] = { voxels, w, h, d, s: m.s || 2.5 };
+        return _modelCache[key];
+    }
+
+    function addVoxelModel(key, wx, wz, groundY, playerColor, dimFactor, tint) {
+        const { voxels, w, h, d, s } = modelVoxels(key);
+        // Flieger mit 3D-Körper (Gleiter/Luftschraube) routen wie Billboard-Sprites
+        // in die transparente Luft-Ebene; Gebäude setzen _voxelAir nie, bleiben also
+        // immer im Boden-Mesh.
+        const mesh = _voxelAir ? airVoxelMesh : voxelMesh;
+        for (const v of voxels) {
+            const idx = _voxelAir ? _airVoxelCount : _voxelCount;
+            if (idx >= VOXEL_CAP) return;
+            _vm.makeScale(s, s, s);
+            _vm.setPosition(
+                wx + (v.x - (w - 1) / 2) * s,
+                groundY + (h - 1 - v.y + 0.5) * s,
+                wz + (v.z - (d - 1) / 2) * s
+            );
+            mesh.setMatrixAt(idx, _vm);
+            _vc.set(spritePixelColor(v.val, playerColor));
+            if (tint) _vc.lerp(tint, 0.45);
+            if (dimFactor !== 1) _vc.multiplyScalar(dimFactor);
+            mesh.setColorAt(idx, _vc);
+            if (_voxelAir) _airVoxelCount++; else _voxelCount++;
+        }
+    }
+
+    // Gesamthöhe eines 3D-Voxelmodells in Weltunits (für HP-Text-Platzierung über
+    // Einheiten, die jetzt echte Körper statt fixer 10px-Billboards sind)
+    function modelTopHeight(key) {
+        const { h, s } = modelVoxels(key);
+        return h * s;
     }
 
     // Kleine Besitzer-Flagge neben Gebäuden (Pendant zur 2D-Flagge)
@@ -394,8 +666,11 @@
 
         const seedKey = `${state.sd}|${state.bw}|${state.bh}|${state.rad}`;
         if (builtSeed !== seedKey) buildTiles(state);
+        const buildingHexes = collectBuildingHexes(state);
+        const unitHexes = collectUnitHexes(state);
         updateTileColors(state, vis, explored);
-        rebuildTrees(state, vis);
+        rebuildTrees(state, vis, buildingHexes, unitHexes);
+        if (DEBUG_ART) rebuildDeco(state, vis, buildingHexes); else decoGroup.clear();
         ensureVoxelMesh();
 
         // Sprite-Layer leeren (HP-Balken etc. sind billige Objekte, Rebuild pro Frame ok)
@@ -455,12 +730,22 @@
             if (e.unit) {
                 const u = e.unit;
                 const tType = getTerrainType(state, u.x, u.y);
-                const { wx, wz } = worldPos(u.x, u.y);
+                let { wx, wz } = worldPos(u.x, u.y);
                 const gy = tileHeight(tType);
-                const maxHp = getUnitMaxHp(state.p[u.p], u.t, u);
                 let spriteKey = u.t;
                 if (spriteKey === 11 && u.dp === 1) spriteKey = 'wagen_dp';
                 if (spriteKey === 14 && u.ld === 1) spriteKey = 'fallschirm_ld';
+                const hasVoxelBody = !!voxelModels[spriteKey];
+                // Steht die Einheit auf einem Gebäude-Hex, zur Kamera vorziehen —
+                // sonst verschwindet der Sprite im 3D-Gebäudemodell. Nur relevant
+                // mit echten 3D-Gebäuden (DEBUG_ART); Live nutzt nur flache
+                // Billboard-Gebäude, kein Versteck-Effekt.
+                if (DEBUG_ART && buildingHexes.has(`${u.x},${u.y}`)) {
+                    const { fx, fz } = camGroundAxes();
+                    wx += fx * hexSize * 0.55;
+                    wz += fz * hexSize * 0.55;
+                }
+                const maxHp = getUnitMaxHp(state.p[u.p], u.t, u);
                 // Flieger schweben über der Bodenebene; ihr Schatten bleibt am Boden
                 const flying = isFlying(u);
                 const hover = flying ? hexSize * 1.4 : 0;
@@ -470,25 +755,38 @@
                 const isStealth = u.iv === 1;
                 const dim = isStealth ? (u.a === 1 ? 0.35 : 0.8) : (u.a === 1 ? 0.45 : 1);
                 addShadow(wx, wz, gy);
+                const drawUnit = (dx, dz, tintColor, dimF) => {
+                    if (hasVoxelBody) addVoxelModel(spriteKey, wx + dx, wz + dz, gy + hover, playerColors[u.p], dimF, tintColor);
+                    else addVoxelSprite(spriteKey, wx + dx, wz + dz, gy + hover, playerColors[u.p], dimF, tintColor);
+                };
                 if (isStealth && u.a !== 1) {
                     // Geister-Doppelbild wie im 2D-Renderer (versetzte, stark gedimmte Kopien)
-                    addVoxelSprite(spriteKey, wx - 2, wz + 0.6, gy + hover, playerColors[u.p], 0.25, stealthTint);
-                    addVoxelSprite(spriteKey, wx + 2, wz + 0.6, gy + hover, playerColors[u.p], 0.25, stealthTint);
+                    drawUnit(-2, 0.6, stealthTint, 0.25);
+                    drawUnit(2, 0.6, stealthTint, 0.25);
                 }
-                addVoxelSprite(spriteKey, wx, wz, gy + hover, playerColors[u.p], dim, isStealth ? stealthTint : null);
+                drawUnit(0, 0, isStealth ? stealthTint : null, dim);
                 _voxelAir = false;
-                addHpText(u.h, wx, wz, gy + hover + 30, -1, u.h / maxHp < 0.15, uiA);
-                if (u.vet) addIcon('★', '#e8b84a', wx, wz, gy + hover + 34, 9, uiA);
-                if (u.mi) addIcon('⛏', '#fff176', wx, wz, gy + hover + 28, 11, uiA, 1);
-                if (u.bn) addIcon('🔥', '#ff6e40', wx, wz, gy + hover + 30, 11, uiA, 1);
-                if (u.cg) addIcon('📦', '#ffcc80', wx, wz, gy + hover + 20, 10, uiA, 1);
+                // Echte 3D-Körper haben unterschiedliche Höhen (Pferd > Assassine) —
+                // HP-Text/Icons sitzen relativ zur tatsächlichen Modellhöhe statt am
+                // festen 30px-Versatz der alten Billboard-Sprites.
+                const topY = hasVoxelBody ? gy + hover + modelTopHeight(spriteKey) + 4 : gy + hover + 30;
+                addHpText(u.h, wx, wz, topY, -1, u.h / maxHp < 0.15, uiA);
+                if (u.vet) addIcon('★', '#e8b84a', wx, wz, topY + 4, 9, uiA);
+                if (u.mi) addIcon('⛏', '#fff176', wx, wz, topY - 2, 11, uiA, 1);
+                if (u.bn) addIcon('🔥', '#ff6e40', wx, wz, topY, 11, uiA, 1);
+                if (u.cg) addIcon('📦', '#ffcc80', wx, wz, topY - 10, 10, uiA, 1);
             } else {
                 const tType = getTerrainType(state, e.x, e.y);
                 const { wx, wz } = worldPos(e.x, e.y);
                 const gy = tileHeight(tType);
                 const color = e.color || getEntityColor(e.ownerId);
-                addShadow(wx, wz, gy);
-                addVoxelSprite(e.spriteKey, wx, wz, gy, color, e.dim || 1, null);
+                if (voxelModels[e.spriteKey]) {
+                    // Echtes 3D-Modell — steht bündig auf dem Boden, kein Blob-Schatten
+                    addVoxelModel(e.spriteKey, wx, wz, gy, color, e.dim || 1, null);
+                } else {
+                    addShadow(wx, wz, gy);
+                    addVoxelSprite(e.spriteKey, wx, wz, gy, color, e.dim || 1, null);
+                }
                 if (e.flag) addFlag(wx, wz, gy, color);
                 if (e.hp !== undefined && e.maxHp !== undefined) {
                     if (e.spriteKey === 'stone') {

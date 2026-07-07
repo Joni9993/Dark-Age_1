@@ -6,12 +6,7 @@ const xOffset = hexWidth;
 const yOffset = hexHeight * 0.75;
 const thickness = 12;
 const yCompress = 0.65;
-const terrainColors = {
-    grass: { top: "#2e3b32", side: "#1a241d" },
-    forest: { top: "#1b261c", side: "#0d140e" },
-    hill: { top: "#5a4d40", side: "#3b2e22", sideBottom: "#2b1e14" },
-    black: { top: "#000", side: "#000" }
-};
+// terrainColors → js/art.js
 const hillThickness = thickness * 2;
 
 // === HEX MATH ===
