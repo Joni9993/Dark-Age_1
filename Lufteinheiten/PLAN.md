@@ -14,7 +14,7 @@ Vier Lufteinheiten (Typ-IDs **12–15**), eine pro Fraktion als **dritte Spezial
 | Typ-ID | 12 | 13 | 14 | 15 |
 | Kosten | 7 Gold | 6 Gold | **4 Gold** | 9 Gold |
 | HP | 14 | 8 | 10 | 14 |
-| Bewegung | 2 | **4** (schnellste Einheit) | 3 fliegend / **2 gelandet** | 2 |
+| Bewegung | 2 | **4** (schnellste Einheit) | 2 fliegend / **2 gelandet** | 2 |
 | Angriff | 5 DMG, RW 1 (Rammstoß, melee) | 5 DMG (+1 Plünderer-Passiv), RW 1 (melee) | Schleuder: 4 DMG, RW 2 (ranged) | 🔥 Anzünden (s.u.) |
 | Ziele | Luft + Boden + Gebäude | Luft + Boden + Gebäude | fliegend: **nur Luft** · gelandet: Luft + Boden | **nur Boden** + Gebäude |
 | Fähigkeit | 🚁 Lufttransport | 💥 Sturzangriff | 🪂 Absprung | 🔥 Anzünden + 🌋 Feuersturm |
@@ -39,8 +39,8 @@ Vier Lufteinheiten (Typ-IDs **12–15**), eine pro Fraktion als **dritte Spezial
 
 ### 2.3 Fallschirmspringer (14) — Absprung
 
-- **Fliegend**: BEW 3, Schleuder trifft nur Lufteinheiten, immun gegen Nahkampf (wie alle Flieger), kann nicht erobern.
-- **Fähigkeit „Absprung"**: wählt ein freies Boden-Hex im **Umkreis 3** (kostenlos, auch Dorf-Hexes; blockiert durch Bodeneinheiten/Mauern/Türme/Steine/lebende Startdörfer). Zählt **wie Bewegung** (`a = 2`) — er darf im selben Zug noch schießen.
+- **Fliegend**: BEW 2, Schleuder trifft nur Lufteinheiten, immun gegen Nahkampf (wie alle Flieger), kann nicht erobern.
+- **Fähigkeit „Absprung"**: wählt ein freies Boden-Hex im **Umkreis 2** (kostenlos, auch Dorf-Hexes; blockiert durch Bodeneinheiten/Mauern/Türme/Steine/lebende Startdörfer). Zählt **wie Bewegung** (`a = 2`) — er darf im selben Zug noch schießen.
 - **Gelandet (permanent!)**: normale Bodeneinheit — BEW 2, Schleuder 4 DMG / RW 2 auf Luft UND Boden, kann Dörfer erobern, normal angreifbar (auch Nahkampf). Wieder abheben geht nicht — ein Fallschirm fliegt nur einmal. Neuer Flieger = neu rekrutieren (4 Gold).
 - State: `u.ld = 1` (einmal gesetzt, bleibt).
 
@@ -88,7 +88,7 @@ Weitere Regeln:
 - **Luftansicht-Toggle** `[✈]` im HUD neben dem Menü-Button: Kamera fährt animiert (~400 ms) in die **Vogelperspektive (Winkel per `AIR_VIEW_ELEV` in `render3d.js` einstellbar, aktuell 60°)** — steiler statt flacher (Änderung Jonathan, 04.07.2026). Bodenansicht (Standard): Flieger schweben ~1.4×hexSize hoch mit **10 % Deckkraft** + Schatten-Ellipse. Luftansicht: Flieger **100 %**, Boden bleibt normal sichtbar. Sprites kippen mit der Kamera mit, damit sie aus der Steilsicht lesbar bleiben.
 - **Strikte Ebenen-Trennung** (Änderung Jonathan, 05.07.2026): Außerhalb der Luftansicht sind Lufteinheiten **komplett ignoriert** — nicht anwählbar (Klick auf ein Feld mit nur einer Lufteinheit trifft nichts), nicht als Angriffsziel verfügbar (auch nicht für Türme). Erst der `[✈]`-Button schaltet die Luft-Ebene für Auswahl/Ziele frei. Wird die Luftansicht ausgeschaltet während eine Lufteinheit ausgewählt ist, wird die Auswahl automatisch aufgehoben (inkl. laufender Spezial-Zielwahl wie Sturzangriff/Absprung). Landende/gelandete Einheiten (Fallschirm mit `ld=1`) zählen als Boden und bleiben in beiden Ansichten normal nutzbar. Betrifft `calculateAttacks` (filtert `a.air` wenn `!window.airView`) und die Klick-Auflösung in `handleCanvasClick` (input.js).
 - **Klick-Logik**: In der Luftansicht trifft Klick die Luft-Ebene zuerst; erneuter Klick auf dasselbe Hex mit beiden Ebenen wechselt Boden↔Luft. In der Bodenansicht wird die Luft-Ebene beim Klick gar nicht erst betrachtet. Angriffsvorschau (`showTileUI`) zeigt das Ziel der aktiven Ebene.
-- **Aktionsmenü** (bestehendes `mkBtn`-Muster): Ballon „🔥 Anzünden" (rote RW-1-Bodenziele) + „🌋 Feuersturm (5 🌲)"; Fallschirm fliegend „🪂 Absprung" (grüne Ziel-Hexes Umkreis 3).
+- **Aktionsmenü** (bestehendes `mkBtn`-Muster): Ballon „🔥 Anzünden" (rote RW-1-Bodenziele) + „🌋 Feuersturm (5 🌲)"; Fallschirm fliegend „🪂 Absprung" (grüne Ziel-Hexes Umkreis 2).
 - **Rekrutierung** im Dorf-Menü: `12 🚁` / `13 🛩` / `14 🪂` / `15 🎈` je nach Fraktion; Flieger-Kauf braucht freie Luft-Ebene über dem Dorf, Boden-Kauf freie Boden-Ebene (unabhängig voneinander).
 - **Brand-Anzeigen**: brennende Ziele 🔥-Icon neben der HP-Zahl; brennende Felder orange getönt + Feuer-Partikel (beide Renderer: 3D Partikel, 2D-Fallback orangener Hex-Overlay).
 - Info-Panel-Texte für alle 4 Einheiten inkl. Zustand (beladen/fliegend/gelandet/brennend).
@@ -134,7 +134,7 @@ Sprites funktionieren automatisch in 2D und 3D (Voxelisierung). **Abnahme**: Ich
 - `doEndTurn`: Brand-Ticks (Abschnitt 2.2) vor Einkommen; `fi[]` aufräumen wenn `rn > r`; delete-defaults für `ld/bn/fi`.
 - **Alt-Bug fixen**: `factionUnitMap` (Z. 1061/1120) → `{0:[3,10,12], 1:[4,8,13], 2:[5,9,14], 3:[6,11,15]}`; Dorf-belegt-Check ebenenbewusst; „kann abspringen/anzünden/Feuersturm" in Rest-Aktions-Checks.
 
-**`js/abilities.js`**: `useAbility('absprung')` (Ziel-Hexes Umkreis 3 via BFS-frei-Check, setzt `ld=1, a=2`, Position umsetzen) · `useAbility('feuersturm')` (5 Holz, 7-Felder-Anwendung, `fi[]`-Einträge, `a=1`) · `useAbility('aufladen')`/`useAbility('absetzen')` (Lufttransport: Fracht in `u.cg` verschieben / auf freiem Boden-Hex Umkreis 1 wieder in `u[]` einfügen mit neuer `i`; Tod des Trägers löscht `cg` mit) · `useAbility('sturzangriff')` (Klon der Saboteur-Detonation: Ziel Umkreis 1, Boden ODER Luft ODER Gebäude, 9 Schaden, Gleiter wird entfernt, Kopfgeld-Check) — alle nach `saveUndoState`-Muster.
+**`js/abilities.js`**: `useAbility('absprung')` (Ziel-Hexes Umkreis 2 via BFS-frei-Check, setzt `ld=1, a=2`, Position umsetzen) · `useAbility('feuersturm')` (5 Holz, 7-Felder-Anwendung, `fi[]`-Einträge, `a=1`) · `useAbility('aufladen')`/`useAbility('absetzen')` (Lufttransport: Fracht in `u.cg` verschieben / auf freiem Boden-Hex Umkreis 1 wieder in `u[]` einfügen mit neuer `i`; Tod des Trägers löscht `cg` mit) · `useAbility('sturzangriff')` (Klon der Saboteur-Detonation: Ziel Umkreis 1, Boden ODER Luft ODER Gebäude, 9 Schaden, Gleiter wird entfernt, Kopfgeld-Check) — alle nach `saveUndoState`-Muster.
 
 **`js/ui.js`**: `buyUnit` ebenenbewusst (Flieger brauchen freie Luft-Ebene); Rekrutierungs-Buttons; Info-Panel-Texte.
 
@@ -150,7 +150,7 @@ Sprites funktionieren automatisch in 2D und 3D (Voxelisierung). **Abnahme**: Ich
 |---|---|---|
 | **M5a** | Daten + Sprites + Bewegung/Angriff/Konter-Logik, Flieger debug-spawnbar, 3D-Luft-Layer (volle Deckkraft) | Konter-Matrix-Checkliste im Hotseat (jede Zeile aus Abschnitt 3); Flug über Mauer/Turm/Stein/Dorf; Boden läuft unter Flieger durch; 2 Flieger stapeln nicht; **Sprite-Abnahme per Screenshot** |
 | **M5b** | Feuer-System: Anzünden, Feuersturm, `fi[]`, Brand-Ticks, Feuer-Rendering | Anzünden = exakt 4+4 über 2 Züge; Feuersturm trifft eigene+fremde Boden, nicht Luft; Betreten-Schaden; Felder erlöschen nach 2 Runden; Undo nach jeder Aktion |
-| **M6** | Rekrutierung, Absprung, Lufttransport, Sturzangriff, factionUnitMap-Fix, Rest-Aktions-Checks | Jede Fraktion rekrutiert ihren Flieger; Absprung Umkreis 3 + Schuss im selben Zug; gelandet erobern; Aufladen→Flug über Mauer→Absetzen; Träger-Tod tötet Fracht; Sturzangriff auf Boden-, Luft- und Gebäudeziel (Gleiter weg, Kopfgeld gezahlt); End-Turn-URL round-trippt mit `ld/cg/bn/fi` |
+| **M6** | Rekrutierung, Absprung, Lufttransport, Sturzangriff, factionUnitMap-Fix, Rest-Aktions-Checks | Jede Fraktion rekrutiert ihren Flieger; Absprung Umkreis 2 + Schuss im selben Zug; gelandet erobern; Aufladen→Flug über Mauer→Absetzen; Träger-Tod tötet Fracht; Sturzangriff auf Boden-, Luft- und Gebäudeziel (Gleiter weg, Kopfgeld gezahlt); End-Turn-URL round-trippt mit `ld/cg/bn/fi` |
 | **M7** | Luftansicht: Kipp-Toggle, 10 %-Opacity, Klick-Ebenen + Zyklus | Gestapeltes Hex: Bodenansicht wählt Boden, Luftansicht Luft, Re-Klick wechselt; Schadensvorschau zeigt richtiges Ziel |
 | **M8** | Integrations-Pass: Veteranen, Recap, Events, Diplomatie, Serialisierung, 3-Spieler-Partie | Verbündeter Flieger nicht angreifbar; Recap zeigt Luft-Aktionen; URL-Längen-Check; **Playtest mit Christian & Vincent** |
 

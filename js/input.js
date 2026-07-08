@@ -1103,7 +1103,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
             if (clickedUnit.t === 12) specInfo = `Spezial: 🚁 Lufttransport – trägt 1 eigene Bodeneinheit über Mauern & Fronten. Achtung: Stürzt die Luftschraube ab, geht die Fracht verloren!` + (clickedUnit.cg ? ` ► Fracht: ${unitStats[clickedUnit.cg.t].name}` : '');
             if (clickedUnit.t === 13) specInfo = `Spezial: 💥 Sturzangriff – 9 DMG auf Boden-, Luft- oder Gebäudeziel im Umkreis 1. Der Gleiter wird dabei zerstört.`;
             if (clickedUnit.t === 14) specInfo = isFlying(clickedUnit)
-                ? `Spezial: 🪂 Absprung – lande auf einem freien Feld im Umkreis 3 (endgültig!), danach darfst du noch schießen. Fliegend trifft die Schleuder nur Lufteinheiten.`
+                ? `Spezial: 🪂 Absprung – lande auf einem freien Feld im Umkreis 2 (endgültig!), danach darfst du noch schießen. Fliegend trifft die Schleuder nur Lufteinheiten.`
                 : `Gelandet: Schleuder (4 DMG, RW 2) trifft Luft UND Boden. Kann Dörfer erobern.`;
             if (clickedUnit.t === 15) specInfo = `Spezial: 🔥 Anzünden (Normalangriff) – Ziel brennt für insgesamt 8 DMG (4 sofort + 4 später). 🌋 Feuersturm (${unitStats[15].fsCost}🪵) – trifft dein Feld + 6 Nachbarn für je ${unitStats[15].fsDmg * 2} DMG (${unitStats[15].fsDmg} sofort + ${unitStats[15].fsDmg} später), trifft AUCH eigene Bodentruppen!`;
 

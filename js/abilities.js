@@ -212,14 +212,14 @@ window.useAbility = function (type) {
         renderBoard(gameState);
     }
     else if (type === 'absprung') {
-        // Fallschirmspringer: Ziel-Hex im Umkreis 3 wählen — Landung ist PERMANENT,
+        // Fallschirmspringer: Ziel-Hex im Umkreis 2 wählen — Landung ist PERMANENT,
         // zählt wie Bewegung (a=2), danach darf er noch schießen
         window.specialActive = 'absprung';
         validAttacks = []; validMoves = [];
         for (let y = 0; y < gameState.bh; y++) {
             for (let x = 0; x < gameState.bw; x++) {
                 if (!isInsideMap(gameState, x, y)) continue;
-                if (hexDistance({ x, y }, { x: selectedUnit.x, y: selectedUnit.y }) > 3) continue;
+                if (hexDistance({ x, y }, { x: selectedUnit.x, y: selectedUnit.y }) > 2) continue;
                 if (groundUnitAt(x, y)) continue;
                 const key = `${x},${y}`;
                 let isAliveSV = false;
@@ -236,7 +236,7 @@ window.useAbility = function (type) {
             }
         }
         hideActionMenu();
-        infoPanel.innerHTML = `🪂 Absprung – Landeplatz wählen<br><div class="info-detail" style="color: #4fc3f7;">Freies Boden-Feld im Umkreis 3. Die Landung ist endgültig — danach darfst du noch schießen.</div>`;
+        infoPanel.innerHTML = `🪂 Absprung – Landeplatz wählen<br><div class="info-detail" style="color: #4fc3f7;">Freies Boden-Feld im Umkreis 2. Die Landung ist endgültig — danach darfst du noch schießen.</div>`;
         renderBoard(gameState);
     }
     else if (type === 'aufladen') {

@@ -48,6 +48,6 @@ const unitStats = {
     // pro getroffenem Ziel, gleiches bn/bo-Brand-Tag-System wie Anzünden (siehe doEndTurn).
     12: { dmg: 5, range: 1, move: 2, name: "Luftschraube", cost: 7, maxHp: 14, isMelee: true, isAir: true, hitsAir: true, hitsGround: true },
     13: { dmg: 5, range: 1, move: 4, name: "Gleiter", cost: 6, maxHp: 8, isMelee: true, isAir: true, hitsAir: true, hitsGround: true },
-    14: { dmg: 4, range: 2, move: 3, name: "Fallschirmspringer", cost: 4, maxHp: 10, isMelee: false, isAir: true, hitsAir: true, hitsGround: false, ldMove: 2 },
+    14: { dmg: 4, range: 2, move: 2, name: "Fallschirmspringer", cost: 4, maxHp: 10, isMelee: false, isAir: true, hitsAir: true, hitsGround: false, ldMove: 2 },
     15: { dmg: 4, range: 1, move: 2, name: "Bombenballon", cost: 9, maxHp: 14, isMelee: false, isAir: true, hitsAir: false, hitsGround: true, igniteDmg: 4, fsCost: 5, fsDmg: 3 }
 };
