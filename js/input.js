@@ -61,8 +61,11 @@ function handleCanvasClick(clientX, clientY) {
                     spawnFloatingText(clickedX, clickedY, `-5`, "#ff5252");
                     if (targetUnit) {
                         targetUnit.h -= 5;
-                        if (targetUnit.h <= 0) gameState.u = gameState.u.filter(u => u.i !== targetUnit.i);
-                        infoPanel.innerHTML = `🗼 Turm feuert! (-5 HP)`;
+                        let killed = false;
+                        if (targetUnit.h <= 0) { gameState.u = gameState.u.filter(u => u.i !== targetUnit.i); killed = true; }
+                        const twPState = gameState.p[gameState.cp];
+                        if (killed && twPState.u.includes(2)) { twPState.g += 3; infoPanel.innerHTML = `🗼 Turm feuert! (-5 HP) | +3G Kopfgeld!`; }
+                        else infoPanel.innerHTML = `🗼 Turm feuert! (-5 HP)`;
                     } else if (targetTower) {
                         targetTower.h -= 5;
                         if (targetTower.h <= 0) { gameState.tw = gameState.tw.filter(tw => tw !== targetTower); infoPanel.innerHTML = `🗼 Feindlicher Turm zerstört!`; }
