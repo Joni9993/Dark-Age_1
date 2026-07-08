@@ -4,11 +4,14 @@
 // Pixel-Änderungen am besten im Editor machen.
 //
 // WICHTIG: Zwei komplette Datensätze koexistieren hier:
-//   CLASSIC_* — unverändertes Live-Design (aktuell im echten Spiel sichtbar)
+//   CLASSIC_* — Live-Design (aktuell im echten Spiel sichtbar)
 //   NEW_*     — Redesign in Arbeit, nur sichtbar mit ?debug=1 (oder im Editor)
 // DEBUG_ART entscheidet, welcher Satz als `pal`/`pixelSprites`/... exportiert
 // wird. So bleibt das Live-Spiel unangetastet, während wir im Debug-Modus
 // iterieren — erst auf ausdrücklichen Wunsch wird NEW_* zum einzigen Datensatz.
+// Ausnahme: CLASSIC_TERRAIN_COLORS wurde bereits auf Wunsch auf die sanftere/
+// hellere Boden-Palette aus dem Redesign umgestellt (Gebäude/Einheiten/Steine
+// bleiben unverändert im alten Look, bis die auch freigegeben werden).
 //
 // Sprite-Format: 1 Zeichen = 1 Pixel (Zeilen als Strings, '.' = transparent).
 // Voxelmodell-Format: Tiefen-Schichten (hinten → vorne), jede Schicht w×h Pixel.
@@ -59,9 +62,9 @@ const DEBUG_ART = (typeof window !== 'undefined' && window.FORCE_NEW_ART === tru
 
 
 // ============================================================================
-// CLASSIC — unverändertes Live-Design (1:1 aus dem letzten Commit übernommen).
-// NICHT von Hand anpassen — das hier ist absichtlich eingefroren, bis wir uns
-// entscheiden, komplett auf NEW_* umzustellen.
+// CLASSIC — Live-Design (1:1 aus dem letzten Commit übernommen, bis auf
+// CLASSIC_TERRAIN_COLORS s.u.). Sonst NICHT von Hand anpassen — das hier ist
+// absichtlich eingefroren, bis wir uns entscheiden, komplett auf NEW_* umzustellen.
 // ============================================================================
 const CLASSIC_PAL = { 1: "#111", 2: "#ffccaa", 3: "#cfd8dc", 4: "#795548", 5: "#9e9e9e", 6: "#424242", 7: "#ffb300", 8: "#ff6e40" };
 
@@ -203,14 +206,18 @@ const CLASSIC_PIXEL_SPRITES = {
     ]
 };
 
+// Bereits auf die sanftere/hellere Boden-Palette aus dem Redesign umgestellt
+// (siehe NEW_TERRAIN_COLORS unten — beide sind aktuell identisch).
 const CLASSIC_TERRAIN_COLORS = {
-    grass: { top: "#2e3b32", side: "#1a241d" },
-    forest: { top: "#1b261c", side: "#0d140e" },
-    hill: { top: "#5a4d40", side: "#3b2e22", sideBottom: "#2b1e14" },
+    grass: { top: "#3b4c37", side: "#212c22" },
+    forest: { top: "#263622", side: "#131d14" },
+    hill: { top: "#655139", side: "#403122", sideBottom: "#2a1f16" },
     black: { top: "#000", side: "#000" }
 };
 
-const CLASSIC_VOXEL_MODELS = {}; // Live-Design nutzt keine echten 3D-Gebäude
+// Gebäude/Einheiten bleiben Live vorerst flache Billboards; "stone" wird weiter
+// unten (nach NEW_VOXEL_MODELS) auf Wunsch bereits als echtes 3D-Modell live freigegeben.
+const CLASSIC_VOXEL_MODELS = {};
 
 
 // ============================================================================
@@ -1078,10 +1085,16 @@ const NEW_VOXEL_MODELS = (() => {
     };
 })();
 
+// Stein-Resource ist auf Wunsch bereits live freigegeben — teilt sich das echte
+// 3D-Voxelmodell mit dem Redesign (Gebäude/Einheiten bleiben vorerst klassisch).
+CLASSIC_VOXEL_MODELS.stone = NEW_VOXEL_MODELS.stone;
+
+// Etwas heller/sanfter als die erste Redesign-Fassung — Boden wirkte zu düster
+// und in Kombination mit der Noise-Textur zu unruhig/"noisy" fürs Auge.
 const NEW_TERRAIN_COLORS = {
-    grass: { top: "#2a3627", side: "#19221a" },
-    forest: { top: "#1c2819", side: "#0f1710" },
-    hill: { top: "#4e3e2c", side: "#33271b", sideBottom: "#231a12" },
+    grass: { top: "#3b4c37", side: "#212c22" },
+    forest: { top: "#263622", side: "#131d14" },
+    hill: { top: "#655139", side: "#403122", sideBottom: "#2a1f16" },
     black: { top: "#000", side: "#000" }
 };
 

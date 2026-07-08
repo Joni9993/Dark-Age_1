@@ -737,6 +737,7 @@ function generateArtJs() {
     const classicPalStr = JSON.stringify(CLASSIC_PAL, null, 4);
     const classicSpritesStr = JSON.stringify(CLASSIC_PIXEL_SPRITES);
     const classicTerrainStr = JSON.stringify(CLASSIC_TERRAIN_COLORS, null, 4);
+    const classicVoxelModelsStr = JSON.stringify(CLASSIC_VOXEL_MODELS, null, 4);
 
     return `// === ART-DATEN (Paletten, Pixel-Sprites, 3D-Voxelmodelle) ===
 // GENERIERT vom Art-Editor (editor.html) — Änderungen am besten dort machen.
@@ -792,7 +793,7 @@ const CLASSIC_PIXEL_SPRITES = ${classicSpritesStr};
 
 const CLASSIC_TERRAIN_COLORS = ${classicTerrainStr};
 
-const CLASSIC_VOXEL_MODELS = {};
+const CLASSIC_VOXEL_MODELS = ${classicVoxelModelsStr};
 
 // ============================================================================
 // NEW — Redesign in Arbeit (nur ?debug=1 / Editor)

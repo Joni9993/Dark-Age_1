@@ -107,11 +107,11 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
         scene = new THREE.Scene();
-        // DEBUG_ART (js/art.js): dunklere/rauere Stimmung nur im Redesign — Live bleibt unverändert
-        scene.background = new THREE.Color(DEBUG_ART ? '#07080d' : '#050505');
+        // Dunklere/rauere Redesign-Stimmung — bereits live (nicht mehr per DEBUG_ART gegated)
+        scene.background = new THREE.Color('#07080d');
 
-        const ambient = new THREE.AmbientLight(0xffffff, DEBUG_ART ? 0.45 : 0.55);
-        const sun = new THREE.DirectionalLight(0xffffff, DEBUG_ART ? 0.9 : 0.75);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+        const sun = new THREE.DirectionalLight(0xffffff, 0.9);
         sun.position.set(-0.4, 1, 0.6);
         scene.add(ambient, sun);
 
@@ -127,7 +127,8 @@
     }
 
     // Grobkörnige Pixel-Noise-Textur (NearestFilter, große "Pixel") für den
-    // dreckigen 8-Bit-Look der Tiles — nur DEBUG_ART, Live bleibt unverändert.
+    // Boden — bereits live. Bewusst geringer Kontrast und hohe Grundhelligkeit
+    // (sanfter, heller — statt "dreckiger" 8-Bit-Look).
     let _noiseTex = null;
     function getNoiseTexture() {
         if (_noiseTex) return _noiseTex;
@@ -137,12 +138,12 @@
         const g = c.getContext('2d');
         const rng = createPRNG(4242);
         for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-            const v = 160 + Math.floor(rng() * 95);   // starker Kontrast, wirkt grob/dreckig
+            const v = 195 + Math.floor(rng() * 40);   // schwacher Kontrast, wirkt ruhig/sanft
             g.fillStyle = `rgb(${v},${v},${v})`;
             g.fillRect(x, y, 1, 1);
         }
-        for (let i = 0; i < 40; i++) {
-            const v = 85 + Math.floor(rng() * 55);
+        for (let i = 0; i < 14; i++) {
+            const v = 150 + Math.floor(rng() * 40);
             g.fillStyle = `rgb(${v},${v},${v})`;
             g.fillRect(Math.floor(rng() * size), Math.floor(rng() * size), 1, 1);
         }
@@ -154,7 +155,8 @@
         return _noiseTex;
     }
 
-    // Alle Hexes, auf denen ein 3D-Gebäudemodell steht (Bäume aussparen, Einheiten vorziehen)
+    // Alle Hexes, auf denen irgendein Bauwerk/Stein steht, egal ob Billboard oder
+    // echtes 3D-Modell (Bäume aussparen — Wald würde sonst durch alles hindurchwachsen)
     function collectBuildingHexes(state) {
         const set = new Set();
         if (state.v) for (const key of Object.keys(state.v)) set.add(key);
@@ -163,6 +165,28 @@
         if (state.wa) state.wa.forEach(w => set.add(`${w.x},${w.y}`));
         if (state.st) state.st.forEach(s => { if (s.h > 0) set.add(`${s.x},${s.y}`); });
         if (state.ct) set.add(`${state.ct.x},${state.ct.y}`);
+        return set;
+    }
+
+    // Teilmenge von collectBuildingHexes: nur Hexes, deren Bewohner aktuell
+    // tatsächlich ein echtes 3D-Voxelmodell rendert (hängt von `voxelModels` ab,
+    // das je nach Live-Freigabestand unterschiedliche Keys enthalten kann — aktuell
+    // z.B. "stone" bereits live, Gebäude noch nicht). Für den Einheiten-Vorzieh-
+    // Offset, der nur bei echten volumetrischen Körpern nötig ist (Billboards
+    // verstecken Einheiten nicht auf die gleiche Art).
+    function collectVoxelBodyHexes(state) {
+        const set = new Set();
+        if (voxelModels.stone && state.st) state.st.forEach(s => { if (s.h > 0) set.add(`${s.x},${s.y}`); });
+        if (voxelModels.tower && state.tw) state.tw.forEach(t => { if (t.h > 0) set.add(`${t.x},${t.y}`); });
+        if (voxelModels.wall && state.wa) state.wa.forEach(w => set.add(`${w.x},${w.y}`));
+        if (voxelModels.tunnel && state.tu) state.tu.forEach(t => { set.add(`${t.x1},${t.y1}`); set.add(`${t.x2},${t.y2}`); });
+        if (voxelModels.watchtower && state.ct) set.add(`${state.ct.x},${state.ct.y}`);
+        if (state.v && (voxelModels.village || voxelModels.startVillage)) {
+            for (const [key, ownerId] of Object.entries(state.v)) {
+                const isStart = ownerId !== -1 && state.p[ownerId] && state.p[ownerId].sv === key;
+                if (voxelModels[isStart ? 'startVillage' : 'village']) set.add(key);
+            }
+        }
         return set;
     }
 
@@ -187,32 +211,28 @@
         }
 
         // Einheits-Prisma (Höhe 1, Spitze nach Norden), per Instanz in Y skaliert.
+        // Vertex-Farben als Fake-AO: Deckel hell mit sanft abgedunkeltem Rand, Seiten
+        // laufen nach unten dunkler zu, plus sanfte Pixel-Noise-Textur. Bereits live
+        // (nicht mehr per DEBUG_ART gegated) — nur Gebäude/Einheiten bleiben vorerst
+        // hinter dem Gate (Stein-Resource ist als Ausnahme bereits ebenfalls live).
         const geo = new THREE.CylinderGeometry(hexSize, hexSize, 1, 6, 1, false);
-        let mat;
-        if (DEBUG_ART) {
-            // Vertex-Farben als Fake-AO: Deckel hell mit sanft abgedunkeltem Rand,
-            // Seiten laufen nach unten dunkler zu, plus dreckige Pixel-Noise-Textur.
-            // Nur im Redesign — Live behält das schlichte Einfarb-Material.
-            const pos = geo.attributes.position, nrm = geo.attributes.normal;
-            const vcol = new Float32Array(pos.count * 3);
-            for (let i = 0; i < pos.count; i++) {
-                const ny = nrm.getY(i);
-                let v;
-                if (ny > 0.9) {
-                    const r = Math.sqrt(pos.getX(i) ** 2 + pos.getZ(i) ** 2) / hexSize;
-                    v = 1.0 - r * 0.12;                       // Deckel: Rand leicht dunkler
-                } else if (ny < -0.9) {
-                    v = 0.4;                                  // Boden (unsichtbar)
-                } else {
-                    v = 0.52 + (pos.getY(i) + 0.5) * 0.26;    // Seiten: unten dunkler
-                }
-                vcol[i * 3] = vcol[i * 3 + 1] = vcol[i * 3 + 2] = v;
+        const pos = geo.attributes.position, nrm = geo.attributes.normal;
+        const vcol = new Float32Array(pos.count * 3);
+        for (let i = 0; i < pos.count; i++) {
+            const ny = nrm.getY(i);
+            let v;
+            if (ny > 0.9) {
+                const r = Math.sqrt(pos.getX(i) ** 2 + pos.getZ(i) ** 2) / hexSize;
+                v = 1.0 - r * 0.08;                       // Deckel: Rand nur leicht dunkler
+            } else if (ny < -0.9) {
+                v = 0.4;                                  // Boden (unsichtbar)
+            } else {
+                v = 0.62 + (pos.getY(i) + 0.5) * 0.26;    // Seiten: unten dunkler, insgesamt heller
             }
-            geo.setAttribute('color', new THREE.BufferAttribute(vcol, 3));
-            mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, map: getNoiseTexture() });
-        } else {
-            mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            vcol[i * 3] = vcol[i * 3 + 1] = vcol[i * 3 + 2] = v;
         }
+        geo.setAttribute('color', new THREE.BufferAttribute(vcol, 3));
+        const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, map: getNoiseTexture() });
         tileMesh = new THREE.InstancedMesh(geo, mat, coords.length);
         // Instanzen liegen über die ganze Karte verteilt — Three würde sonst anhand
         // der Geometrie-Bounds am Ursprung cullen und das Mesh beim Reinzoomen verwerfen
@@ -242,11 +262,10 @@
                 col.copy(COL_UNEXPLORED);
             } else {
                 col.set(terrainColors[c.tType].top);
-                if (DEBUG_ART) {
-                    // Deterministische Farbvariation pro Tile gegen den Flächen-Einheitslook
-                    const j = (((c.x * 73856093) ^ (c.y * 19349663)) >>> 0) % 1000 / 1000;
-                    col.multiplyScalar(0.94 + j * 0.12);
-                }
+                // Deterministische Farbvariation pro Tile gegen den Flächen-Einheitslook —
+                // schmale Spanne für einen ruhigen, wenig fleckigen Boden. Bereits live.
+                const j = (((c.x * 73856093) ^ (c.y * 19349663)) >>> 0) % 1000 / 1000;
+                col.multiplyScalar(0.97 + j * 0.06);
                 if (!vis.has(`${c.x},${c.y}`)) col.multiplyScalar(SHROUD_MUL);
             }
             tileMesh.setColorAt(i, col);
@@ -259,10 +278,13 @@
         // Kein Wald-Bewuchs auf Hexes mit Gebäuden — Bäume würden durch die Modelle wachsen
         const forests = tileIndex.filter(c => c.tType === 'forest' && vis.has(`${c.x},${c.y}`) && !buildingHexes.has(`${c.x},${c.y}`));
         if (forests.length === 0) return;
-        if (DEBUG_ART) rebuildTreesNew(forests, unitHexes); else rebuildTreesClassic(forests);
+        // Voxel-Baumvielfalt bereits live (nicht mehr per DEBUG_ART gegated) —
+        // rebuildTreesClassic bleibt als Referenz/Rückfallebene erhalten.
+        rebuildTreesNew(forests, unitHexes);
     }
 
-    // Live-Design (unverändert): Tannen aus Stamm + zwei gestaffelten Kronen-Kegeln
+    // Altes Live-Design (unverändert, aktuell nicht mehr aufgerufen): Tannen aus
+    // Stamm + zwei gestaffelten Kronen-Kegeln
     function rebuildTreesClassic(forests) {
         const treePositions = [
             { dx: 0, dy: -4, sz: 7 }, { dx: -9, dy: 2, sz: 6 }, { dx: 8, dy: 3, sz: 5 },
@@ -297,7 +319,7 @@
         treeGroup.add(mesh);
     }
 
-    // Redesign (nur DEBUG_ART): blockige Voxel-Bäume in 3 klar unterscheidbaren
+    // Redesign, bereits live: blockige Voxel-Bäume in 3 klar unterscheidbaren
     // Sorten (Kiefer dunkelgrün, rundes Laub oliv, kahles Totholz grau). Auf
     // Hexes mit einer Einheit werden weniger/kürzere Bäume gesetzt und nach
     // außen gerückt, damit man erkennt, was im Wald steht (reine Deko-Regel,
@@ -387,7 +409,7 @@
     }
 
     // Pixel-Schmutz auf den Tiles: dunkle Flecken, Steinchen, selten Knochen —
-    // bricht die makellosen Flächen auf (dirty dark 8-bit). Nur DEBUG_ART.
+    // bricht die makellosen Flächen auf (dirty dark 8-bit). Bereits live.
     function rebuildDeco(state, vis, buildingHexes) {
         decoGroup.clear();
         const tiles = tileIndex.filter(c => c.tType !== 'forest' && vis.has(`${c.x},${c.y}`) && !buildingHexes.has(`${c.x},${c.y}`));
@@ -470,23 +492,36 @@
 
     // Unterste gefüllte Pixelzeile eines Sprites — viele Sprites haben unten
     // transparente Zeilen und würden sonst über dem Boden schweben
-    function spriteBottomRow(spriteKey) {
-        if (_bottomRowCache[spriteKey] !== undefined) return _bottomRowCache[spriteKey];
-        const arr = pixelSprites[spriteKey];
+    function spriteBottomRow(spriteKey, dict) {
+        dict = dict || pixelSprites;
+        const cacheKey = (dict === CLASSIC_PIXEL_SPRITES ? 'classic:' : '') + spriteKey;
+        if (_bottomRowCache[cacheKey] !== undefined) return _bottomRowCache[cacheKey];
+        const arr = dict[spriteKey];
         const size = Math.round(Math.sqrt(arr.length));
         let bottom = size - 1;
         for (let row = size - 1; row >= 0; row--) {
             if (arr.slice(row * size, row * size + size).some(v => v !== 0)) { bottom = row; break; }
         }
-        _bottomRowCache[spriteKey] = { bottom, size };
-        return _bottomRowCache[spriteKey];
+        _bottomRowCache[cacheKey] = { bottom, size };
+        return _bottomRowCache[cacheKey];
+    }
+
+    // Klassische (Live-)Sprite-Farbe — unabhängig vom aktiven DEBUG_ART-Datensatz,
+    // damit Einheiten im Debug-Modus trotz neuem Terrain/Gebäuden 1:1 wie im
+    // echten Spiel aussehen.
+    function classicSpriteColor(val, playerColor) {
+        if (val === P) return playerColor;
+        if (val === PD) return darkenHexColor(playerColor, 0.55);
+        return CLASSIC_PAL[val];
     }
 
     // Zeichnet ein pixelSprite als "Pappaufsteller" aus Voxeln (Fläche zur Kamera)
-    function addVoxelSprite(spriteKey, wx, wz, groundY, playerColor, dimFactor, tint) {
-        const arr = pixelSprites[spriteKey];
+    function addVoxelSprite(spriteKey, wx, wz, groundY, playerColor, dimFactor, tint, dict, colorFn) {
+        dict = dict || pixelSprites;
+        colorFn = colorFn || spritePixelColor;
+        const arr = dict[spriteKey];
         if (!arr) return;
-        const { bottom, size } = spriteBottomRow(spriteKey);
+        const { bottom, size } = spriteBottomRow(spriteKey, dict);
         // Einheiten im 3D-Modus etwas größer als früher — bessere Lesbarkeit bei Zoom-out
         const s = ((spriteKey === 9) ? 3.4 : 2.6) * 10 / size;
 
@@ -514,7 +549,7 @@
                 wz + across * rz + depth * fz
             );
             mesh.setMatrixAt(idx, _vm);
-            _vc.set(spritePixelColor(val, playerColor));
+            _vc.set(colorFn(val, playerColor));
             if (tint) _vc.lerp(tint, 0.45);
             if (dimFactor !== 1) _vc.multiplyScalar(dimFactor);
             mesh.setColorAt(idx, _vc);
@@ -667,10 +702,12 @@
         const seedKey = `${state.sd}|${state.bw}|${state.bh}|${state.rad}`;
         if (builtSeed !== seedKey) buildTiles(state);
         const buildingHexes = collectBuildingHexes(state);
+        const voxelBodyHexes = collectVoxelBodyHexes(state);
         const unitHexes = collectUnitHexes(state);
         updateTileColors(state, vis, explored);
         rebuildTrees(state, vis, buildingHexes, unitHexes);
-        if (DEBUG_ART) rebuildDeco(state, vis, buildingHexes); else decoGroup.clear();
+        // Boden-Schmutz-Deko bereits live (nicht mehr per DEBUG_ART gegated)
+        rebuildDeco(state, vis, buildingHexes);
         ensureVoxelMesh();
 
         // Sprite-Layer leeren (HP-Balken etc. sind billige Objekte, Rebuild pro Frame ok)
@@ -735,12 +772,14 @@
                 let spriteKey = u.t;
                 if (spriteKey === 11 && u.dp === 1) spriteKey = 'wagen_dp';
                 if (spriteKey === 14 && u.ld === 1) spriteKey = 'fallschirm_ld';
-                const hasVoxelBody = !!voxelModels[spriteKey];
-                // Steht die Einheit auf einem Gebäude-Hex, zur Kamera vorziehen —
-                // sonst verschwindet der Sprite im 3D-Gebäudemodell. Nur relevant
-                // mit echten 3D-Gebäuden (DEBUG_ART); Live nutzt nur flache
-                // Billboard-Gebäude, kein Versteck-Effekt.
-                if (DEBUG_ART && buildingHexes.has(`${u.x},${u.y}`)) {
+                // Einheiten immer als 2D-Pixel-Billboard ("Pappaufsteller") rendern —
+                // die echten 3D-Voxelkörper für Einheiten sind zurückgestellt, nur
+                // Gebäude/Steine (separater Zweig unten) nutzen weiterhin voxelModels.
+                const hasVoxelBody = false;
+                // Steht die Einheit auf einem Hex mit echtem 3D-Voxelkörper (Gebäude im
+                // Redesign, Stein-Resource bereits live), zur Kamera vorziehen — sonst
+                // verschwindet der Sprite im Modell. Flache Billboards brauchen das nicht.
+                if (voxelBodyHexes.has(`${u.x},${u.y}`)) {
                     const { fx, fz } = camGroundAxes();
                     wx += fx * hexSize * 0.55;
                     wz += fz * hexSize * 0.55;
@@ -757,7 +796,9 @@
                 addShadow(wx, wz, gy);
                 const drawUnit = (dx, dz, tintColor, dimF) => {
                     if (hasVoxelBody) addVoxelModel(spriteKey, wx + dx, wz + dz, gy + hover, playerColors[u.p], dimF, tintColor);
-                    else addVoxelSprite(spriteKey, wx + dx, wz + dz, gy + hover, playerColors[u.p], dimF, tintColor);
+                    // Einheiten immer im klassischen Live-Look zeichnen (Sprites + Farben),
+                    // unabhängig vom NEW_*-Datensatz, den Terrain/Gebäude im Debug-Modus nutzen.
+                    else addVoxelSprite(spriteKey, wx + dx, wz + dz, gy + hover, playerColors[u.p], dimF, tintColor, CLASSIC_PIXEL_SPRITES, classicSpriteColor);
                 };
                 if (isStealth && u.a !== 1) {
                     // Geister-Doppelbild wie im 2D-Renderer (versetzte, stark gedimmte Kopien)
