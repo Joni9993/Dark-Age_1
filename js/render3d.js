@@ -199,7 +199,7 @@
     }
 
     function buildTiles(state) {
-        if (tileMesh) { scene.remove(tileMesh); tileMesh.geometry.dispose(); }
+        if (tileMesh) { scene.remove(tileMesh); tileMesh.dispose(); tileMesh.geometry.dispose(); tileMesh.material.dispose(); }
         tileIndex = []; tileLookup = {};
 
         const coords = [];
@@ -273,8 +273,27 @@
         tileMesh.instanceColor.needsUpdate = true;
     }
 
+    // Group.clear() entfernt Kinder nur aus der Szene, gibt aber ihre GPU-Buffer
+    // (Geometrie/Material) NICHT frei. rebuildTrees/rebuildDeco erzeugen jedes Mal
+    // ein komplett neues InstancedMesh und werden bei jeder Kamera-Geste (Pan/Zoom/
+    // Orbit → requestRender3d → drawScene3d) neu aufgerufen, nicht nur bei
+    // Spielzustands-Änderungen — ohne Dispose sammeln sich pro Sekunde mehrere
+    // verwaiste Meshes an und laufen dem GPU-Speicher davon (Freeze, danach
+    // schwarze Tiles durch WebGL-Kontextverlust).
+    function disposeGroupChildren(group) {
+        for (const child of group.children) {
+            // InstancedMesh.dispose() gibt zusätzlich die GPU-Buffer von
+            // instanceMatrix/instanceColor frei (liegen nicht in geometry.attributes,
+            // geometry.dispose() allein reicht dafür nicht aus)
+            if (child.dispose) child.dispose();
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) child.material.dispose();
+        }
+        group.clear();
+    }
+
     function rebuildTrees(state, vis, buildingHexes, unitHexes) {
-        treeGroup.clear();
+        disposeGroupChildren(treeGroup);
         // Kein Wald-Bewuchs auf Hexes mit Gebäuden — Bäume würden durch die Modelle wachsen
         const forests = tileIndex.filter(c => c.tType === 'forest' && vis.has(`${c.x},${c.y}`) && !buildingHexes.has(`${c.x},${c.y}`));
         if (forests.length === 0) return;
@@ -411,7 +430,7 @@
     // Pixel-Schmutz auf den Tiles: dunkle Flecken, Steinchen, selten Knochen —
     // bricht die makellosen Flächen auf (dirty dark 8-bit). Bereits live.
     function rebuildDeco(state, vis, buildingHexes) {
-        decoGroup.clear();
+        disposeGroupChildren(decoGroup);
         const tiles = tileIndex.filter(c => c.tType !== 'forest' && vis.has(`${c.x},${c.y}`) && !buildingHexes.has(`${c.x},${c.y}`));
         if (tiles.length === 0) return;
 
@@ -712,6 +731,10 @@
 
         // Sprite-Layer leeren (HP-Balken etc. sind billige Objekte, Rebuild pro Frame ok)
         spriteGroup.clear();
+        // Overlay-Meshes teilen sich overlayGeo (nicht disposen!), aber jedes Highlight
+        // bekommt ein frisches MeshBasicMaterial — das muss vor dem Clear weg, sonst
+        // derselbe Leak-Mechanismus wie bei Bäumen/Deko (siehe disposeGroupChildren)
+        for (const child of overlayGroup.children) if (child.material) child.material.dispose();
         overlayGroup.clear();
         _voxelCount = 0;
         _airVoxelCount = 0;
