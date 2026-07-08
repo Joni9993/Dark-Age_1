@@ -974,6 +974,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
         }
     }
 
+    let unitMenuHtml = '';
     if (clickedUnit && clickedUnit.p === gameState.cp && (clickedUnit.a === 0 || clickedUnit.a === 2 || clickedUnit.a === 4 || (clickedUnit.t === 4 && clickedUnit.a === 1))) {
         let isOwnActive = (clickedUnit.a === 0 || clickedUnit.a === 2);
         let isOwnBerserkerUsed = clickedUnit.t === 4 && clickedUnit.a === 1;
@@ -1087,7 +1088,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
 
             if (clickedUnit.t === 8 && (clickedUnit.a === 0 || clickedUnit.a === 2)) { menuHtml += '<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #d84315;" onclick="useAbility(\'detonate\')">💥 Sprengen</button>'; }
 
-            if (menuHtml) showActionMenu(menuHtml);
+            unitMenuHtml = menuHtml;
             infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Einheit ausgewählt. Ziel oder Aktion wählen.</div>`;
 
             let specInfo = "";
@@ -1110,40 +1111,44 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
             if (specInfo) infoPanel.innerHTML += `<div class="info-detail" style="color: #4fc3f7;">${specInfo}</div>`;
         }
     }
-    else if (!clickedUnit && villageOwner === gameState.cp) {
-        selectedUnit = null; validMoves = []; validAttacks = [];
-        let menuHtml = '';
-        const mkBtn = (t, icon, name, col = '') => {
-            const hp = getUnitMaxHp(pState, t), mv = getUnitMove(pState, t, null), dmg = unitStats[t].dmg, cost = getUnitCost(pState, t), rg = unitStats[t].range;
-            return `<button class="action-btn" style="padding: 6px 8px; font-size: 0.9rem; display:flex; flex-direction:column; align-items:center; gap:4px; ${col ? 'border-color: ' + col + ';' : ''}" onclick="window.buyUnit(${t})">
-                <div>${icon} ${name} (${cost}G)</div>
-                <div style="font-size: 0.65rem; color: #b0bec5; display: flex; gap: 8px;"><span>❤️${hp}</span><span>⚔️${dmg}</span><span>👟${mv}</span><span>🎯${rg}</span></div>
-            </button>`;
-        };
-        menuHtml += mkBtn(0, '⚔️', 'Schwert') + mkBtn(1, '🏹', 'Bogen') + mkBtn(2, '🐎', 'Pferd');
-        menuHtml += mkBtn(7, '⛏️', 'Arbeiter', '#fff176');
-        if (pState.f.includes(0)) {
-            menuHtml += mkBtn(3, '🛡️', 'Ritter', '#fff176');
-            menuHtml += mkBtn(10, '🐪', 'Kamelreiter', '#e65100');
-            menuHtml += mkBtn(12, '🚁', 'Luftschraube', '#4fc3f7');
+    // Dorf-Rekrutierung: Boden und Luft teilen sich das Hex (js/logic.js), also einheitlich
+    // auf beiden Ebenen unabhängig voneinander anbieten — egal ob dort schon eine eigene
+    // Einheit auf der jeweils ANDEREN Ebene steht (siehe buyUnit-Ebenen-Check in ui.js).
+    let recruitHtml = '';
+    if (villageOwner === gameState.cp) {
+        const freeGroundHere = !groundUnitAt(clickedX, clickedY);
+        const freeAirHere = !airUnitAt(clickedX, clickedY);
+        if (freeGroundHere || freeAirHere) {
+            if (!clickedUnit) { selectedUnit = null; validMoves = []; validAttacks = []; }
+            const mkBtn = (t, icon, name, col = '') => {
+                const hp = getUnitMaxHp(pState, t), mv = getUnitMove(pState, t, null), dmg = unitStats[t].dmg, cost = getUnitCost(pState, t), rg = unitStats[t].range;
+                return `<button class="action-btn" style="padding: 6px 8px; font-size: 0.9rem; display:flex; flex-direction:column; align-items:center; gap:4px; ${col ? 'border-color: ' + col + ';' : ''}" onclick="window.buyUnit(${t})">
+                    <div>${icon} ${name} (${cost}G)</div>
+                    <div style="font-size: 0.65rem; color: #b0bec5; display: flex; gap: 8px;"><span>❤️${hp}</span><span>⚔️${dmg}</span><span>👟${mv}</span><span>🎯${rg}</span></div>
+                </button>`;
+            };
+            if (freeGroundHere) {
+                recruitHtml += mkBtn(0, '⚔️', 'Schwert') + mkBtn(1, '🏹', 'Bogen') + mkBtn(2, '🐎', 'Pferd');
+                recruitHtml += mkBtn(7, '⛏️', 'Arbeiter', '#fff176');
+                if (pState.f.includes(0)) { recruitHtml += mkBtn(3, '🛡️', 'Ritter', '#fff176'); recruitHtml += mkBtn(10, '🐪', 'Kamelreiter', '#e65100'); }
+                if (pState.f.includes(1)) { recruitHtml += mkBtn(4, '🪓', 'Berserker', '#fff176'); recruitHtml += mkBtn(8, '💣', 'Saboteur', '#fff176'); }
+                if (pState.f.includes(2)) { recruitHtml += mkBtn(5, '🗡️', 'Assassine', '#fff176'); recruitHtml += mkBtn(9, '🐘', 'Elefant', '#a1887f'); }
+                if (pState.f.includes(3)) { recruitHtml += mkBtn(6, '🏗️', 'Tribok', '#fff176'); recruitHtml += mkBtn(11, '🚚', 'Wagenburg', '#fff176'); }
+            }
+            if (freeAirHere) {
+                if (pState.f.includes(0)) recruitHtml += mkBtn(12, '🚁', 'Luftschraube', '#4fc3f7');
+                if (pState.f.includes(1)) recruitHtml += mkBtn(13, '🛩️', 'Gleiter', '#4fc3f7');
+                if (pState.f.includes(2)) recruitHtml += mkBtn(14, '🪂', 'Fallschirm', '#4fc3f7');
+                if (pState.f.includes(3)) recruitHtml += mkBtn(15, '🎈', 'Ballon', '#4fc3f7');
+            }
+            infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Was möchtest du rekrutieren?</div>`;
         }
-        if (pState.f.includes(1)) {
-            menuHtml += mkBtn(4, '🪓', 'Berserker', '#fff176');
-            menuHtml += mkBtn(8, '💣', 'Saboteur', '#fff176');
-            menuHtml += mkBtn(13, '🛩️', 'Gleiter', '#4fc3f7');
-        }
-        if (pState.f.includes(2)) {
-            menuHtml += mkBtn(5, '🗡️', 'Assassine', '#fff176');
-            menuHtml += mkBtn(9, '🐘', 'Elefant', '#a1887f');
-            menuHtml += mkBtn(14, '🪂', 'Fallschirm', '#4fc3f7');
-        }
-        if (pState.f.includes(3)) {
-            menuHtml += mkBtn(6, '🏗️', 'Tribok', '#fff176');
-            menuHtml += mkBtn(11, '🚚', 'Wagenburg', '#fff176');
-            menuHtml += mkBtn(15, '🎈', 'Ballon', '#4fc3f7');
-        }
-        showActionMenu(`<div class="recruit-scroll">${menuHtml}</div>`); infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Was möchtest du rekrutieren?</div>`;
-    } else { selectedUnit = null; validMoves = []; validAttacks = []; }
+    }
+
+    if (!clickedUnit && !recruitHtml) { selectedUnit = null; validMoves = []; validAttacks = []; }
+
+    const tileMenuHtml = unitMenuHtml + (recruitHtml ? `<div class="recruit-scroll" style="width:100%;">${recruitHtml}</div>` : '');
+    if (tileMenuHtml) showActionMenu(tileMenuHtml);
 }
 
 // === POINTER / TOUCH EVENTS ===
