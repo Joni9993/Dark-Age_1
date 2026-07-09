@@ -292,7 +292,17 @@
         group.clear();
     }
 
+    // Bäume/Deko sind weltfest — Kamera-Gesten (Pan/Zoom/Orbit) ändern an ihnen
+    // nichts, drawScene3d läuft aber bei jeder Geste (~60×/s). Ohne Memoisierung
+    // würde pro Frame ein neues InstancedMesh alloziert und wieder verworfen
+    // (GPU-Churn, der nach Minuten zum Kontextverlust führen kann). Rebuild nur,
+    // wenn sich die tatsächlichen Eingaben (Sicht/Gebäude/Einheiten-Hexes) ändern.
+    let _treeSig = null, _decoSig = null;
+
     function rebuildTrees(state, vis, buildingHexes, unitHexes) {
+        const sig = builtSeed + '|' + [...vis].join(',') + '|' + [...buildingHexes].join(',') + '|' + [...unitHexes].join(',');
+        if (sig === _treeSig) return;
+        _treeSig = sig;
         disposeGroupChildren(treeGroup);
         // Kein Wald-Bewuchs auf Hexes mit Gebäuden — Bäume würden durch die Modelle wachsen
         const forests = tileIndex.filter(c => c.tType === 'forest' && vis.has(`${c.x},${c.y}`) && !buildingHexes.has(`${c.x},${c.y}`));
@@ -430,6 +440,11 @@
     // Pixel-Schmutz auf den Tiles: dunkle Flecken, Steinchen, selten Knochen —
     // bricht die makellosen Flächen auf (dirty dark 8-bit). Bereits live.
     function rebuildDeco(state, vis, buildingHexes) {
+        // Gleiche Memoisierung wie rebuildTrees — Deko ist weltfest, Rebuild nur
+        // bei geänderter Sicht/Bebauung, nicht bei jeder Kamera-Geste
+        const sig = builtSeed + '|' + [...vis].join(',') + '|' + [...buildingHexes].join(',');
+        if (sig === _decoSig) return;
+        _decoSig = sig;
         disposeGroupChildren(decoGroup);
         const tiles = tileIndex.filter(c => c.tType !== 'forest' && vis.has(`${c.x},${c.y}`) && !buildingHexes.has(`${c.x},${c.y}`));
         if (tiles.length === 0) return;
@@ -677,11 +692,30 @@
         return tex;
     }
 
+    // SpriteMaterials werden wie die Text-Texturen gecacht: drawScene3d baut die
+    // HP-/Icon-Sprites bei JEDER Kamera-Geste neu (spriteGroup.clear() gibt
+    // Materialien nicht frei) — ein neues Material pro Sprite pro Frame leckte
+    // GPU-seitig, bis nach ein paar Minuten Scrollen/Drehen der WebGL-Kontext
+    // verloren ging (Bildschirm kurz schwarz, danach Tiles schwarz, HP-Texte weg).
+    // Alpha wird auf 0.05er-Schritte gerundet, damit der Cache während des
+    // Luftansicht-Tweens (kontinuierliches airAlpha) endlich bleibt.
+    const spriteMatCache = {};
+    function spriteMaterial(text, color, alpha) {
+        const a = Math.round(alpha * 20) / 20;
+        const key = text + '|' + color + '|' + a;
+        let m = spriteMatCache[key];
+        if (!m) {
+            m = new THREE.SpriteMaterial({ map: textTexture(text, color), depthTest: false, transparent: true, opacity: a });
+            spriteMatCache[key] = m;
+        }
+        return m;
+    }
+
     // HP als Zahl: align -1 = links über der Einheit, +1 = rechts über dem Gebäude,
     // 0 = mittig (Steinhaufen). Unter 15% wechselt die Farbe auf Rot.
     function addHpText(value, wx, wz, y, align, isLow, alpha = 1) {
         const color = isLow ? '#ff5252' : '#ffffff';
-        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(String(value), color), depthTest: false, transparent: true, opacity: alpha }));
+        const sp = new THREE.Sprite(spriteMaterial(String(value), color, alpha));
         sp.scale.set(11, 11, 1);
         const { rx, rz } = camGroundAxes();
         sp.position.set(wx + align * 12 * rx, y, wz + align * 12 * rz);
@@ -689,7 +723,7 @@
     }
 
     function addIcon(char, color, wx, wz, y, size, alpha = 1, align = 0) {
-        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: textTexture(char, color), depthTest: false, transparent: true, opacity: alpha }));
+        const sp = new THREE.Sprite(spriteMaterial(char, color, alpha));
         sp.scale.set(size, size, 1);
         const { rx, rz } = camGroundAxes();
         sp.position.set(wx + align * 12 * rx, y, wz + align * 12 * rz);
@@ -698,13 +732,20 @@
 
     // ── Highlights ────────────────────────────────────────────────────────────
     const overlayGeo = new THREE.CylinderGeometry(hexSize * 0.98, hexSize * 0.98, 1, 6);
-
+    // Materialien gecacht (es gibt nur eine Handvoll fester Farbe/Opacity-Kombis) —
+    // Overlays werden pro Frame neu aufgebaut, neue Materialien pro Aufruf würden
+    // ohne Dispose GPU-seitig lecken (siehe spriteMatCache)
+    const overlayMatCache = {};
     function addOverlay(x, y, colorHex, opacity, state) {
         const tType = getTerrainType(state, x, y);
         const { wx, wz } = worldPos(x, y);
-        const mesh = new THREE.Mesh(overlayGeo, new THREE.MeshBasicMaterial({
-            color: colorHex, transparent: true, opacity, depthWrite: false
-        }));
+        const key = colorHex + '|' + opacity;
+        let mat = overlayMatCache[key];
+        if (!mat) {
+            mat = new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity, depthWrite: false });
+            overlayMatCache[key] = mat;
+        }
+        const mesh = new THREE.Mesh(overlayGeo, mat);
         mesh.position.set(wx, tileHeight(tType) + 0.6, wz);
         overlayGroup.add(mesh);
     }
@@ -729,12 +770,10 @@
         rebuildDeco(state, vis, buildingHexes);
         ensureVoxelMesh();
 
-        // Sprite-Layer leeren (HP-Balken etc. sind billige Objekte, Rebuild pro Frame ok)
+        // Sprite-/Overlay-Layer leeren — deren Geometrien/Materialien sind gecacht
+        // und geteilt (spriteMatCache/overlayMatCache/texCache), clear() allein
+        // ist hier deshalb korrekt (nichts disposen, die Caches leben weiter)
         spriteGroup.clear();
-        // Overlay-Meshes teilen sich overlayGeo (nicht disposen!), aber jedes Highlight
-        // bekommt ein frisches MeshBasicMaterial — das muss vor dem Clear weg, sonst
-        // derselbe Leak-Mechanismus wie bei Bäumen/Deko (siehe disposeGroupChildren)
-        for (const child of overlayGroup.children) if (child.material) child.material.dispose();
         overlayGroup.clear();
         _voxelCount = 0;
         _airVoxelCount = 0;
