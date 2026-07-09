@@ -64,7 +64,7 @@ function handleCanvasClick(clientX, clientY) {
                         let killed = false;
                         if (targetUnit.h <= 0) { gameState.u = gameState.u.filter(u => u.i !== targetUnit.i); killed = true; }
                         const twPState = gameState.p[gameState.cp];
-                        if (killed && twPState.u.includes(2)) { twPState.g += 3; infoPanel.innerHTML = `🗼 Turm feuert! (-5 HP) | +3G Kopfgeld!`; }
+                        if (killed && twPState.u.includes(2)) { twPState.g += 2; infoPanel.innerHTML = `🗼 Turm feuert! (-5 HP) | +2G Kopfgeld!`; }
                         else infoPanel.innerHTML = `🗼 Turm feuert! (-5 HP)`;
                     } else if (targetTower) {
                         targetTower.h -= 5;
@@ -462,11 +462,11 @@ function handleCanvasClick(clientX, clientY) {
                 }
 
                 // Kopfgeld-Upgrade zahlt auch beim Sturzangriff
-                if (killed && pState.u.includes(2)) pState.g += 3;
+                if (killed && pState.u.includes(2)) pState.g += 2;
                 // Der Gleiter zerschellt
                 gameState.u = gameState.u.filter(u => u.i !== glider.i);
                 turnActions.push({ x: clickedX, y: clickedY, t: 'atk', fx: glider.x, fy: glider.y });
-                infoPanel.innerHTML = `💥 Sturzangriff! Der Gleiter zerschellt am Ziel.${killed && pState.u.includes(2) ? ' | +3G Kopfgeld!' : ''}`;
+                infoPanel.innerHTML = `💥 Sturzangriff! Der Gleiter zerschellt am Ziel.${killed && pState.u.includes(2) ? ' | +2G Kopfgeld!' : ''}`;
             }
             window.specialActive = null; selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
             renderBoard(gameState); return;
@@ -637,7 +637,7 @@ function executeAttackOnTarget(clickedX, clickedY, targetAttack) {
                             }
                         }
                     }
-                    if (pState.u.includes(2)) { pState.g += 3; infoPanel.innerHTML = `Angriff! (-${finalDmg} HP) | +3G Kopfgeld!`; } else { infoPanel.innerHTML = `Angriff! (-${finalDmg} HP)`; }
+                    if (pState.u.includes(2)) { pState.g += 2; infoPanel.innerHTML = `Angriff! (-${finalDmg} HP) | +2G Kopfgeld!`; } else { infoPanel.innerHTML = `Angriff! (-${finalDmg} HP)`; }
                 } else { infoPanel.innerHTML = `Angriff! (-${finalDmg} HP)`; }
             }
             turnActions.push({ x: clickedX, y: clickedY, t: 'atk', fx: selectedUnit.x, fy: selectedUnit.y });

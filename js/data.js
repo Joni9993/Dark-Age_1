@@ -15,7 +15,7 @@ const factions = {
 const upgrades = {
     0: { fac: 0, t: 1, name: "Plattenpanzer", desc: "Basis-Schwerter erhalten +5 Max HP.", g: 0, m: 7 },
     1: { fac: 0, t: 2, name: "Waffenmeister", desc: "Neu rekrutierte Einheiten starten bereits als Veteran (+1 DMG).", g: 0, m: 7 },
-    2: { fac: 1, t: 1, name: "Kopfgeld", desc: "+3 Gold für jeden Kill.", g: 0, m: 7 },
+    2: { fac: 1, t: 1, name: "Kopfgeld", desc: "+2 Gold für jeden Kill.", g: 0, m: 7 },
     3: { fac: 1, t: 2, name: "Brandschatzer", desc: "Berserker machen +3 DMG gegen Hauptgebäude.", g: 0, m: 7 },
     4: { fac: 2, t: 1, name: "Spähbogen", desc: "Bogenschützen erhalten +1 Schaden.", g: 0, m: 7 },
     5: { fac: 2, t: 2, name: "Schattenläufer", desc: "Assassinen erhalten +1 Bewegung und +1 Schaden.", g: 0, m: 7 },
@@ -33,7 +33,7 @@ const unitStats = {
     1: { dmg: 4, range: 2, move: 1, name: "Bogen", cost: 4, maxHp: 10, isMelee: false, light: true },
     2: { dmg: 5, range: 1, move: 2, name: "Pferd", cost: 4, maxHp: 10, isMelee: true, light: true },
     3: { dmg: 6, range: 1, move: 2, name: "Ritter", cost: 6, maxHp: 15, isMelee: true, light: true },
-    4: { dmg: 6, range: 1, move: 2, name: "Berserker", cost: 4, maxHp: 8, isMelee: true, light: true },
+    4: { dmg: 6, range: 1, move: 2, name: "Berserker", cost: 4, maxHp: 11, isMelee: true, light: true },
     5: { dmg: 6, range: 1, move: 3, name: "Assassine", cost: 5, maxHp: 8, isMelee: true, light: true },
     6: { dmg: 6, range: 3, move: 1, name: "Tribok", cost: 7, maxHp: 8, isMelee: false, light: true },
     7: { dmg: 2, range: 1, move: 1, name: "Arbeiter", cost: 2, maxHp: 10, isMelee: true, light: true },
