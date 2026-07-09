@@ -14,6 +14,15 @@ Requires PostgreSQL and `server/.env` (see `README.md` for setup: DATABASE_URL, 
 
 **Legacy URL mode:** opening `index.html?state=...` (LZ-compressed state in the URL) still works without server or account — this was the original multiplayer mode and is kept alive (`isLegacyUrlMode`).
 
+## Versioning
+
+The app version is shown bottom-right on the start screen (`#app-version` in `index.html`, set from `APP_VERSION` in `js/globals.js`, hidden once `bootGame()` starts an actual match). Format `MAJOR.PATCH.HOTFIX` (started at `1.0.0`):
+- **MAJOR** (1st number): a bigger update / new implementation (e.g. a new system/feature like the 3D renderer or air units).
+- **PATCH** (2nd number): a regular patch (e.g. balance change, smaller feature tweak).
+- **HOTFIX** (3rd number): a hotfix (e.g. a quick bug fix).
+
+Only the affected number increments by 1; the numbers to its right reset to 0 (standard semver behavior). At the end of a work session, judge which category the change falls into and ask the user whether `APP_VERSION` should be bumped accordingly — don't bump it silently.
+
 **Map analysis scripts:**
 ```bash
 node maptest/gen_maps.js [spieler] [radius]  # generates test map links as HTML (default 6 / 12)

@@ -38,6 +38,18 @@ h2 {
     text-shadow: 0 0 20px rgba(232, 184, 74, 0.3);
 }
 
+#app-version {
+    position: fixed;
+    right: 10px;
+    bottom: 8px;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    opacity: 0.6;
+    letter-spacing: 0.5px;
+    z-index: 500;
+    pointer-events: none;
+}
+
 .screen-box {
     display: flex;
     flex-direction: column;

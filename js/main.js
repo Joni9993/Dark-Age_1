@@ -3,6 +3,7 @@ function bootGame() {
     setupScreen.style.display = 'none'; intermissionScreen.style.display = 'none'; draftOverlay.style.display = 'none'; researchOverlay.style.display = 'none'; winScreen.style.display = 'none';
 
     if (mainTitle) mainTitle.style.display = 'none';
+    if (appVersionEl) appVersionEl.style.display = 'none';
 
     gameState.p.forEach(p => {
         if (p.sh === undefined) p.sh = 30;
