@@ -931,7 +931,10 @@
         const alive = [];
         for (const a of anims3d) {
             a.progress += a.type === 'slash' ? 0.03 : 0.06;
-            if (a.progress > 1) { scene.remove(a.obj); continue; }
+            // Jede Angriffsanimation bekommt eine eigene Geometrie+Material
+            // (spawnAttackAnim) — ohne Dispose leckt jeder Angriff GPU-Speicher,
+            // gleicher Bug wie bei Bäumen/Deko (siehe disposeGroupChildren).
+            if (a.progress > 1) { scene.remove(a.obj); a.obj.geometry.dispose(); a.obj.material.dispose(); continue; }
             alive.push(a);
             const p = a.progress;
 
