@@ -14,6 +14,7 @@ app.use(express.static(path.join(__dirname, '..')));
 app.use('/api/auth',    require('./routes/auth'));
 app.use('/api/games',   require('./routes/games'));
 app.use('/api/friends', require('./routes/friends'));
+app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/push',    require('./routes/push'));
 
 // SPA fallback: any non-API route returns index.html

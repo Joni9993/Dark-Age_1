@@ -400,8 +400,11 @@ window.toggleDeploy = function () {
     saveUndoState();
     selectedUnit.dp = selectedUnit.dp === 1 ? 0 : 1;
     selectedUnit.a = 1;
+    turnActions.push({ x: selectedUnit.x, y: selectedUnit.y, t: 'atk' });
+    const deployed = selectedUnit.dp === 1;
     hideActionMenu();
-    infoPanel.innerHTML = selectedUnit.dp === 1 ? `⛺ Wagenburg aufgeschlagen!` : `🐎 Wagenburg mobil.`;
+    infoPanel.innerHTML = deployed ? `⛺ Wagenburg aufgeschlagen!` : `🐎 Wagenburg mobil.`;
+    selectedUnit = null; validMoves = []; validAttacks = [];
     renderBoard(gameState);
 };
 

@@ -12,6 +12,7 @@ async function showHomeScreen() {
     document.getElementById('login-screen').style.display   = 'none';
     document.getElementById('lobby-screen').style.display   = 'none';
     document.getElementById('friends-panel').style.display  = 'none';
+    document.getElementById('leaderboard-panel').style.display = 'none';
     setupScreen.style.display                               = 'none';
     canvasWrapper.style.display                             = 'none';
     uiContainer.style.display                               = 'none';
@@ -380,9 +381,11 @@ async function refreshFriendsPanel() {
                 <button class="action-btn" onclick="acceptFriendRequest('${r.requester_id}')">Annehmen</button>`;
             reqList.appendChild(div);
         } else if (r.status === 'accepted') {
+            const otherId = isMine ? r.addressee_id : r.requester_id;
             const div = document.createElement('div');
             div.className = 'friend-row';
-            div.innerHTML = `<span>${escHtml(otherName)}</span>`;
+            div.innerHTML = `<span>${escHtml(otherName)}</span>
+                <button class="game-delete-btn" title="Freund entfernen" onclick="removeFriend('${otherId}','${escHtml(otherName)}')">🗑️</button>`;
             friendList.appendChild(div);
         }
     }
@@ -404,6 +407,50 @@ async function handleAddFriend() {
 async function acceptFriendRequest(requesterId) {
     await api.post(`/api/friends/accept/${requesterId}`).catch(() => {});
     await refreshFriendsPanel();
+}
+
+async function removeFriend(otherId, otherName) {
+    if (!confirm(`${otherName} aus der Freundesliste entfernen?`)) return;
+    try {
+        await api.del(`/api/friends/${otherId}`);
+        await refreshFriendsPanel();
+    } catch (err) { showToast(err.message); }
+}
+
+// ── Leaderboard Panel ────────────────────────────────────────────────────────
+
+function showLeaderboardPanel() {
+    document.getElementById('home-screen').style.display = 'none';
+    document.getElementById('leaderboard-panel').style.display = 'flex';
+    refreshLeaderboardPanel();
+}
+
+function hideLeaderboardPanel() {
+    document.getElementById('leaderboard-panel').style.display = 'none';
+    showHomeScreen();
+}
+
+async function refreshLeaderboardPanel() {
+    const rows = await api.get('/api/leaderboard').catch(() => []);
+    const list = document.getElementById('leaderboard-list');
+    list.innerHTML = '';
+    rows.forEach((row, i) => {
+        const isMe = row.id === currentProfile?.id;
+        const div = document.createElement('div');
+        div.className = 'friend-row';
+        div.innerHTML = `<span>#${i + 1} ${escHtml(row.username)}${isMe ? ' (Du)' : ''} — ${row.wins} Siege</span>
+            ${isMe ? '' : `<button class="action-btn" onclick="addFriendFromLeaderboard('${escHtml(row.username)}')">+ Freund</button>`}`;
+        list.appendChild(div);
+    });
+    if (!list.children.length)
+        list.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">Noch keine Spieler.</p>';
+}
+
+async function addFriendFromLeaderboard(username) {
+    try {
+        await api.post('/api/friends/request', { username });
+        showToast(`Anfrage an ${username} gesendet!`);
+    } catch (err) { showToast(err.message); }
 }
 
 // ── Server Intermission ───────────────────────────────────────────────────────

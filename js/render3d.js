@@ -858,9 +858,10 @@
                 addShadow(wx, wz, gy);
                 const drawUnit = (dx, dz, tintColor, dimF) => {
                     if (hasVoxelBody) addVoxelModel(spriteKey, wx + dx, wz + dz, gy + hover, playerColors[u.p], dimF, tintColor);
-                    // Einheiten immer im klassischen Live-Look zeichnen (Sprites + Farben),
-                    // unabhängig vom NEW_*-Datensatz, den Terrain/Gebäude im Debug-Modus nutzen.
-                    else addVoxelSprite(spriteKey, wx + dx, wz + dz, gy + hover, playerColors[u.p], dimF, tintColor, CLASSIC_PIXEL_SPRITES, classicSpriteColor);
+                    // Einheiten nutzen wie Terrain/Gebäude den DEBUG_ART-geschalteten
+                    // Datensatz (pixelSprites/spritePixelColor als Default) — im Debug-Modus
+                    // also das NEW_*-Redesign, im Live-Spiel weiterhin CLASSIC_*.
+                    else addVoxelSprite(spriteKey, wx + dx, wz + dz, gy + hover, playerColors[u.p], dimF, tintColor);
                 };
                 if (isStealth && u.a !== 1) {
                     // Geister-Doppelbild wie im 2D-Renderer (versetzte, stark gedimmte Kopien)

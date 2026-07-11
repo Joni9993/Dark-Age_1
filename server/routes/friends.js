@@ -51,4 +51,16 @@ router.post('/accept/:requesterId', authMiddleware, async (req, res) => {
     res.json({ ok: true });
 });
 
+// DELETE /api/friends/:otherId
+router.delete('/:otherId', authMiddleware, async (req, res) => {
+    const { rowCount } = await pool.query(
+        `DELETE FROM friendships
+         WHERE (requester_id = $1 AND addressee_id = $2)
+            OR (requester_id = $2 AND addressee_id = $1)`,
+        [req.profileId, req.params.otherId]
+    );
+    if (rowCount === 0) return res.status(404).json({ error: 'Freundschaft nicht gefunden' });
+    res.json({ ok: true });
+});
+
 module.exports = router;
