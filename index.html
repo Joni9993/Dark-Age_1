@@ -48,8 +48,11 @@
         <div id="game-list"></div>
         <button class="action-btn" onclick="showCreateGameModal()">+ Neues Spiel</button>
         <button class="action-btn secondary" onclick="showFriendsPanel()">👥 Freunde</button>
-        <button class="action-btn secondary" onclick="showLeaderboardPanel()">🏆 Bestenliste</button>
         <button class="action-btn secondary" onclick="window.open('darkages_guide.html','_blank')">📖 Anleitung</button>
+        <div class="home-header" style="margin-top:4px;">
+            <h3>🏆 Bestenliste</h3>
+        </div>
+        <div id="leaderboard-list"></div>
         <button id="enable-push-btn" class="action-btn secondary" onclick="handleEnablePush()" style="display:none;">🔔 Benachrichtigungen aktivieren</button>
     </div>
 
@@ -87,13 +90,6 @@
         <div id="friend-requests-list"></div>
         <div id="friends-list"></div>
         <button class="action-btn secondary" onclick="hideFriendsPanel()">← Zurück</button>
-    </div>
-
-    <!-- ── Leaderboard Panel ──────────────────────────────────────────────── -->
-    <div id="leaderboard-panel" class="screen-box" style="display:none;">
-        <h3 style="margin:0;font-family:'MedievalSharp',cursive;color:var(--gold);font-size:1.1rem;">🏆 Bestenliste</h3>
-        <div id="leaderboard-list"></div>
-        <button class="action-btn secondary" onclick="hideLeaderboardPanel()">← Zurück</button>
     </div>
 
     <h2 id="main-title">Dark Ages</h2>

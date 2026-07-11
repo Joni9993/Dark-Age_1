@@ -1097,6 +1097,15 @@ canvas {
     overflow-y: auto;
 }
 
+#leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-height: 35vh;
+    overflow-y: auto;
+}
+
 .game-card {
     display: flex;
     justify-content: space-between;

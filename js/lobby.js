@@ -12,7 +12,6 @@ async function showHomeScreen() {
     document.getElementById('login-screen').style.display   = 'none';
     document.getElementById('lobby-screen').style.display   = 'none';
     document.getElementById('friends-panel').style.display  = 'none';
-    document.getElementById('leaderboard-panel').style.display = 'none';
     setupScreen.style.display                               = 'none';
     canvasWrapper.style.display                             = 'none';
     uiContainer.style.display                               = 'none';
@@ -24,6 +23,7 @@ async function showHomeScreen() {
     document.getElementById('home-username').textContent    = currentProfile?.username ?? '';
     updateEnablePushButton();
     await refreshGameList();
+    await refreshLeaderboardPanel();
 }
 
 async function refreshGameList() {
@@ -417,18 +417,7 @@ async function removeFriend(otherId, otherName) {
     } catch (err) { showToast(err.message); }
 }
 
-// ── Leaderboard Panel ────────────────────────────────────────────────────────
-
-function showLeaderboardPanel() {
-    document.getElementById('home-screen').style.display = 'none';
-    document.getElementById('leaderboard-panel').style.display = 'flex';
-    refreshLeaderboardPanel();
-}
-
-function hideLeaderboardPanel() {
-    document.getElementById('leaderboard-panel').style.display = 'none';
-    showHomeScreen();
-}
+// ── Leaderboard (inline auf dem Home-Screen) ─────────────────────────────────
 
 async function refreshLeaderboardPanel() {
     const rows = await api.get('/api/leaderboard').catch(() => []);
