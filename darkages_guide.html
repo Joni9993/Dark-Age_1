@@ -1,1012 +1,1455 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dark Ages – Spieleinstieg</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg:        #100d08;
-    --bg2:       #1a1610;
-    --bg3:       #221c12;
-    --bg4:       #2a2316;
-    --gold:      #c9a84c;
-    --gold-dim:  #7a6228;
-    --gold-pale: #e8d5a3;
-    --text:      #d8c9a8;
-    --text-dim:  #8a7a5a;
-    --red:       #c0392b;
-    --green:     #4a9e5a;
-    --blue:      #3a7ab8;
-    --border:    #2e2416;
-    --border2:   #3d3020;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dark Ages – Spieleinstieg</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #100d08;
+      --bg2: #1a1610;
+      --bg3: #221c12;
+      --bg4: #2a2316;
+      --gold: #c9a84c;
+      --gold-dim: #7a6228;
+      --gold-pale: #e8d5a3;
+      --text: #d8c9a8;
+      --text-dim: #8a7a5a;
+      --red: #c0392b;
+      --green: #4a9e5a;
+      --blue: #3a7ab8;
+      --border: #2e2416;
+      --border2: #3d3020;
+    }
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  html { scroll-behavior: smooth; }
+    html {
+      scroll-behavior: smooth;
+    }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'EB Garamond', Georgia, serif;
-    font-size: 16px;
-    line-height: 1.75;
-    min-height: 100vh;
-  }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: 16px;
+      line-height: 1.75;
+      min-height: 100vh;
+    }
 
-  /* ── HERO ── */
-  .hero {
-    text-align: center;
-    padding: 3rem 1rem 2rem;
-    background: linear-gradient(180deg, #070503 0%, #140f09 50%, var(--bg) 100%);
-    border-bottom: 1px solid var(--border2);
-    position: relative;
-  }
-  .hero-icon { font-size: 3rem; line-height: 1; margin-bottom: .5rem; }
-  .hero h1 {
-    font-family: 'Cinzel', serif;
-    font-size: clamp(2rem, 7vw, 3.5rem);
-    font-weight: 700;
-    color: var(--gold);
-    letter-spacing: .06em;
-    text-shadow: 0 2px 30px rgba(201,168,76,.2);
-  }
-  .hero-sub { color: var(--text-dim); font-style: italic; margin-top: .35rem; }
-  .hero-line {
-    width: 60%; max-width: 420px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
-    margin: 1.2rem auto 0;
-  }
+    /* ── HERO ── */
+    .hero {
+      text-align: center;
+      padding: 3rem 1rem 2rem;
+      background: linear-gradient(180deg, #070503 0%, #140f09 50%, var(--bg) 100%);
+      border-bottom: 1px solid var(--border2);
+      position: relative;
+    }
 
-  /* ── STICKY NAV ── */
-  .toc {
-    position: sticky; top: 0; z-index: 50;
-    background: rgba(16, 13, 8, .95);
-    backdrop-filter: blur(6px);
-    border-bottom: 1px solid var(--border2);
-    padding: .4rem .8rem;
-    display: flex; flex-wrap: wrap; gap: .3rem;
-    overflow-x: auto;
-  }
-  .toc a {
-    font-family: 'Cinzel', serif;
-    font-size: .65rem;
-    letter-spacing: .08em;
-    color: var(--gold-dim);
-    text-decoration: none;
-    padding: .3rem .6rem;
-    border: 1px solid var(--border2);
-    border-radius: 3px;
-    white-space: nowrap;
-    transition: all .15s;
-  }
-  .toc a:hover { color: var(--gold); border-color: var(--gold-dim); }
+    .hero-icon {
+      font-size: 3rem;
+      line-height: 1;
+      margin-bottom: .5rem;
+    }
 
-  /* ── LAYOUT ── */
-  main { max-width: 860px; margin: 0 auto; padding: 2rem 1rem 5rem; }
+    .hero h1 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(2rem, 7vw, 3.5rem);
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: .06em;
+      text-shadow: 0 2px 30px rgba(201, 168, 76, .2);
+    }
 
-  /* ── SECTION ── */
-  .section { margin-top: 3rem; scroll-margin-top: 3rem; }
-  .section-head {
-    display: flex; align-items: center; gap: .75rem;
-    padding-bottom: .5rem;
-    border-bottom: 1px solid var(--border2);
-    margin-bottom: 1.2rem;
-  }
-  .section-num {
-    font-family: 'Cinzel', serif;
-    font-size: .7rem;
-    color: var(--gold-dim);
-    letter-spacing: .12em;
-    flex-shrink: 0;
-  }
-  .section-icon { font-size: 1.3rem; flex-shrink: 0; }
-  .section-head h2 {
-    font-family: 'Cinzel', serif;
-    font-size: 1.15rem;
-    color: var(--gold);
-    letter-spacing: .04em;
-  }
+    .hero-sub {
+      color: var(--text-dim);
+      font-style: italic;
+      margin-top: .35rem;
+    }
 
-  /* ── TYPOGRAPHY ── */
-  p { margin-bottom: .85rem; }
-  p:last-child { margin-bottom: 0; }
-  strong { color: var(--gold-pale); font-weight: 500; }
-  em { color: var(--text-dim); }
+    .hero-line {
+      width: 60%;
+      max-width: 420px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+      margin: 1.2rem auto 0;
+    }
 
-  /* ── SCREENSHOT PLACEHOLDER ── */
-  .screenshot {
-    width: 100%;
-    border: 1px dashed var(--border2);
-    border-radius: 8px;
-    background: var(--bg2);
-    padding: 2rem 1rem;
-    text-align: center;
-    color: var(--text-dim);
-    font-style: italic;
-    font-size: .85rem;
-    margin: 1rem 0;
-    position: relative;
-  }
-  .screenshot::before {
-    content: '📷';
-    display: block;
-    font-size: 1.8rem;
-    font-style: normal;
-    margin-bottom: .5rem;
-  }
-  .screenshot-label {
-    font-family: 'Cinzel', serif;
-    font-size: .65rem;
-    color: var(--gold-dim);
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    display: block;
-    margin-bottom: .3rem;
-  }
+    /* ── STICKY NAV ── */
+    .toc {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(16, 13, 8, .95);
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid var(--border2);
+      padding: .4rem .8rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .3rem;
+      overflow-x: auto;
+    }
 
-  /* ── CALLOUT ── */
-  .callout {
-    background: var(--bg2);
-    border-left: 3px solid var(--gold-dim);
-    border-radius: 0 6px 6px 0;
-    padding: .9rem 1.1rem;
-    margin: 1rem 0;
-    font-size: .95rem;
-  }
-  .callout.tip  { border-color: var(--green); }
-  .callout.warn { border-color: var(--red); }
-  .callout.info { border-color: var(--blue); }
-  .callout-label {
-    font-family: 'Cinzel', serif;
-    font-size: .65rem;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: var(--gold-dim);
-    display: block;
-    margin-bottom: .35rem;
-  }
-  .callout.tip .callout-label { color: var(--green); }
-  .callout.warn .callout-label { color: var(--red); }
-  .callout.info .callout-label { color: var(--blue); }
+    .toc a {
+      font-family: 'Cinzel', serif;
+      font-size: .65rem;
+      letter-spacing: .08em;
+      color: var(--gold-dim);
+      text-decoration: none;
+      padding: .3rem .6rem;
+      border: 1px solid var(--border2);
+      border-radius: 3px;
+      white-space: nowrap;
+      transition: all .15s;
+    }
 
-  /* ── STEPS ── */
-  .steps { list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: .6rem; margin: .8rem 0; }
-  .steps li {
-    counter-increment: s;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: .75rem 1rem .75rem 3rem;
-    position: relative;
-  }
-  .steps li::before {
-    content: counter(s);
-    position: absolute; left: 0; top: 0; bottom: 0; width: 2.4rem;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Cinzel', serif; font-size: .8rem;
-    color: var(--gold); border-right: 1px solid var(--border);
-  }
+    .toc a:hover {
+      color: var(--gold);
+      border-color: var(--gold-dim);
+    }
 
-  /* ── RESOURCE ROW ── */
-  .res-row { display: flex; gap: .7rem; flex-wrap: wrap; margin: .8rem 0; }
-  .res-card {
-    flex: 1; min-width: 155px;
-    background: var(--bg2);
-    border: 1px solid var(--border2);
-    border-radius: 6px;
-    padding: .85rem 1rem;
-  }
-  .res-name {
-    font-family: 'Cinzel', serif;
-    font-size: .85rem;
-    color: var(--gold);
-    display: block;
-    margin-bottom: .35rem;
-  }
+    /* ── LAYOUT ── */
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2rem 1rem 5rem;
+    }
 
-  /* ── FACTION GRID ── */
-  .faction-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: .75rem; margin: .8rem 0; }
-  .faction-card {
-    background: var(--bg2);
-    border: 1px solid var(--border2);
-    border-radius: 8px;
-    padding: .9rem 1rem;
-    transition: border-color .2s;
-  }
-  .faction-card:hover { border-color: var(--gold-dim); }
-  .f-name { font-family: 'Cinzel', serif; font-size: .9rem; color: var(--gold); margin-bottom: .3rem; }
-  .f-passive { font-size: .8rem; font-style: italic; color: var(--green); margin: .4rem 0 .2rem; }
-  .f-units { font-size: .82rem; color: var(--text-dim); }
-  .f-special { font-size: .78rem; color: var(--text-dim); margin-top: .35rem; border-top: 1px dashed var(--border2); padding-top: .35rem; }
+    /* ── SECTION ── */
+    .section {
+      margin-top: 3rem;
+      scroll-margin-top: 3rem;
+    }
 
-  /* ── UNIT TABLE ── */
-  .unit-table { width: 100%; border-collapse: collapse; margin: .8rem 0; font-size: .88rem; }
-  .unit-table th {
-    font-family: 'Cinzel', serif;
-    font-size: .65rem; letter-spacing: .08em;
-    color: var(--gold-dim); text-align: left;
-    border-bottom: 1px solid var(--border2);
-    padding: .4rem .5rem;
-  }
-  .unit-table td { padding: .5rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
-  .unit-table tr:last-child td { border-bottom: none; }
-  .unit-table tr:hover td { background: var(--bg3); }
-  .tier { display: inline-block; font-family: 'Cinzel', serif; font-size: .65rem; letter-spacing: .08em; color: var(--gold-dim); }
+    .section-head {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding-bottom: .5rem;
+      border-bottom: 1px solid var(--border2);
+      margin-bottom: 1.2rem;
+    }
 
-  /* ── BUILDING TABLE ── */
-  .build-row { display: flex; flex-direction: column; gap: .5rem; margin: .8rem 0; }
-  .build-item {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: .7rem 1rem;
-    display: flex; align-items: flex-start; gap: .75rem;
-  }
-  .build-icon { font-size: 1.4rem; flex-shrink: 0; padding-top: .1rem; }
-  .build-cost { font-family: 'Cinzel', serif; font-size: .75rem; color: var(--gold-dim); }
+    .section-num {
+      font-family: 'Cinzel', serif;
+      font-size: .7rem;
+      color: var(--gold-dim);
+      letter-spacing: .12em;
+      flex-shrink: 0;
+    }
 
-  /* ── EVENT GRID ── */
-  .event-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .6rem; margin: .8rem 0; }
-  .event-card {
-    background: var(--bg2);
-    border: 1px solid var(--border2);
-    border-radius: 8px;
-    padding: .8rem .9rem;
-    display: flex; gap: .6rem; align-items: flex-start;
-  }
-  .event-icon { font-size: 1.3rem; flex-shrink: 0; }
-  .event-name { font-family: 'Cinzel', serif; font-size: .82rem; color: var(--gold); display: block; margin-bottom: .2rem; }
-  .event-desc { font-size: .82rem; color: var(--text-dim); }
+    .section-icon {
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
 
-  /* ── DIVIDER ── */
-  hr.fancy {
-    border: none;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--border2), transparent);
-    margin: 2.5rem 0 0;
-  }
+    .section-head h2 {
+      font-family: 'Cinzel', serif;
+      font-size: 1.15rem;
+      color: var(--gold);
+      letter-spacing: .04em;
+    }
 
-  /* ── FOOTER ── */
-  footer {
-    text-align: center;
-    padding: 2rem 1rem;
-    font-size: .82rem;
-    color: var(--text-dim);
-    font-style: italic;
-    border-top: 1px solid var(--border2);
-    margin-top: 3rem;
-  }
-  footer a { color: var(--gold-dim); }
+    /* ── TYPOGRAPHY ── */
+    p {
+      margin-bottom: .85rem;
+    }
 
-  /* ── INLINE BADGE ── */
-  .badge {
-    display: inline-block;
-    background: var(--bg3);
-    border: 1px solid var(--border2);
-    border-radius: 3px;
-    padding: 0 .5rem;
-    font-family: 'Cinzel', serif;
-    font-size: .65rem;
-    letter-spacing: .08em;
-    color: var(--gold-dim);
-    vertical-align: middle;
-  }
+    p:last-child {
+      margin-bottom: 0;
+    }
 
-  @media (max-width: 520px) {
-    .faction-grid { grid-template-columns: 1fr 1fr; }
-    .event-grid { grid-template-columns: 1fr; }
-    .toc { display: none; }
-  }
-</style>
+    strong {
+      color: var(--gold-pale);
+      font-weight: 500;
+    }
+
+    em {
+      color: var(--text-dim);
+    }
+
+    /* ── SCREENSHOT PLACEHOLDER ── */
+    .screenshot {
+      width: 100%;
+      border: 1px dashed var(--border2);
+      border-radius: 8px;
+      background: var(--bg2);
+      padding: 2rem 1rem;
+      text-align: center;
+      color: var(--text-dim);
+      font-style: italic;
+      font-size: .85rem;
+      margin: 1rem 0;
+      position: relative;
+    }
+
+    .screenshot::before {
+      content: '📷';
+      display: block;
+      font-size: 1.8rem;
+      font-style: normal;
+      margin-bottom: .5rem;
+    }
+
+    .screenshot-label {
+      font-family: 'Cinzel', serif;
+      font-size: .65rem;
+      color: var(--gold-dim);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: .3rem;
+    }
+
+    /* ── CALLOUT ── */
+    .callout {
+      background: var(--bg2);
+      border-left: 3px solid var(--gold-dim);
+      border-radius: 0 6px 6px 0;
+      padding: .9rem 1.1rem;
+      margin: 1rem 0;
+      font-size: .95rem;
+    }
+
+    .callout.tip {
+      border-color: var(--green);
+    }
+
+    .callout.warn {
+      border-color: var(--red);
+    }
+
+    .callout.info {
+      border-color: var(--blue);
+    }
+
+    .callout-label {
+      font-family: 'Cinzel', serif;
+      font-size: .65rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      display: block;
+      margin-bottom: .35rem;
+    }
+
+    .callout.tip .callout-label {
+      color: var(--green);
+    }
+
+    .callout.warn .callout-label {
+      color: var(--red);
+    }
+
+    .callout.info .callout-label {
+      color: var(--blue);
+    }
+
+    /* ── STEPS ── */
+    .steps {
+      list-style: none;
+      counter-reset: s;
+      display: flex;
+      flex-direction: column;
+      gap: .6rem;
+      margin: .8rem 0;
+    }
+
+    .steps li {
+      counter-increment: s;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: .75rem 1rem .75rem 3rem;
+      position: relative;
+    }
+
+    .steps li::before {
+      content: counter(s);
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 2.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cinzel', serif;
+      font-size: .8rem;
+      color: var(--gold);
+      border-right: 1px solid var(--border);
+    }
+
+    /* ── RESOURCE ROW ── */
+    .res-row {
+      display: flex;
+      gap: .7rem;
+      flex-wrap: wrap;
+      margin: .8rem 0;
+    }
+
+    .res-card {
+      flex: 1;
+      min-width: 155px;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      padding: .85rem 1rem;
+    }
+
+    .res-name {
+      font-family: 'Cinzel', serif;
+      font-size: .85rem;
+      color: var(--gold);
+      display: block;
+      margin-bottom: .35rem;
+    }
+
+    /* ── FACTION GRID ── */
+    .faction-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+      gap: .75rem;
+      margin: .8rem 0;
+    }
+
+    .faction-card {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: .9rem 1rem;
+      transition: border-color .2s;
+    }
+
+    .faction-card:hover {
+      border-color: var(--gold-dim);
+    }
+
+    .f-name {
+      font-family: 'Cinzel', serif;
+      font-size: .9rem;
+      color: var(--gold);
+      margin-bottom: .3rem;
+    }
+
+    .f-passive {
+      font-size: .8rem;
+      font-style: italic;
+      color: var(--green);
+      margin: .4rem 0 .2rem;
+    }
+
+    .f-units {
+      font-size: .82rem;
+      color: var(--text-dim);
+    }
+
+    .f-special {
+      font-size: .78rem;
+      color: var(--text-dim);
+      margin-top: .35rem;
+      border-top: 1px dashed var(--border2);
+      padding-top: .35rem;
+    }
+
+    /* ── UNIT TABLE ── */
+    .unit-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: .8rem 0;
+      font-size: .88rem;
+    }
+
+    .unit-table th {
+      font-family: 'Cinzel', serif;
+      font-size: .65rem;
+      letter-spacing: .08em;
+      color: var(--gold-dim);
+      text-align: left;
+      border-bottom: 1px solid var(--border2);
+      padding: .4rem .5rem;
+    }
+
+    .unit-table td {
+      padding: .5rem .5rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .unit-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .unit-table tr:hover td {
+      background: var(--bg3);
+    }
+
+    .tier {
+      display: inline-block;
+      font-family: 'Cinzel', serif;
+      font-size: .65rem;
+      letter-spacing: .08em;
+      color: var(--gold-dim);
+    }
+
+    /* ── BUILDING TABLE ── */
+    .build-row {
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      margin: .8rem 0;
+    }
+
+    .build-item {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: .7rem 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: .75rem;
+    }
+
+    .build-icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+      padding-top: .1rem;
+    }
+
+    .build-cost {
+      font-family: 'Cinzel', serif;
+      font-size: .75rem;
+      color: var(--gold-dim);
+    }
+
+    /* ── EVENT GRID ── */
+    .event-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: .6rem;
+      margin: .8rem 0;
+    }
+
+    .event-card {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: .8rem .9rem;
+      display: flex;
+      gap: .6rem;
+      align-items: flex-start;
+    }
+
+    .event-icon {
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+
+    .event-name {
+      font-family: 'Cinzel', serif;
+      font-size: .82rem;
+      color: var(--gold);
+      display: block;
+      margin-bottom: .2rem;
+    }
+
+    .event-desc {
+      font-size: .82rem;
+      color: var(--text-dim);
+    }
+
+    /* ── DIVIDER ── */
+    hr.fancy {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border2), transparent);
+      margin: 2.5rem 0 0;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      font-size: .82rem;
+      color: var(--text-dim);
+      font-style: italic;
+      border-top: 1px solid var(--border2);
+      margin-top: 3rem;
+    }
+
+    footer a {
+      color: var(--gold-dim);
+    }
+
+    /* ── INLINE BADGE ── */
+    .badge {
+      display: inline-block;
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: 3px;
+      padding: 0 .5rem;
+      font-family: 'Cinzel', serif;
+      font-size: .65rem;
+      letter-spacing: .08em;
+      color: var(--gold-dim);
+      vertical-align: middle;
+    }
+
+    @media (max-width: 520px) {
+      .faction-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .event-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .toc {
+        display: none;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<div class="hero">
-  <div class="hero-icon">⚔️</div>
-  <h1>Dark Ages</h1>
-  <p class="hero-sub">Rundenbasierte Hex-Strategie · Multiplayer · Browser & App</p>
-  <div class="hero-line"></div>
-</div>
+  <div class="hero">
+    <div class="hero-icon">⚔️</div>
+    <h1>Dark Ages</h1>
+    <p class="hero-sub">Rundenbasierte Hex-Strategie · Multiplayer · Browser & App</p>
+    <div class="hero-line"></div>
+  </div>
 
-<nav class="toc">
-  <a href="#setup">00 Setup</a>
-  <a href="#overview">01 Übersicht</a>
-  <a href="#homescreen">02 Spielstart</a>
-  <a href="#resources">03 Ressourcen</a>
-  <a href="#map">04 Die Karte</a>
-  <a href="#units">05 Einheiten</a>
-  <a href="#air">06 Lufteinheiten</a>
-  <a href="#workers">07 Arbeiter</a>
-  <a href="#villages">08 Dörfer</a>
-  <a href="#culture">09 Kultur</a>
-  <a href="#events">10 Ereignisse</a>
-  <a href="#combat">11 Kampf</a>
-  <a href="#diplomacy">12 Diplomatie</a>
-  <a href="#victory">13 Sieg</a>
-</nav>
+  <nav class="toc">
+    <a href="#setup">00 Setup</a>
+    <a href="#overview">01 Übersicht</a>
+    <a href="#homescreen">02 Spielstart</a>
+    <a href="#resources">03 Ressourcen</a>
+    <a href="#map">04 Die Karte</a>
+    <a href="#units">05 Einheiten</a>
+    <a href="#air">06 Lufteinheiten</a>
+    <a href="#workers">07 Arbeiter</a>
+    <a href="#villages">08 Dörfer</a>
+    <a href="#culture">09 Kultur</a>
+    <a href="#events">10 Ereignisse</a>
+    <a href="#combat">11 Kampf</a>
+    <a href="#diplomacy">12 Diplomatie</a>
+    <a href="#victory">13 Sieg</a>
+  </nav>
 
-<main>
+  <main>
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      00 · SETUP
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="setup">
-  <div class="section-head">
-    <span class="section-num">00</span>
-    <span class="section-icon">📱</span>
-    <h2>Setup – Erste Schritte</h2>
-  </div>
+    <div class="section" id="setup">
+      <div class="section-head">
+        <span class="section-num">00</span>
+        <span class="section-icon">📱</span>
+        <h2>Setup – Erste Schritte</h2>
+      </div>
 
-  <p>Bevor du spielen kannst, musst du einmalig einen Account anlegen und das Spiel als App auf deinem Handy installieren. Das dauert etwa eine Minute.</p>
+      <p>Bevor du spielen kannst, musst du einmalig einen Account anlegen und das Spiel als App auf deinem Handy
+        installieren. Das dauert etwa eine Minute.</p>
 
-  <ol class="steps">
-    <li>Öffne <strong>darkages.bulletodyssey.com</strong> im Browser deines Handys (Chrome auf Android, Safari auf iOS).</li>
-    <li>Du siehst den <strong>Login-Screen</strong>. Gib einen Ingame-Namen und ein Passwort (mind. 4 Zeichen) ein. Wenn der Name noch frei ist, wird der Account <em>automatisch erstellt</em> – kein E-Mail nötig.</li>
-    <li>Nach dem Login: <strong>Installiere das Spiel als App</strong> (PWA). Auf Android: Menü → „Zum Startbildschirm hinzufügen". Auf iOS: Teilen-Button → „Zum Home-Bildschirm".</li>
-    <li>Öffne die App vom Startbildschirm. Das Spiel läuft jetzt wie eine native App – Vollbild, kein Browser-UI.</li>
-    <li>Das Spiel fragt nach der Erlaubnis für <strong>Push-Benachrichtigungen</strong>. Erlauben – so wirst du benachrichtigt, wenn du am Zug bist.</li>
-  </ol>
+      <ol class="steps">
+        <li>Öffne <strong>darkages.bulletodyssey.com</strong> im Browser deines Handys (Chrome auf Android, Safari auf
+          iOS).</li>
+        <li>Du siehst den <strong>Login-Screen</strong>. Gib einen Ingame-Namen und ein Passwort (mind. 4 Zeichen) ein.
+          Wenn der Name noch frei ist, wird der Account <em>automatisch erstellt</em> – kein E-Mail nötig.</li>
+        <li>Nach dem Login: <strong>Installiere das Spiel als App</strong> (PWA). Auf Android: Menü → „Zum
+          Startbildschirm hinzufügen". Auf iOS: Teilen-Button → „Zum Home-Bildschirm".</li>
+        <li>Öffne die App vom Startbildschirm. Das Spiel läuft jetzt wie eine native App – Vollbild, kein Browser-UI.
+        </li>
+        <li>Das Spiel fragt nach der Erlaubnis für <strong>Push-Benachrichtigungen</strong>. Erlauben – so wirst du
+          benachrichtigt, wenn du am Zug bist.</li>
+      </ol>
 
-  <div class="screenshot">
-    <span class="screenshot-label">Screenshot: Login-Screen</span>
-    Ingame-Name + Passwort eingeben → „Einloggen" drücken
-  </div>
+      <div class="screenshot">
+        <span class="screenshot-label">Screenshot: Login-Screen</span>
+        Ingame-Name + Passwort eingeben → „Einloggen" drücken
+      </div>
 
-  <div class="callout info">
-    <span class="callout-label">Hinweis</span>
-    Dein Account existiert dauerhaft auf dem Server. Du kannst dich auf mehreren Geräten einloggen. Push-Benachrichtigungen bekommst du nur auf dem Gerät, auf dem du sie aktiviert hast.
-  </div>
-</div>
+      <div class="callout info">
+        <span class="callout-label">Hinweis</span>
+        Dein Account existiert dauerhaft auf dem Server. Du kannst dich auf mehreren Geräten einloggen.
+        Push-Benachrichtigungen bekommst du nur auf dem Gerät, auf dem du sie aktiviert hast.
+      </div>
+    </div>
 
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      01 · ÜBERSICHT
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="overview">
-  <div class="section-head">
-    <span class="section-num">01</span>
-    <span class="section-icon">🏰</span>
-    <h2>Was ist Dark Ages?</h2>
-  </div>
-  <p>Dark Ages ist ein <strong>rundenbasiertes Hexfeld-Strategiespiel</strong> im Browser. Zwei bis sechs Spieler kämpfen auf einer prozedural generierten Karte um Dörfer, Ressourcen und militärische Dominanz.</p>
-  <p>Das Ziel: <strong>Alle Gegner eliminieren.</strong> Wer als Letzter steht – oder als Team übrig bleibt – gewinnt.</p>
-  <p>Das Spiel ist <strong>serverbasiert und rundenbasiert</strong>: Jeder Spieler erhält eine Push-Benachrichtigung, wenn er am Zug ist, macht dann seine Aktionen, und beendet den Zug. Der nächste Spieler wird dann benachrichtigt.</p>
-</div>
+    <div class="section" id="overview">
+      <div class="section-head">
+        <span class="section-num">01</span>
+        <span class="section-icon">🏰</span>
+        <h2>Was ist Dark Ages?</h2>
+      </div>
+      <p>Dark Ages ist ein <strong>rundenbasiertes Hexfeld-Strategiespiel</strong> im Browser. Zwei bis sechs Spieler
+        kämpfen auf einer prozedural generierten Karte um Dörfer, Ressourcen und militärische Dominanz.</p>
+      <p>Das Ziel: <strong>Alle Gegner eliminieren.</strong> Wer als Letzter steht – oder als Team übrig bleibt –
+        gewinnt.</p>
+      <p>Das Spiel ist <strong>serverbasiert und rundenbasiert</strong>: Jeder Spieler erhält eine
+        Push-Benachrichtigung, wenn er am Zug ist, macht dann seine Aktionen, und beendet den Zug. Der nächste Spieler
+        wird dann benachrichtigt.</p>
+    </div>
 
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      02 · SPIELSTART / HOME SCREEN
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="homescreen">
-  <div class="section-head">
-    <span class="section-num">02</span>
-    <span class="section-icon">🗡️</span>
-    <h2>Spielstart – Lobby, Freunde & Bestenliste</h2>
-  </div>
+    <div class="section" id="homescreen">
+      <div class="section-head">
+        <span class="section-num">02</span>
+        <span class="section-icon">🗡️</span>
+        <h2>Spielstart – Lobby, Freunde & Bestenliste</h2>
+      </div>
 
-  <p>Nach dem Login siehst du den <strong>Home Screen</strong> mit deinen laufenden Spielen unter „Meine Spiele". Von hier aus kannst du neue Spiele erstellen, Freunde verwalten und die Bestenliste einsehen.</p>
+      <p>Nach dem Login siehst du den <strong>Home Screen</strong> mit deinen laufenden Spielen unter „Meine Spiele".
+        Von hier aus kannst du neue Spiele erstellen, Freunde verwalten und die Bestenliste einsehen.</p>
 
-  <div class="screenshot">
-    <span class="screenshot-label">Screenshot: Home Screen</span>
-    „Meine Spiele"-Liste + Buttons „+ Neues Spiel", „👥 Freunde" und „🏆 Bestenliste"
-  </div>
+      <div class="screenshot">
+        <span class="screenshot-label">Screenshot: Home Screen</span>
+        „Meine Spiele"-Liste + Buttons „+ Neues Spiel", „👥 Freunde" und „🏆 Bestenliste"
+      </div>
 
-  <p><strong>Neues Spiel erstellen:</strong></p>
-  <ol class="steps">
-    <li>Tippe auf <strong>„+ Neues Spiel"</strong>.</li>
-    <li>Wähle <strong>Kartengröße</strong> (Klein · Radius 5 / Mittel · Radius 7 / Groß · Radius 12) und <strong>Spieleranzahl</strong> (2–6).</li>
-    <li>Tippe auf <strong>„Spiel erstellen"</strong>. Du landest in der Lobby.</li>
-    <li>Teile den <strong>Einladungslink</strong> mit Mitspielern (Kopieren-Button) – oder lade direkt Freunde aus deiner Freundesliste ein.</li>
-    <li>Sobald alle Spieler in der Lobby sind, drückt der Ersteller auf <strong>„Spiel starten"</strong>.</li>
-  </ol>
+      <p><strong>Neues Spiel erstellen:</strong></p>
+      <ol class="steps">
+        <li>Tippe auf <strong>„+ Neues Spiel"</strong>.</li>
+        <li>Wähle <strong>Kartengröße</strong> (Klein · Radius 5 / Mittel · Radius 7 / Groß · Radius 12) und
+          <strong>Spieleranzahl</strong> (2–6).</li>
+        <li>Tippe auf <strong>„Spiel erstellen"</strong>. Du landest in der Lobby.</li>
+        <li>Teile den <strong>Einladungslink</strong> mit Mitspielern (Kopieren-Button) – oder lade direkt Freunde aus
+          deiner Freundesliste ein.</li>
+        <li>Sobald alle Spieler in der Lobby sind, drückt der Ersteller auf <strong>„Spiel starten"</strong>.</li>
+      </ol>
 
-  <div class="screenshot">
-    <span class="screenshot-label">Screenshot: Lobby-Screen</span>
-    Spielerliste, Einladungslink-Feld, „Freunde einladen"- und „Spiel starten"-Button
-  </div>
+      <div class="screenshot">
+        <span class="screenshot-label">Screenshot: Lobby-Screen</span>
+        Spielerliste, Einladungslink-Feld, „Freunde einladen"- und „Spiel starten"-Button
+      </div>
 
-  <p><strong>Freunde hinzufügen:</strong> Über den <strong>„👥 Freunde"</strong>-Button kannst du nach anderen Spielernamen suchen und Freundschaftsanfragen schicken, offene Anfragen annehmen/ablehnen und Freunde wieder entfernen. Sobald jemand in deiner Freundesliste ist, kannst du ihn direkt aus der Lobby einladen.</p>
+      <p><strong>Freunde hinzufügen:</strong> Über den <strong>„👥 Freunde"</strong>-Button kannst du nach anderen
+        Spielernamen suchen und Freundschaftsanfragen schicken, offene Anfragen annehmen/ablehnen und Freunde wieder
+        entfernen. Sobald jemand in deiner Freundesliste ist, kannst du ihn direkt aus der Lobby einladen.</p>
 
-  <p><strong>Bestenliste:</strong> Der <strong>„🏆 Bestenliste"</strong>-Button zeigt die Top 100 Spieler nach gewonnenen Spielen, sortiert nach Siegen. Ein Sieg zählt, wenn du ein Spiel beendest, ohne eliminiert zu werden oder vorzeitig aufzugeben. Dein eigener Eintrag ist mit „(Du)" markiert; von dort kannst du andere Spieler auch direkt als Freund hinzufügen.</p>
+      <p><strong>Bestenliste:</strong> Der <strong>„🏆 Bestenliste"</strong>-Button zeigt die Top 100 Spieler nach
+        gewonnenen Spielen, sortiert nach Siegen. Ein Sieg zählt, wenn du ein Spiel beendest, ohne eliminiert zu werden
+        oder vorzeitig aufzugeben. Dein eigener Eintrag ist mit „(Du)" markiert; von dort kannst du andere Spieler auch
+        direkt als Freund hinzufügen.</p>
 
-  <div class="callout tip">
-    <span class="callout-label">Tipp</span>
-    Wenn du einen Einladungslink öffnest, während du noch nicht eingeloggt bist, wirst du zuerst zum Login gebracht – danach landest du automatisch in der richtigen Lobby.
-  </div>
-</div>
+      <div class="callout tip">
+        <span class="callout-label">Tipp</span>
+        Wenn du einen Einladungslink öffnest, während du noch nicht eingeloggt bist, wirst du zuerst zum Login gebracht
+        – danach landest du automatisch in der richtigen Lobby.
+      </div>
+    </div>
 
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      03 · RESSOURCEN
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="resources">
-  <div class="section-head">
-    <span class="section-num">03</span>
-    <span class="section-icon">💰</span>
-    <h2>Ressourcen</h2>
-  </div>
+    <div class="section" id="resources">
+      <div class="section-head">
+        <span class="section-num">03</span>
+        <span class="section-icon">💰</span>
+        <h2>Ressourcen</h2>
+      </div>
 
-  <p>Oben im HUD siehst du deine drei Ressourcen. Sie werden <strong>am Rundenende</strong> automatisch hinzugefügt.</p>
+      <p>Oben im HUD siehst du deine drei Ressourcen. Sie werden <strong>am Rundenende</strong> automatisch hinzugefügt.
+      </p>
 
-  <div class="screenshot">
-    <span class="screenshot-label">Screenshot: Ressourcen-HUD</span>
-    „💰 12 (+4) | 🪵 5 (+2) | 🪨 3" – die Zahlen in Klammern zeigen das Einkommen pro Runde
-  </div>
+      <div class="screenshot">
+        <span class="screenshot-label">Screenshot: Ressourcen-HUD</span>
+        „💰 12 (+4) | 🪵 5 (+2) | 🪨 3" – die Zahlen in Klammern zeigen das Einkommen pro Runde
+      </div>
 
-  <div class="res-row">
-    <div class="res-card">
-      <span class="res-name">💰 Gold</span>
-      Hauptwährung. Kommt aus Dörfern (<strong>+2 pro Dorf</strong> pro Runde). Kaufe Einheiten, schließe Bündnisse.
+      <div class="res-row">
+        <div class="res-card">
+          <span class="res-name">💰 Gold</span>
+          Hauptwährung. Kommt aus Dörfern (<strong>+2 pro Dorf</strong> pro Runde). Kaufe Einheiten, schließe Bündnisse.
+        </div>
+        <div class="res-card">
+          <span class="res-name">🪵 Holz</span>
+          Sekundärressource. Kommt aus Dörfern (<strong>+1 pro Dorf</strong> pro Runde). Wird für Kulturen, Forschung
+          und Spezialfähigkeiten gebraucht.
+        </div>
+        <div class="res-card">
+          <span class="res-name">🪨 Stein</span>
+          Kommt <em>nicht</em> aus Dörfern – nur durch <strong>Abbau</strong> mit Arbeitern. Wird für das Bauen von
+          Strukturen gebraucht.
+        </div>
+      </div>
+      <div class="callout">
+        <span class="callout-label">Gilden-Bonus</span>
+        Wer die Fraktion <strong>⚖️ Gilden</strong> gewählt hat, bekommt +1 extra Gold pro Dorf pro Runde.
+      </div>
+      <div class="callout info">
+        <span class="callout-label">Startbedingungen</span>
+        Jedes Spiel beginnst du mit <strong>3 💰, 1 🪵, 0 🪨</strong> und einer <strong>⚔️ Schwert</strong>-Einheit (10
+        HP) auf deinem Startdorf.
+      </div>
     </div>
-    <div class="res-card">
-      <span class="res-name">🪵 Holz</span>
-      Sekundärressource. Kommt aus Dörfern (<strong>+1 pro Dorf</strong> pro Runde). Wird für Kulturen, Forschung und Spezialfähigkeiten gebraucht.
-    </div>
-    <div class="res-card">
-      <span class="res-name">🪨 Stein</span>
-      Kommt <em>nicht</em> aus Dörfern – nur durch <strong>Abbau</strong> mit Arbeitern. Wird für das Bauen von Strukturen gebraucht.
-    </div>
-  </div>
-  <div class="callout">
-    <span class="callout-label">Gilden-Bonus</span>
-    Wer die Fraktion <strong>⚖️ Gilden</strong> gewählt hat, bekommt +1 extra Gold pro Dorf pro Runde.
-  </div>
-  <div class="callout info">
-    <span class="callout-label">Startbedingungen</span>
-    Jedes Spiel beginnst du mit <strong>3 💰, 1 🪵, 0 🪨</strong> und einer <strong>⚔️ Schwert</strong>-Einheit (10 HP) auf deinem Startdorf.
-  </div>
-</div>
 
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      04 · DIE KARTE
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="map">
-  <div class="section-head">
-    <span class="section-num">04</span>
-    <span class="section-icon">🗺️</span>
-    <h2>Die Karte</h2>
-  </div>
+    <div class="section" id="map">
+      <div class="section-head">
+        <span class="section-num">04</span>
+        <span class="section-icon">🗺️</span>
+        <h2>Die Karte</h2>
+      </div>
 
-  <p>Die Karte besteht aus <strong>Sechseck-Feldern (Hexfeldern)</strong>. Jede Einheit kann sich pro Zug eine bestimmte Anzahl Felder bewegen – je nach Einheitentyp. Bewegung wird nicht durch Terrain gebremst; einzig <strong>Hügel</strong> geben Fernkämpfern einen Schadensbonus (siehe Abschnitt 11).</p>
+      <p>Die Karte besteht aus <strong>Sechseck-Feldern (Hexfeldern)</strong>. Jede Einheit kann sich pro Zug eine
+        bestimmte Anzahl Felder bewegen – je nach Einheitentyp. Bewegung wird nicht durch Terrain gebremst; einzig
+        <strong>Hügel</strong> geben Fernkämpfern einen Schadensbonus (siehe Abschnitt 11).</p>
 
-  <p><strong>Nebel des Krieges:</strong> Du siehst nur, was deine Einheiten, Dörfer und Türme in ihrer Sichtweite erfassen (Basis-Sichtweite 2 Felder, Türme 2 Felder, Fraktion 👁️ Spionage +1). Der 🏗️ Tribok hat unabhängig von der Fraktion immer Sichtweite 3. Feindliche Bewegungen außerhalb deines Sichtbereichs bleiben verborgen.</p>
+      <p><strong>Nebel des Krieges:</strong> Du siehst nur, was deine Einheiten, Dörfer und Türme in ihrer Sichtweite
+        erfassen (Basis-Sichtweite 2 Felder, Türme 2 Felder, Fraktion 👁️ Spionage +1). Der 🏗️ Tribok hat unabhängig
+        von der Fraktion immer Sichtweite 3. Feindliche Bewegungen außerhalb deines Sichtbereichs bleiben verborgen.</p>
 
-  <div class="screenshot">
-    <span class="screenshot-label">Screenshot: Spielfeld</span>
-    Hexgrid mit Einheiten, Dörfern, Steinvorkommen und Nebel-of-War-Bereichen
-  </div>
+      <div class="screenshot">
+        <span class="screenshot-label">Screenshot: Spielfeld</span>
+        Hexgrid mit Einheiten, Dörfern, Steinvorkommen und Nebel-of-War-Bereichen
+      </div>
 
-  <p><strong>Wichtige Kartenobjekte:</strong></p>
-  <div class="build-row">
-    <div class="build-item">
-      <div class="build-icon">🏘️</div>
-      <div><strong>Neutrale Dörfer</strong> – können eingenommen werden und generieren Einkommen.</div>
+      <p><strong>Wichtige Kartenobjekte:</strong></p>
+      <div class="build-row">
+        <div class="build-item">
+          <div class="build-icon">🏘️</div>
+          <div><strong>Neutrale Dörfer</strong> – können eingenommen werden und generieren Einkommen.</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🏰</div>
+          <div><strong>Startdorf</strong> – dein Hauptgebäude. Hat <strong>30 HP</strong>. Wenn es zerstört wird,
+            verlierst du das Spiel.</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🪨</div>
+          <div><strong>Steinvorkommen</strong> – erscheinen zufällig auf der Karte. Können von Arbeitern abgebaut werden
+            (blockieren Bewegung solange sie noch HP haben).</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🗼</div>
+          <div><strong>Zentraler Wachturm (Kartenmitte)</strong> – steht immer in der Kartenmitte, gehört zu Beginn
+            niemandem. Bewege eine Bodeneinheit darauf, um ihn zu übernehmen. Wer ihn kontrolliert, sieht rund
+            <strong>70% des Kartenradius</strong> um ihn herum – ein hochstrategisches Ziel.</div>
+        </div>
+      </div>
     </div>
-    <div class="build-item">
-      <div class="build-icon">🏰</div>
-      <div><strong>Startdorf</strong> – dein Hauptgebäude. Hat <strong>30 HP</strong>. Wenn es zerstört wird, verlierst du das Spiel.</div>
-    </div>
-    <div class="build-item">
-      <div class="build-icon">🪨</div>
-      <div><strong>Steinvorkommen</strong> – erscheinen zufällig auf der Karte. Können von Arbeitern abgebaut werden (blockieren Bewegung solange sie noch HP haben).</div>
-    </div>
-    <div class="build-item">
-      <div class="build-icon">🗼</div>
-      <div><strong>Zentraler Wachturm (Kartenmitte)</strong> – steht immer in der Kartenmitte, gehört zu Beginn niemandem. Bewege eine Bodeneinheit darauf, um ihn zu übernehmen. Wer ihn kontrolliert, sieht rund <strong>70% des Kartenradius</strong> um ihn herum – ein hochstrategisches Ziel.</div>
-    </div>
-  </div>
-</div>
 
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      05 · EINHEITEN
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="units">
-  <div class="section-head">
-    <span class="section-num">05</span>
-    <span class="section-icon">⚔️</span>
-    <h2>Bodeneinheiten rekrutieren & steuern</h2>
-  </div>
+    <div class="section" id="units">
+      <div class="section-head">
+        <span class="section-num">05</span>
+        <span class="section-icon">⚔️</span>
+        <h2>Bodeneinheiten rekrutieren & steuern</h2>
+      </div>
 
-  <p>Einheiten werden in <strong>deinen Dörfern</strong> rekrutiert. Tippe auf dein Dorf → das Aktionsmenü zeigt, welche Einheiten du kaufen kannst. Kosten werden sofort von deinem Gold abgezogen (alle Einheiten kosten nur Gold, kein Holz).</p>
+      <p>Einheiten werden in <strong>deinen Dörfern</strong> rekrutiert. Tippe auf dein Dorf → das Aktionsmenü zeigt,
+        welche Einheiten du kaufen kannst. Kosten werden sofort von deinem Gold abgezogen (alle Einheiten kosten nur
+        Gold, kein Holz).</p>
 
-  <div class="screenshot">
-    <span class="screenshot-label">Screenshot: Dorf-Aktionsmenü</span>
-    Buttons zum Kaufen: „⚔️ Schwert (3G)", „🏹 Bogen (4G)", „🐎 Pferd (4G)" etc., je mit HP/DMG/Bewegung/Reichweite
-  </div>
+      <div class="screenshot">
+        <span class="screenshot-label">Screenshot: Dorf-Aktionsmenü</span>
+        Buttons zum Kaufen: „⚔️ Schwert (3G)", „🏹 Bogen (4G)", „🐎 Pferd (4G)" etc., je mit HP/DMG/Bewegung/Reichweite
+      </div>
 
-  <p>Tippe auf eine eigene Einheit → sie wird markiert, verfügbare Züge leuchten auf. Tippe auf ein <strong>grünes Feld</strong> zum Bewegen, auf ein <strong>rotes Feld</strong> zum Angreifen.</p>
+      <p>Tippe auf eine eigene Einheit → sie wird markiert, verfügbare Züge leuchten auf. Tippe auf ein <strong>grünes
+          Feld</strong> zum Bewegen, auf ein <strong>rotes Feld</strong> zum Angreifen.</p>
 
-  <p><strong>Alle Bodeneinheiten im Überblick</strong> (Kosten in Gold – 🪵-Kosten unten sind für Spezialfähigkeiten, nicht den Kauf):</p>
+      <p><strong>Alle Bodeneinheiten im Überblick</strong> (Kosten in Gold – 🪵-Kosten unten sind für
+        Spezialfähigkeiten, nicht den Kauf):</p>
 
-  <table class="unit-table">
-    <thead>
-      <tr>
-        <th>Einheit</th>
-        <th>Tier</th>
-        <th>Kosten</th>
-        <th>HP</th>
-        <th>DMG</th>
-        <th>Bewegung</th>
-        <th>Reichweite</th>
-        <th>Fraktion</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>⚔️ Schwert</td>
-        <td><span class="tier">T1</span></td>
-        <td>3 G</td><td>10</td><td>5</td><td>1</td><td>1 (Nah)</td>
-        <td>Alle</td>
-      </tr>
-      <tr>
-        <td>🏹 Bogen</td>
-        <td><span class="tier">T1</span></td>
-        <td>4 G</td><td>10</td><td>4</td><td>1</td><td>2 (Fern)</td>
-        <td>Alle</td>
-      </tr>
-      <tr>
-        <td>🐎 Pferd</td>
-        <td><span class="tier">T1</span></td>
-        <td>4 G</td><td>10</td><td>5</td><td>2</td><td>1 (Nah)</td>
-        <td>Alle</td>
-      </tr>
-      <tr>
-        <td>⛏️ Arbeiter</td>
-        <td><span class="tier">T1</span></td>
-        <td>2 G</td><td>10</td><td>2</td><td>1</td><td>1</td>
-        <td>Alle – siehe Abschnitt 07</td>
-      </tr>
-      <tr style="background: rgba(201,168,76,.05)">
-        <td>🛡️ Ritter</td>
-        <td><span class="tier">T2</span></td>
-        <td>6 G</td><td>15</td><td>6</td><td>2</td><td>1 (Nah)</td>
-        <td>🏰 Feudalismus</td>
-      </tr>
-      <tr style="background: rgba(201,168,76,.05)">
-        <td>🪓 Berserker</td>
-        <td><span class="tier">T2</span></td>
-        <td>4 G</td><td>11</td><td>6</td><td>2</td><td>1 (Nah)</td>
-        <td>🩸 Plünderer</td>
-      </tr>
-      <tr style="background: rgba(201,168,76,.05)">
-        <td>🗡️ Assassine</td>
-        <td><span class="tier">T2</span></td>
-        <td>5 G</td><td>8</td><td>6</td><td>3</td><td>1 (Nah)</td>
-        <td>👁️ Spionage</td>
-      </tr>
-      <tr style="background: rgba(201,168,76,.05)">
-        <td>🏗️ Tribok</td>
-        <td><span class="tier">T2</span></td>
-        <td>7 G</td><td>8</td><td>6</td><td>1</td><td>3 (Fern)</td>
-        <td>⚖️ Gilden</td>
-      </tr>
-      <tr style="background: rgba(139,26,26,.08)">
-        <td>🐪 Kamelreiter</td>
-        <td><span class="tier">T3</span></td>
-        <td>6 G</td><td>12</td><td>6</td><td>2</td><td>2 (Fern)</td>
-        <td>🏰 Feudalismus</td>
-      </tr>
-      <tr style="background: rgba(139,26,26,.08)">
-        <td>💣 Saboteur</td>
-        <td><span class="tier">T3</span></td>
-        <td>8 G</td><td>8</td><td>–</td><td>2</td><td>Explosion</td>
-        <td>🩸 Plünderer</td>
-      </tr>
-      <tr style="background: rgba(139,26,26,.08)">
-        <td>🐘 Elefant</td>
-        <td><span class="tier">T3</span></td>
-        <td>9 G</td><td>22</td><td>8</td><td>1</td><td>1 (Nah)</td>
-        <td>👁️ Spionage</td>
-      </tr>
-      <tr style="background: rgba(139,26,26,.08)">
-        <td>🚚 Wagenburg</td>
-        <td><span class="tier">T3</span></td>
-        <td>7 G</td><td>18</td><td>6</td><td>2</td><td>1 / 2*</td>
-        <td>⚖️ Gilden</td>
-      </tr>
-    </tbody>
-  </table>
-  <p style="font-size:.82rem; color:var(--text-dim)">* Wagenburg kann sich <strong>eingraben (⛺ Aufschlagen, gratis)</strong>: steht dann still (Bewegung 0), bekommt Reichweite 2 und eine defensive Aura (benachbarte Freunde nehmen 1 DMG weniger von jedem Angriff). Nochmals tippen zum Ausgraben.</p>
+      <table class="unit-table">
+        <thead>
+          <tr>
+            <th>Einheit</th>
+            <th>Tier</th>
+            <th>Kosten</th>
+            <th>HP</th>
+            <th>DMG</th>
+            <th>Bewegung</th>
+            <th>Reichweite</th>
+            <th>Fraktion</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>⚔️ Schwert</td>
+            <td><span class="tier">T1</span></td>
+            <td>3 G</td>
+            <td>10</td>
+            <td>5</td>
+            <td>1</td>
+            <td>1 (Nah)</td>
+            <td>Alle</td>
+          </tr>
+          <tr>
+            <td>🏹 Bogen</td>
+            <td><span class="tier">T1</span></td>
+            <td>4 G</td>
+            <td>10</td>
+            <td>4</td>
+            <td>1</td>
+            <td>2 (Fern)</td>
+            <td>Alle</td>
+          </tr>
+          <tr>
+            <td>🐎 Pferd</td>
+            <td><span class="tier">T1</span></td>
+            <td>4 G</td>
+            <td>10</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1 (Nah)</td>
+            <td>Alle</td>
+          </tr>
+          <tr>
+            <td>⛏️ Arbeiter</td>
+            <td><span class="tier">T1</span></td>
+            <td>2 G</td>
+            <td>10</td>
+            <td>2</td>
+            <td>1</td>
+            <td>1</td>
+            <td>Alle – siehe Abschnitt 07</td>
+          </tr>
+          <tr style="background: rgba(201,168,76,.05)">
+            <td>🛡️ Ritter</td>
+            <td><span class="tier">T2</span></td>
+            <td>6 G</td>
+            <td>15</td>
+            <td>6</td>
+            <td>2</td>
+            <td>1 (Nah)</td>
+            <td>🏰 Feudalismus</td>
+          </tr>
+          <tr style="background: rgba(201,168,76,.05)">
+            <td>🪓 Berserker</td>
+            <td><span class="tier">T2</span></td>
+            <td>4 G</td>
+            <td>11</td>
+            <td>6</td>
+            <td>2</td>
+            <td>1 (Nah)</td>
+            <td>🩸 Plünderer</td>
+          </tr>
+          <tr style="background: rgba(201,168,76,.05)">
+            <td>🗡️ Assassine</td>
+            <td><span class="tier">T2</span></td>
+            <td>5 G</td>
+            <td>8</td>
+            <td>6</td>
+            <td>3</td>
+            <td>1 (Nah)</td>
+            <td>👁️ Spionage</td>
+          </tr>
+          <tr style="background: rgba(201,168,76,.05)">
+            <td>🏗️ Tribok</td>
+            <td><span class="tier">T2</span></td>
+            <td>7 G</td>
+            <td>8</td>
+            <td>6</td>
+            <td>1</td>
+            <td>3 (Fern)</td>
+            <td>⚖️ Gilden</td>
+          </tr>
+          <tr style="background: rgba(139,26,26,.08)">
+            <td>🐪 Kamelreiter</td>
+            <td><span class="tier">T3</span></td>
+            <td>6 G</td>
+            <td>12</td>
+            <td>6</td>
+            <td>2</td>
+            <td>2 (Fern)</td>
+            <td>🏰 Feudalismus</td>
+          </tr>
+          <tr style="background: rgba(139,26,26,.08)">
+            <td>💣 Saboteur</td>
+            <td><span class="tier">T3</span></td>
+            <td>8 G</td>
+            <td>8</td>
+            <td>–</td>
+            <td>2</td>
+            <td>Explosion</td>
+            <td>🩸 Plünderer</td>
+          </tr>
+          <tr style="background: rgba(139,26,26,.08)">
+            <td>🐘 Elefant</td>
+            <td><span class="tier">T3</span></td>
+            <td>9 G</td>
+            <td>22</td>
+            <td>8</td>
+            <td>1</td>
+            <td>1 (Nah)</td>
+            <td>👁️ Spionage</td>
+          </tr>
+          <tr style="background: rgba(139,26,26,.08)">
+            <td>🚚 Wagenburg</td>
+            <td><span class="tier">T3</span></td>
+            <td>7 G</td>
+            <td>18</td>
+            <td>6</td>
+            <td>2</td>
+            <td>1 / 2*</td>
+            <td>⚖️ Gilden</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:.82rem; color:var(--text-dim)">* Wagenburg kann sich <strong>eingraben (⛺ Aufschlagen,
+          gratis)</strong>: steht dann still (Bewegung 0), bekommt Reichweite 2 und eine defensive Aura (benachbarte
+        Freunde nehmen 1 DMG weniger von jedem Angriff). Nochmals tippen zum Ausgraben.</p>
 
-  <p><strong>Veteran-System:</strong> Einheiten, die <strong>2 Gegner töten</strong>, werden zum Veteranen (⭐). Veteranen machen dauerhaft +1 DMG.</p>
+      <p><strong>Veteran-System:</strong> Einheiten, die <strong>2 Gegner töten</strong>, werden zum Veteranen (⭐).
+        Veteranen machen dauerhaft +1 DMG.</p>
 
-  <p><strong>Terrain-Bonus:</strong> Fernkämpfer (Bogen, Tribok, Kamelreiter) auf <strong>Hügeln</strong> machen +1 DMG. Nahkämpfer und Lufteinheiten bekommen diesen Bonus nicht.</p>
+      <p><strong>Terrain-Bonus:</strong> Fernkämpfer (Bogen, Tribok, Kamelreiter) auf <strong>Hügeln</strong> machen +1
+        DMG. Nahkämpfer und Lufteinheiten bekommen diesen Bonus nicht.</p>
 
-  <div class="callout">
-    <span class="callout-label">Gegenangriff</span>
-    Überlebt eine angegriffene Einheit und kann den Angreifer aus ihrer eigenen Reichweite treffen, schlägt sie automatisch zurück (kurze Verzögerung) – das gilt nicht nur für Nahkämpfer: Ein Bogenschütze (Reichweite 2) kontert z.B. auch einen Nahkampf-Angriff aus Distanz 1. Ausnahme: der 🎈 Bombenballon kontert nie.
-  </div>
-</div>
+      <div class="callout">
+        <span class="callout-label">Gegenangriff</span>
+        Überlebt eine angegriffene Einheit und kann den Angreifer aus ihrer eigenen Reichweite treffen, schlägt sie
+        automatisch zurück (kurze Verzögerung) – das gilt nicht nur für Nahkämpfer: Ein Bogenschütze (Reichweite 2)
+        kontert z.B. auch einen Nahkampf-Angriff aus Distanz 1. Ausnahme: der 🎈 Bombenballon kontert nie.
+      </div>
+    </div>
 
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      06 · LUFTEINHEITEN
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="air">
-  <div class="section-head">
-    <span class="section-num">06</span>
-    <span class="section-icon">🪽</span>
-    <h2>Lufteinheiten</h2>
-  </div>
+    <div class="section" id="air">
+      <div class="section-head">
+        <span class="section-num">06</span>
+        <span class="section-icon">🪽</span>
+        <h2>Lufteinheiten</h2>
+      </div>
 
-  <p>Jede Fraktion hat neben ihren zwei Bodeneinheiten eine eigene <strong>Lufteinheit</strong>, die automatisch mitfreigeschaltet wird, sobald du die Fraktion wählst (siehe Abschnitt 09). Boden und Luft teilen sich ein Hexfeld: <strong>ein Feld kann gleichzeitig eine Bodeneinheit UND eine Lufteinheit tragen.</strong></p>
+      <p>Jede Fraktion hat neben ihren zwei Bodeneinheiten eine eigene <strong>Lufteinheit</strong>, die automatisch
+        mitfreigeschaltet wird, sobald du die Fraktion wählst (siehe Abschnitt 09). Boden und Luft teilen sich ein
+        Hexfeld: <strong>ein Feld kann gleichzeitig eine Bodeneinheit UND eine Lufteinheit tragen.</strong></p>
 
-  <p>Um Lufteinheiten anzuklicken, zu bewegen oder anzugreifen, aktiviere die <strong>„✈️ Luftansicht"</strong> im HUD. Ohne aktive Luftansicht gehen Klicks auf ein geteiltes Feld standardmäßig an die Bodeneinheit. Flieger ignorieren alle Bodenhindernisse (Mauern, Steine, Türme, Einheiten) – nur andere Lufteinheiten blockieren sie.</p>
+      <p>Um Lufteinheiten anzuklicken, zu bewegen oder anzugreifen, aktiviere die <strong>„✈️ Luftansicht"</strong> im
+        HUD. Ohne aktive Luftansicht gehen Klicks auf ein geteiltes Feld standardmäßig an die Bodeneinheit. Flieger
+        ignorieren alle Bodenhindernisse (Mauern, Steine, Türme, Einheiten) – nur andere Lufteinheiten blockieren sie.
+      </p>
 
-  <table class="unit-table">
-    <thead>
-      <tr>
-        <th>Einheit</th>
-        <th>Kosten</th>
-        <th>HP</th>
-        <th>DMG</th>
-        <th>Bewegung</th>
-        <th>Reichweite</th>
-        <th>Ziele</th>
-        <th>Fraktion</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>🚁 Luftschraube</td>
-        <td>7 G</td><td>14</td><td>5</td><td>2</td><td>1 (Nah)</td>
-        <td>Luft + Boden</td>
-        <td>🏰 Feudalismus</td>
-      </tr>
-      <tr>
-        <td>🛩️ Gleiter</td>
-        <td>6 G</td><td>8</td><td>5</td><td>4</td><td>1 (Nah)</td>
-        <td>Luft + Boden</td>
-        <td>🩸 Plünderer</td>
-      </tr>
-      <tr>
-        <td>🪂 Fallschirmspringer</td>
-        <td>4 G</td><td>10</td><td>4</td><td>2</td><td>2 (Fern)</td>
-        <td>Nur Luft (fliegend)</td>
-        <td>👁️ Spionage</td>
-      </tr>
-      <tr>
-        <td>🎈 Bombenballon</td>
-        <td>9 G</td><td>14</td><td>4</td><td>2</td><td>1 (Fern)</td>
-        <td>Nur Boden</td>
-        <td>⚖️ Gilden</td>
-      </tr>
-    </tbody>
-  </table>
+      <table class="unit-table">
+        <thead>
+          <tr>
+            <th>Einheit</th>
+            <th>Kosten</th>
+            <th>HP</th>
+            <th>DMG</th>
+            <th>Bewegung</th>
+            <th>Reichweite</th>
+            <th>Ziele</th>
+            <th>Fraktion</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>🚁 Luftschraube</td>
+            <td>7 G</td>
+            <td>14</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1 (Nah)</td>
+            <td>Luft + Boden</td>
+            <td>🏰 Feudalismus</td>
+          </tr>
+          <tr>
+            <td>🛩️ Gleiter</td>
+            <td>6 G</td>
+            <td>8</td>
+            <td>5</td>
+            <td>4</td>
+            <td>1 (Nah)</td>
+            <td>Luft + Boden</td>
+            <td>🩸 Plünderer</td>
+          </tr>
+          <tr>
+            <td>🪂 Fallschirmspringer</td>
+            <td>4 G</td>
+            <td>10</td>
+            <td>4</td>
+            <td>2</td>
+            <td>2 (Fern)</td>
+            <td>Nur Luft (fliegend)</td>
+            <td>👁️ Spionage</td>
+          </tr>
+          <tr>
+            <td>🎈 Bombenballon</td>
+            <td>9 G</td>
+            <td>14</td>
+            <td>4</td>
+            <td>2</td>
+            <td>1 (Fern)</td>
+            <td>Nur Boden</td>
+            <td>⚖️ Gilden</td>
+          </tr>
+        </tbody>
+      </table>
 
-  <p><strong>Spezialfähigkeiten der Lufteinheiten:</strong></p>
-  <div class="build-row">
-    <div class="build-item">
-      <div class="build-icon">🚁</div>
-      <div><strong>Luftschraube – Lufttransport</strong> <span class="build-cost">gratis</span><br>
-      „Aufladen" nimmt eine eigene <em>leichte</em> Bodeneinheit im Umkreis 1 auf (Elefant & Wagenburg sind zu schwer). „Absetzen" lässt die Fracht auf einem freien Bodenfeld im Umkreis 1 landen – die abgesetzte Einheit kann diese Runde nicht mehr handeln. Wird die Luftschraube abgeschossen, geht die Fracht mit ihr verloren.</div>
+      <p><strong>Spezialfähigkeiten der Lufteinheiten:</strong></p>
+      <div class="build-row">
+        <div class="build-item">
+          <div class="build-icon">🚁</div>
+          <div><strong>Luftschraube – Lufttransport</strong> <span class="build-cost">gratis</span><br>
+            „Aufladen" nimmt eine eigene <em>leichte</em> Bodeneinheit im Umkreis 1 auf (Elefant & Wagenburg sind zu
+            schwer). „Absetzen" lässt die Fracht auf einem freien Bodenfeld im Umkreis 1 landen – die abgesetzte Einheit
+            kann diese Runde nicht mehr handeln. Wird die Luftschraube abgeschossen, geht die Fracht mit ihr verloren.
+          </div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🛩️</div>
+          <div><strong>Gleiter – Sturzangriff</strong> <span class="build-cost">gratis</span><br>
+            9 DMG auf ein Boden-, Luft- oder Gebäudeziel im Umkreis 1. Der Gleiter zerschellt dabei und wird selbst
+            zerstört – ein Kamikaze-Angriff.</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🪂</div>
+          <div><strong>Fallschirmspringer – Absprung</strong> <span class="build-cost">gratis</span><br>
+            Landet endgültig auf einem freien Bodenfeld im Umkreis 2 und wird zur Bodeneinheit (Bewegung 2, greift
+            danach Luft <em>und</em> Boden mit Reichweite 2 an, kann sogar Dörfer erobern). Nach der Landung darf noch
+            geschossen werden. Fliegend kann er dagegen nur Luftziele treffen.</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🎈</div>
+          <div><strong>Bombenballon – Anzünden & Feuersturm</strong><br>
+            Normalangriff „Anzünden": 4 DMG sofort + 4 DMG verzögert (beim nächsten Zug des Ziel-Besitzers) = 8 DMG
+            gesamt. „🌋 Feuersturm" <span class="build-cost">5 🪵</span>: trifft das eigene Feld + alle 6 Nachbarn mit
+            je 3 DMG sofort + 3 DMG verzögert – <strong>auch eigene Bodentruppen (Friendly Fire)!</strong> Luft ist
+            gegen beide Angriffe immun.</div>
+        </div>
+      </div>
     </div>
-    <div class="build-item">
-      <div class="build-icon">🛩️</div>
-      <div><strong>Gleiter – Sturzangriff</strong> <span class="build-cost">gratis</span><br>
-      9 DMG auf ein Boden-, Luft- oder Gebäudeziel im Umkreis 1. Der Gleiter zerschellt dabei und wird selbst zerstört – ein Kamikaze-Angriff.</div>
-    </div>
-    <div class="build-item">
-      <div class="build-icon">🪂</div>
-      <div><strong>Fallschirmspringer – Absprung</strong> <span class="build-cost">gratis</span><br>
-      Landet endgültig auf einem freien Bodenfeld im Umkreis 2 und wird zur Bodeneinheit (Bewegung 2, greift danach Luft <em>und</em> Boden mit Reichweite 2 an, kann sogar Dörfer erobern). Nach der Landung darf noch geschossen werden. Fliegend kann er dagegen nur Luftziele treffen.</div>
-    </div>
-    <div class="build-item">
-      <div class="build-icon">🎈</div>
-      <div><strong>Bombenballon – Anzünden & Feuersturm</strong><br>
-      Normalangriff „Anzünden": 4 DMG sofort + 4 DMG verzögert (beim nächsten Zug des Ziel-Besitzers) = 8 DMG gesamt. „🌋 Feuersturm" <span class="build-cost">5 🪵</span>: trifft das eigene Feld + alle 6 Nachbarn mit je 3 DMG sofort + 3 DMG verzögert – <strong>auch eigene Bodentruppen (Friendly Fire)!</strong> Luft ist gegen beide Angriffe immun.</div>
-    </div>
-  </div>
-</div>
 
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      07 · ARBEITER
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="workers">
-  <div class="section-head">
-    <span class="section-num">07</span>
-    <span class="section-icon">⛏️</span>
-    <h2>Arbeiter & Stein</h2>
-  </div>
+    <div class="section" id="workers">
+      <div class="section-head">
+        <span class="section-num">07</span>
+        <span class="section-icon">⛏️</span>
+        <h2>Arbeiter & Stein</h2>
+      </div>
 
-  <p>Der <strong>Arbeiter</strong> ist kein Kämpfer – er ist dein Baumeister. Er ist die einzige Einheit, die Stein abbauen und Strukturen errichten kann.</p>
+      <p>Der <strong>Arbeiter</strong> ist kein Kämpfer – er ist dein Baumeister. Er ist die einzige Einheit, die Stein
+        abbauen und Strukturen errichten kann.</p>
 
-  <div class="screenshot">
-    <span class="screenshot-label">Screenshot: Arbeiter-Aktionsmenü</span>
-    Buttons: „⛏️ Abbau starten", „🧱 Mauer (1🪨)", „🚇 Tunnel (4🪨)", „🗼 Turm (5🪨)"
-  </div>
+      <div class="screenshot">
+        <span class="screenshot-label">Screenshot: Arbeiter-Aktionsmenü</span>
+        Buttons: „⛏️ Abbau starten", „🧱 Mauer (1🪨)", „🚇 Tunnel (4🪨)", „🗼 Turm (5🪨)"
+      </div>
 
-  <p><strong>⛏️ Abbau starten (gratis):</strong></p>
-  <p>Stelle einen Arbeiter <em>neben</em> ein Steinvorkommen (🪨) auf der Karte. Tippe auf den Arbeiter → „Abbau starten". Ab der nächsten Runde bekommst du automatisch <strong>+1 🪨 pro Runde</strong>, solange der Arbeiter daneben bleibt. Das Steinvorkommen verliert dabei HP – ist es aufgebraucht, verschwindet es.</p>
+      <p><strong>⛏️ Abbau starten (gratis):</strong></p>
+      <p>Stelle einen Arbeiter <em>neben</em> ein Steinvorkommen (🪨) auf der Karte. Tippe auf den Arbeiter → „Abbau
+        starten". Ab der nächsten Runde bekommst du automatisch <strong>+1 🪨 pro Runde</strong>, solange der Arbeiter
+        daneben bleibt. Das Steinvorkommen verliert dabei HP – ist es aufgebraucht, verschwindet es.</p>
 
-  <div class="callout tip">
-    <span class="callout-label">Tipp</span>
-    Lass den Arbeiter einfach stehen – er baut automatisch weiter, solange er daneben ist. Du musst nichts weiter tun.
-  </div>
+      <div class="callout tip">
+        <span class="callout-label">Tipp</span>
+        Lass den Arbeiter einfach stehen – er baut automatisch weiter, solange er daneben ist. Du musst nichts weiter
+        tun.
+      </div>
 
-  <p><strong>Was du mit Stein bauen kannst:</strong></p>
+      <p><strong>Was du mit Stein bauen kannst:</strong></p>
 
-  <div class="build-row">
-    <div class="build-item">
-      <div class="build-icon">🧱</div>
-      <div>
-        <strong>Mauer</strong> <span class="build-cost">1 🪨 · 10 HP</span><br>
-        Errichtet auf einem Nachbarfeld eine Palisade. Blockiert Bewegung für alle Bodeneinheiten. Ideal zur Kanalisation von Feindrouten oder zum Schutz deines Startdorfs. Ein Arbeiter kann eine eigene Mauer neben sich wieder abreißen (keine Rückerstattung).
+      <div class="build-row">
+        <div class="build-item">
+          <div class="build-icon">🧱</div>
+          <div>
+            <strong>Mauer</strong> <span class="build-cost">1 🪨 · 10 HP</span><br>
+            Errichtet auf einem Nachbarfeld eine Palisade. Blockiert Bewegung für alle Bodeneinheiten. Ideal zur
+            Kanalisation von Feindrouten oder zum Schutz deines Startdorfs. Ein Arbeiter kann eine eigene Mauer neben
+            sich wieder abreißen (keine Rückerstattung).
+          </div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🚇</div>
+          <div>
+            <strong>Tunnel</strong> <span class="build-cost">4 🪨 · 13 HP</span><br>
+            Baut einen Tunnel-Eingang auf einem Nachbarfeld. Du wirst dann nach einem zweiten Eingang gefragt (irgendwo
+            auf der erkundeten Karte). Fertig ab der nächsten Runde. Deine Einheiten (und Verbündete) können dann
+            zwischen beiden Eingängen sofort teleportieren. Gegner können die Ausgänge zerstören. Ein Arbeiter kann
+            einen eigenen Tunnel wieder abbauen – dafür gibt es 2 🪨 zurück.
+          </div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🗼</div>
+          <div>
+            <strong>Turm</strong> <span class="build-cost">5 🪨 · 15 HP</span><br>
+            Baut einen Wachturm auf einem Nachbarfeld. Gewährt Sichtweite über 2 Felder. Einmal pro Runde kannst du
+            deinen eigenen Turm anklicken und damit aktiv <strong>5 DMG auf ein Ziel im Umkreis 2</strong> abfeuern
+            (Einheiten, gegnerische Türme, Mauern, Tunnel oder Hauptgebäude). Kann selbst angegriffen und zerstört
+            werden.
+          </div>
+        </div>
       </div>
     </div>
-    <div class="build-item">
-      <div class="build-icon">🚇</div>
-      <div>
-        <strong>Tunnel</strong> <span class="build-cost">4 🪨 · 13 HP</span><br>
-        Baut einen Tunnel-Eingang auf einem Nachbarfeld. Du wirst dann nach einem zweiten Eingang gefragt (irgendwo auf der erkundeten Karte). Fertig ab der nächsten Runde. Deine Einheiten (und Verbündete) können dann zwischen beiden Eingängen sofort teleportieren. Gegner können die Ausgänge zerstören. Ein Arbeiter kann einen eigenen Tunnel wieder abbauen – dafür gibt es 2 🪨 zurück.
-      </div>
-    </div>
-    <div class="build-item">
-      <div class="build-icon">🗼</div>
-      <div>
-        <strong>Turm</strong> <span class="build-cost">5 🪨 · 15 HP</span><br>
-        Baut einen Wachturm auf einem Nachbarfeld. Gewährt Sichtweite über 2 Felder. Einmal pro Runde kannst du deinen eigenen Turm anklicken und damit aktiv <strong>5 DMG auf ein Ziel im Umkreis 2</strong> abfeuern (Einheiten, gegnerische Türme, Mauern, Tunnel oder Hauptgebäude). Kann selbst angegriffen und zerstört werden.
-      </div>
-    </div>
-  </div>
-</div>
 
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      08 · DÖRFER EINNEHMEN
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="villages">
-  <div class="section-head">
-    <span class="section-num">08</span>
-    <span class="section-icon">🏘️</span>
-    <h2>Dörfer einnehmen</h2>
-  </div>
+    <div class="section" id="villages">
+      <div class="section-head">
+        <span class="section-num">08</span>
+        <span class="section-icon">🏘️</span>
+        <h2>Dörfer einnehmen</h2>
+      </div>
 
-  <p>Mehr Dörfer = mehr Gold + Holz = mehr Einheiten. Expansion ist der Schlüssel zum Sieg.</p>
+      <p>Mehr Dörfer = mehr Gold + Holz = mehr Einheiten. Expansion ist der Schlüssel zum Sieg.</p>
 
-  <p>So nimmst du ein Dorf ein:</p>
-  <ol class="steps">
-    <li>Bewege eine eigene Einheit auf das Dorffeld (grau = neutral, feindfarbe = feindlich).</li>
-    <li>Tippe erneut auf deine Einheit. Im Aktionsmenü erscheint der Button <strong>„Dorf einnehmen"</strong>.</li>
-    <li>Tippe ihn an – das Dorf gehört dir sofort.</li>
-  </ol>
+      <p>So nimmst du ein Dorf ein:</p>
+      <ol class="steps">
+        <li>Bewege eine eigene Einheit auf das Dorffeld (grau = neutral, feindfarbe = feindlich).</li>
+        <li>Tippe erneut auf deine Einheit. Im Aktionsmenü erscheint der Button <strong>„Dorf einnehmen"</strong>.</li>
+        <li>Tippe ihn an – das Dorf gehört dir sofort.</li>
+      </ol>
 
-  <div class="screenshot">
-    <span class="screenshot-label">Screenshot: Dorf einnehmen</span>
-    Einheit steht auf Dorffeld, Aktionsmenü zeigt „🏘️ Dorf einnehmen"-Button
-  </div>
+      <div class="screenshot">
+        <span class="screenshot-label">Screenshot: Dorf einnehmen</span>
+        Einheit steht auf Dorffeld, Aktionsmenü zeigt „🏘️ Dorf einnehmen"-Button
+      </div>
 
-  <div class="callout warn">
-    <span class="callout-label">Wichtig</span>
-    Das Startdorf anderer Spieler ist ihr <strong>Hauptgebäude</strong> (erkennbar an der größeren Sprite, 30 HP). Wenn dessen HP auf 0 sinken, ist der Spieler eliminiert – alle seine Einheiten und Dörfer gehen verloren.
-  </div>
+      <div class="callout warn">
+        <span class="callout-label">Wichtig</span>
+        Das Startdorf anderer Spieler ist ihr <strong>Hauptgebäude</strong> (erkennbar an der größeren Sprite, 30 HP).
+        Wenn dessen HP auf 0 sinken, ist der Spieler eliminiert – alle seine Einheiten und Dörfer gehen verloren.
+      </div>
 
-  <p><strong>Einnahmen pro Dorf pro Runde:</strong> 2 💰 Gold + 1 🪵 Holz. Bei der Fraktion Gilden: 3 💰 + 1 🪵.</p>
+      <p><strong>Einnahmen pro Dorf pro Runde:</strong> 2 💰 Gold + 1 🪵 Holz. Bei der Fraktion Gilden: 3 💰 + 1 🪵.</p>
 
-  <p>Außerdem kannst du <strong>in jedem deiner Dörfer</strong> Einheiten rekrutieren (Boden und Luft unabhängig voneinander). Je mehr Dörfer du hast, desto mehr Fronten kannst du gleichzeitig versorgen.</p>
-</div>
+      <p>Außerdem kannst du <strong>in jedem deiner Dörfer</strong> Einheiten rekrutieren (Boden und Luft unabhängig
+        voneinander). Je mehr Dörfer du hast, desto mehr Fronten kannst du gleichzeitig versorgen.</p>
+    </div>
 
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      09 · KULTUR & FORSCHUNG
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="culture">
-  <div class="section-head">
-    <span class="section-num">09</span>
-    <span class="section-icon">✨</span>
-    <h2>Kultur & Forschung</h2>
-  </div>
+    <div class="section" id="culture">
+      <div class="section-head">
+        <span class="section-num">09</span>
+        <span class="section-icon">✨</span>
+        <h2>Kultur & Forschung</h2>
+      </div>
 
-  <p>Über den <strong>„✨ Kultur"-Button</strong> (unten links im HUD) kannst du Fraktionen freischalten. Jede Fraktion bringt sofort ihr <strong>komplettes Einheiten-Roster</strong> mit – die T2-Bodeneinheit, die T3-Elite-Einheit <em>und</em> die Lufteinheit – plus die passive Fraktionsfähigkeit. Es gibt keine separate Freischaltung pro Tier.</p>
+      <p>Über den <strong>„✨ Kultur"-Button</strong> (unten links im HUD) kannst du Fraktionen freischalten. Jede
+        Fraktion bringt sofort ihr <strong>komplettes Einheiten-Roster</strong> mit – die T2-Bodeneinheit, die
+        T3-Elite-Einheit <em>und</em> die Lufteinheit – plus die passive Fraktionsfähigkeit. Es gibt keine separate
+        Freischaltung pro Tier.</p>
 
-  <p><strong>Kultur-Stufen:</strong></p>
-  <ul style="list-style:none; display:flex; flex-direction:column; gap:.5rem; margin:.8rem 0">
-    <li style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.7rem 1rem">
-      <strong>1. Kultur</strong> — Kosten: 10 🪵 | Voraussetzung: 2+ Dörfer<br>
-      <span style="font-size:.85rem;color:var(--text-dim)">Du wählst 1 von 2 zufälligen Fraktionen. Schaltet deren gesamtes Roster (T2, T3, Luft) und die Passiv-Fähigkeit frei.</span>
-    </li>
-    <li style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.7rem 1rem">
-      <strong>2. Kultur</strong> — Kosten: 15 🪵 | Voraussetzung: 4+ Dörfer<br>
-      <span style="font-size:.85rem;color:var(--text-dim)">Du wählst eine zweite, andere Fraktion aus den verbleibenden zwei. Schaltet ebenfalls deren gesamtes Roster frei. Mehr als 2 Fraktionen gleichzeitig sind nicht möglich.</span>
-    </li>
-  </ul>
+      <p><strong>Kultur-Stufen:</strong></p>
+      <ul style="list-style:none; display:flex; flex-direction:column; gap:.5rem; margin:.8rem 0">
+        <li style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.7rem 1rem">
+          <strong>1. Kultur</strong> — Kosten: 10 🪵 | Voraussetzung: 2+ Dörfer<br>
+          <span style="font-size:.85rem;color:var(--text-dim)">Du wählst 1 von 2 zufälligen Fraktionen. Schaltet deren
+            gesamtes Roster (T2, T3, Luft) und die Passiv-Fähigkeit frei.</span>
+        </li>
+        <li style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.7rem 1rem">
+          <strong>2. Kultur</strong> — Kosten: 15 🪵 | Voraussetzung: 4+ Dörfer<br>
+          <span style="font-size:.85rem;color:var(--text-dim)">Du wählst eine zweite, andere Fraktion aus den
+            verbleibenden zwei. Schaltet ebenfalls deren gesamtes Roster frei. Mehr als 2 Fraktionen gleichzeitig sind
+            nicht möglich.</span>
+        </li>
+      </ul>
 
-  <div class="faction-grid">
-    <div class="faction-card">
-      <div class="f-name">🏰 Feudalismus</div>
-      <div class="f-passive">Passive: +1 Max-HP auf neu rekrutierte Einheiten pro 2 Dörfer, die du beim Rekrutieren besitzt</div>
-      <div class="f-units">🛡️ Ritter (T2) · 🐪 Kamelreiter (T3) · 🚁 Luftschraube (Luft)</div>
-      <div class="f-special">Ritter „Rundumschlag" (3🪵): 4 DMG an alle Nachbarn.<br>Kamelreiter „Parthershot" (1🪵): angreifen, danach nochmal bewegen.</div>
+      <div class="faction-grid">
+        <div class="faction-card">
+          <div class="f-name">🏰 Feudalismus</div>
+          <div class="f-passive">Passive: +1 Max-HP auf neu rekrutierte Einheiten pro 2 Dörfer, die du beim Rekrutieren
+            besitzt</div>
+          <div class="f-units">🛡️ Ritter (T2) · 🐪 Kamelreiter (T3) · 🚁 Luftschraube (Luft)</div>
+          <div class="f-special">Ritter „Rundumschlag" (3🪵): 4 DMG an alle Nachbarn.<br>Kamelreiter „Parthershot"
+            (1🪵): angreifen, danach nochmal bewegen.</div>
+        </div>
+        <div class="faction-card">
+          <div class="f-name">🩸 Plünderer</div>
+          <div class="f-passive">Passive: +1 DMG für alle Nahkämpfer</div>
+          <div class="f-units">🪓 Berserker (T2) · 💣 Saboteur (T3) · 🛩️ Gleiter (Luft)</div>
+          <div class="f-special">Berserker „Blutrausch" (2🪵): Aktionspunkt zurück, nochmal agieren.<br>Saboteur
+            „Sprengen" (gratis): 8 DMG AoE, zerstört sich selbst.</div>
+        </div>
+        <div class="faction-card">
+          <div class="f-name">👁️ Spionage</div>
+          <div class="f-passive">Passive: +1 Sichtweite für alle Einheiten & Dörfer</div>
+          <div class="f-units">🗡️ Assassine (T2) · 🐘 Elefant (T3) · 🪂 Fallschirmspringer (Luft)</div>
+          <div class="f-special">Assassine „Unsichtbar" (2🪵): für Feinde nicht anvisierbar, bricht bei Angriff (2
+            Runden Cooldown danach).<br>Elefant „Stampede" (3🪵): 5 DMG Linienangriff bis Distanz 2, kein Gegenangriff.
+          </div>
+        </div>
+        <div class="faction-card">
+          <div class="f-name">⚖️ Gilden</div>
+          <div class="f-passive">Passive: +1 extra Gold pro Dorf pro Runde</div>
+          <div class="f-units">🏗️ Tribok (T2) · 🚚 Wagenburg (T3) · 🎈 Bombenballon (Luft)</div>
+          <div class="f-special">Tribok „Flächenbrand" (3🪵): 3 DMG Zentrum, 2 DMG Nachbarn.<br>Wagenburg „Eingraben"
+            (gratis): stationär, Reichweite 2, Verbündeten-Aura.</div>
+        </div>
+      </div>
+
+      <p>Über <strong>„📜 Forschung"</strong> kannst du für jede besessene Fraktion bis zu 3 Upgrades freikaufen. Alle
+        kosten einheitlich <strong>7 🪵 Holz</strong> (kein Gold) und können in beliebiger Reihenfolge gekauft werden,
+        sobald du die zugehörige Fraktion besitzt:</p>
+
+      <table class="unit-table">
+        <thead>
+          <tr>
+            <th>Fraktion</th>
+            <th>Upgrade</th>
+            <th>Effekt</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>🏰 Feudalismus</td>
+            <td>Plattenpanzer</td>
+            <td>Basis-Schwerter erhalten +5 Max-HP (10 → 15)</td>
+          </tr>
+          <tr>
+            <td>🏰 Feudalismus</td>
+            <td>Waffenmeister</td>
+            <td>Neu rekrutierte Einheiten starten bereits als Veteran (+1 DMG)</td>
+          </tr>
+          <tr>
+            <td>🏰 Feudalismus</td>
+            <td>Doppelschuss</td>
+            <td>Parthershot (Kamelreiter) kostet 0 Holz statt 1</td>
+          </tr>
+          <tr>
+            <td>🩸 Plünderer</td>
+            <td>Kopfgeld</td>
+            <td>+2 Gold für jeden Kill</td>
+          </tr>
+          <tr>
+            <td>🩸 Plünderer</td>
+            <td>Brandschatzer</td>
+            <td>Berserker machen +3 DMG gegen Hauptgebäude & Tunnel</td>
+          </tr>
+          <tr>
+            <td>🩸 Plünderer</td>
+            <td>Instabiler Kern</td>
+            <td>Saboteur-Explosionsschaden +2 (8 → 10 DMG)</td>
+          </tr>
+          <tr>
+            <td>👁️ Spionage</td>
+            <td>Spähbogen</td>
+            <td>Bogenschützen erhalten +1 Schaden</td>
+          </tr>
+          <tr>
+            <td>👁️ Spionage</td>
+            <td>Schattenläufer</td>
+            <td>Assassinen erhalten +1 Bewegung und +1 Schaden</td>
+          </tr>
+          <tr>
+            <td>👁️ Spionage</td>
+            <td>Belagerungsbestie</td>
+            <td>Elefant macht +5 DMG gegen Gebäude, Mauern & Tunnel</td>
+          </tr>
+          <tr>
+            <td>⚖️ Gilden</td>
+            <td>Söldner-Verträge</td>
+            <td>Schwert, Bogen & Pferd kosten -1 Gold</td>
+          </tr>
+          <tr>
+            <td>⚖️ Gilden</td>
+            <td>Pech & Schwefel</td>
+            <td>Triboke machen zusätzlich 20% der Max-HP des Ziels als Schaden (mind. 1)</td>
+          </tr>
+          <tr>
+            <td>⚖️ Gilden</td>
+            <td>Verstärkte Beschläge</td>
+            <td>Wagenburg: dauerhaft +4 Max-HP (18 → 22). Nahkampf-Angreifer erleiden 2 DMG Rückschlag.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <span class="callout-label">Strategie-Hinweis</span>
+        Feudalismus lohnt sich besonders bei aggressiver Expansion – je mehr Dörfer du beim Rekrutieren hast, desto
+        stärker werden alle neuen Einheiten dauerhaft.
+      </div>
     </div>
-    <div class="faction-card">
-      <div class="f-name">🩸 Plünderer</div>
-      <div class="f-passive">Passive: +1 DMG für alle Nahkämpfer</div>
-      <div class="f-units">🪓 Berserker (T2) · 💣 Saboteur (T3) · 🛩️ Gleiter (Luft)</div>
-      <div class="f-special">Berserker „Blutrausch" (2🪵): Aktionspunkt zurück, nochmal agieren.<br>Saboteur „Sprengen" (gratis): 8 DMG AoE, zerstört sich selbst.</div>
-    </div>
-    <div class="faction-card">
-      <div class="f-name">👁️ Spionage</div>
-      <div class="f-passive">Passive: +1 Sichtweite für alle Einheiten & Dörfer</div>
-      <div class="f-units">🗡️ Assassine (T2) · 🐘 Elefant (T3) · 🪂 Fallschirmspringer (Luft)</div>
-      <div class="f-special">Assassine „Unsichtbar" (2🪵): für Feinde nicht anvisierbar, bricht bei Angriff (2 Runden Cooldown danach).<br>Elefant „Stampede" (3🪵): 5 DMG Linienangriff bis Distanz 2, kein Gegenangriff.</div>
-    </div>
-    <div class="faction-card">
-      <div class="f-name">⚖️ Gilden</div>
-      <div class="f-passive">Passive: +1 extra Gold pro Dorf pro Runde</div>
-      <div class="f-units">🏗️ Tribok (T2) · 🚚 Wagenburg (T3) · 🎈 Bombenballon (Luft)</div>
-      <div class="f-special">Tribok „Flächenbrand" (3🪵): 3 DMG Zentrum, 2 DMG Nachbarn.<br>Wagenburg „Eingraben" (gratis): stationär, Reichweite 2, Verbündeten-Aura.</div>
-    </div>
-  </div>
-
-  <p>Über <strong>„📜 Forschung"</strong> kannst du für jede besessene Fraktion bis zu 3 Upgrades freikaufen. Alle kosten einheitlich <strong>7 🪵 Holz</strong> (kein Gold) und können in beliebiger Reihenfolge gekauft werden, sobald du die zugehörige Fraktion besitzt:</p>
-
-  <table class="unit-table">
-    <thead>
-      <tr><th>Fraktion</th><th>Upgrade</th><th>Effekt</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>🏰 Feudalismus</td><td>Plattenpanzer</td><td>Basis-Schwerter erhalten +5 Max-HP (10 → 15)</td></tr>
-      <tr><td>🏰 Feudalismus</td><td>Waffenmeister</td><td>Neu rekrutierte Einheiten starten bereits als Veteran (+1 DMG)</td></tr>
-      <tr><td>🏰 Feudalismus</td><td>Doppelschuss</td><td>Parthershot (Kamelreiter) kostet 0 Holz statt 1</td></tr>
-      <tr><td>🩸 Plünderer</td><td>Kopfgeld</td><td>+2 Gold für jeden Kill</td></tr>
-      <tr><td>🩸 Plünderer</td><td>Brandschatzer</td><td>Berserker machen +3 DMG gegen Hauptgebäude & Tunnel</td></tr>
-      <tr><td>🩸 Plünderer</td><td>Instabiler Kern</td><td>Saboteur-Explosionsschaden +2 (8 → 10 DMG)</td></tr>
-      <tr><td>👁️ Spionage</td><td>Spähbogen</td><td>Bogenschützen erhalten +1 Schaden</td></tr>
-      <tr><td>👁️ Spionage</td><td>Schattenläufer</td><td>Assassinen erhalten +1 Bewegung und +1 Schaden</td></tr>
-      <tr><td>👁️ Spionage</td><td>Belagerungsbestie</td><td>Elefant macht +5 DMG gegen Gebäude, Mauern & Tunnel</td></tr>
-      <tr><td>⚖️ Gilden</td><td>Söldner-Verträge</td><td>Schwert, Bogen & Pferd kosten -1 Gold</td></tr>
-      <tr><td>⚖️ Gilden</td><td>Pech & Schwefel</td><td>Triboke machen zusätzlich 20% der Max-HP des Ziels als Schaden (mind. 1)</td></tr>
-      <tr><td>⚖️ Gilden</td><td>Verstärkte Beschläge</td><td>Wagenburg: dauerhaft +4 Max-HP (18 → 22). Nahkampf-Angreifer erleiden 2 DMG Rückschlag.</td></tr>
-    </tbody>
-  </table>
-
-  <div class="callout">
-    <span class="callout-label">Strategie-Hinweis</span>
-    Feudalismus lohnt sich besonders bei aggressiver Expansion – je mehr Dörfer du beim Rekrutieren hast, desto stärker werden alle neuen Einheiten dauerhaft.
-  </div>
-</div>
 
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      10 · ZUFALLSEREIGNISSE
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="events">
-  <div class="section-head">
-    <span class="section-num">10</span>
-    <span class="section-icon">🎲</span>
-    <h2>Zufallsereignisse</h2>
-  </div>
+    <div class="section" id="events">
+      <div class="section-head">
+        <span class="section-num">10</span>
+        <span class="section-icon">🎲</span>
+        <h2>Zufallsereignisse</h2>
+      </div>
 
-  <p>Ab Runde 3 kann zu Beginn jeder Runde mit einer gewissen Wahrscheinlichkeit ein <strong>zufälliges Ereignis</strong> eintreten, das alle Spieler gleichermaßen betrifft. Es erscheint als Overlay, das du mit „Weiter" bestätigst.</p>
+      <p>Ab Runde 3 kann zu Beginn jeder Runde mit einer gewissen Wahrscheinlichkeit ein <strong>zufälliges
+          Ereignis</strong> eintreten, das alle Spieler gleichermaßen betrifft. Es erscheint als Overlay, das du mit
+        „Weiter" bestätigst.</p>
 
-  <div class="event-grid">
-    <div class="event-card">
-      <div class="event-icon">☠️</div>
-      <div><span class="event-name">Pest</span><span class="event-desc">Alle Einheiten aller Spieler verlieren 1 HP.</span></div>
+      <div class="event-grid">
+        <div class="event-card">
+          <div class="event-icon">☠️</div>
+          <div><span class="event-name">Pest</span><span class="event-desc">Alle Einheiten aller Spieler verlieren 1
+              HP.</span></div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon">💰</div>
+          <div><span class="event-name">Goldrausch</span><span class="event-desc">Alle lebenden Spieler erhalten +5
+              Gold.</span></div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon">🌲</div>
+          <div><span class="event-name">Reiche Ernte</span><span class="event-desc">Alle lebenden Spieler erhalten +3
+              Holz.</span></div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon">⚔️</div>
+          <div><span class="event-name">Kriegslust</span><span class="event-desc">Alle Einheiten heilen +2 HP (bis
+              maximal ihrer Max-HP).</span></div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon">🌑</div>
+          <div><span class="event-name">Finstere Nacht</span><span class="event-desc">Rein thematisches Ereignis ohne
+              mechanischen Effekt.</span></div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon">🏰</div>
+          <div><span class="event-name">Befestigung</span><span class="event-desc">Alle Hauptgebäude heilen +5 HP (bis
+              maximal 30).</span></div>
+        </div>
+      </div>
     </div>
-    <div class="event-card">
-      <div class="event-icon">💰</div>
-      <div><span class="event-name">Goldrausch</span><span class="event-desc">Alle lebenden Spieler erhalten +5 Gold.</span></div>
-    </div>
-    <div class="event-card">
-      <div class="event-icon">🌲</div>
-      <div><span class="event-name">Reiche Ernte</span><span class="event-desc">Alle lebenden Spieler erhalten +3 Holz.</span></div>
-    </div>
-    <div class="event-card">
-      <div class="event-icon">⚔️</div>
-      <div><span class="event-name">Kriegslust</span><span class="event-desc">Alle Einheiten heilen +2 HP (bis maximal ihrer Max-HP).</span></div>
-    </div>
-    <div class="event-card">
-      <div class="event-icon">🌑</div>
-      <div><span class="event-name">Finstere Nacht</span><span class="event-desc">Rein thematisches Ereignis ohne mechanischen Effekt.</span></div>
-    </div>
-    <div class="event-card">
-      <div class="event-icon">🏰</div>
-      <div><span class="event-name">Befestigung</span><span class="event-desc">Alle Hauptgebäude heilen +5 HP (bis maximal 30).</span></div>
-    </div>
-  </div>
-</div>
 
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      11 · KAMPF
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="combat">
-  <div class="section-head">
-    <span class="section-num">11</span>
-    <span class="section-icon">🗡️</span>
-    <h2>Kampf</h2>
-  </div>
+    <div class="section" id="combat">
+      <div class="section-head">
+        <span class="section-num">11</span>
+        <span class="section-icon">🗡️</span>
+        <h2>Kampf</h2>
+      </div>
 
-  <p>Tippe auf eine eigene Einheit → rote Felder zeigen Angriffsziele (Einheiten, Dörfer, Türme, Tunnel, Mauern). Tippe auf ein rotes Feld um anzugreifen.</p>
+      <p>Tippe auf eine eigene Einheit → rote Felder zeigen Angriffsziele (Einheiten, Dörfer, Türme, Tunnel, Mauern).
+        Tippe auf ein rotes Feld um anzugreifen.</p>
 
-  <p><strong>Wie sich der Schaden berechnet:</strong> Zum Basis-Schaden der Einheit addieren sich alle zutreffenden Boni – Fraktions-Passive (z.B. +1 DMG für Plünderer-Nahkämpfer), Forschungs-Upgrades, der Hügel-Bonus für Fernkämpfer und der Veteran-Bonus. Das Ergebnis wird anschließend mit dem Verhältnis <strong>aktuelle HP ÷ Max-HP</strong> der angreifenden Einheit multipliziert und gerundet (mindestens 1 DMG). Eine schwer verwundete Einheit richtet also spürbar weniger Schaden an als eine bei voller Gesundheit.</p>
+      <p><strong>Wie sich der Schaden berechnet:</strong> Zum Basis-Schaden der Einheit addieren sich alle zutreffenden
+        Boni – Fraktions-Passive (z.B. +1 DMG für Plünderer-Nahkämpfer), Forschungs-Upgrades, der Hügel-Bonus für
+        Fernkämpfer und der Veteran-Bonus. Das Ergebnis wird anschließend mit dem Verhältnis <strong>aktuelle HP ÷
+          Max-HP</strong> der angreifenden Einheit multipliziert und gerundet (mindestens 1 DMG). Eine schwer verwundete
+        Einheit richtet also spürbar weniger Schaden an als eine bei voller Gesundheit.</p>
 
-  <div class="screenshot">
-    <span class="screenshot-label">Screenshot: Angriff</span>
-    Eigene Einheit markiert, rote feindliche Einheiten im Angriffsbereich, Info-Panel zeigt erwarteten Schaden
-  </div>
+      <div class="screenshot">
+        <span class="screenshot-label">Screenshot: Angriff</span>
+        Eigene Einheit markiert, rote feindliche Einheiten im Angriffsbereich, Info-Panel zeigt erwarteten Schaden
+      </div>
 
-  <p>Überlebt das Ziel und kann den Angreifer aus seiner eigenen Reichweite treffen, schlägt es automatisch zurück (kurze Verzögerung) – siehe Kasten „Gegenangriff" in Abschnitt 05.</p>
+      <p>Überlebt das Ziel und kann den Angreifer aus seiner eigenen Reichweite treffen, schlägt es automatisch zurück
+        (kurze Verzögerung) – siehe Kasten „Gegenangriff" in Abschnitt 05.</p>
 
-  <p><strong>Gebäude-HP:</strong> Hauptgebäude 30 HP · Mauer 10 HP · Turm 15 HP · Tunnel 13 HP.</p>
-</div>
+      <p><strong>Gebäude-HP:</strong> Hauptgebäude 30 HP · Mauer 10 HP · Turm 15 HP · Tunnel 13 HP.</p>
+    </div>
 
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      12 · DIPLOMATIE
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="diplomacy">
-  <div class="section-head">
-    <span class="section-num">12</span>
-    <span class="section-icon">🤝</span>
-    <h2>Diplomatie</h2>
-  </div>
+    <div class="section" id="diplomacy">
+      <div class="section-head">
+        <span class="section-num">12</span>
+        <span class="section-icon">🤝</span>
+        <h2>Diplomatie</h2>
+      </div>
 
-  <p>Der <strong>„🤝 Diplomatie"</strong>-Button erscheint nur bei Spielen mit <strong>gerader Spieleranzahl (4 oder 6 Spieler)</strong>.</p>
+      <p>Der <strong>„🤝 Diplomatie"</strong>-Button erscheint nur bei Spielen mit <strong>gerader Spieleranzahl (4 oder
+          6 Spieler)</strong>.</p>
 
-  <div class="screenshot">
-    <span class="screenshot-label">Screenshot: Diplomatie-Overlay</span>
-    Liste aller Mitspieler mit farbigen Namen und Buttons „✉️ Anfragen", „🤝 Annehmen", „💔 Brechen"
-  </div>
+      <div class="screenshot">
+        <span class="screenshot-label">Screenshot: Diplomatie-Overlay</span>
+        Liste aller Mitspieler mit farbigen Namen und Buttons „✉️ Anfragen", „🤝 Annehmen", „💔 Brechen"
+      </div>
 
-  <p><strong>Bei 6 Spielern – automatische Teams:</strong> Das Spiel weist beim Start automatisch Verbündete zu. Du kannst deine Verbündeten im Diplomatie-Overlay sehen, aber nicht ändern. Alle Verbündeten teilen das gleiche Gewinnziel – wenn alle verbleibenden Spieler demselben Team angehören, gewinnen sie gemeinsam.</p>
+      <p><strong>Bei 6 Spielern – automatische Teams:</strong> Das Spiel weist beim Start automatisch Verbündete zu. Du
+        kannst deine Verbündeten im Diplomatie-Overlay sehen, aber nicht ändern. Alle Verbündeten teilen das gleiche
+        Gewinnziel – wenn alle verbleibenden Spieler demselben Team angehören, gewinnen sie gemeinsam.</p>
 
-  <p><strong>Bei 4 Spielern – manuelle Diplomatie:</strong></p>
-  <ol class="steps">
-    <li>Öffne „🤝 Diplomatie" und wähle einen Spieler aus.</li>
-    <li>Tippe auf <strong>„✉️ Anfragen (5💰 5🪵)"</strong> – der andere Spieler sieht die Anfrage auf seinem nächsten Zug.</li>
-    <li>Der andere akzeptiert (<strong>„🤝 Annehmen" – kostet ebenfalls 5💰 5🪵</strong>) oder lehnt ab.</li>
-    <li>Verbündete greifen sich nicht an. Ihr gewinnt zusammen wenn ihr die letzten verbliebenen Spieler seid.</li>
-  </ol>
+      <p><strong>Bei 4 Spielern – manuelle Diplomatie:</strong></p>
+      <ol class="steps">
+        <li>Öffne „🤝 Diplomatie" und wähle einen Spieler aus.</li>
+        <li>Tippe auf <strong>„✉️ Anfragen (5💰 5🪵)"</strong> – der andere Spieler sieht die Anfrage auf seinem
+          nächsten Zug.</li>
+        <li>Der andere akzeptiert (<strong>„🤝 Annehmen" – kostet ebenfalls 5💰 5🪵</strong>) oder lehnt ab.</li>
+        <li>Verbündete greifen sich nicht an. Ihr gewinnt zusammen wenn ihr die letzten verbliebenen Spieler seid.</li>
+      </ol>
 
-  <div class="callout warn">
-    <span class="callout-label">Bündnis brechen</span>
-    Du kannst ein Bündnis jederzeit brechen – danach gilt eine einrundige Waffenruhe (du kannst den Ex-Verbündeten erst in der nächsten Runde angreifen). Bündnisse in automatischen Teams können <em>nicht</em> gebrochen werden.
-  </div>
-  <div class="callout">
-    <span class="callout-label">Limit</span>
-    Jeder Spieler kann nur <strong>1 aktives Bündnis</strong> (bzw. 1 offene Anfrage) gleichzeitig haben.
-  </div>
-</div>
+      <div class="callout warn">
+        <span class="callout-label">Bündnis brechen</span>
+        Du kannst ein Bündnis jederzeit brechen – danach gilt eine einrundige Waffenruhe (du kannst den Ex-Verbündeten
+        erst in der nächsten Runde angreifen). Bündnisse in automatischen Teams können <em>nicht</em> gebrochen werden.
+      </div>
+      <div class="callout">
+        <span class="callout-label">Limit</span>
+        Jeder Spieler kann nur <strong>1 aktives Bündnis</strong> (bzw. 1 offene Anfrage) gleichzeitig haben.
+      </div>
+    </div>
 
 
-<!-- ══════════════════════════════════════════════════════════
+    <!-- ══════════════════════════════════════════════════════════
      13 · SIEG & AUFGABE
 ══════════════════════════════════════════════════════════ -->
-<div class="section" id="victory">
-  <div class="section-head">
-    <span class="section-num">13</span>
-    <span class="section-icon">🏆</span>
-    <h2>Sieg & Aufgabe</h2>
-  </div>
+    <div class="section" id="victory">
+      <div class="section-head">
+        <span class="section-num">13</span>
+        <span class="section-icon">🏆</span>
+        <h2>Sieg & Aufgabe</h2>
+      </div>
 
-  <p><strong>Sieg:</strong> Du eliminierst alle Gegner. Ein Spieler ist eliminiert, wenn sein <strong>Hauptgebäude</strong> auf 0 HP sinkt. Danach verliert er alle Einheiten und Dörfer.</p>
+      <p><strong>Sieg:</strong> Du eliminierst alle Gegner. Ein Spieler ist eliminiert, wenn sein
+        <strong>Hauptgebäude</strong> auf 0 HP sinkt. Danach verliert er alle Einheiten und Dörfer.</p>
 
-  <p>In Team-Spielen gewinnen alle verbliebenen Spieler gemeinsam, sobald alle verbleibenden Spieler zum gleichen Team gehören.</p>
+      <p>In Team-Spielen gewinnen alle verbliebenen Spieler gemeinsam, sobald alle verbleibenden Spieler zum gleichen
+        Team gehören.</p>
 
-  <p><strong>Aufgabe:</strong> Du kannst über <strong>„🏳 Aufgeben"</strong> (oben rechts im HUD) freiwillig ausscheiden. Nach einer Bestätigung werden alle deine Einheiten und Dörfer entfernt. Danach kannst du den Spielstand noch einsehen, bevor du zur Übersicht zurückkehrst.</p>
+      <p><strong>Aufgabe:</strong> Du kannst über <strong>„🏳 Aufgeben"</strong> (oben rechts im HUD) freiwillig
+        ausscheiden. Nach einer Bestätigung werden alle deine Einheiten und Dörfer entfernt. Danach kannst du den
+        Spielstand noch einsehen, bevor du zur Übersicht zurückkehrst.</p>
 
-  <div class="screenshot">
-    <span class="screenshot-label">Screenshot: Sieg-Screen</span>
-    Goldenes „SIEG!"-Banner mit dem Sieger-Namen
-  </div>
-</div>
+      <div class="screenshot">
+        <span class="screenshot-label">Screenshot: Sieg-Screen</span>
+        Goldenes „SIEG!"-Banner mit dem Sieger-Namen
+      </div>
+    </div>
 
-<hr class="fancy">
+    <hr class="fancy">
 
-</main>
+  </main>
 
-<footer>
-  Dark Ages · <a href="https://darkages.bulletodyssey.com">darkages.bulletodyssey.com</a> · v1.1.0+
-</footer>
+  <footer>
+    Dark Ages · <a href="https://darkages.tr4jon.com">darkages.tr4jon.com</a> · v1.1.0+
+  </footer>
 
 </body>
+
 </html>
