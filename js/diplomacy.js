@@ -1,6 +1,6 @@
 // === DIPLOMACY ===
 function checkTeamWin(alivePlayers) {
-    if (!gameState.at || alivePlayers.length < 2) return null;
+    if (!(gameState.at || gameState.dp) || alivePlayers.length < 2) return null;
     const aliveIds = alivePlayers.map(p => gameState.p.indexOf(p));
     const firstAllies = gameState.p[aliveIds[0]].al || [];
     if (aliveIds.every(id => id === aliveIds[0] || firstAllies.includes(id))) return alivePlayers;

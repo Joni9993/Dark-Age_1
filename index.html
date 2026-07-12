@@ -64,6 +64,7 @@
             <h3 id="lobby-title" style="margin:0;font-family:'MedievalSharp',cursive;color:var(--gold);font-size:1.1rem;">Lobby</h3>
             <span id="lobby-player-count" style="font-size:0.8rem;color:var(--text-dim);">0 / 2</span>
         </div>
+        <span id="lobby-team-mode" style="font-size:0.8rem;color:var(--text-dim);"></span>
         <div id="lobby-player-list"></div>
         <div class="invite-section">
             <p>Einladungslink:</p>
@@ -162,6 +163,15 @@
                 <option value="4">4 Spieler</option>
                 <option value="5">5 Spieler</option>
                 <option value="6">6 Spieler (FFA)</option>
+            </select>
+        </div>
+        <div class="setup-group">
+            <label>Diplomatie / Teams:</label>
+            <select id="team-mode">
+                <option value="ffa" selected>Kein Bündnis (Jeder für sich)</option>
+                <option value="diplomacy">Freie Diplomatie (Bündnisse im Spiel schließen)</option>
+                <option value="teams2">Feste 2er-Teams</option>
+                <option value="teams3">Feste 3er-Teams</option>
             </select>
         </div>
         <div id="player-names-container"></div>

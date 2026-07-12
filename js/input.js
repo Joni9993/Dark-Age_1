@@ -1224,7 +1224,9 @@ function focusCamera() {
     let targetHex = null;
     const pId = gameState.cp;
     const pState = gameState.p[pId];
-    const vis = getVisibleHexes(pId);
+    // Nur eigene Sicht, nicht die geteilte Sicht von Verbündeten — sonst schwenkt
+    // die Kamera beim Rundenstart auf eine Aktion im Verbündeten-Gebiet statt aufs eigene.
+    const vis = getVisibleHexes(pId, false);
 
     const visibleActions = (gameState.la || []).filter(a => vis.has(`${a.x},${a.y}`));
     if (visibleActions.length > 0) {

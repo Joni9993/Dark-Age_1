@@ -36,6 +36,8 @@ async function initSchema() {
                              CHECK (status IN ('lobby','active','finished')),
             max_players  INT         NOT NULL DEFAULT 2,
             map_radius   INT         NOT NULL DEFAULT 7,
+            team_mode    TEXT        NOT NULL DEFAULT 'ffa'
+                             CHECK (team_mode IN ('ffa','diplomacy','teams2','teams3')),
             seed         INT,
             round        INT         DEFAULT 1,
             current_slot INT         DEFAULT 0,
@@ -57,6 +59,7 @@ async function initSchema() {
         );
 
         ALTER TABLE game_players ADD COLUMN IF NOT EXISTS left_game BOOLEAN DEFAULT FALSE;
+        ALTER TABLE games ADD COLUMN IF NOT EXISTS team_mode TEXT NOT NULL DEFAULT 'ffa';
 
         CREATE TABLE IF NOT EXISTS friendships (
             requester_id UUID REFERENCES profiles(id) ON DELETE CASCADE,

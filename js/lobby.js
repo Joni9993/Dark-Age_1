@@ -75,18 +75,20 @@ function showCreateGameModal() {
     document.getElementById('setup-back-btn').style.display = 'block';
     document.getElementById('create-game-confirm-btn').style.display = 'block';
     setupScreen.style.display = 'flex';
+    updateTeamModeOptions();
 }
 
 async function handleCreateGame() {
     const maxPlayers = parseInt(playerCountSelect.value);
     const mapRadius  = parseInt(mapSizeSelect.value);
+    const teamMode   = teamModeSelect.value;
     const gameName   = document.getElementById('game-name').value.trim();
 
     const btn = document.getElementById('create-game-confirm-btn');
     btn.disabled = true; btn.textContent = 'Erstelle...';
 
     try {
-        const game = await api.post('/api/games', { max_players: maxPlayers, map_radius: mapRadius, name: gameName });
+        const game = await api.post('/api/games', { max_players: maxPlayers, map_radius: mapRadius, team_mode: teamMode, name: gameName });
         currentGameId = game.id;
         setupScreen.style.display = 'none';
         await openLobbyScreen(game.id);
@@ -115,8 +117,16 @@ async function openLobbyScreen(gameId) {
     }
 }
 
+const TEAM_MODE_LABELS = {
+    ffa: 'Kein Bündnis (Jeder für sich)',
+    diplomacy: 'Freie Diplomatie',
+    teams2: 'Feste 2er-Teams',
+    teams3: 'Feste 3er-Teams'
+};
+
 function _renderLobbyScreen(game) {
     document.getElementById('lobby-title').textContent = game.name;
+    document.getElementById('lobby-team-mode').textContent = TEAM_MODE_LABELS[game.team_mode] || '';
     const isHost = game.host_id === currentProfile.id;
     const players = game.players || [];
 
@@ -259,7 +269,7 @@ async function handleStartGame() {
     try {
         const game    = await api.get(`/api/games/${currentGameId}`);
         const names   = game.players.map(p => p.username);
-        const initial = buildInitialGameState(names, game.map_radius);
+        const initial = buildInitialGameState(names, game.map_radius, game.team_mode);
         const blob    = LZString.compressToEncodedURIComponent(JSON.stringify(initial));
 
         await api.post(`/api/games/${currentGameId}/start`, { seed: initial.sd, state_blob: blob });

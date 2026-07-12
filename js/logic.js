@@ -259,7 +259,7 @@ function processAutoMining(pId) {
 }
 
 // === VISIBILITY & FOG ===
-function getVisibleHexes(playerId) {
+function getVisibleHexes(playerId, includeAllies = true) {
     let visible = new Set();
     if (window.DEBUG_NO_FOG) {
         for (let y = 0; y < gameState.bh; y++)
@@ -311,7 +311,7 @@ function getVisibleHexes(playerId) {
     };
 
     addV(playerId);
-    if (mainState.al) mainState.al.forEach(allyId => addV(allyId));
+    if (includeAllies && mainState.al) mainState.al.forEach(allyId => addV(allyId));
     return visible;
 }
 

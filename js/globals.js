@@ -39,6 +39,7 @@ const eventTitle = document.getElementById('event-title');
 const eventDesc = document.getElementById('event-desc');
 const mapSizeSelect = document.getElementById('map-size');
 const playerCountSelect = document.getElementById('player-count');
+const teamModeSelect = document.getElementById('team-mode');
 const namesContainer = document.getElementById('player-names-container');
 const startGameBtn = document.getElementById('start-game-btn');
 

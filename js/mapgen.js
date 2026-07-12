@@ -3,7 +3,25 @@ function renderNameInputs() {
     const count = parseInt(playerCountSelect.value); namesContainer.innerHTML = '';
     for (let i = 0; i < count; i++) namesContainer.innerHTML += `<div class="setup-group" style="margin-top: 5px;"><label style="color: ${playerColors[i]}">Spieler ${i + 1} Name:</label><input type="text" id="p-name-${i}" placeholder="Name eingeben" value="Spieler ${i + 1}"></div>`;
 }
-playerCountSelect.addEventListener('change', renderNameInputs);
+
+// Aktiviert/deaktiviert die Diplomatie/Team-Optionen je nach Spieleranzahl:
+// feste Teams brauchen mindestens 2 volle Gruppen der jeweiligen Größe.
+function updateTeamModeOptions() {
+    const count = parseInt(playerCountSelect.value);
+    const opts = {
+        diplomacy: count >= 3,
+        teams2: count >= 4 && count % 2 === 0,
+        teams3: count % 3 === 0 && count / 3 >= 2
+    };
+    for (const [value, allowed] of Object.entries(opts)) {
+        const opt = teamModeSelect.querySelector(`option[value="${value}"]`);
+        if (opt) opt.disabled = !allowed;
+    }
+    if (teamModeSelect.selectedOptions[0]?.disabled) teamModeSelect.value = 'ffa';
+}
+
+playerCountSelect.addEventListener('change', () => { renderNameInputs(); updateTeamModeOptions(); });
+updateTeamModeOptions();
 
 // === MAP GENERATION ===
 // Spawn-Budgets pro Kartengröße: Distanz-Bänder vom eigenen Startdorf für
@@ -33,7 +51,9 @@ const SPAWN_BUDGETS = {
 };
 
 // buildInitialGameState: called by both legacy button and server lobby start
-function buildInitialGameState(playerNames, radius) {
+// teamMode: 'ffa' (default, kein Bündnis) | 'diplomacy' (freie, manuelle Bündnisse)
+//           | 'teams2' | 'teams3' (feste, unveränderliche Teams der jeweiligen Größe)
+function buildInitialGameState(playerNames, radius, teamMode = 'ffa') {
     const count = playerNames.length;
     const size = radius * 2 + 1;
     const seed = Math.floor(Math.random() * 10000);
@@ -212,17 +232,20 @@ function buildInitialGameState(playerNames, radius) {
 
     const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [], ct: { x: cx, y: cy, ctrl: -1 } };
 
-    if (count >= 4 && count % 2 === 0) {
+    const teamSize = teamMode === 'teams2' ? 2 : teamMode === 'teams3' ? 3 : 0;
+    if (teamSize > 0 && count % teamSize === 0 && count / teamSize >= 2) {
         state.at = 1;
         const idx = Array.from({ length: count }, (_, i) => i);
         for (let i = idx.length - 1; i > 0; i--) {
             const j = Math.floor(rng() * (i + 1));
             [idx[i], idx[j]] = [idx[j], idx[i]];
         }
-        for (let i = 0; i < count; i += 2) {
-            players[idx[i]].al = [idx[i + 1]];
-            players[idx[i + 1]].al = [idx[i]];
+        for (let g = 0; g < count; g += teamSize) {
+            const group = idx.slice(g, g + teamSize);
+            for (const pid of group) players[pid].al = group.filter(x => x !== pid);
         }
+    } else if (teamMode === 'diplomacy') {
+        state.dp = 1;
     }
 
     return state;
@@ -235,6 +258,6 @@ startGameBtn.addEventListener('click', () => {
     const names  = Array.from({ length: count }, (_, i) =>
         (document.getElementById(`p-name-${i}`)?.value.trim()) || `Spieler ${i + 1}`
     );
-    gameState = buildInitialGameState(names, radius);
+    gameState = buildInitialGameState(names, radius, teamModeSelect.value);
     bootGame();
 });

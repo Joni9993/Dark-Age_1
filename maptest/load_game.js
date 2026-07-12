@@ -6,10 +6,12 @@ const path = require('path');
 function loadGameCode() {
     // DOM-Stubs für die Top-Level-Listener in mapgen.js
     const stub = { addEventListener() { }, value: '', innerHTML: '' };
-    global.playerCountSelect = stub;
+    const selectStub = { ...stub, querySelector: () => null, selectedOptions: [] };
+    global.playerCountSelect = selectStub;
     global.namesContainer = stub;
     global.startGameBtn = stub;
     global.mapSizeSelect = stub;
+    global.teamModeSelect = selectStub;
     if (!global.document) global.document = { getElementById: () => null };
 
     const files = ['js/prng.js', 'js/hex.js', 'js/mapgen.js'];
