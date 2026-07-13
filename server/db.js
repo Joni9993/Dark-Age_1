@@ -71,6 +71,10 @@ async function initSchema() {
             CHECK (requester_id <> addressee_id)
         );
 
+        -- Eine Freundschaft pro ungeordnetem Paar: verhindert A→B und B→A gleichzeitig
+        CREATE UNIQUE INDEX IF NOT EXISTS friendships_unordered_pair_idx
+            ON friendships (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
+
         CREATE TABLE IF NOT EXISTS push_subscriptions (
             id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE,

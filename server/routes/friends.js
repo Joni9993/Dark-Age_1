@@ -28,6 +28,26 @@ router.post('/request', authMiddleware, async (req, res) => {
     if (!target) return res.status(404).json({ error: 'Spieler nicht gefunden' });
     if (target.id === req.profileId) return res.status(400).json({ error: 'Du kannst dich nicht selbst hinzufügen' });
 
+    const { rows: [existing] } = await pool.query(
+        `SELECT requester_id, status FROM friendships
+         WHERE (requester_id = $1 AND addressee_id = $2)
+            OR (requester_id = $2 AND addressee_id = $1)`,
+        [req.profileId, target.id]
+    );
+    if (existing) {
+        if (existing.status === 'accepted')
+            return res.status(409).json({ error: 'Ihr seid bereits befreundet' });
+        if (existing.requester_id === req.profileId)
+            return res.status(409).json({ error: 'Anfrage bereits gesendet' });
+        // Gegenrichtung ist bereits offen → beide wollen die Freundschaft, direkt annehmen
+        await pool.query(
+            `UPDATE friendships SET status = 'accepted'
+             WHERE requester_id = $1 AND addressee_id = $2`,
+            [target.id, req.profileId]
+        );
+        return res.json({ ok: true, accepted: true });
+    }
+
     try {
         await pool.query(
             'INSERT INTO friendships (requester_id, addressee_id) VALUES ($1, $2)',

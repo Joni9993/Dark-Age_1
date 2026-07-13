@@ -407,8 +407,8 @@ async function handleAddFriend() {
     const username = document.getElementById('friend-search-input').value.trim();
     if (!username) return;
     try {
-        await api.post('/api/friends/request', { username });
-        showToast(`Anfrage an ${username} gesendet!`);
+        const result = await api.post('/api/friends/request', { username });
+        showToast(result.accepted ? `Du bist jetzt mit ${username} befreundet!` : `Anfrage an ${username} gesendet!`);
         document.getElementById('friend-search-input').value = '';
         await refreshFriendsPanel();
     } catch (err) { showToast(err.message); }
@@ -447,8 +447,8 @@ async function refreshLeaderboardPanel() {
 
 async function addFriendFromLeaderboard(username) {
     try {
-        await api.post('/api/friends/request', { username });
-        showToast(`Anfrage an ${username} gesendet!`);
+        const result = await api.post('/api/friends/request', { username });
+        showToast(result.accepted ? `Du bist jetzt mit ${username} befreundet!` : `Anfrage an ${username} gesendet!`);
     } catch (err) { showToast(err.message); }
 }
 
