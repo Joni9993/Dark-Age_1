@@ -1102,8 +1102,23 @@ canvas {
     flex-direction: column;
     gap: 8px;
     width: 100%;
-    max-height: 35vh;
-    overflow-y: auto;
+}
+
+/* One line per row — long names truncate with an ellipsis instead of
+   wrapping into the button next to them. */
+#leaderboard-list .friend-row > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+#leaderboard-list .friend-row .action-btn {
+    flex-shrink: 0;
+    margin-top: 0;
+    padding: 6px 10px;
+    font-size: 0.72rem;
 }
 
 .game-card {
@@ -1387,10 +1402,16 @@ textarea {
     .screen-box { gap: 10px; padding: 14px 16px; }
 }
 
-/* Ensure scrollable body on menu screens without breaking game canvas */
+/* Ensure scrollable body on menu screens without breaking game canvas.
+   All gameplay UI (#canvas-wrapper, #game-hud, #ui-container) is
+   position:fixed, so it stays put regardless of body scroll — this is
+   safe to enable globally. touch-action must be overridden too, since
+   overflow alone doesn't re-enable touch/swipe scrolling; the game
+   canvas keeps its own touch-action:none independent of this. */
 body {
-    /* allow vertical scrolling when content exceeds viewport (menu screens) */
     overflow-x: hidden;
+    overflow-y: auto;
+    touch-action: pan-y;
 }
 
 /* Safe area padding for notched phones (home screen, lobby, friends) */
