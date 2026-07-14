@@ -1102,6 +1102,13 @@ canvas {
     flex-direction: column;
     gap: 8px;
     width: 100%;
+    /* Bounded so a long leaderboard never pushes "Meine Spiele" below the
+       fold — rows are single-line (see below), so this always cuts cleanly
+       between rows, never mid-row. The mask fade softens that edge further. */
+    max-height: 216px;
+    overflow-y: auto;
+    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 20px), transparent 100%);
+    mask-image: linear-gradient(to bottom, black calc(100% - 20px), transparent 100%);
 }
 
 /* One line per row — long names truncate with an ellipsis instead of
