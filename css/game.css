@@ -141,6 +141,7 @@ select:focus {
 }
 
 .gift-slider {
+    --fill: 0%;
     flex: 1;
     -webkit-appearance: none;
     appearance: none;
@@ -153,10 +154,16 @@ select:focus {
     outline: none;
 }
 
+.gift-slider:disabled {
+    opacity: 0.4;
+}
+
 .gift-slider::-webkit-slider-runnable-track {
     height: 4px;
     border-radius: 2px;
-    background: rgba(180, 150, 100, 0.25);
+    background: linear-gradient(to right,
+        var(--gold) 0%, var(--gold) var(--fill),
+        rgba(180, 150, 100, 0.25) var(--fill), rgba(180, 150, 100, 0.25) 100%);
 }
 
 .gift-slider::-webkit-slider-thumb {
@@ -175,6 +182,12 @@ select:focus {
     height: 4px;
     border-radius: 2px;
     background: rgba(180, 150, 100, 0.25);
+}
+
+.gift-slider::-moz-range-progress {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--gold);
 }
 
 .gift-slider::-moz-range-thumb {

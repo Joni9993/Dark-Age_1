@@ -15,17 +15,29 @@ function showWin(msg) {
     winScreen.style.display = 'flex';
 }
 
+// Server mode: only the active player may act — everyone else is read-only/spectator (see handleCanvasClick).
+function isMyActiveTurn() {
+    return isLegacyUrlMode || !currentGameId || currentTurnSlot === currentUserSlot;
+}
+
 function giftSliderRow(res, icon, i, max) {
     return `
         <div class="gift-row">
             <span class="gift-label">${icon} <b id="gift-${res}-out-${i}">0</b>/${max}</span>
-            <input type="range" class="gift-slider" id="gift-${res}-${i}" min="0" max="${max}" value="0" step="1"
-                oninput="document.getElementById('gift-${res}-out-${i}').textContent=this.value">
+            <input type="range" class="gift-slider" id="gift-${res}-${i}" min="0" max="${max}" value="0" step="1" style="--fill: 0%"
+                oninput="document.getElementById('gift-${res}-out-${i}').textContent=this.value; this.style.setProperty('--fill', (${max} > 0 ? this.value / ${max} * 100 : 0) + '%')">
         </div>
     `;
 }
 
 function giftForm(i) {
+    if (!isMyActiveTurn()) {
+        return `
+            <div style="width: 100%; margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 0.72rem; color: var(--text-dim); text-align: left;">
+                🔒 Ressourcen senden geht nur während deines eigenen Zuges.
+            </div>
+        `;
+    }
     const pState = gameState.p[gameState.cp];
     return `
         <div style="display: flex; flex-direction: column; gap: 3px; margin-top: 5px; padding-top: 5px; width: 100%; border-top: 1px solid rgba(255,255,255,0.08);">
@@ -155,6 +167,7 @@ window.withdrawAlliance = function (id) {
 };
 
 window.sendResources = function (id) {
+    if (!isMyActiveTurn()) { showToast('Du bist nicht am Zug!', 'error'); return; }
     const pState = gameState.p[gameState.cp];
     const g = Math.max(0, Math.floor(Number(document.getElementById(`gift-g-${id}`).value) || 0));
     const m = Math.max(0, Math.floor(Number(document.getElementById(`gift-m-${id}`).value) || 0));
