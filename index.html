@@ -220,12 +220,13 @@
             onclick="document.getElementById('research-overlay').style.display='none'">Schließen</button>
     </div>
 
-    <div id="dip-overlay" class="screen-box"
-        style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 20; min-width: 300px; flex-direction: column;">
-        <h3 style="margin-top: 0; font-family: 'MedievalSharp', cursive; color: var(--gold);">Diplomatie</h3>
-        <div id="dip-content" style="display: flex; flex-direction: column; gap: 10px;"></div>
-        <button class="action-btn" style="margin-top: 15px;"
-            onclick="document.getElementById('dip-overlay').style.display='none'">Schließen</button>
+    <div id="dip-overlay" class="modal-backdrop" style="display: none;">
+        <div class="screen-box modal-box" style="min-width: 300px;">
+            <h3 style="margin-top: 0; font-family: 'MedievalSharp', cursive; color: var(--gold);">Diplomatie</h3>
+            <div id="dip-content" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            <button class="action-btn" style="margin-top: 15px;"
+                onclick="document.getElementById('dip-overlay').style.display='none'">Schließen</button>
+        </div>
     </div>
 
     <div id="event-overlay">

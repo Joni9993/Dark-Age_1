@@ -15,6 +15,28 @@ function showWin(msg) {
     winScreen.style.display = 'flex';
 }
 
+function giftSliderRow(res, icon, i, max) {
+    return `
+        <div class="gift-row">
+            <span class="gift-label">${icon} <b id="gift-${res}-out-${i}">0</b>/${max}</span>
+            <input type="range" class="gift-slider" id="gift-${res}-${i}" min="0" max="${max}" value="0" step="1"
+                oninput="document.getElementById('gift-${res}-out-${i}').textContent=this.value">
+        </div>
+    `;
+}
+
+function giftForm(i) {
+    const pState = gameState.p[gameState.cp];
+    return `
+        <div style="display: flex; flex-direction: column; gap: 3px; margin-top: 5px; padding-top: 5px; width: 100%; border-top: 1px solid rgba(255,255,255,0.08);">
+            ${giftSliderRow('g', '💰', i, pState.g)}
+            ${giftSliderRow('m', '🪵', i, pState.m)}
+            ${giftSliderRow('s', '🪨', i, pState.s)}
+            <button class="action-btn" style="margin-top: 2px; padding: 6px 8px; font-size: 0.78rem;" onclick="sendResources(${i})">🎁 Senden</button>
+        </div>
+    `;
+}
+
 window.openDiplomacy = function () {
     const content = document.getElementById('dip-content');
     content.innerHTML = '';
@@ -24,10 +46,17 @@ window.openDiplomacy = function () {
         gameState.p.forEach((p, i) => {
             if (i === gameState.cp || p.dead) return;
             const isAlly = pState.al && pState.al.includes(i);
+            const otherAllies = (p.al || [])
+                .filter(id => id !== gameState.cp && id !== i && !gameState.p[id].dead)
+                .map(id => gameState.p[id].n);
             content.innerHTML += `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 5px;">
-                    <span style="color: ${playerColors[i]}">${p.n}</span>
-                    <span style="font-size: 0.8rem; color: ${isAlly ? '#69f0ae' : '#ff5252'}">${isAlly ? '🤝 Verbündeter' : '⚔️ Feind'}</span>
+                <div style="display: flex; flex-direction: column; gap: 3px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 5px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: ${playerColors[i]}">${p.n}</span>
+                        <span style="font-size: 0.8rem; color: ${isAlly ? '#69f0ae' : '#ff5252'}">${isAlly ? '🤝 Verbündeter' : '⚔️ Feind'}</span>
+                    </div>
+                    ${otherAllies.length ? `<span style="font-size: 0.72rem; color: #999; text-align: left;">🤝 Verbündet mit: ${otherAllies.join(', ')}</span>` : ''}
+                    ${isAlly ? giftForm(i) : ''}
                 </div>
             `;
         });
@@ -42,8 +71,13 @@ window.openDiplomacy = function () {
     gameState.p.forEach((p, i) => {
         if (i === gameState.cp || p.dead) return;
 
+        const otherAllies = (p.al || [])
+            .filter(id => id !== gameState.cp && id !== i && !gameState.p[id].dead)
+            .map(id => gameState.p[id].n);
+
+        const isAlly = pState.al && pState.al.includes(i);
         let actionBtn = '';
-        if (pState.al && pState.al.includes(i)) {
+        if (isAlly) {
             actionBtn = `<button class="action-btn" style="background: #e53935; padding: 4px 8px; font-size: 0.8rem;" onclick="breakAlliance(${i})">💔 Brechen</button>`;
         } else if (pState.req && pState.req.includes(i)) {
             actionBtn = `<button class="action-btn" style="background: #43a047; padding: 4px 8px; font-size: 0.8rem;" onclick="acceptAlliance(${i})">🤝 Annehmen (5💰 5🪵)</button>
@@ -63,7 +97,9 @@ window.openDiplomacy = function () {
                 <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 5px;">
                     <span style="color: ${playerColors[i]}">${p.n}</span>
                 </div>
+                ${otherAllies.length ? `<span style="font-size: 0.72rem; color: #999; width: 100%; text-align: left; margin-bottom: 5px;">🤝 Verbündet mit: ${otherAllies.join(', ')}</span>` : ''}
                 <div style="display: flex; gap: 5px;">${actionBtn}</div>
+                ${isAlly ? giftForm(i) : ''}
             </div>
         `;
     });
@@ -116,6 +152,22 @@ window.withdrawAlliance = function (id) {
     }
     showToast('Anfrage zurückgezogen!', 'info');
     openDiplomacy();
+};
+
+window.sendResources = function (id) {
+    const pState = gameState.p[gameState.cp];
+    const g = Math.max(0, Math.floor(Number(document.getElementById(`gift-g-${id}`).value) || 0));
+    const m = Math.max(0, Math.floor(Number(document.getElementById(`gift-m-${id}`).value) || 0));
+    const s = Math.max(0, Math.floor(Number(document.getElementById(`gift-s-${id}`).value) || 0));
+    if (g === 0 && m === 0 && s === 0) { showToast('Bitte gib eine Menge ein!', 'error'); return; }
+    if (g > pState.g || m > pState.m || s > pState.s) { showToast('Nicht genug Ressourcen!', 'error'); return; }
+    pState.g -= g; pState.m -= m; pState.s -= s;
+    const target = gameState.p[id];
+    target.g += g; target.m += m; target.s += s;
+    if (!target.gifts) target.gifts = [];
+    target.gifts.push({ from: gameState.cp, g, m, s });
+    showToast(`Ressourcen an ${target.n} gesendet!`, 'gold');
+    openDiplomacy(); updateUI();
 };
 
 window.breakAlliance = function (id) {

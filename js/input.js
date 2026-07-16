@@ -1316,6 +1316,7 @@ function confirmSurrender() {
         if (p.req && p.req.length === 0) delete p.req;
         if (p.tc && p.tc.length === 0) delete p.tc;
         if (p.of && p.of.length === 0) delete p.of;
+        if (p.gifts && p.gifts.length === 0) delete p.gifts;
         if (gameState.tu && gameState.tu.length === 0) delete gameState.tu;
         if (gameState.wa && gameState.wa.length === 0) delete gameState.wa;
         if (gameState.st && gameState.st.length === 0) delete gameState.st;
@@ -1646,6 +1647,7 @@ function doEndTurn() {
         if (p.req && p.req.length === 0) delete p.req;
         if (p.tc && p.tc.length === 0) delete p.tc;
         if (p.of && p.of.length === 0) delete p.of;
+        if (p.gifts && p.gifts.length === 0) delete p.gifts;
         if (gameState.tu && gameState.tu.length === 0) delete gameState.tu;
         if (gameState.wa && gameState.wa.length === 0) delete gameState.wa;
         if (gameState.st && gameState.st.length === 0) delete gameState.st;

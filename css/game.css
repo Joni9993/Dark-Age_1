@@ -118,6 +118,75 @@ select:focus {
     box-shadow: 0 0 12px rgba(232, 184, 74, 0.15);
 }
 
+/* ── Gift/Resource-Transfer Slider (Diplomatie) ─────────────────────────── */
+.gift-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.gift-label {
+    flex: 0 0 auto;
+    min-width: 46px;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    text-align: left;
+}
+
+.gift-label b {
+    color: var(--gold);
+    font-weight: 700;
+}
+
+.gift-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    height: 28px;
+    min-height: 28px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    outline: none;
+}
+
+.gift-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(180, 150, 100, 0.25);
+}
+
+.gift-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    margin-top: -7px;
+    border-radius: 50%;
+    background: var(--gold);
+    cursor: pointer;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+.gift-slider::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(180, 150, 100, 0.25);
+}
+
+.gift-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 50%;
+    background: var(--gold);
+    cursor: pointer;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
 .action-btn {
     margin-top: 4px;
     padding: 8px 14px;

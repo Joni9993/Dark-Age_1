@@ -12,6 +12,7 @@ function bootGame() {
         if (!p.al) p.al = [];
         if (!p.req) p.req = [];
         if (!p.tc) p.tc = [];
+        if (!p.gifts) p.gifts = [];
         if (typeof p.e === 'string') p.e = decompressFog(p.e);
         if (p.dead === undefined) p.dead = 0;
         if (p.s === undefined) p.s = 0;
@@ -105,6 +106,20 @@ function bootGame() {
 
     function startDiplomacy() {
         const pState = gameState.p[gameState.cp];
+
+        if (pState.gifts && pState.gifts.length > 0) {
+            pState.gifts.forEach(gift => {
+                const sender = gameState.p[gift.from];
+                const parts = [];
+                if (gift.g) parts.push(`${gift.g}💰`);
+                if (gift.m) parts.push(`${gift.m}🪵`);
+                if (gift.s) parts.push(`${gift.s}🪨`);
+                showToast(`${sender ? sender.n : 'Ein Verbündeter'} hat dir ${parts.join(' ')} geschickt!`, 'gold');
+            });
+            pState.gifts = [];
+            updateUI();
+        }
+
         if (gameState.p.length >= 4 && gameState.rn >= 5 && pState.req && pState.req.length > 0) {
             openDiplomacy();
         }

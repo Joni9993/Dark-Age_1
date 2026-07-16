@@ -82,7 +82,7 @@ The canonical reference is `gameState.json`. Key fields:
 |---|---|---|
 | `sd` | number | Map seed — drives terrain + village placement |
 | `rn` / `cp` | number | Round number / current player index |
-| `p[]` | array | Players: `n` name, `g` gold, `m` wood, `s` stone, `f[]` factions, `u[]` upgrades, `sv` start village key, `sh` start village HP, `e` explored fog, `al/req/tc` diplomacy, `dead` |
+| `p[]` | array | Players: `n` name, `g` gold, `m` wood, `s` stone, `f[]` factions, `u[]` upgrades, `sv` start village key, `sh` start village HP, `e` explored fog, `al/req/tc` diplomacy, `gifts[]` pending resource gifts from allies `{from, g, m, s}` (shown as a toast and cleared on the recipient's next turn), `dead` |
 | `v` | object | Village ownership: `"x,y": playerId` (-1 = neutral) |
 | `u[]` | array | Units: `i` id, `p` player, `t` type, `x/y`, `h` HP, `a` acted, `vet` veteran, `k` kills, `iv` invisible, `cd` cooldown, `mi` mining target, `dp` deployed, `fb` feudalism HP bonus |
 | `st[]` | array | Stone piles: `{x, y, h}` (h=0 → passable) |
