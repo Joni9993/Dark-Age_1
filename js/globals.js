@@ -1,7 +1,7 @@
 // === APP VERSION ===
 // Format: MAJOR.PATCH.HOTFIX — MAJOR = größeres Update/neue Implementation, PATCH = Patch, HOTFIX = Hotfix.
 // Immer nur die betroffene Stelle um 1 hochzählen. Siehe Versionierungsregel in CLAUDE.md.
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.0.1';
 
 // === DOM REFERENCES ===
 const appVersionEl = document.getElementById('app-version');

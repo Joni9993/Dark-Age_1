@@ -30,15 +30,15 @@ const upgrades = {
 // === UNIT STATS ===
 const unitStats = {
     0: { dmg: 5, range: 1, move: 1, name: "Schwert", cost: 3, maxHp: 10, isMelee: true, light: true },
-    1: { dmg: 4, range: 2, move: 1, name: "Bogen", cost: 4, maxHp: 10, isMelee: false, light: true },
+    1: { dmg: 5, range: 2, move: 1, name: "Bogen", cost: 4, maxHp: 10, isMelee: false, light: true },
     2: { dmg: 5, range: 1, move: 2, name: "Pferd", cost: 4, maxHp: 10, isMelee: true, light: true },
     3: { dmg: 6, range: 1, move: 2, name: "Ritter", cost: 6, maxHp: 15, isMelee: true, light: true },
-    4: { dmg: 6, range: 1, move: 2, name: "Berserker", cost: 4, maxHp: 11, isMelee: true, light: true },
-    5: { dmg: 6, range: 1, move: 3, name: "Assassine", cost: 5, maxHp: 8, isMelee: true, light: true },
-    6: { dmg: 6, range: 3, move: 1, name: "Tribok", cost: 7, maxHp: 8, isMelee: false, light: true },
+    4: { dmg: 6, range: 1, move: 2, name: "Berserker", cost: 4, maxHp: 10, isMelee: true, light: true },
+    5: { dmg: 6, range: 1, move: 3, name: "Assassine", cost: 4, maxHp: 8, isMelee: true, light: true },
+    6: { dmg: 6, range: 3, move: 1, name: "Tribok", cost: 7, maxHp: 10, isMelee: false, light: true },
     7: { dmg: 2, range: 1, move: 1, name: "Arbeiter", cost: 2, maxHp: 10, isMelee: true, light: true },
-    8: { dmg: 0, range: 0, move: 2, name: "Saboteur", cost: 8, maxHp: 8, isMelee: false, light: true },
-    9: { dmg: 8, range: 1, move: 1, name: "Elefant", cost: 9, maxHp: 22, isMelee: true, heavy: true },
+    8: { dmg: 0, range: 0, move: 2, name: "Saboteur", cost: 6, maxHp: 8, isMelee: false, light: true },
+    9: { dmg: 7, range: 1, move: 1, name: "Elefant", cost: 9, maxHp: 22, isMelee: true, heavy: true },
     10: { dmg: 6, range: 2, move: 2, name: "Kamelreiter", cost: 6, maxHp: 12, isMelee: false, light: true },
     11: { dmg: 6, range: 1, move: 2, name: "Wagenburg", cost: 7, maxHp: 18, isMelee: true, heavy: true },
     // Lufteinheiten (isAir): fliegen über der Bodenebene, hitsAir/hitsGround steuern die Ziel-Matrix.
@@ -47,7 +47,7 @@ const unitStats = {
     // eigenen Zug des Ziel-Besitzers), Feuersturm (fsCost Holz) = AoE, 3 sofort + 3 Folgeschaden
     // pro getroffenem Ziel, gleiches bn/bo-Brand-Tag-System wie Anzünden (siehe doEndTurn).
     12: { dmg: 5, range: 1, move: 2, name: "Luftschraube", cost: 7, maxHp: 14, isMelee: true, isAir: true, hitsAir: true, hitsGround: true },
-    13: { dmg: 5, range: 1, move: 4, name: "Gleiter", cost: 6, maxHp: 8, isMelee: true, isAir: true, hitsAir: true, hitsGround: true },
+    13: { dmg: 5, range: 1, move: 4, name: "Gleiter", cost: 6, maxHp: 10, isMelee: true, isAir: true, hitsAir: true, hitsGround: true },
     14: { dmg: 4, range: 2, move: 2, name: "Fallschirmspringer", cost: 4, maxHp: 10, isMelee: false, isAir: true, hitsAir: true, hitsGround: false, ldMove: 2 },
     15: { dmg: 4, range: 1, move: 2, name: "Bombenballon", cost: 9, maxHp: 14, isMelee: false, isAir: true, hitsAir: false, hitsGround: true, igniteDmg: 4, fsCost: 5, fsDmg: 3 }
 };
