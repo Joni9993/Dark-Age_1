@@ -6,6 +6,19 @@ function handleCanvasClick(clientX, clientY) {
     if (showRecap) { showRecap = false; renderBoard(gameState); }
 
     hideActionMenu();
+
+    // Ob die Oberfläche gerade zu sehen ist, richtet sich nach der tatsächlichen
+    // Kameraposition (Renderer.isSurfaceVisible), nicht nach dem cameraFocus-
+    // Knopfzustand: der wechselt beim Tastendruck sofort, das Board dreht sich
+    // aber erst über ~1-2s tatsächlich um. Solange die Oberfläche zu sehen ist,
+    // läuft die normale Boden-Interaktion; sobald die Kamera unter der Karte
+    // steht, gehen Klicks stattdessen an die (noch entitätslose) Unterwelt-
+    // Feld-Auswahl.
+    if (Renderer.isSurfaceVisible && !Renderer.isSurfaceVisible()) {
+        handleUnderworldClick(clientX, clientY);
+        return;
+    }
+
     const closest = Renderer.pickHex(clientX, clientY);
 
     if (closest) {
@@ -501,6 +514,19 @@ function handleCanvasClick(clientX, clientY) {
         }
         renderBoard(gameState);
     }
+}
+
+// Klicks, während die Kamera tatsächlich unter der Karte steht (siehe
+// handleCanvasClick): reine Feld-Auswahl mit visueller Markierung
+// (window.selectedUnderworldHex), noch losgelöst von jeglicher Spiellogik —
+// es gibt noch keine Unterwelt-Einheiten/-Gebäude, daher kein Bewegen/
+// Angreifen/Menü, nur Hervorheben zum Re-Klick-Toggle.
+function handleUnderworldClick(clientX, clientY) {
+    const closest = Renderer.pickHex(clientX, clientY);
+    if (!closest) { window.selectedUnderworldHex = null; renderBoard(gameState); return; }
+    const same = window.selectedUnderworldHex && window.selectedUnderworldHex.x === closest.x && window.selectedUnderworldHex.y === closest.y;
+    window.selectedUnderworldHex = same ? null : { x: closest.x, y: closest.y };
+    renderBoard(gameState);
 }
 
 // Führt den Angriff von `selectedUnit` auf `targetAttack` aus (Einheit, Hauptgebäude,

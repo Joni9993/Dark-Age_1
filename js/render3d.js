@@ -74,13 +74,31 @@
     let anims3d = [];                      // Projektil-Animationen
     let floats3d = [];                     // DOM-Schadenszahlen
     let animRunning = false;
-    // Luftansicht: Kamera fährt in die Vogelperspektive, Flieger werden voll sichtbar.
-    // ⚙️ Zum Experimentieren: Zahl unten = Blickwinkel in Grad über dem Horizont
-    //    (90 = senkrecht von oben, ~40.5 = normale Bodenansicht)
+    // Kamerafokus: drei Kamerafahrten (Standard/Luftansicht/Unterwelt), siehe
+    // Renderer3D.setCameraFocus(). Elevation = Blickwinkel in Grad über dem
+    // Horizont (90 = senkrecht von oben, ~40.5 = normale Bodenansicht,
+    // negativ = Kamera unter der Karte, blickt nach oben).
     const AIR_VIEW_ELEV = 50 * Math.PI / 180;
-    const AIR_ALPHA_GROUND = 0.1;          // Deckkraft der Flieger in der Bodenansicht
+    // 270° statt -90°: die Luftansicht kippt die Kamera bereits weiter nach
+    // hinten/oben (40.5°→50°) — die Unterwelt-Fahrt setzt diese Drehrichtung
+    // fort (über die Rückseite/den Scheitel, weiter bis unter die Karte)
+    // statt umzukehren und durch die Vorderkante/den Horizont zu tauchen.
+    // sin/cos sind 360°-periodisch, daher landet die Kamera trotzdem exakt
+    // im "Süden" (senkrecht von unten) — nur der Anflugweg ist ein anderer.
+    const UNDERWORLD_ELEV = 270 * Math.PI / 180;
+    const AIR_ALPHA_GROUND = 0.1;          // Deckkraft der Flieger außerhalb der Luftansicht
     let airAlpha = AIR_ALPHA_GROUND;
     let viewTween = null;                  // {start, dur, from:{elev,alpha}, to:{elev,alpha}}
+
+    // Kleinster Vorwärts-Schritt (>0) von `current`, der auf einen zu
+    // `nominal` kongruenten Winkel (mod 360°) trifft — damit der Kamerafokus-
+    // Zyklus nie rückwärts fährt, egal wie oft schon rundherum gedreht wurde.
+    function nextForwardElev(current, nominal) {
+        const twoPi = Math.PI * 2;
+        let delta = (nominal - current) % twoPi;
+        if (delta <= 1e-9) delta += twoPi;
+        return current + delta;
+    }
     const raycaster = new THREE.Raycaster();
     const texCache = {};
 
@@ -90,6 +108,21 @@
         return (h / 2) / Math.tan((FOV / 2) * Math.PI / 180);
     }
 
+    // Kamera-Orientierung als starre Rotation (Pitch um Welt-X, dann Azimut um
+    // Welt-Y) statt camera.lookAt(): lookAt sucht pro Frame neu die "up"-Richtung,
+    // die dem festen Welt-Up (0,1,0) am nächsten kommt — an den Polen (Blick exakt
+    // senkrecht, die die Unterwelt-Kamerafahrt beim Überqueren von elev=90°/270°
+    // durchläuft) ist das unstetig und erzeugte dort einen sichtbaren Sprung/
+    // Flip der Blickrichtung. Die starre Rotation ist für jeden Winkel stetig
+    // (keine Singularität) und reproduziert exakt dieselbe Position wie zuvor —
+    // dadurch bleibt sie auch zur Pan-/Zoom-Formel (camGroundAxes, nur vom
+    // Azimut abhängig) konsistent, inklusive korrekt "mitgedrehter" Steuerung,
+    // wenn die Kamera kopfüber unter der Karte hängt.
+    const PITCH_AXIS = new THREE.Vector3(1, 0, 0);
+    const YAW_AXIS = new THREE.Vector3(0, 1, 0);
+    const _qPitch = new THREE.Quaternion();
+    const _qAzim = new THREE.Quaternion();
+
     function applyCamera() {
         const dist = baseDist() / cam3d.scale;
         const horiz = dist * Math.cos(cam3d.elev);
@@ -98,7 +131,17 @@
             dist * Math.sin(cam3d.elev),
             cam3d.tz + horiz * Math.cos(cam3d.azim)
         );
-        camera.lookAt(cam3d.tx, 0, cam3d.tz);
+        _qPitch.setFromAxisAngle(PITCH_AXIS, -cam3d.elev);
+        _qAzim.setFromAxisAngle(YAW_AXIS, cam3d.azim);
+        camera.quaternion.copy(_qAzim).multiply(_qPitch);
+    }
+
+    // sin(elev) als Divisor für Pan/Zoom — seit der Unterwelt-Kamerafahrt
+    // durchläuft cam3d.elev beim Tween auch Werte nahe 0 (Horizont), wo eine
+    // rohe Division explodieren würde; Betrag daher nach unten begrenzt.
+    function safeSinElev() {
+        const s = Math.sin(cam3d.elev);
+        return Math.abs(s) < 0.05 ? (s < 0 ? -0.05 : 0.05) : s;
     }
 
     // Boden-Achsen der Kamera, mit dem Azimut mitgedreht (Standard bei azim=0:
@@ -774,7 +817,10 @@
     // Overlays werden pro Frame neu aufgebaut, neue Materialien pro Aufruf würden
     // ohne Dispose GPU-seitig lecken (siehe spriteMatCache)
     const overlayMatCache = {};
-    function addOverlay(x, y, colorHex, opacity, state) {
+    // underside=true setzt das Overlay knapp UNTER die y=0-Bodenebene statt über
+    // den Tile-Deckel — die Unterwelt-Kamera steht unterhalb der Karte, ein
+    // Overlay über dem Deckel läge hinter dem massiven Tile und wäre unsichtbar.
+    function addOverlay(x, y, colorHex, opacity, state, underside) {
         const tType = getTerrainType(state, x, y);
         const { wx, wz } = worldPos(x, y);
         const key = colorHex + '|' + opacity;
@@ -784,7 +830,7 @@
             overlayMatCache[key] = mat;
         }
         const mesh = new THREE.Mesh(overlayGeo, mat);
-        mesh.position.set(wx, tileHeight(tType) + 0.6, wz);
+        mesh.position.set(wx, underside ? -0.6 : tileHeight(tType) + 0.6, wz);
         overlayGroup.add(mesh);
     }
 
@@ -824,8 +870,22 @@
             return !state.u.some(u => u.p !== state.cp && u.iv === 1 && u.x === a.x && u.y === a.y);
         });
 
-        // Entity-Sammlung — identische Sichtbarkeitsregeln wie drawScene (render.js)
+        // Entity-Sammlung — identische Sichtbarkeitsregeln wie drawScene (render.js).
+        // Sichtbarkeit der Oberflächen-Ebene (Einheiten, Dörfer, Steine, Türme,
+        // Wachturm) hängt an der tatsächlichen Kameraposition, nicht am
+        // cameraFocus-Zustand selbst: sin(elev) < 0 heißt, die Kamera ist gerade
+        // unter der y=0-Bodenebene (Unterwelt-Seite) — das ist exakt der Moment,
+        // in dem sich das Board optisch "umgedreht" hat. So bleibt die
+        // Oberfläche während der ganzen Anflug-Kamerafahrt sichtbar und
+        // verschwindet/erscheint erst am eigentlichen Umschlagpunkt, nicht schon
+        // beim Tastendruck. Weder anwählbar (siehe input.js) noch sichtbar —
+        // keine HP-/Ressourcen-Zahlen, die durch die Felder "durchscheinen".
+        // Die Unterwelt bekommt vorerst nur den blanken, abgedunkelten
+        // Terrain-Boden; eine eigene, von der Oberfläche losgelöste
+        // Unterwelt-Entity-Schicht ist noch nicht implementiert.
+        const surfaceVisible = Math.sin(cam3d.elev) >= 0;
         const entities = [];
+        if (surfaceVisible) {
 
         if (state.tu) state.tu.forEach(t => {
             [[t.x1, t.y1], [t.x2, t.y2]].forEach(([ex, ey]) => {
@@ -945,6 +1005,8 @@
             }
         });
 
+        } // surfaceVisible
+
         // Nicht genutzte Instanzen "parken"
         _vm.makeScale(0, 0, 0); _vm.setPosition(0, -1000, 0);
         for (let i = _voxelCount; i < voxelMesh.count; i++) voxelMesh.setMatrixAt(i, _vm);
@@ -966,6 +1028,9 @@
         if (selectedHex) addOverlay(selectedHex.x, selectedHex.y, 0xffffff, 0.25, state);
         if (window.highlightedTunnelEnd) addOverlay(window.highlightedTunnelEnd.x, window.highlightedTunnelEnd.y, 0x4fc3f7, 0.45, state);
         if (window.demolishTargets) window.demolishTargets.forEach(t => addOverlay(t.x, t.y, 0xff9800, 0.5, state));
+        if (!surfaceVisible && window.selectedUnderworldHex) {
+            addOverlay(window.selectedUnderworldHex.x, window.selectedUnderworldHex.y, 0xc084fc, 0.55, state, true);
+        }
 
         applyCamera();
         renderer.render(scene, camera);
@@ -1097,7 +1162,7 @@
             const a = gestureStart.azim;
             const cosA = Math.cos(a), sinA = Math.sin(a);
             const rx = cosA, rz = -sinA, fx = sinA, fz = cosA;
-            const dyF = (dy * wpp) / Math.sin(cam3d.elev);
+            const dyF = (dy * wpp) / safeSinElev();
             cam3d.tx = gestureStart.tx - dx * wpp * rx - dyF * fx;
             cam3d.tz = gestureStart.tz - dx * wpp * rz - dyF * fz;
             requestRender3d();
@@ -1114,7 +1179,7 @@
             const rect = canvas3d.getBoundingClientRect();
             const dx = centerX - rect.left - rect.width / 2;
             const dy = centerY - rect.top - rect.height / 2;
-            const sinE = Math.sin(cam3d.elev);
+            const sinE = safeSinElev();
             const a = gestureStart.azim;
             const cosA = Math.cos(a), sinA = Math.sin(a);
             const rx = cosA, rz = -sinA, fx = sinA, fz = cosA;
@@ -1133,7 +1198,7 @@
             const rect = canvas3d.getBoundingClientRect();
             const dx = centerX - rect.left - rect.width / 2;
             const dy = centerY - rect.top - rect.height / 2;
-            const sinE = Math.sin(cam3d.elev);
+            const sinE = safeSinElev();
             const { rx, rz, fx, fz } = camGroundAxes();
             const dxW = dx / cam3d.scale, dyW = dy / (cam3d.scale * sinE);
             // Weltpunkt unter dem Cursor festhalten (Parität zum 2D-Zoom)
@@ -1144,6 +1209,16 @@
             cam3d.tx = wx - dxW2 * rx - dyW2 * fx;
             cam3d.tz = wz - dxW2 * rz - dyW2 * fz;
             requestRender3d();
+        },
+
+        // Ob die Oberflächen-Ebene gerade tatsächlich zu sehen ist (Kamera über
+        // der y=0-Bodenebene) — dieselbe Bedingung, die drawScene3d fürs Ein-/
+        // Ausblenden der Oberflächen-Entities nutzt. input.js routet Klicks
+        // danach zwischen normaler Oberflächen-Interaktion und der Unterwelt-
+        // Feld-Auswahl, statt sich am cameraFocus-Zustand zu orientieren, der
+        // während der Kamerafahrt schon vor dem tatsächlichen Umschlagpunkt wechselt.
+        isSurfaceVisible() {
+            return Math.sin(cam3d.elev) >= 0;
         },
 
         centerOn(hexX, hexY, scale) {
@@ -1164,16 +1239,23 @@
             startAnimLoop();
         },
 
-        setAirView(on) {
-            // Fährt die Kamera in die Vogelperspektive (75° von oben) und blendet
-            // die Flieger von 10% auf 100% — bzw. zurück
+        setCameraFocus(focus) {
+            // Fährt die Kamera zur gewählten Kamerafahrt:
+            // 0 Standard, 1 Luftansicht (Vogelperspektive, Flieger voll sichtbar),
+            // 2 Unterwelt (Kamera schwenkt unter die Karte, blickt senkrecht auf
+            // ihre Unterseite). Der ganze Zyklus dreht IMMER in dieselbe Richtung
+            // weiter (nie rückwärts) — nextForwardElev() sucht dazu jeweils den
+            // kleinsten Vorwärts-Schritt zum nächsten Ziel-Winkel (mod 360°),
+            // egal von welchem (ggf. mitten in einer laufenden Fahrt
+            // unterbrochenen) Winkel aus gestartet wird. Tempo skaliert mit dem
+            // Schwenkwinkel, damit der weite Unterwelt-Schwenk nicht hektisch wirkt.
             ensureInit();
-            viewTween = {
-                start: performance.now(),
-                dur: 400,
-                from: { elev: cam3d.elev, alpha: airAlpha },
-                to: on ? { elev: AIR_VIEW_ELEV, alpha: 1.0 } : { elev: CAM_ELEV, alpha: AIR_ALPHA_GROUND }
-            };
+            const nominalElev = focus === 1 ? AIR_VIEW_ELEV : focus === 2 ? UNDERWORLD_ELEV : CAM_ELEV;
+            const toAlpha = focus === 1 ? 1.0 : AIR_ALPHA_GROUND;
+            const from = { elev: cam3d.elev, alpha: airAlpha };
+            const to = { elev: nextForwardElev(cam3d.elev, nominalElev), alpha: toAlpha };
+            const deltaDeg = (to.elev - from.elev) * 180 / Math.PI;
+            viewTween = { start: performance.now(), dur: 350 + deltaDeg * 6, from, to };
             startAnimLoop();
         },
 

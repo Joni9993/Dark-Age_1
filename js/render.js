@@ -235,6 +235,7 @@ function drawHex(x, y, terrainType, applyShroud, isRecap) {
     if (validAttacks.some(a => a.x === x && a.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
     if (window.highlightedTunnelEnd && window.highlightedTunnelEnd.x === x && window.highlightedTunnelEnd.y === y) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(79, 195, 247, 0.45)"; ctx.fill(); ctx.strokeStyle = "#4fc3f7"; ctx.lineWidth = 2; ctx.stroke(); }
     if (window.demolishTargets && window.demolishTargets.some(t => t.x === x && t.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 152, 0, 0.5)"; ctx.fill(); ctx.strokeStyle = "#ff9800"; ctx.lineWidth = 2; ctx.stroke(); }
+    if (window.selectedUnderworldHex && window.selectedUnderworldHex.x === x && window.selectedUnderworldHex.y === y) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(192, 132, 252, 0.35)"; ctx.fill(); ctx.strokeStyle = "#c084fc"; ctx.lineWidth = 2; ctx.stroke(); }
 }
 
 function drawEntity(x, y, color, hasActed, hp, maxHp, spriteKey, isStealth, unit) {
@@ -354,6 +355,11 @@ function drawScene(state) {
     }
 
     let renderQueue = [];
+    // Unterwelt-Kamerafokus (2): Oberflächen-Ebene bleibt komplett aus — siehe
+    // render3d.js für die ausführliche Begründung (keine Auswahl, keine
+    // durchscheinenden HP-/Ressourcen-Zahlen; eigene Unterwelt-Entities fehlen
+    // hier im 2D-Fallback noch ganz).
+    if (window.cameraFocus !== 2) {
 
     if (state.tu) {
         state.tu.forEach(t => {
@@ -412,6 +418,8 @@ function drawScene(state) {
             renderQueue.push({ py: getHexCenter(unit.x, unit.y).py, type: 'unit', unit });
         }
     });
+
+    } // window.cameraFocus !== 2
 
     renderQueue.sort((a, b) => a.py - b.py);
 
@@ -543,26 +551,47 @@ const Renderer2D = {
     spawnFloatingText: _spawnFloatingText2D,
     spawnAttackAnim: _spawnAttackAnim2D,
 
-    setAirView() {
+    // 2D hat keine echte Kamerafahrt/Kippung — die Oberfläche ist einfach dann
+    // sichtbar, wenn der Kamerafokus nicht auf Unterwelt steht.
+    isSurfaceVisible() {
+        return window.cameraFocus !== 2;
+    },
+
+    setCameraFocus(focus) {
+        canvas.classList.toggle('camera-focus-underworld', focus === 2);
         if (gameState) drawScene(gameState);
     }
 };
 
 let Renderer = Renderer2D;
 
-// === LUFTANSICHT-TOGGLE ===
-// Standard: Flieger ~10% sichtbar. Luftansicht: Flieger 100%, Kamera fährt
-// in die Vogelperspektive (nur 3D). window.airView steuert zusätzlich die
-// Klick-Priorität bei gestapelten Hexes (input.js).
+// === KAMERAFOKUS-TOGGLE ===
+// Drei Kamerafahrten im Zyklus: Standard -> Luftansicht (Vogelperspektive,
+// Flieger 100% sichtbar, nur 3D) -> Unterwelt (Kamera schwenkt unter die
+// Karte und blickt mit 90° auf ihre Unterseite, nur 3D; 2D-Fallback spiegelt
+// nur das Canvas per CSS). window.airView bleibt als Kompatibilitäts-Flag
+// bestehen — nur im Luftansicht-Zustand (1) aktiv — und steuert weiterhin
+// die Klick-/Anvisier-Priorität bei gestapelten Hexes (input.js, logic.js).
+window.cameraFocus = 0;   // 0 = Standard, 1 = Luftansicht, 2 = Unterwelt
 window.airView = false;
-window.toggleAirView = function () {
-    window.airView = !window.airView;
-    const btn = document.getElementById('air-view-btn');
-    if (btn) btn.classList.toggle('active', window.airView);
+window.cycleCameraFocus = function () {
+    window.cameraFocus = (window.cameraFocus + 1) % 3;
+    window.airView = (window.cameraFocus === 1);
 
-    if (selectedUnit) {
+    const btn = document.getElementById('camera-focus-btn');
+    if (btn) {
+        btn.classList.toggle('active', window.cameraFocus !== 0);
+        btn.classList.toggle('focus-underworld', window.cameraFocus === 2);
+    }
+
+    if (window.cameraFocus === 2) {
+        // Unterwelt: die komplette Oberflächen-Ebene ist nicht mehr anwählbar/
+        // steuerbar — eine bestehende Auswahl (Boden- oder Lufteinheit) fällt weg.
+        selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
+        window.specialActive = null; hideActionMenu();
+    } else if (selectedUnit) {
         if (!window.airView && typeof isFlying === 'function' && isFlying(selectedUnit)) {
-            // Flieger sind in der Bodenansicht nicht "beachtet" — Auswahl aufheben
+            // Flieger sind außerhalb der Luftansicht nicht "beachtet" — Auswahl aufheben
             selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
             window.specialActive = null; hideActionMenu();
         } else if (selectedUnit.a === 0 || selectedUnit.a === 2 || selectedUnit.a === 4) {
@@ -572,6 +601,6 @@ window.toggleAirView = function () {
         }
     }
 
-    if (Renderer.setAirView) Renderer.setAirView(window.airView);
+    if (Renderer.setCameraFocus) Renderer.setCameraFocus(window.cameraFocus);
     else if (gameState) renderBoard(gameState);
 };
