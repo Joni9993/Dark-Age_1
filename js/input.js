@@ -698,7 +698,7 @@ function executeMoveTo(clickedX, clickedY) {
 
             selectedHex = { x: targetX, y: targetY };
             validMoves = [];
-            validAttacks = calculateAttacks(selectedUnit);
+            validAttacks = (selectedUnit.a === 1) ? [] : calculateAttacks(selectedUnit);
 
             const vOwner = gameState.v[`${targetX},${targetY}`];
             let isStartAtTarget = false;
