@@ -972,7 +972,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
         } else {
             let tType = getTerrainType(gameState, clickedX, clickedY);
             let tName = tType === 'forest' ? 'Wald' : tType === 'hill' ? 'Hügel' : 'Grasland';
-            let tInfo = tType === 'forest' ? 'Sicht blockiert, Schutz für Assassinen' : tType === 'hill' ? '+1 DMG für Fernkämpfer' : 'Normales Gelände';
+            let tInfo = tType === 'forest' ? '-1 DMG für Bodeneinheiten (erhalten)' : tType === 'hill' ? '+1 DMG für Fernkämpfer' : 'Normales Gelände';
             infoPanel.innerHTML = `${tName}<div class="info-detail">${tInfo}</div>`;
         }
     }

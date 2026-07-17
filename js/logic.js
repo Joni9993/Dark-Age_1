@@ -106,6 +106,10 @@ const getExpectedDamage = (attackerUnit, targetType, targetOwnerId, targetUnit) 
             hexDistance({ x: u.x, y: u.y }, { x: targetUnit.x, y: targetUnit.y }) === 1
         );
         if (hasAura) scaled = Math.max(1, scaled - 1);
+        // Wald-Deckung: Bodeneinheiten im Wald nehmen 1 DMG weniger
+        if (!isFlying(targetUnit) && getTerrainType(gameState, targetUnit.x, targetUnit.y) === 'forest') {
+            scaled = Math.max(1, scaled - 1);
+        }
     }
     return scaled;
 };
