@@ -28,7 +28,7 @@ Unterwelt-Terrain-Typen, erzeugt aus `sd` (eigener Hash-Kanal, damit oben/unten 
 | **Kaverne** | natürliche hohle Tasche (alte Wühlgänge des Wurms), bereits offen, nicht miteinander verbunden |
 | **Kristallader** | Fels mit Kristallen — wird abgebaut wie Steinhaufen oben (`h`-Abbau), gibt Kristalle, danach offener Gang |
 | **Stollenruine** | verlassene Gänge eines längst verschwundenen Bergvolks: fertige Korridore + **Fundkammer** (einmalige Beute: Kristalle oder eine Reliquie) |
-| **Herzkaverne** | fixe große Kaverne (Zentrum + 6 Nachbarn) **exakt unter dem zentralen Wachturm** — beide Machtorte der Karte liegen senkrecht übereinander |
+| **Herzkaverne** | fixe große Kaverne (Zentrum + 6 Nachbarn(angepasst auf map größe) **exakt unter dem zentralen Wachturm** — beide Machtorte der Karte liegen senkrecht übereinander |
 
 Verteilung fairness-gebändert wie `SPAWN_BUDGETS` oben (gleiche Kristall-/Ruinen-Chancen pro Spieler-Sektor); nach dem Tuning mit einem `maptest`-Analog messen.
 
@@ -46,7 +46,7 @@ Verteilung fairness-gebändert wie `SPAWN_BUDGETS` oben (gleiche Kristall-/Ruine
 
 **Nachschub & Moral:** Tiefeneinheiten werden am **Stollenkopf** gekauft (Unterwelt-Hex unter einem eigenen Tunnel-Endpunkt), bezahlt mit Gold von oben. Verliert ein Spieler **seinen letzten Tunnel** in die Unterwelt (zerstört/unterminiert), setzt der **Moral-Kollaps** ein: alle seine Tiefeneinheiten verlieren **1 HP zu Beginn jedes eigenen Zuges**, bis wieder ein Tunnel steht. Tunnel-Jagd oben ist damit die schärfste Antwort auf eine starke Tiefen-Expedition.
 
-**Ebenen-Wechsel:** Vorerst kann **nur der Tunnelgräber** durch Tunnel zwischen den Ebenen wechseln (Aktion am Stollenkopf bzw. Tunnel-Endpunkt oben). Er trägt dabei Kristalle nach oben. Erweiterbar, bewusst restriktiv gestartet.
+**Ebenen-Wechsel:** Vorerst kann **nur der Tunnelgräber** durch Tunnel zwischen den Ebenen wechseln (Aktion am Stollenkopf bzw. Tunnel-Endpunkt oben).
 
 ## 4. Das Roster (Typ-IDs 16–22)
 
@@ -82,8 +82,8 @@ Kein Bergvolk mehr am Leben, keine Geister — nur Tiere und Ruinen. Kreaturen h
 |---|---|---|---|
 | 🕷 **Höhlenspinne** | 6 | 3 | nistet in Kavernen; Netze machen ein Gang-Hex zur Engstelle mit Bewegungsstopp; jagt im Umkreis 2 des Nests |
 | 🦡 **Blindwühler** | 12 | 5 | Riesenwühler — gräbt selbst (1 Hex/Zug) **auf die letzte Lärmquelle im Umkreis 4 zu** und nutzt dabei auch fremde Stollen. Wer viel gräbt, gräbt sich seine Feinde herbei |
-| 🪨 **Steinpanzer** | 20 | 2 | träger Panzerbrocken, sitzt auf den reichsten Kristalladern — lebendes Risk/Reward-Schloss, verfolgt nie |
-| 🐛 **Der Alte Wurm** | 40 | 8 (trifft alle Angreifer in RW 1) | **Wächter der Herzkaverne**, verlässt sie nie. Seine uralten Wühlgänge sind die natürlichen Kavernen der Karte. Muss besiegt werden, bevor die Erschließung beginnen kann — stirbt einmal, bleibt tot (globale Meldung: „Ein Beben läuft durch das Land — der Alte Wurm ist gefallen") |
+| 🪨 **Steinpanzer** | 28 | 2 | träger Panzerbrocken, sitzt auf den reichsten Kristalladern — lebendes Risk/Reward-Schloss, verfolgt nie |
+| 🐛 **Der Alte Wurm** | 30 | 8 (trifft alle Angreifer in RW 1) | **Wächter der Herzkaverne**, verlässt sie nie. Seine uralten Wühlgänge sind die natürlichen Kavernen der Karte. Muss besiegt werden, bevor die Erschließung beginnen kann — stirbt einmal, bleibt tot (globale Meldung: „Ein Beben läuft durch das Land — der Alte Wurm ist gefallen") |
 
 Lärm-Logik: jede Grab-/Abbau-/Unterminierungs-Aktion hinterlässt einen Lärm-Marker (Hex + Runde, transient). Kreaturen im Radius ziehen am Zugende darauf zu. Kämpfe erzeugen ebenfalls Lärm — ein PvP-Gefecht kann Wühler anlocken, die *beide* Seiten anfallen.
 
@@ -92,19 +92,18 @@ Lärm-Logik: jede Grab-/Abbau-/Unterminierungs-Aktion hinterlässt einen Lärm-M
 Historisches Sappieren: Kammer unter die Befestigung, Stützbalken, Brandsatz.
 
 - **Nur gegen:** Tunnel-Endpunkte, Mauern, Türme, **Startdörfer**. Normale Dörfer sind tabu.
-- Der **Sprengmeister** steht auf dem Unterwelt-Hex direkt unter dem Ziel: Aktion **„Kammer anlegen"** (kostet 3 Holz, 1 Zug, laut!) → Folgezug **„Zünden"**: **10 Schaden** auf die Oberflächen-Struktur, Beben-Anzeige oben für alle Sichtbaren.
+- Der **Sprengmeister** steht auf dem Unterwelt-Hex direkt unter dem Ziel: Aktion **„Kammer anlegen"** (kostet 3 Holz, 1 Zug, laut!) → Folgezug **„Zünden"**: **6 Schaden** auf die Oberflächen-Struktur, Beben-Anzeige oben für alle Sichtbaren.
 - Gegenspiel: Der Lärm der Kammer-Arbeiten ist oben als schwaches Beben auf dem Hex sichtbar (Vorwarnung), unten hörbar; Gegenstollen können die Kammer vor der Zündung stürmen.
 - Krater/Einsturz-Löcher, die die Ebenen physisch verbinden: **bewusst verschoben** (Phase 4-Idee), kollidiert vorerst mit „nur Tunnelgräber wechselt die Ebene".
 
 ## 7. Ökonomie: Kristalle & Reliquien
 
-- **Kristalle** (`p[].k`) entstehen nur unten (Adern, Fundkammern). Tunnelgräber tragen sie (`u.cr`, max. 3) zum Stollenkopf und durch den Tunnel nach oben — erst dann sind sie gutgeschrieben. Getragene Kristalle sind klaubar (Beutegräber-Kill).
+- **Kristalle** (`p[].k`) entstehen nur unten (Adern, Fundkammern). Tunnelgräber tragen sie (`u.cr`, max. 3) zum nächsten tunnel nach oben,  Getragene Kristalle sind klaubar (Beutegräber-Kill).
 - **Reliquien** = Fundstücke alter Handwerkskunst (nicht sakral!), kaufbar für Kristalle im Dorf-Menü, Erstentwurf:
-  - **Damaszener Klinge** (4 💎): eine Einheit permanent +1 DMG
-  - **Harnisch des Bergvolks** (4 💎): eine Einheit permanent +5 max-HP
-  - **Meisterwerkzeug** (3 💎): ein Bauwerk (Mauer/Turm/Tunnel) sofort auf volle HP
-  - **Karte der Tiefe** (5 💎): deckt dauerhaft das gesamte Stollennetz EINES Gegners auf (Geometrie, nicht Einheiten)
-- Kristalle fließen bewusst NICHT in normale Einheitenkosten — keine Inflation der bestehenden Ökonomie.
+  - **Damaszener Klinge** (4 💎): eine Einheit permanent +5 DMG
+  - **Harnisch des Bergvolks** (4 💎): eine Einheit permanent +10 max-HP
+  - **Meisterwerkzeug** (3 💎): ein Bauwerk (Mauer/Turm/Tunnel/Startdorf) sofort auf volle HP
+  - **Karte der Tiefe** (5 💎): deckt dauerhaft die gesammte MAP(oberfläche als auch unterwelt) auf
 
 ## 8. Der Herz-Sieg: die Erschließung
 
@@ -151,12 +150,12 @@ Historisches Sappieren: Kammer unter die Befestigung, Stützbalken, Brandsatz.
 | **M9b** | Tunnelgräber: Kauf am Stollenkopf, Graben, Ebenen-Wechsel, Netz-Sicht + Persistenz, Gehör-Pings | Tunnel bauen → unten kaufen → graben → Kristall abbauen → oben abliefern; Sicht zeigt nur eigenes Netz; URL-Roundtrip mit `uw.*` |
 | **M10** | Kampfeinheiten 17–22, Engstellen-Regel, Kristall-Tragen/Stehlen, Reliquien-Shop | Engstellen-Bonus greift; Beutegräber-Diebstahl; jede Fraktion rekrutiert ihre Tiefeneinheit; Reliquie kauf- und ausrüstbar |
 | **M11** | PvE: Spinne/Wühler/Steinpanzer + Lärm-System + Alter Wurm | Wühler gräbt nachweislich auf Lärm zu (deterministisch reproduzierbar per Seed); Wurm verteidigt Herz, bleibt nach Tod tot |
-| **M12** | Unterminierung + Moral-Kollaps + Erschließung + Sieg + Events/Countdown oben | Kammer→Zünden = exakt 10 DMG nur auf erlaubte Ziele; letzter Tunnel weg → −1 HP/Zug; Erschließung unterbricht/resettet korrekt; Sieg feuert Win-Check inkl. Team-Logik |
+| **M12** | Unterminierung + Moral-Kollaps + Erschließung + Sieg + Events/Countdown oben | Kammer→Zünden = exakt 6 DMG nur auf erlaubte Ziele; letzter Tunnel weg → −1 HP/Zug; Erschließung unterbricht/resettet korrekt; Sieg feuert Win-Check inkl. Team-Logik |
 | **M13** | Integrations-Pass: Recap, Diplomatie, Serialisierung/Blob-Größe, Guide (`darkages_guide.html`), 3-Spieler-Partie | Recap zeigt Tiefen-Aktionen; Verbündeten-Regeln in der Kaverne; Blob-Längen-Check; **Playtest mit Christian & Vincent** |
 
 ## 12. Balance-Flags & offene Fragen (nach Playtest / vor M-Start klären)
 
-- Wurm 40 HP / 8 DMG AoE: mit 4–5 Einheiten schaffbar? Soll er zwischen Kämpfen regenerieren?
+- Wurm 30 HP / 8 DMG AoE: mit 4–5 Einheiten schaffbar? Soll er zwischen Kämpfen regenerieren?
 - Erschließung 4 Runden + Zähler-Reset auf 0: zu hart? Alternative: Reset nur um −1 pro Unterbrechungsrunde.
 - Expeditionsgröße: aktuell nur durch Gold begrenzt — braucht es ein hartes Limit (z. B. max. 6 Einheiten unten)?
 - Moral-Kollaps −1 HP: reicht das als Druck, oder zusätzlich „kein Heilen/Kein Kauf" ohne Tunnel?

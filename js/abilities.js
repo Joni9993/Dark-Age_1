@@ -463,7 +463,9 @@ window.demolishWall = function (wx, wy) {
 };
 
 window.useTunnel = function () {
-    if (!selectedUnit || isFlying(selectedUnit) || isHeavyUnit(selectedUnit)) return; // Lufteinheiten & schwere Einheiten ignorieren Tunnel
+    // Lufteinheiten & schwere Einheiten ignorieren Tunnel; Tunnelgräber (16) nutzen
+    // exklusiv Aufsteigen/Abtauchen (uwAscend/uwDescend unten) — Konfliktfreiheit.
+    if (!selectedUnit || isFlying(selectedUnit) || isHeavyUnit(selectedUnit) || selectedUnit.t === 16) return;
     saveUndoState();
     if (gameState.tu) {
         let tunnel = gameState.tu.find(t => t.r <= gameState.rn && ((t.x1 === selectedUnit.x && t.y1 === selectedUnit.y) || (t.x2 === selectedUnit.x && t.y2 === selectedUnit.y)));
@@ -483,3 +485,95 @@ window.useTunnel = function () {
         }
     }
 };
+
+// === UNTERWELT-EBENENWECHSEL (M9b) ===
+// Nur der Tunnelgräber (16) wechselt die Ebene — Aktion am Stollenkopf bzw.
+// Tunnel-Endpunkt oben (siehe PLAN.md Abschn. 3). Beide Richtungen verbrauchen
+// die Aktion (a=1), verlieren aber weder Veteranenstatus noch getragene
+// Kristalle — nur das Trägerobjekt wandert zwischen u[] und uw.u.
+window.uwAscend = function () {
+    if (!selectedUWUnit || selectedUWUnit.t !== 16) return;
+    const { x, y } = selectedUWUnit;
+    if (getStollenkopfOwner(gameState, x, y) !== gameState.cp) return;
+    if (groundUnitAt(x, y) || gameState.v[`${x},${y}`] !== undefined) { showToast('Oberfläche blockiert!', 'error'); return; }
+    saveUndoState();
+    ascendUWUnit(gameState, selectedUWUnit);
+    turnActions.push({ x, y, t: 'cap' });
+    clearUWSelection();
+    infoPanel.innerHTML = '🕳 Aufgestiegen zur Oberfläche!';
+    hideActionMenu(); renderBoard(gameState); updateUI();
+};
+
+window.uwDescend = function () {
+    if (!selectedUnit || selectedUnit.t !== 16) return;
+    const { x, y } = selectedUnit;
+    const ownHead = (gameState.tu || []).some(t => t.o === gameState.cp && t.r <= gameState.rn && ((t.x1 === x && t.y1 === y) || (t.x2 === x && t.y2 === y)));
+    if (!ownHead) return;
+    if (uwUnitAt(x, y)) { showToast('Unterwelt-Feld belegt!', 'error'); return; }
+    saveUndoState();
+    descendUWUnit(gameState, selectedUnit);
+    turnActions.push({ x, y, t: 'cap' });
+    selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
+    infoPanel.innerHTML = '🕳 Abgetaucht in die Unterwelt!';
+    hideActionMenu(); renderBoard(gameState); updateUI();
+};
+
+// Abliefern verbraucht bewusst KEINE Aktion (Komfort, siehe M9b-Auftrag) —
+// nur am eigenen Stollenkopf möglich (Button-Gate in showUnderworldTileUI).
+window.uwDeliverCrystals = function () {
+    if (!selectedUWUnit || !selectedUWUnit.cr) return;
+    saveUndoState();
+    const unit = selectedUWUnit;
+    const amount = deliverUWCrystals(gameState, gameState.cp, unit);
+    showToast(`💎 ${amount} Kristalle abgeliefert!`, 'gold');
+    updateUI();
+    showUnderworldTileUI(unit.x, unit.y);
+    renderBoard(gameState);
+};
+
+// === RELIQUIEN-ZIELAUSWAHL (M10) ===
+// mkBtn/specialActive-Muster wie Tunnel/Mauer/Turm-Bau oben: startRelicEquip
+// setzt den Modus, der NÄCHSTE Klick (Oberfläche ODER Unterwelt — beide Klick-
+// Handler prüfen window.uwSpecialActive.startsWith('relic_') zuerst, siehe
+// handleCanvasClick/handleUnderworldClick) liefert das Ziel.
+window.startRelicEquip = function (key) {
+    const def = RELICS[key];
+    if (!def) return;
+    window.uwSpecialActive = 'relic_' + key;
+    hideActionMenu();
+    showToast(def.target === 'building' ? `Wähle ein eigenes Bauwerk für ${def.name}` : `Wähle eine eigene Einheit für ${def.name}`, 'info');
+};
+
+function handleRelicTargetClick(clickedX, clickedY, underworld) {
+    const key = window.uwSpecialActive.slice('relic_'.length);
+    const def = RELICS[key];
+    window.uwSpecialActive = null;
+    if (!def) { renderBoard(gameState); return; }
+
+    if (def.target === 'building') {
+        // Meisterwerkzeug: nur Oberflächen-Bauwerke (Mauer/Turm/Tunnel/Startdorf) —
+        // unten gibt es keine Bauwerke.
+        if (underworld) { showToast('Das Meisterwerkzeug zielt auf Oberflächen-Bauwerke.', 'error'); renderBoard(gameState); return; }
+        const wall = (gameState.wa || []).find(w => w.x === clickedX && w.y === clickedY && w.o === gameState.cp);
+        const tower = (gameState.tw || []).find(t => t.x === clickedX && t.y === clickedY && t.o === gameState.cp);
+        const tunnelEnd = (gameState.tu || []).find(t => t.o === gameState.cp && ((t.x1 === clickedX && t.y1 === clickedY) || (t.x2 === clickedX && t.y2 === clickedY)));
+        const isOwnStart = gameState.p[gameState.cp].sv === `${clickedX},${clickedY}`;
+        if (!wall && !tower && !tunnelEnd && !isOwnStart) { showToast('Kein eigenes Bauwerk auf diesem Feld.', 'error'); renderBoard(gameState); return; }
+        saveUndoState();
+        let ok = false;
+        if (wall) ok = applyRelicToBuilding(gameState, gameState.cp, wall, 10);
+        else if (tower) ok = applyRelicToBuilding(gameState, gameState.cp, tower, 15);
+        else if (tunnelEnd) ok = applyRelicToBuilding(gameState, gameState.cp, tunnelEnd, 13);
+        else ok = applyRelicToBuilding(gameState, gameState.cp, gameState.p[gameState.cp], undefined);
+        if (ok) { showToast('🔧 Bauwerk repariert!', 'gold'); turnActions.push({ x: clickedX, y: clickedY, t: 'relicuse' }); }
+    } else {
+        // Klinge/Harnisch: eigene Einheit, Oberfläche ODER Unterwelt.
+        const unit = underworld ? uwUnitAt(clickedX, clickedY) : groundUnitAt(clickedX, clickedY);
+        if (!unit || unit.p !== gameState.cp) { showToast('Keine eigene Einheit auf diesem Feld.', 'error'); renderBoard(gameState); return; }
+        if (unit.art) { showToast('Einheit trägt schon eine Reliquie.', 'error'); renderBoard(gameState); return; }
+        saveUndoState();
+        const ok = applyRelicToUnit(gameState, gameState.cp, key, unit);
+        if (ok) { showToast(`${def.icon} ${def.name} ausgerüstet!`, 'gold'); turnActions.push({ x: clickedX, y: clickedY, t: 'relicuse' }); }
+    }
+    renderBoard(gameState); updateUI();
+}

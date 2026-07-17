@@ -69,6 +69,23 @@ let selectedTower = null;
 window.highlightedTunnelEnd = null;
 window.demolishTargets = [];
 
+// === UNTERWELT (M9b) ===
+// Eigener Auswahl-/Highlight-Zustand statt Verzweigung von selectedUnit/validMoves —
+// gleiches Muster wie oben, aber getrennt, weil Unterwelt-Einheiten in `uw.u`
+// statt `u[]` leben (siehe Unterwelt/PLAN.md Abschn. 10).
+let selectedUWUnit = null;
+let uwValidMoves = [];      // BFS-Bewegungsziele (nur offene Hexes)
+let uwValidDigs = [];       // angrenzende FELS-Hexes — Klick darauf = Graben + Nachrücken in einem Zug
+let uwValidMine = [];       // Kristalladern-Ziele während der "Abbauen"-Zielauswahl
+let uwValidAttacks = [];    // Angriffsziele (M10, calculateAttacksUW)
+window.uwSpecialActive = null; // z.B. 'mine_select', 'relic_<key>' — mehrstufige Unterwelt-/Reliquien-Aktionen
+// Lärm-Marker des GERADE LAUFENDEN Zugs, noch nicht in gameState.uw.n übernommen
+// (das passiert erst in doEndTurn — "wird durch die Marker des beendeten Zugs
+// ersetzt", siehe PLAN.md Abschn. 3). Bewusst außerhalb von gameState: rein
+// transiente Zug-Anzeige, nicht Teil des Spielzustands/Undo — verhält sich wie
+// floatingTexts/attackAnims (auch außerhalb von gameState, pro Zug zurückgesetzt).
+window.uwNoiseScratch = [];
+
 // === UNDO ===
 let undoStack = [];
 

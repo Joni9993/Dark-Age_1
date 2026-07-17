@@ -5178,6 +5178,144 @@ const NEW_PIXEL_SPRITES = {
         .XaaDDaaX.
         .XaaDDaaX.
         GGGGGGGGGG`),
+
+    // ── Unterwelt (Phase 3, Entwurf) — Roster Typ-IDs 16-22, siehe Unterwelt/PLAN.md Abschnitt 4 ──
+    // Tunnelgräber: Arbeiter-Silhouette, Grubenhelm (a) statt Kapuze, Spitzhacke (a/r) statt Schaufel
+    16: SP(`
+        ..........
+        ..aaaa....
+        ..SSSS.a..
+        ..PPPPaaa.
+        .SSPPSSr..
+        ...pp..r..
+        ..XXXX.r..
+        ..X..X....
+        .XX..XX...
+        ..........`),
+    // Grubenwache: Schwertkämpfer-Silhouette, schwere Eisenplatten (I) + Schild-Ton (B) statt Klinge
+    17: SP(`
+        ..........
+        ..........
+        ...III.P..
+        ...SSS.P..
+        .I.ppp.P..
+        .ISPPPSB..
+        .I.III.B..
+        ...XXX....
+        ...X.X....
+        ..XX.XX...`),
+    // Sprengmeister: Arbeiter-Silhouette, Pulverfass (W) mit Lunte (F) statt Schaufel
+    18: SP(`
+        ..........
+        ..wwww....
+        ..SSSS.F..
+        ..PPPPWWW.
+        .SSPPSSW..
+        ...pp..W..
+        ..XXXX.W..
+        ..X..X....
+        .XX..XX...
+        ..........`),
+    // Grubenritter (Feudalismus): Ritter-Silhouette, dunklere Grubenrüstung (I) statt Plattenpanzer (A)
+    19: SP(`
+        ..........
+        ......P...
+        ...II.P...
+        ...SS.P...
+        ...IIISEr.
+        ...rrppEEE
+        .EppXppPP.
+        .Epppppp..
+        .E.E..E...
+        ...B..B...`),
+    // Beutegräber (Plünderer): Assassinen-Silhouette, Goldkapuze (G) statt Leinen (L)
+    20: SP(`
+        ..........
+        ...aaa....
+        ...GIG....
+        ...aaa....
+        ..SpppS...
+        ..PXXX.P..
+        ..PCCC..P.
+        ...W.W....
+        ..........
+        ..........`),
+    // Horcher (Spionage): Assassinen-Silhouette, dunkelgrüne Lauscherkapuze (V) statt Leinen (L)/(a)
+    21: SP(`
+        ..........
+        ...VVV....
+        ...VIV....
+        ...VVV....
+        ..SpppS...
+        ..PXXX.P..
+        ..PCCC..P.
+        ...W.W....
+        ..........
+        ..........`),
+    // Bohrwagen (Gilden): Wagenburg-Silhouette, Rammbohrer (R) an der Front, Zahnräder (a) statt Zierbeschlag (A)
+    22: SP(`
+        ....R.....
+        ...RRPp...
+        ..RLLLL...
+        ..LLLLLL..
+        .WWWWWWWW.
+        .WaWWWWaW.
+        .WWWWWWWW.
+        ...PPPP...
+        ..aa..aa..
+        ..........`),
+    // Höhlenspinne (Unterwelt-Kreatur, neutral) — Chitinpanzer (I), keine Spielerfarbe
+    "uw_spinne": SP(`
+        ..........
+        ..X....X..
+        .X.X..X.X.
+        X..XIIX..X
+        ...XIIX...
+        ..XIIIIX..
+        ...XIIX...
+        X..XIIX..X
+        .X.X..X.X.
+        ..X....X..`),
+    // Blindwühler (Unterwelt-Kreatur, neutral) — plumpes Fellvieh, grabende Vorderklauen (S)
+    "uw_wuehler": SP(`
+        ..........
+        ...WWWW...
+        ..WWWWWW..
+        .WWrrrrWW.
+        SWWrrrrWWS
+        SWWWWWWWWS
+        .WWWWWWW..
+        ..WW.WW...
+        .SS...SS..
+        ..........`),
+    // Steinpanzer (Unterwelt-Kreatur, neutral) — Panzerbrocken mit Golderz-Adern (G) im Rückenschild
+    "uw_steinpanzer": SP(`
+        ..........
+        ...RRRR...
+        ..RRaaRR..
+        .RRaGGaRR.
+        RRaaGGaaRR
+        RRRaaaaRRR
+        .RRRRRRRR.
+        .XX....XX.
+        ..X....X..
+        ..........`),
+    // Der Alte Wurm (Unterwelt-Wächter, neutral) — 14×14, konzentrisches Maul aus dem Fels
+    "uw_wurm": SP(`
+        ..............
+        ...RRRRRRRR...
+        ..rrrrrrrrrr..
+        .rrXXXXXXXXrr.
+        .rXXHHHHHHXXr.
+        .XHHCCCCCCHHX.
+        .HCCCCCCCCCCH.
+        .HCCCCCCCCCCH.
+        .XHHCCCCCCHHX.
+        .rXXHHHHHHXXr.
+        .rrXXXXXXXXrr.
+        ..rrrrrrrrrr..
+        ...RRRRRRRR...
+        ..............`),
 };
 
 const NEW_VOXEL_MODELS = {
@@ -6114,6 +6252,61 @@ const NEW_VOXEL_MODELS = {
         XWWWWWWWWX
         .XaaXXaaX.
         ..XX..XX..`)
+    ] },
+    // Herzkaverne (Unterwelt, Phase 3-Entwurf) — großes Platzhalter-Modell der
+    // Kristall-Kaverne unter dem zentralen Wachturm (siehe Unterwelt/PLAN.md Abschnitt 2/8).
+    // Fels (R) mit Golderz- (G) und Frostquarz-Adern (A), Kern-Hohlraum (C).
+    "herzkaverne": { s: 3.4, layers: [
+        L(`
+        ...........
+        ....RRR....
+        ...RRRRR...
+        ..RRaaaRR..
+        ..RaaGaaR..
+        ..RRaaaRR..
+        ...RRRRR...
+        ....RRR....
+        ...........`),
+        L(`
+        ....G.G....
+        ..RRRaRRR..
+        .RRaaAaaRR.
+        RRaaGGGaaRR
+        RaaGGCGGaaR
+        RRaaGGGaaRR
+        .RRaaAaaRR.
+        ..RRRaRRR..
+        ....G.G....`),
+        L(`
+        ....G.G....
+        ..RRRaRRR..
+        .RRaaAaaRR.
+        RRaaGGGaaRR
+        RaaGGCGGaaR
+        RRaaGGGaaRR
+        .RRaaAaaRR.
+        ..RRRaRRR..
+        ....G.G....`),
+        L(`
+        ....G.G....
+        ..RRRaRRR..
+        .RRaaAaaRR.
+        RRaaGGGaaRR
+        RaaGGCGGaaR
+        RRaaGGGaaRR
+        .RRaaAaaRR.
+        ..RRRaRRR..
+        ....G.G....`),
+        L(`
+        ...........
+        ....RRR....
+        ...RRRRR...
+        ..RRaaaRR..
+        ..RaaGaaR..
+        ..RRaaaRR..
+        ...RRRRR...
+        ....RRR....
+        ...........`)
     ] },
 };
 

@@ -214,6 +214,47 @@ window.buyUnit = function (type) {
     }
 }
 
+// === UNTERWELT-EINHEITEN-KAUF (M9b) ===
+// Pendant zu buyUnit: kauft am eigenen Stollenkopf (window.selectedUnderworldHex,
+// gesetzt von showUnderworldTileUI) statt im Dorf, legt die Einheit in uw.u statt u[] an.
+window.buyUWUnit = function (type) {
+    if (!window.selectedUnderworldHex) return;
+    const { x, y } = window.selectedUnderworldHex;
+    const pState = gameState.p[gameState.cp];
+    if (getStollenkopfOwner(gameState, x, y) !== gameState.cp) return;
+    if (uwUnitAt(x, y)) { showToast('Stollenkopf ist belegt!', 'error'); return; }
+    const cost = getUnitCost(pState, type);
+    if (pState.g < cost) { showToast('Nicht genug Gold!', 'error'); return; }
+    saveUndoState();
+    buyUWUnitAt(gameState, gameState.cp, x, y, type);
+    turnActions.push({ x, y, t: 'buy' });
+    hideActionMenu();
+    renderBoard(gameState); updateUI();
+};
+
+// === RELIQUIEN-SHOP (M10) ===
+// Kauf im Dorf-Menü (RELICS, js/data.js). "map" wirkt sofort (applyMapRelic,
+// js/logic.js) und landet nie im Inventar; alle anderen gehen in p[].rel und
+// werden separat ausgerüstet (window.startRelicEquip -> handleRelicTargetClick).
+window.buyRelic = function (key) {
+    const pState = gameState.p[gameState.cp];
+    const def = RELICS[key];
+    if (!def || (pState.k || 0) < def.cost) { showToast('Nicht genug Kristalle!', 'error'); return; }
+    saveUndoState();
+    pState.k -= def.cost;
+    if (key === 'map') {
+        applyMapRelic(gameState, gameState.cp);
+        showToast('🗺️ Karte der Tiefe wirkt — gesamte Karte aufgedeckt!', 'gold');
+    } else {
+        if (!pState.rel) pState.rel = [];
+        pState.rel.push(key);
+        showToast(`${def.icon} ${def.name} erworben!`, 'gold');
+    }
+    turnActions.push({ x: selectedHex ? selectedHex.x : 0, y: selectedHex ? selectedHex.y : 0, t: 'relicbuy' });
+    renderBoard(gameState); updateUI();
+    if (selectedHex) showTileUI(selectedHex.x, selectedHex.y, groundUnitAt(selectedHex.x, selectedHex.y));
+};
+
 // === VILLAGE CAPTURE ===
 window.startCapture = function () {
     if (selectedUnit && !isFlying(selectedUnit)) {

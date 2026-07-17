@@ -22,6 +22,28 @@
     const COL_UNEXPLORED = new THREE.Color('#141414');
     const SHROUD_MUL = 0.35;
 
+    // ── Unterwelt-Unterseite (M9a) ─────────────────────────────────────────────
+    // "Protrusion" Richtung Kamera: Die Unterwelt-Kamera steht weit unterhalb der
+    // Karte und blickt nach oben (+Y) — je NEGATIVER die Y-Position eines Tiles,
+    // desto NÄHER an der Kamera. Fels wirkt dadurch massiv/geschlossen (weit nach
+    // unten Richtung Kamera vorgezogen), offene Typen (Kaverne/Ader/Ruine/Herz)
+    // "ausgehöhlt" (näher an der y=0-Bodenebene, wirkt wie eine Vertiefung/Kavität).
+    // Muss näher an y=0 bleiben als der Auswahl-Overlay-Versatz in addOverlay,
+    // sonst würde der protrudierende Fels das lila Auswahl-Overlay verdecken.
+    const UW_SOLID_DEPTH = 2.2;
+    const UW_OPEN_DEPTH = 0.7;
+    function underworldDepth(uType) { return uType === UW_FELS ? UW_SOLID_DEPTH : UW_OPEN_DEPTH; }
+
+    // Basisfarben je Unterwelt-Typ (bewusst hier lokal definiert, nicht in
+    // art.js/pal — die Unterwelt-Grafik ist noch reiner Platzhalter, art.js
+    // gehört einem parallel arbeitenden Agenten).
+    const UW_COLORS = {
+        [UW_FELS]: '#33333a', [UW_KAVERNE]: '#4d3c2a', [UW_ADER]: '#37363f',
+        [UW_RUINE]: '#4a3c2a', [UW_HERZ]: '#5c3a22'
+    };
+    // Akzentfarben (Kristall-/Fund-/Herz-Glitzern) für Typen mit `accentPositions`
+    const UW_ACCENT_COLORS = { [UW_ADER]: '#7fe3ff', [UW_RUINE]: '#c9a24b', [UW_HERZ]: '#ff6f61' };
+
     function worldPos(x, y) {
         return {
             wx: (x + 0.5 * (y % 2)) * hexWidth,
@@ -338,6 +360,162 @@
             tileMesh.setColorAt(i, col);
         });
         tileMesh.instanceColor.needsUpdate = true;
+    }
+
+    // Unterwelt-Unterseite: eigenes InstancedMesh je Tile (Terrain-Farbe/-Tiefe
+    // nach `getUnderworldType`) + ein zweites, kleineres InstancedMesh für die
+    // Kristall-/Ruinen-/Herzkaverne-Akzente. Gebaut wie tileMesh nur bei Seed-/
+    // Kartenwechsel (uwBuiltSeed-Signatur), pro Frame nur sichtbar geschaltet
+    // (drawScene3d) — kein Rebuild bei Kamera-Gesten.
+    let uwTileMesh = null, uwAccentMesh = null, uwBuiltSeed = null;
+    let uwTileIndex = [];      // instanceId -> {x, y} (uwTileMesh), für die Pro-Frame-Sichtfärbung
+    let uwAccentIndex = [];    // instanceId -> {x, y} (uwAccentMesh), zum Ausblenden unerforschter Akzente
+
+    // Sichtbarer Terrain-Typ inkl. Laufzeit-Zustand (M9b): durchgegrabener Fels
+    // zeigt sich wie eine Kaverne, eine leergegrabene Ader wie eine Kaverne ohne
+    // Kristalle — getUnderworldType allein kennt nur den STATISCHEN Seed-Typ.
+    function uwVisualType(state, x, y) {
+        const t = getUnderworldType(state, x, y);
+        if (t === UW_ADER) return getUWVeinRemaining(state, x, y) > 0 ? UW_ADER : UW_KAVERNE;
+        if (t === UW_FELS && isUnderworldOpen(state, x, y)) return UW_KAVERNE;
+        return t;
+    }
+
+    function buildUnderworldTiles(state) {
+        // uw.d/uw.a und nutzbare Tunnel-Köpfe verändern die sichtbare Geometrie
+        // (Graben/Abbau/Tunnelbau öffnen Hexes), ohne dass sich Seed/Kartengröße
+        // ändern — die Cache-Signatur muss das mit einschließen, sonst zeigt das
+        // Mesh nach dem Graben weiter den alten, massiven Fels (M9b-Auftrag).
+        const uw = state.uw || {};
+        const uwDigSig = Array.isArray(uw.d) ? uw.d.join(',') : (uw.d || '');
+        const uwAderSig = uw.a ? Object.keys(uw.a).map(k => k + ':' + uw.a[k]).join(',') : '';
+        const tuSig = (state.tu || []).map(t => `${t.x1},${t.y1}-${t.x2},${t.y2}-${t.o}-${t.r <= state.rn ? 1 : 0}`).join('|');
+        const seedKey = `${state.sd}|${state.bw}|${state.bh}|${state.rad}|${uwDigSig}|${uwAderSig}|${tuSig}`;
+        if (uwBuiltSeed === seedKey) return;
+        uwBuiltSeed = seedKey;
+
+        if (uwTileMesh) { scene.remove(uwTileMesh); uwTileMesh.dispose(); uwTileMesh.geometry.dispose(); uwTileMesh.material.dispose(); uwTileMesh = null; }
+        if (uwAccentMesh) { scene.remove(uwAccentMesh); uwAccentMesh.dispose(); uwAccentMesh.geometry.dispose(); uwAccentMesh.material.dispose(); uwAccentMesh = null; }
+
+        // tileIndex ist zu diesem Zeitpunkt bereits von buildTiles() befüllt
+        // (drawScene3d ruft beide im selben Seed-Wechsel-Zweig auf); Fallback
+        // für den unwahrscheinlichen Fall eines direkten Aufrufs ohne das.
+        const coords = tileIndex.length ? tileIndex.map(c => ({ x: c.x, y: c.y })) : (() => {
+            const list = [];
+            for (let y = 0; y < state.bh; y++) for (let x = 0; x < state.bw; x++) if (isInsideMap(state, x, y)) list.push({ x, y });
+            return list;
+        })();
+
+        const geo = new THREE.CylinderGeometry(hexSize * 0.99, hexSize * 0.99, 1, 6, 1, false);
+        const pos = geo.attributes.position, nrm = geo.attributes.normal;
+        const vcol = new Float32Array(pos.count * 3);
+        for (let i = 0; i < pos.count; i++) {
+            const ny = nrm.getY(i);
+            // Von unten betrachtet ist die -Y-Kappe die dem Auge zugewandte
+            // "Deckfläche" (umgekehrt zu tileMesh, das von oben betrachtet wird).
+            const v = ny < -0.9 ? 1.0 : ny > 0.9 ? 0.5 : 0.75;
+            vcol[i * 3] = vcol[i * 3 + 1] = vcol[i * 3 + 2] = v;
+        }
+        geo.setAttribute('color', new THREE.BufferAttribute(vcol, 3));
+        const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });
+        uwTileMesh = new THREE.InstancedMesh(geo, mat, coords.length);
+        uwTileMesh.frustumCulled = false;
+        uwTileMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(coords.length * 3), 3);
+
+        uwTileIndex = coords;
+        const accentPositions = [];
+        const m = new THREE.Matrix4();
+        const col = new THREE.Color();
+        coords.forEach((c, i) => {
+            const uType = uwVisualType(state, c.x, c.y);
+            const depth = underworldDepth(uType);
+            const { wx, wz } = worldPos(c.x, c.y);
+            m.makeScale(0.985, depth, 0.985);
+            m.setPosition(wx, -depth / 2, wz);
+            uwTileMesh.setMatrixAt(i, m);
+
+            col.set(UW_COLORS[uType] || UW_COLORS[UW_FELS]);
+            // Deterministischer Farbjitter pro Tile, gleiches Muster wie updateTileColors
+            const j = (((c.x * 92821) ^ (c.y * 68917)) >>> 0) % 1000 / 1000;
+            col.multiplyScalar(0.9 + j * 0.2);
+            uwTileMesh.setColorAt(i, col);
+
+            if (uType === UW_ADER || uType === UW_RUINE || uType === UW_HERZ) {
+                accentPositions.push({ x: c.x, y: c.y, uType, wx, wz, depth });
+            }
+        });
+        uwTileMesh.instanceMatrix.needsUpdate = true;
+        scene.add(uwTileMesh);
+
+        // Kristall-/Fund-/Herz-Akzente: kleine unbeleuchtete Boxen ("Glitzern") an
+        // den wenigen Sonder-Hexes — MeshBasicMaterial statt Lambert, damit sie
+        // auch ohne direktes Licht als heller Akzent auffallen.
+        const perHexAccents = 3;
+        const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+        const accentMat = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true });
+        uwAccentMesh = new THREE.InstancedMesh(boxGeo, accentMat, Math.max(1, accentPositions.length * perHexAccents * 2));
+        uwAccentMesh.frustumCulled = false;
+        uwAccentMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(uwAccentMesh.count * 3), 3);
+        uwAccentIndex = [];
+        let n = 0;
+        accentPositions.forEach(a => {
+            const rng = createPRNG(a.x * 1013 + a.y * 7919 + 55);
+            const baseCol = new THREE.Color(UW_ACCENT_COLORS[a.uType] || '#7fe3ff');
+            // Herzkaverne deutlich hervorgehoben: mehr + größere Akzent-Voxel
+            const isHeart = a.uType === UW_HERZ;
+            const count = isHeart ? perHexAccents * 2 : perHexAccents;
+            for (let k = 0; k < count; k++) {
+                if (n >= uwAccentMesh.count) break;
+                const dx = (rng() - 0.5) * hexSize * 1.1;
+                const dz = (rng() - 0.5) * hexSize * 1.1;
+                const s = (isHeart ? 1.6 : 0.9) + rng() * (isHeart ? 1.0 : 0.6);
+                m.makeScale(s, s, s);
+                m.setPosition(a.wx + dx, -a.depth + s * 0.5, a.wz + dz);
+                uwAccentMesh.setMatrixAt(n, m);
+                col.copy(baseCol).multiplyScalar(0.85 + rng() * 0.4);
+                uwAccentMesh.setColorAt(n, col);
+                uwAccentIndex.push({ x: a.x, y: a.y });
+                n++;
+            }
+        });
+        uwAccentMesh.count = Math.max(n, 1);
+        uwAccentMesh.instanceMatrix.needsUpdate = true;
+        uwAccentMesh.instanceColor.needsUpdate = true;
+        scene.add(uwAccentMesh);
+    }
+
+    // Pro-Frame-Sichtfärbung der Unterwelt-Terrain-Schicht (M9b): läuft bei jedem
+    // Render, unabhängig vom seed-memoisierten Rebuild oben (gleiches Verhältnis
+    // wie tileMesh/updateTileColors auf der Oberfläche) — Hexes außerhalb der
+    // eigenen Netz-Geometrie (getVisibleUWHexes) werden auf COL_UNEXPLORED
+    // abgedunkelt, unerforschte Akzent-Voxel zusätzlich weggeparkt (sonst
+    // schiene ein Kristallglitzern durch die massive Dunkelheit).
+    function updateUWTileColors(state, uwVis) {
+        if (!uwTileMesh) return;
+        const col = new THREE.Color();
+        uwTileIndex.forEach((c, i) => {
+            const vType = uwVisualType(state, c.x, c.y);
+            if (uwVis.has(`${c.x},${c.y}`)) {
+                col.set(UW_COLORS[vType] || UW_COLORS[UW_FELS]);
+                const j = (((c.x * 92821) ^ (c.y * 68917)) >>> 0) % 1000 / 1000;
+                col.multiplyScalar(0.9 + j * 0.2);
+            } else {
+                col.copy(COL_UNEXPLORED);
+            }
+            uwTileMesh.setColorAt(i, col);
+        });
+        uwTileMesh.instanceColor.needsUpdate = true;
+
+        if (uwAccentMesh) {
+            const parkM = new THREE.Matrix4();
+            uwAccentIndex.forEach((a, i) => {
+                if (uwVis.has(`${a.x},${a.y}`)) return; // sichtbar: Matrix kommt bereits korrekt aus buildUnderworldTiles
+                parkM.makeScale(0, 0, 0);
+                parkM.setPosition(0, -1000, 0);
+                uwAccentMesh.setMatrixAt(i, parkM);
+            });
+            uwAccentMesh.instanceMatrix.needsUpdate = true;
+        }
     }
 
     // Group.clear() entfernt Kinder nur aus der Szene, gibt aber ihre GPU-Buffer
@@ -662,6 +840,36 @@
         }
     }
 
+    // Unterwelt-Einheiten als Voxel-Billboards (M9b, pixelSprites[16..]). Eigene,
+    // bewusst vereinfachte Kopie von addVoxelSprite statt Verzweigung: unter der
+    // Karte steht die Kamera UNTER der y=0-Ebene und blickt nach OBEN — "hoch" im
+    // Sprite muss deshalb Richtung Kamera (negatives Welt-Y) zeigen, umgekehrt zur
+    // Oberfläche. Ohne Kamera-Pitch-Kippung (nur Azimut-Facing) — Sichtachse von
+    // unten ist ohnehin fast immer nah an der Senkrechten. Reine Präsentation,
+    // keine Spiellogik; Null-Risiko für die bestehende Boden-Darstellung.
+    function addUWVoxelSprite(spriteKey, wx, wz, groundY, playerColor, dimFactor) {
+        const arr = pixelSprites[spriteKey];
+        if (!arr) return;
+        const { bottom, size } = spriteBottomRow(spriteKey, pixelSprites);
+        const s = 2.6 * 10 / size;
+        const { rx, rz } = camGroundAxes();
+        for (let i = 0; i < arr.length; i++) {
+            const val = arr[i];
+            if (val === 0) continue;
+            if (_voxelCount >= VOXEL_CAP) return;
+            const colIdx = i % size, rowIdx = Math.floor(i / size);
+            const across = (colIdx - (size - 1) / 2) * s;
+            const dy = (bottom - rowIdx + 0.5) * s;
+            _vm.makeScale(s, s, s);
+            _vm.setPosition(wx + across * rx, groundY - dy, wz + across * rz);
+            voxelMesh.setMatrixAt(_voxelCount, _vm);
+            _vc.set(spritePixelColor(val, playerColor));
+            if (dimFactor !== 1) _vc.multiplyScalar(dimFactor);
+            voxelMesh.setColorAt(_voxelCount, _vc);
+            _voxelCount++;
+        }
+    }
+
     // ── Echte 3D-Voxelmodelle (Gebäude, Steine) ───────────────────────────────
     // Stehen fest in der Welt (kein Billboarding) — beim Orbiten sieht man sie
     // von allen Seiten. Innenliegende, nie sichtbare Voxel werden weggeworfen.
@@ -817,9 +1025,12 @@
     // Overlays werden pro Frame neu aufgebaut, neue Materialien pro Aufruf würden
     // ohne Dispose GPU-seitig lecken (siehe spriteMatCache)
     const overlayMatCache = {};
-    // underside=true setzt das Overlay knapp UNTER die y=0-Bodenebene statt über
-    // den Tile-Deckel — die Unterwelt-Kamera steht unterhalb der Karte, ein
+    // underside=true setzt das Overlay UNTER die Unterwelt-Terrain-Schicht statt
+    // über den Tile-Deckel — die Unterwelt-Kamera steht unterhalb der Karte, ein
     // Overlay über dem Deckel läge hinter dem massiven Tile und wäre unsichtbar.
+    // Der Offset muss näher an der Kamera bleiben als der am weitesten
+    // protrudierende Unterwelt-Fels (UW_SOLID_DEPTH aus buildUnderworldTiles),
+    // sonst würde der Fels das Auswahl-Overlay verdecken.
     function addOverlay(x, y, colorHex, opacity, state, underside) {
         const tType = getTerrainType(state, x, y);
         const { wx, wz } = worldPos(x, y);
@@ -830,7 +1041,7 @@
             overlayMatCache[key] = mat;
         }
         const mesh = new THREE.Mesh(overlayGeo, mat);
-        mesh.position.set(wx, underside ? -0.6 : tileHeight(tType) + 0.6, wz);
+        mesh.position.set(wx, underside ? -(UW_SOLID_DEPTH + 0.8) : tileHeight(tType) + 0.6, wz);
         overlayGroup.add(mesh);
     }
 
@@ -840,11 +1051,15 @@
         lastState = state;
 
         updateExploration();
+        updateUWExploration();
         const vis = getVisibleHexes(state.cp);
         const explored = state.p[state.cp].e || [];
 
         const seedKey = `${state.sd}|${state.bw}|${state.bh}|${state.rad}`;
         if (builtSeed !== seedKey) buildTiles(state);
+        // Unterwelt-Terrain-Schicht (M9a) — eigene Seed-Signatur, rebuildet also
+        // unabhängig von buildTiles' builtSeed-Guard, aber genauso memoisiert.
+        buildUnderworldTiles(state);
         const buildingHexes = collectBuildingHexes(state);
         const voxelBodyHexes = collectVoxelBodyHexes(state);
         const unitHexes = collectUnitHexes(state);
@@ -880,10 +1095,15 @@
         // verschwindet/erscheint erst am eigentlichen Umschlagpunkt, nicht schon
         // beim Tastendruck. Weder anwählbar (siehe input.js) noch sichtbar —
         // keine HP-/Ressourcen-Zahlen, die durch die Felder "durchscheinen".
-        // Die Unterwelt bekommt vorerst nur den blanken, abgedunkelten
-        // Terrain-Boden; eine eigene, von der Oberfläche losgelöste
-        // Unterwelt-Entity-Schicht ist noch nicht implementiert.
+        // Die Unterwelt hat seit M9a eine eigene Terrain-Schicht (uwTileMesh/
+        // uwAccentMesh); seit M9b eine eigene Entity-Schicht (uw.u, siehe unten)
+        // mit echten Sichtregeln (getVisibleUWHexes/isUWUnitVisible, js/logic.js) —
+        // "Unterwelt aufdecken" (js/debug.js) übersteuert weiter alles.
         const surfaceVisible = Math.sin(cam3d.elev) >= 0;
+        const uwVis = getVisibleUWHexes(state.cp);
+        if (uwTileMesh) uwTileMesh.visible = !surfaceVisible;
+        if (uwAccentMesh) uwAccentMesh.visible = !surfaceVisible;
+        if (!surfaceVisible) updateUWTileColors(state, uwVis);
         const entities = [];
         if (surfaceVisible) {
 
@@ -1005,6 +1225,39 @@
             }
         });
 
+        } else {
+            const cx = Math.floor(state.bw / 2), cy = Math.floor(state.bh / 2);
+            if (voxelModels['herzkaverne'] && uwVis.has(`${cx},${cy}`)) {
+                // Herzkaverne deutlich hervorgehoben, falls der (parallel arbeitende)
+                // Art-Agent bereits ein echtes Voxelmodell geliefert hat — sonst bleibt
+                // es beim rein prozeduralen Akzent-Cluster aus buildUnderworldTiles.
+                // Anmerkung: die genaue Stapelrichtung/Ausrichtung ist ohne visuellen
+                // Abgleich mit dem fertigen Modell nicht endgültig kalibrierbar und
+                // ggf. nachzujustieren, sobald das Modell vorliegt.
+                const { wx, wz } = worldPos(cx, cy);
+                addVoxelModel('herzkaverne', wx, wz, -(UW_OPEN_DEPTH + modelTopHeight('herzkaverne')), '#ff6f61', 1, null, 0);
+            }
+
+            // Tiefeneinheiten (M9b): eigene stehen immer, fremde nur im Umkreis 2
+            // eigener Einheiten (isUWUnitVisible, js/logic.js — Hinterhalt-Regel).
+            (state.uw && state.uw.u || []).forEach(u => {
+                if (!isUWUnitVisible(state.cp, u)) return;
+                if (!uwVis.has(`${u.x},${u.y}`)) return;
+                const uType = uwVisualType(state, u.x, u.y);
+                const groundY = -underworldDepth(uType);
+                const { wx, wz } = worldPos(u.x, u.y);
+                const dim = u.a === 1 ? 0.55 : 1;
+                addUWVoxelSprite(u.t, wx, wz, groundY, playerColors[u.p], dim);
+                const topY = groundY - 34;
+                addHpText(u.h, wx, wz, topY, -1, u.h / getUnitMaxHp(state.p[u.p], u.t, u) < 0.15);
+                if (u.vet) addIcon('★', '#e8b84a', wx, wz, topY - 4, 9);
+                if (u.cr) addIcon('💎', '#7fe3ff', wx, wz, topY - 12, 10, 1, 1);
+                if (u.art) addIcon(RELICS[u.art].icon, '#ba68c8', wx, wz, topY - 4, 9, 1, -1);
+            });
+
+            // Gehör (Minimal-Implementierung, PLAN.md Abschn. 3+9): Horcher-Ortung
+            // (exact=true) heller/größer als die Richtungs-Näherung am Netzrand.
+            getUWNoisePings(state.cp).forEach(p => addOverlay(p.x, p.y, p.exact ? 0xff5252 : 0xffb300, p.exact ? 0.65 : 0.5, state, true));
         } // surfaceVisible
 
         // Nicht genutzte Instanzen "parken"
@@ -1030,6 +1283,15 @@
         if (window.demolishTargets) window.demolishTargets.forEach(t => addOverlay(t.x, t.y, 0xff9800, 0.5, state));
         if (!surfaceVisible && window.selectedUnderworldHex) {
             addOverlay(window.selectedUnderworldHex.x, window.selectedUnderworldHex.y, 0xc084fc, 0.55, state, true);
+        }
+        // Unterwelt-Ziel-Highlights: Bewegung grün wie oben, Graben bräunlich (eigene
+        // Farbe, siehe M9b-Auftrag), Abbauen cyan, Angreifen rot wie oben (M10) —
+        // alle unterseitig (underside).
+        if (!surfaceVisible) {
+            uwValidMoves.forEach(mv => addOverlay(mv.x, mv.y, 0x64ff64, 0.3, state, true));
+            uwValidDigs.forEach(d => addOverlay(d.x, d.y, 0xa1662f, 0.45, state, true));
+            uwValidMine.forEach(m => addOverlay(m.x, m.y, 0x00e5ff, 0.5, state, true));
+            uwValidAttacks.forEach(a => addOverlay(a.x, a.y, 0xff6464, 0.5, state, true));
         }
 
         applyCamera();

@@ -109,7 +109,7 @@ function buildInitialGameState(playerNames, radius, teamMode = 'ffa') {
 
     for (let i = 0; i < count; i++) {
         const svLoc = `${startPos[i].vx},${startPos[i].vy}`;
-        players.push({ n: (playerNames[i] || '').trim() || `Spieler ${i + 1}`, g: 3, m: 1, s: 0, f: [], of: [], u: [], e: [], sv: svLoc, dead: 0, sh: 30 });
+        players.push({ n: (playerNames[i] || '').trim() || `Spieler ${i + 1}`, g: 3, m: 1, s: 0, k: 0, f: [], of: [], u: [], e: [], ue: [], sv: svLoc, dead: 0, sh: 30 });
         villages[svLoc] = i;
         units.push({ i: i + 1, p: i, t: 0, x: startPos[i].ux, y: startPos[i].uy, h: 10, a: 0 });
     }
@@ -230,7 +230,12 @@ function buildInitialGameState(playerNames, radius, teamMode = 'ffa') {
     placeForPlayers(restStoneBands, stoneOK, 2, placeStone);
     placeContested(budget.contestedStones[cnt], stoneOK, 2, placeStone);
 
-    const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [], ct: { x: cx, y: cy, ctrl: -1 } };
+    // uw = Unterwelt-Zustand (M9b/M10): d = gegrabene Hexes (Indizes, wie p[].e/ue —
+    // Stollenköpfe zählen NICHT hierzu, die werden aus tu[] abgeleitet, siehe
+    // getStollenkopfOwner/isUnderworldOpen in hex.js), u = Tiefeneinheiten,
+    // n = Lärm-Marker der letzten Runde, a = angebrochene Kristalladern {"x,y": restH},
+    // f = geplünderte Fundkammern {"x,y": 1}.
+    const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [], ct: { x: cx, y: cy, ctrl: -1 }, uw: { d: [], u: [], n: [], a: {}, f: {} } };
 
     const teamSize = teamMode === 'teams2' ? 2 : teamMode === 'teams3' ? 3 : 0;
     if (teamSize > 0 && count % teamSize === 0 && count / teamSize >= 2) {

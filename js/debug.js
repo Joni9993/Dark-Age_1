@@ -15,6 +15,12 @@ window.DEBUG_MODE = false;
 window.DEBUG_NO_FOG = false;
 window.DEBUG_HOTSEAT = false;
 window.DEBUG_TOOL = 'none';
+// "Unterwelt aufdecken": zeigt das komplette Unterwelt-Terrain + alle Tiefen-
+// einheiten unabhängig von den echten Netz-/Umkreis-Sichtregeln (getVisibleUWHexes/
+// isUWUnitVisible, js/logic.js). Produktions-Default AUS (wie DEBUG_NO_FOG oben) —
+// initDebugMode() schaltet es für den Test-/Debug-Modus zur Bequemlichkeit an,
+// der Panel-Toggle erlaubt, die echten Sichtregeln trotzdem zu prüfen.
+window.DEBUG_UW_REVEAL = false;
 
 const DEBUG_LS_KEY = 'da_debug_scenarios';
 
@@ -23,6 +29,7 @@ function initDebugMode(stateParam) {
     isLegacyUrlMode = true;
     window.DEBUG_NO_FOG = true;
     window.DEBUG_HOTSEAT = true;
+    window.DEBUG_UW_REVEAL = true;
 
     // Service Worker abschalten, damit Code-Änderungen sofort greifen (F5 statt Cache)
     if ('serviceWorker' in navigator) {
@@ -95,6 +102,7 @@ function debugApplyTool(hex) {
 
     if (tool === 'spawn') {
         const t = parseInt(document.getElementById('dbg-spawn-type').value);
+        if (unitStats[t].isUW) { showToast('Unterwelt-Einheit — bitte Werkzeug "Unterwelt setzen" nutzen (Klick unten in der Unterwelt-Ansicht).'); return; }
         // Ebenenbewusst: Flieger blockieren nur Flieger, Boden nur Boden
         const blocked = unitStats[t].isAir ? airUnitAt(x, y) : groundUnitAt(x, y);
         if (blocked) { showToast('Ebene belegt.'); return; }
@@ -123,6 +131,20 @@ function debugApplyTool(hex) {
     } else if (tool === 'ready') {
         if (!unitAt) { showToast('Keine Einheit auf dem Feld.'); return; }
         unitAt.a = unitAt.a ? 0 : 1;
+    } else if (tool === 'uwspawn') {
+        // Unterwelt-Einheit (16-22, aus dbg-spawn-type) auf ein Unterwelt-Hex setzen
+        // (unabhängig von Kamerafokus/Kauf-Regeln) — nur auf bereits offenen Hexes,
+        // nicht auf belegten.
+        const t = parseInt(document.getElementById('dbg-spawn-type').value);
+        if (!unitStats[t].isUW) { showToast('Keine Unterwelt-Einheit ausgewählt (16-22).'); return; }
+        if (!isUnderworldOpen(gameState, x, y)) { showToast('Hex ist noch massiver Fels — nicht setzbar.'); return; }
+        if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {} };
+        if (uwUnitAt(x, y)) { showToast('Unterwelt-Feld belegt.'); return; }
+        const owner = parseInt(document.getElementById('dbg-spawn-owner').value);
+        const nextId = gameState.uw.u.reduce((m, u) => Math.max(m, u.i || 0), 0) + 1;
+        const unitObj = { i: nextId, p: owner, t, x, y, h: getUnitMaxHp(gameState.p[owner], t), a: 0 };
+        if (t === 21) unitObj.iv = 1; // Horcher: passiv unsichtbar
+        gameState.uw.u.push(unitObj);
     }
 
     renderBoard(gameState);
@@ -150,6 +172,21 @@ function debugGive(g, m, s) {
     updateUI();
 }
 
+function debugGiveCrystals(k) {
+    const p = gameState.p[gameState.cp];
+    p.k = (p.k || 0) + k;
+    updateUI();
+}
+
+function debugGiveRelics() {
+    const p = gameState.p[gameState.cp];
+    if (!p.rel) p.rel = [];
+    Object.keys(RELICS).forEach(key => { if (key !== 'map') p.rel.push(key); }); // "map" wirkt sofort, kein Inventar-Item
+    renderBoard(gameState);
+    updateUI();
+    showToast('Je 1 Reliquie ins Inventar gelegt (außer Karte der Tiefe).');
+}
+
 function debugRefreshActions() {
     gameState.u.filter(u => u.p === gameState.cp).forEach(u => { u.a = 0; delete u.br; });
     (gameState.tw || []).filter(tw => tw.o === gameState.cp).forEach(tw => tw.a = 0);
@@ -159,6 +196,11 @@ function debugRefreshActions() {
 
 function debugToggleFog(off) {
     window.DEBUG_NO_FOG = off;
+    renderBoard(gameState);
+}
+
+function debugToggleUwReveal(on) {
+    window.DEBUG_UW_REVEAL = on;
     renderBoard(gameState);
 }
 
@@ -286,10 +328,20 @@ function buildDebugPanel() {
             <button onclick="debugGive(10,0,0)">+10💰</button>
             <button onclick="debugGive(0,10,0)">+10🪵</button>
             <button onclick="debugGive(0,0,10)">+10🪨</button>
+            <button onclick="debugGiveCrystals(10)">+10💎</button>
+            <button onclick="debugGiveRelics()" title="Je eine Reliquie jedes Typs ins Inventar">+1️⃣ Reliquien</button>
         </div>
         <button onclick="debugRefreshActions()">⟳ Aktionen auffrischen</button>
         <label class="dbg-tool"><input type="checkbox" id="dbg-fog" checked
             onchange="debugToggleFog(this.checked)"> Fog of War aus</label>
+
+        <h4>Unterwelt</h4>
+        <label class="dbg-tool"><input type="checkbox" id="dbg-uw-reveal" checked
+            onchange="debugToggleUwReveal(this.checked)"> Unterwelt aufdecken (Netz-Sicht aus)</label>
+        <div class="dbg-row">
+            <button onclick="dbg.uwStats()" title="Typ-Verteilung des aktuellen Seeds in die Konsole loggen">📊 uwStats()</button>
+            <button onclick="dbg.uwState()" title="gameState.uw in die Konsole loggen">🗂 uw-State</button>
+        </div>
 
         <h4>Klick-Werkzeug</h4>
         <label class="dbg-tool"><input type="radio" name="dbg-tool" value="none" checked
@@ -311,6 +363,8 @@ function buildDebugPanel() {
         </div>
         <label class="dbg-tool"><input type="radio" name="dbg-tool" value="ready"
             onchange="DEBUG_TOOL=this.value"> Aktion verbraucht an/aus</label>
+        <label class="dbg-tool"><input type="radio" name="dbg-tool" value="uwspawn"
+            onchange="DEBUG_TOOL=this.value"> ⛏ Unterwelt setzen (Typ oben, akt. Spieler)</label>
 
         <h4>Spielstand</h4>
         <button onclick="debugStateToUrl()" title="Zustand in URL — Code ändern, F5, weitertesten">🔗 State → URL (F5-sicher)</button>
@@ -365,4 +419,32 @@ window.dbg = {
     switch: (i) => debugSwitchPlayer(i),
     faction: (pIdx, fId) => { const p = gameState.p[pIdx]; if (!p.f.includes(fId)) p.f.push(fId); renderBoard(gameState); },
     upgrade: (pIdx, uId) => { const p = gameState.p[pIdx]; if (!p.u) p.u = []; if (!p.u.includes(uId)) p.u.push(uId); },
+    // Zählt für den aktuellen Seed die Unterwelt-Typ-Verteilung (Fels/Kaverne/
+    // Ader/Ruine/Herz) über die komplette Karte und loggt sie in die Konsole.
+    uwStats: () => {
+        if (!gameState) { console.log('Kein Spiel geladen.'); return; }
+        const counts = { [UW_FELS]: 0, [UW_KAVERNE]: 0, [UW_ADER]: 0, [UW_RUINE]: 0, [UW_HERZ]: 0 };
+        let total = 0;
+        for (let y = 0; y < gameState.bh; y++) {
+            for (let x = 0; x < gameState.bw; x++) {
+                if (!isInsideMap(gameState, x, y)) continue;
+                counts[getUnderworldType(gameState, x, y)]++;
+                total++;
+            }
+        }
+        const pct = t => total ? (counts[t] / total * 100).toFixed(1) : '0.0';
+        const line = Object.keys(UW_TYPE_NAMES)
+            .map(t => `${UW_TYPE_NAMES[t]} ${counts[t]} (${pct(t)}%)`)
+            .join(' · ');
+        console.log(`Unterwelt-Verteilung (Seed ${gameState.sd}, ${total} Hexes): ${line}`);
+        return counts;
+    },
+    // Dumpt den kompletten Unterwelt-Zustand (gegrabene Hexes, Einheiten, Lärm,
+    // angebrochene Adern) + Kristalle/Netz-Sicht aller Spieler in die Konsole.
+    uwState: () => {
+        if (!gameState) { console.log('Kein Spiel geladen.'); return; }
+        console.log('gameState.uw:', gameState.uw);
+        gameState.p.forEach((p, i) => console.log(`Spieler ${i} (${p.n}): 💎${p.k || 0} · Netz-Hexes: ${(p.ue || []).length}`));
+        return gameState.uw;
+    },
 };

@@ -49,5 +49,39 @@ const unitStats = {
     12: { dmg: 5, range: 1, move: 2, name: "Luftschraube", cost: 7, maxHp: 14, isMelee: true, isAir: true, hitsAir: true, hitsGround: true },
     13: { dmg: 5, range: 1, move: 4, name: "Gleiter", cost: 6, maxHp: 10, isMelee: true, isAir: true, hitsAir: true, hitsGround: true },
     14: { dmg: 4, range: 2, move: 2, name: "Fallschirmspringer", cost: 4, maxHp: 10, isMelee: false, isAir: true, hitsAir: true, hitsGround: false, ldMove: 2 },
-    15: { dmg: 4, range: 1, move: 2, name: "Bombenballon", cost: 9, maxHp: 14, isMelee: false, isAir: true, hitsAir: false, hitsGround: true, igniteDmg: 4, fsCost: 5, fsDmg: 3 }
+    15: { dmg: 4, range: 1, move: 2, name: "Bombenballon", cost: 9, maxHp: 14, isMelee: false, isAir: true, hitsAir: false, hitsGround: true, igniteDmg: 4, fsCost: 5, fsDmg: 3 },
+    // Unterwelt (isUW, Phase 3): eigene Ebene unter der Karte, siehe Unterwelt/PLAN.md.
+    // Kein Fraktions-Lock für 16-18 (jeder Spieler kann sie bauen); 19-22 sind
+    // Fraktions-Spezialeinheiten (Zuordnung wie oben über die faktionUnitMap-Stellen
+    // in input.js, nicht hier — unitStats selbst kennt keine Fraktionsbindung, exakt
+    // wie bei den Boden-/Lufteinheiten). "RW 1" heißt hier durchgehend Nahkampf.
+    16: { dmg: 1, range: 1, move: 1, name: "Tunnelgräber", cost: 3, maxHp: 8, isMelee: true, light: true, isUW: true },
+    17: { dmg: 4, range: 1, move: 2, name: "Grubenwache", cost: 5, maxHp: 14, isMelee: true, light: true, isUW: true },
+    18: { dmg: 3, range: 1, move: 2, name: "Sprengmeister", cost: 6, maxHp: 8, isMelee: true, light: true, isUW: true },
+    // Grubenritter (19, Feudalismus): +fb-Bonus wie Ritter/Kamelreiter oben (getUnitMaxHp).
+    19: { dmg: 5, range: 1, move: 2, name: "Grubenritter", cost: 7, maxHp: 16, isMelee: true, light: true, isUW: true },
+    // Beutegräber (20, Plünderer): +1 DMG via Plünderer-Passiv (wie alle Nahkämpfer,
+    // hier schon in dmg eingepreist — getExpectedDamageUW addiert es zusätzlich analog
+    // zu getExpectedDamage, NICHT doppelt: dmg hier ist der Basiswert ohne Passiv).
+    20: { dmg: 4, range: 1, move: 3, name: "Beutegräber", cost: 5, maxHp: 10, isMelee: true, light: true, isUW: true },
+    21: { dmg: 3, range: 1, move: 2, name: "Horcher", cost: 4, maxHp: 8, isMelee: true, light: true, isUW: true },
+    // Bohrwagen (22, Gilden): digMove = Grab-Aktionen pro Zug (2 statt 1, siehe
+    // digUWHex/executeUWDig — a=2 als Zwischenzustand wie beim Bewegen+Angreifen-Muster).
+    22: { dmg: 4, range: 1, move: 1, name: "Bohrwagen", cost: 9, maxHp: 14, isMelee: true, light: true, isUW: true, digMove: 2 }
+};
+
+// Fraktions-Zuordnung der Unterwelt-Spezialeinheiten (Typ-IDs 19-22) — gleiches
+// Muster wie die faktionUnitMap-Stellen in input.js (Rekrutierungsmenüs), hier
+// zentral für Rekrutierung UND Debug-Spawner.
+const uwFactionUnitMap = { 0: 19, 1: 20, 2: 21, 3: 22 };
+
+// === RELIQUIEN (M10, PLAN.md Abschn. 7) ===
+// Fundstücke alter Handwerkskunst (nicht sakral!) — kaufbar für Kristalle im
+// Dorf-Menü, eine ausgerüstete Reliquie pro Einheit (u[].art / uw.u[].art).
+// "map" wirkt sofort beim Kauf und landet nie in p[].rel (siehe applyMapRelic).
+const RELICS = {
+    blade: { name: "Damaszener Klinge", icon: "🗡️", cost: 4, desc: "Eine Einheit erhält permanent +5 DMG.", target: "unit" },
+    armor: { name: "Harnisch des Bergvolks", icon: "🛡️", cost: 4, desc: "Eine Einheit erhält permanent +10 Max-HP (heilt beim Ausrüsten mit).", target: "unit" },
+    tool: { name: "Meisterwerkzeug", icon: "🔧", cost: 3, desc: "Ein Bauwerk (Mauer/Turm/Tunnel/Startdorf) sofort auf volle HP.", target: "building" },
+    map: { name: "Karte der Tiefe", icon: "🗺️", cost: 5, desc: "Deckt dauerhaft die gesamte Karte auf (Oberfläche + Unterwelt).", target: "instant" }
 };

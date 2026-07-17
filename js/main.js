@@ -16,13 +16,32 @@ function bootGame() {
         if (typeof p.e === 'string') p.e = decompressFog(p.e);
         if (p.dead === undefined) p.dead = 0;
         if (p.s === undefined) p.s = 0;
+        if (p.k === undefined) p.k = 0;
+        if (!p.ue) p.ue = [];
+        if (typeof p.ue === 'string') p.ue = decompressFog(p.ue);
         if (!p.of) p.of = [];
+        if (!p.rel) p.rel = []; // gekaufte, noch nicht ausgerüstete Reliquien (M10)
     });
     if (!gameState.tu) gameState.tu = [];
     if (!gameState.wa) gameState.wa = [];
     if (!gameState.st) gameState.st = [];
     if (!gameState.tw) gameState.tw = [];
     if (!gameState.ct) gameState.ct = { x: gameState.rad, y: gameState.rad, ctrl: -1 };
+    // Unterwelt-Zustand (M9b/M10): d = gegrabene Hexes (Array im Speicher, komprimierter
+    // Index-String nur auf dem Wire — siehe hex.js/isUnderworldOpen), u = Tiefen-
+    // einheiten, n = Lärm-Marker der letzten Runde, a = angebrochene Kristalladern,
+    // f = geplünderte Fundkammern (M10, {"x,y": 1}).
+    if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {}, f: {} };
+    if (!gameState.uw.d) gameState.uw.d = [];
+    if (typeof gameState.uw.d === 'string') gameState.uw.d = decompressFog(gameState.uw.d);
+    if (!gameState.uw.u) gameState.uw.u = [];
+    if (!gameState.uw.n) gameState.uw.n = [];
+    if (!gameState.uw.a) gameState.uw.a = {};
+    if (!gameState.uw.f) gameState.uw.f = {};
+    gameState.uw.u.forEach((u, idx) => {
+        if (u.a === undefined) u.a = 0;
+        if (!u.i) u.i = idx + 1;
+    });
     gameState.u.forEach((u, idx) => {
         if (u.a === undefined) u.a = 0;
         if (!u.i) u.i = idx + 1;
@@ -58,8 +77,11 @@ function bootGame() {
         }
 
         let recapIndex = 0;
-        const recapColors = { mv: '#64b5f6', atk: '#ff5252', buy: '#69f0ae', cap: '#ffab40' };
-        const recapIcons = { mv: '→', atk: '⚔', buy: '✦', cap: '⚑' };
+        // dig/mine (M9b, Unterwelt) nutzen dieselben Tags wie oben — eigene Farbe/
+        // Icon statt der defensiven '•'/#fff-Fallbacks in playNextRecap unten.
+        // loot/relicbuy/relicuse (M10, Unterwelt) nutzen dieselben Tags wie oben.
+        const recapColors = { mv: '#64b5f6', atk: '#ff5252', buy: '#69f0ae', cap: '#ffab40', dig: '#a1662f', mine: '#7fe3ff', loot: '#c9a24b', relicbuy: '#ba68c8', relicuse: '#ba68c8' };
+        const recapIcons = { mv: '→', atk: '⚔', buy: '✦', cap: '⚑', dig: '⛏', mine: '💎', loot: '🏺', relicbuy: '🗺️', relicuse: '🔧' };
 
         function playNextRecap() {
             if (recapIndex >= recapActions.length) {

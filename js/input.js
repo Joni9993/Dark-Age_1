@@ -22,6 +22,12 @@ function handleCanvasClick(clientX, clientY) {
     const closest = Renderer.pickHex(clientX, clientY);
 
     if (closest) {
+        // Reliquien-Zielauswahl (M10) hat Vorrang, egal ob Boden oder Luft (kann
+        // beides treffen) — Gegenstück zum selben Check in handleUnderworldClick.
+        if (window.uwSpecialActive && window.uwSpecialActive.startsWith('relic_')) {
+            handleRelicTargetClick(closest.x, closest.y, false);
+            return;
+        }
         window.highlightedTunnelEnd = null;
         const clickedX = closest.x; const clickedY = closest.y;
         const vis = getVisibleHexes(gameState.cp); const isVisible = vis.has(`${clickedX},${clickedY}`);
@@ -517,16 +523,266 @@ function handleCanvasClick(clientX, clientY) {
 }
 
 // Klicks, während die Kamera tatsächlich unter der Karte steht (siehe
-// handleCanvasClick): reine Feld-Auswahl mit visueller Markierung
-// (window.selectedUnderworldHex), noch losgelöst von jeglicher Spiellogik —
-// es gibt noch keine Unterwelt-Einheiten/-Gebäude, daher kein Bewegen/
-// Angreifen/Menü, nur Hervorheben zum Re-Klick-Toggle.
+// handleCanvasClick). M9b: volles Pendant zu handleCanvasClick — Ziel-Klicks
+// auf hervorgehobene Bewegungs-/Grab-/Abbau-Hexes lösen die jeweilige Aktion
+// aus (gleiches Muster wie validMoves/validAttacks oben), alles andere zeigt
+// Info + Aktionsmenü (showUnderworldTileUI, mkBtn-Muster wie showTileUI).
 function handleUnderworldClick(clientX, clientY) {
+    if (!isLegacyUrlMode && currentGameId && currentTurnSlot !== currentUserSlot) return;
+    hideActionMenu();
     const closest = Renderer.pickHex(clientX, clientY);
-    if (!closest) { window.selectedUnderworldHex = null; renderBoard(gameState); return; }
-    const same = window.selectedUnderworldHex && window.selectedUnderworldHex.x === closest.x && window.selectedUnderworldHex.y === closest.y;
-    window.selectedUnderworldHex = same ? null : { x: closest.x, y: closest.y };
+    if (!closest) { clearUWSelection(); renderBoard(gameState); return; }
+    const clickedX = closest.x, clickedY = closest.y;
+
+    // Reliquien-Zielauswahl (M10) hat Vorrang — kann sowohl Oberflächen- als auch
+    // Unterwelt-Ziele treffen, siehe handleRelicTargetClick.
+    if (window.uwSpecialActive && window.uwSpecialActive.startsWith('relic_')) {
+        handleRelicTargetClick(clickedX, clickedY, true);
+        return;
+    }
+
+    if (window.uwSpecialActive === 'mine_select') {
+        const target = uwValidMine.find(m => m.x === clickedX && m.y === clickedY);
+        if (target) { executeUWMine(target.x, target.y); return; }
+        window.uwSpecialActive = null; uwValidMine = [];
+        showUnderworldTileUI(clickedX, clickedY);
+        renderBoard(gameState);
+        return;
+    }
+
+    if (selectedUWUnit && uwValidAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
+        const targetAttack = uwValidAttacks.find(a => a.x === clickedX && a.y === clickedY);
+        executeUWAttack(clickedX, clickedY, targetAttack);
+        return;
+    }
+    if (selectedUWUnit && uwValidMoves.some(m => m.x === clickedX && m.y === clickedY)) {
+        executeUWMoveTo(clickedX, clickedY);
+        return;
+    }
+    if (selectedUWUnit && uwValidDigs.some(m => m.x === clickedX && m.y === clickedY)) {
+        executeUWDig(clickedX, clickedY);
+        return;
+    }
+
+    showUnderworldTileUI(clickedX, clickedY);
     renderBoard(gameState);
+}
+
+function clearUWSelection() {
+    window.selectedUnderworldHex = null;
+    selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidMine = []; uwValidAttacks = [];
+    window.uwSpecialActive = null;
+    hideActionMenu();
+}
+
+// Pendant zu showTileUI für die Unterwelt-Ebene: Info-Panel + Aktionsmenü für
+// das angeklickte Unterwelt-Hex (eigene Einheit auswählen, Stollenkopf-Kauf).
+function showUnderworldTileUI(clickedX, clickedY) {
+    const pState = gameState.p[gameState.cp];
+    const uType = getUnderworldType(gameState, clickedX, clickedY);
+    const open = isUnderworldOpen(gameState, clickedX, clickedY);
+    const stollenOwner = getStollenkopfOwner(gameState, clickedX, clickedY);
+    const rawUnit = uwUnitAt(clickedX, clickedY);
+    const unit = (rawUnit && isUWUnitVisible(gameState.cp, rawUnit)) ? rawUnit : null;
+
+    window.selectedUnderworldHex = { x: clickedX, y: clickedY };
+    selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidMine = []; uwValidAttacks = [];
+    window.uwSpecialActive = null;
+
+    if (unit) {
+        const maxHp = getUnitMaxHp(gameState.p[unit.p], unit.t, unit);
+        const ownerName = formatOwnerName(unit.p, gameState.cp);
+        const ownerColor = getEntityColor(unit.p);
+        const crText = unit.cr ? ` | 💎 trägt ${unit.cr}/3` : '';
+        const artText = unit.art ? ` | ${RELICS[unit.art].icon} ${RELICS[unit.art].name}` : '';
+        let expectedDmgText = '';
+        if (selectedUWUnit && selectedUWUnit.p === gameState.cp && unit.p !== gameState.cp && uwValidAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
+            expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${getExpectedDamageUW(selectedUWUnit, unit)} DMG</span>`;
+        }
+        infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} ${unitStats[unit.t].name} (${unit.h}/${maxHp} HP)</span><div class="info-detail">Bewegung: ${getUnitMove(gameState.p[unit.p], unit.t, unit)}${crText}${artText}</div>${expectedDmgText}`;
+    } else {
+        let extra = '';
+        if (stollenOwner !== -1) extra += `<br><span style="color:${getEntityColor(stollenOwner)}">${formatOwnerName(stollenOwner, gameState.cp)} Stollenkopf</span>`;
+        const rem = getUWVeinRemaining(gameState, clickedX, clickedY);
+        if (rem > 0) extra += `<br><span style="color:#7fe3ff">💎 Ader: ${rem}/4</span>`;
+        if (isFundkammerHex(gameState, clickedX, clickedY)) {
+            const looted = gameState.uw && gameState.uw.f && gameState.uw.f[`${clickedX},${clickedY}`];
+            extra += `<br><span style="color:#c9a24b">🏺 Fundkammer${looted ? ' (geplündert)' : ''}</span>`;
+        }
+        infoPanel.innerHTML = `${UW_TYPE_NAMES[uType]}${open ? '' : ' (massiv)'}${extra}`;
+    }
+
+    let menuHtml = '';
+
+    // Eigene, agierbare Tiefeneinheit auf dem Feld -> auswählen, Bewegen/Graben/
+    // Angreifen (Klick auf Highlight) + Abbauen/Abliefern/Aufsteigen (Buttons).
+    // Bohrwagen (22) darf nach dem ERSTEN Graben nochmal wählen (a=2-Zwischenzustand,
+    // gleiches Muster wie "bewegt, kann noch angreifen" an der Oberfläche).
+    const selectable = unit && unit.p === gameState.cp && (unit.a === 0 || (unit.t === 22 && unit.a === 2));
+    if (selectable) {
+        selectedUWUnit = unit;
+        uwValidMoves = calculateMovesUW(unit);
+        uwValidDigs = calculateDigsUW(unit);
+        uwValidAttacks = calculateAttacksUW(unit);
+        const mineTargets = calculateMineTargetsUW(unit);
+
+        if (mineTargets.length > 0 && (unit.cr || 0) < 3) {
+            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #00838f;" onclick="window.startUWMine()">💎 Abbauen</button>`;
+        }
+        if ((unit.cr || 0) > 0 && stollenOwner === gameState.cp) {
+            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #ffab00;" onclick="window.uwDeliverCrystals()">💎 Abliefern (${unit.cr})</button>`;
+        }
+        if (unit.t === 16 && stollenOwner === gameState.cp) {
+            const surfaceFree = !groundUnitAt(clickedX, clickedY) && gameState.v[`${clickedX},${clickedY}`] === undefined;
+            if (surfaceFree) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #6d4c41;" onclick="window.uwAscend()">🕳 Aufsteigen</button>`;
+        }
+        const hint = unit.t === 22 && unit.a === 0 ? ' (2. Grabung möglich)' : '';
+        infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Einheit ausgewählt${hint}. Ziel wählen oder Aktion.</div>`;
+    }
+
+    // Eigener freier Stollenkopf -> Rekrutieren: 16-18 immer verfügbar, 19-22 nur
+    // bei der jeweils gewählten Fraktion (uwFactionUnitMap, js/data.js — gleiches
+    // Muster wie die Fraktions-Einheiten der Dorf-Rekrutierung unten). Belegt-Check
+    // bewusst gegen rawUnit (nicht das fog-gefilterte `unit`) — ein durch Nebel
+    // unsichtbarer Besetzer darf trotzdem nicht überkauft werden (wie groundUnitAt
+    // bei buyUnit auf der Oberfläche, das auch unabhängig von Sicht blockiert).
+    if (stollenOwner === gameState.cp && !rawUnit) {
+        const uwMkBtn = (t, icon) => {
+            const cost = getUnitCost(pState, t);
+            const afford = pState.g >= cost;
+            return `<button class="action-btn" style="padding: 6px 8px; font-size: 0.9rem; display:flex; flex-direction:column; align-items:center; gap:4px; ${afford ? '' : 'opacity:0.5;'}" ${afford ? `onclick="window.buyUWUnit(${t})"` : 'disabled'}>
+                <div>${icon} ${unitStats[t].name} (${cost}G)</div>
+                <div style="font-size: 0.65rem; color: #b0bec5; display:flex; gap:8px;"><span>❤️${unitStats[t].maxHp}</span><span>⚔️${unitStats[t].dmg}</span><span>👟${unitStats[t].move}</span></div>
+            </button>`;
+        };
+        menuHtml += uwMkBtn(16, '⛏') + uwMkBtn(17, '🛡') + uwMkBtn(18, '💥');
+        // Ein Spieler kann bis zu 2 Fraktionen freischalten (Kultur 1+2) — wie bei
+        // der Dorf-Rekrutierung unten zeigt jede gewählte Fraktion ihre Einheit.
+        const facIcons = { 19: '⚔', 20: '🪙', 21: '👂', 22: '⚙' };
+        (pState.f || []).forEach(f => {
+            const facUnit = uwFactionUnitMap[f];
+            if (facUnit) menuHtml += uwMkBtn(facUnit, facIcons[facUnit] || '★');
+        });
+    }
+
+    if (menuHtml) showActionMenu(menuHtml);
+}
+
+// Führt die Bewegung von `selectedUWUnit` nach (x,y) aus — reine Bewegung ohne
+// Graben, Ziel muss bereits offen sein (uwValidMoves, BFS über isUnderworldOpen).
+// Läuft die Einheit dabei erstmals in eine Fundkammer, wird sie sofort geplündert
+// (M10, lootFundkammer) — Toast + Recap-Eintrag.
+function executeUWMoveTo(clickedX, clickedY) {
+    saveUndoState();
+    const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
+    const unit = selectedUWUnit;
+    unit.x = clickedX; unit.y = clickedY;
+    unit.a = 1;
+    turnActions.push({ x: clickedX, y: clickedY, t: 'mv', fx: fromX, fy: fromY });
+    infoPanel.innerHTML = 'Bewegt.';
+
+    if (isFundkammerHex(gameState, clickedX, clickedY)) {
+        const loot = lootFundkammer(gameState, gameState.cp, unit, clickedX, clickedY);
+        if (loot) {
+            if (loot.type === 'crystal') {
+                showToast(`🏺 Fundkammer: +${loot.amount} 💎 Kristalle!`, 'gold');
+            } else {
+                showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} gefunden!`, 'gold');
+            }
+            turnActions.push({ x: clickedX, y: clickedY, t: 'loot' });
+            updateUI();
+        }
+    }
+
+    clearUWSelection();
+    renderBoard(gameState); updateUI();
+}
+
+// Graben: Ziel-Hex (angrenzender FELS) dauerhaft öffnen und die Einheit
+// nachrücken lassen ("sich durchfressen", siehe Auftrag) — erzeugt Lärm.
+// Bohrwagen (22) darf 2x/Zug graben: die ERSTE Grabung setzt a=2 (Zwischenzustand,
+// "kann noch agieren") statt a=1, digUWHex() selbst kennt diese Sonderregel nicht.
+function executeUWDig(clickedX, clickedY) {
+    saveUndoState();
+    const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
+    const unit = selectedUWUnit;
+    const isBohrwagenFirstDig = unit.t === 22 && unit.a === 0;
+    digUWHex(gameState, unit, clickedX, clickedY);
+    if (isBohrwagenFirstDig) unit.a = 2;
+    addUWNoise(clickedX, clickedY);
+    turnActions.push({ x: clickedX, y: clickedY, t: 'dig', fx: fromX, fy: fromY });
+    infoPanel.innerHTML = isBohrwagenFirstDig ? '⛏ Erste Grabung! (nochmal wählen für die 2.)' : '⛏ Hex durchgegraben!';
+    clearUWSelection();
+    renderBoard(gameState); updateUI();
+}
+
+// Startet die Ziel-Auswahl fürs Abbauen (mehrstufig wie Tunnel/Mauer/Turm-Bau
+// oben, window.uwSpecialActive statt window.specialActive) — nötig, weil
+// mehrere Adern gleichzeitig in Reichweite liegen können.
+window.startUWMine = function () {
+    if (!selectedUWUnit) return;
+    const targets = calculateMineTargetsUW(selectedUWUnit);
+    if (targets.length === 0) return;
+    uwValidMoves = []; uwValidDigs = []; uwValidAttacks = [];
+    uwValidMine = targets;
+    window.uwSpecialActive = 'mine_select';
+    hideActionMenu();
+    infoPanel.innerHTML = `💎 Abbauen<br><div class="info-detail" style="color: #4fc3f7;">Wähle eine markierte Ader.</div>`;
+    renderBoard(gameState);
+};
+
+// Ein Abbau-Tick: -1 (Beutegräber: -2) Restbestand der Ader, entsprechend viel
+// getragener Kristall (max. 3, siehe Button-Gate in showUnderworldTileUI). Bei
+// Restbestand 0 wird das Hex dauerhaft offen (wie gegraben) und der uw.a-Eintrag
+// gelöscht. Erzeugt Lärm.
+function executeUWMine(clickedX, clickedY) {
+    saveUndoState();
+    const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
+    const remaining = mineUWVein(gameState, selectedUWUnit, clickedX, clickedY);
+    addUWNoise(clickedX, clickedY);
+    turnActions.push({ x: clickedX, y: clickedY, t: 'mine', fx: fromX, fy: fromY });
+    infoPanel.innerHTML = `💎 Ader abgebaut! (Rest: ${remaining}/4)`;
+    window.uwSpecialActive = null; uwValidMine = [];
+    clearUWSelection();
+    renderBoard(gameState); updateUI();
+}
+
+// Unterwelt-Nahkampf (M10): Schaden -> Konterschlag nach 600ms wenn das Ziel
+// überlebt und in Reichweite bleibt -> bei Kill rückt der Angreifer aufs
+// Ziel-Hex nach (gleiches Grundmuster wie executeAttackOnTarget oben, aber ohne
+// Gebäude-/Struktur-Ziele — unten gibt es nur Einheiten).
+function executeUWAttack(clickedX, clickedY, targetAttack) {
+    saveUndoState();
+    const attackerUnit = selectedUWUnit;
+    const target = targetAttack.target;
+    if (attackerUnit.iv === 1) delete attackerUnit.iv; // Horcher: Angriff bricht die Tarnung
+
+    const result = resolveUWAttack(gameState, attackerUnit, target);
+    spawnFloatingText(target.x, target.y, `-${result.finalDmg}`, "#ff5252");
+    addUWNoise(clickedX, clickedY); // Kämpfe erzeugen ebenfalls Lärm (PLAN.md Abschn. 5)
+
+    if (result.retDmg > 0) {
+        const retDmg = result.retDmg;
+        setTimeout(() => {
+            if (attackerUnit.h > 0) {
+                attackerUnit.h -= retDmg;
+                spawnFloatingText(attackerUnit.x, attackerUnit.y, `-${retDmg}`, "#ff5252");
+                if (attackerUnit.h <= 0) {
+                    gameState.uw.u = gameState.uw.u.filter(u => u.i !== attackerUnit.i);
+                    infoPanel.innerHTML += '<br>Deine Einheit wurde im Gegenangriff besiegt!';
+                }
+                renderBoard(gameState);
+            }
+        }, 600);
+    }
+    infoPanel.innerHTML = result.stolenCrystals > 0
+        ? `Angriff! (-${result.finalDmg} HP) | +${result.stolenCrystals}💎 erbeutet!`
+        : `Angriff! (-${result.finalDmg} HP)`;
+
+    turnActions.push({ x: clickedX, y: clickedY, t: 'atk', fx: attackerUnit.x, fy: attackerUnit.y });
+    attackerUnit.a = 1;
+    clearUWSelection();
+    renderBoard(gameState); updateUI();
 }
 
 // Führt den Angriff von `selectedUnit` auf `targetAttack` aus (Einheit, Hauptgebäude,
@@ -683,7 +939,12 @@ function executeMoveTo(clickedX, clickedY) {
             const prevX = selectedUnit.x, prevY = selectedUnit.y;
 
             let targetX = clickedX; let targetY = clickedY; let teleported = false;
-            if (gameState.tu && !isFlying(selectedUnit) && !isHeavyUnit(selectedUnit)) {
+            // Tunnelgräber (16) betreten Tunnel-Endpunkte wie jede andere Boden-
+            // einheit (kein Erobern-Verbot), nutzen aber NICHT den Oberflächen-
+            // Teleport — ihr Ebenenwechsel läuft exklusiv über Aufsteigen/Abtauchen
+            // (window.uwAscend/uwDescend, js/abilities.js), damit sich beide Wege
+            // nicht gegenseitig kreuzen (Konfliktfreiheit, siehe M9b-Auftrag).
+            if (gameState.tu && !isFlying(selectedUnit) && !isHeavyUnit(selectedUnit) && selectedUnit.t !== 16) {
                 let tunnel = gameState.tu.find(t => t.r <= gameState.rn && ((t.x1 === clickedX && t.y1 === clickedY) || (t.x2 === clickedX && t.y2 === clickedY)));
                 if (tunnel) {
                     let linkX = tunnel.x1 === clickedX ? tunnel.x2 : tunnel.x1;
@@ -1090,7 +1351,13 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                 let onTunnel = gameState.tu.find(t => (t.x1 === clickedUnit.x && t.y1 === clickedUnit.y) || (t.x2 === clickedUnit.x && t.y2 === clickedUnit.y));
                 if (onTunnel) {
                     window.highlightedTunnelEnd = { x: onTunnel.x1 === clickedUnit.x ? onTunnel.x2 : onTunnel.x1, y: onTunnel.y1 === clickedUnit.y ? onTunnel.y2 : onTunnel.y1 };
-                    if (onTunnel.r <= gameState.rn && (clickedUnit.a === 0 || clickedUnit.a === 2) && !isHeavyUnit(clickedUnit)) {
+                    // Tunnelgräber (16) nutzen an ihrem EIGENEN Tunnel-Endpunkt exklusiv
+                    // Abtauchen (Ebenenwechsel, js/abilities.js) statt des Oberflächen-
+                    // Teleports — Konfliktfreiheit, siehe Kommentar in executeMoveTo.
+                    if (clickedUnit.t === 16 && onTunnel.o === gameState.cp && onTunnel.r <= gameState.rn && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
+                        menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4527a0;" onclick="window.uwDescend()">🕳 Abtauchen</button>`;
+                    }
+                    if (clickedUnit.t !== 16 && onTunnel.r <= gameState.rn && (clickedUnit.a === 0 || clickedUnit.a === 2) && !isHeavyUnit(clickedUnit)) {
                         menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #8d6e63;" onclick="useTunnel()">🚇 Durch Tunnel gehen</button>`;
                     }
                 }
@@ -1174,9 +1441,34 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
         }
     }
 
-    if (!clickedUnit && !recruitHtml) { selectedUnit = null; validMoves = []; validAttacks = []; }
+    // Reliquien-Shop (M10, PLAN.md Abschn. 7): eigenes Dorf, nur sichtbar wenn
+    // Kristalle vorhanden sind ODER schon Reliquien im Inventar liegen — Kauf-
+    // Buttons (RELICS, js/data.js) + "Ausrüsten"-Buttons für Bestand (map wirkt
+    // sofort beim Kauf und landet nie in p[].rel, siehe applyMapRelic).
+    let relicHtml = '';
+    if (villageOwner === gameState.cp && ((pState.k || 0) > 0 || (pState.rel && pState.rel.length > 0))) {
+        Object.entries(RELICS).forEach(([key, def]) => {
+            const afford = (pState.k || 0) >= def.cost;
+            relicHtml += `<button class="action-btn" style="padding: 6px 8px; font-size: 0.85rem; display:flex; flex-direction:column; align-items:center; gap:2px; border-color:#7fe3ff; ${afford ? '' : 'opacity:0.5;'}" ${afford ? `onclick="window.buyRelic('${key}')"` : 'disabled'} title="${def.desc}">
+                <div>${def.icon} ${def.name}</div>
+                <div style="font-size: 0.65rem; color: #7fe3ff;">${def.cost}💎</div>
+            </button>`;
+        });
+        if (pState.rel && pState.rel.length > 0) {
+            const counts = {};
+            pState.rel.forEach(r => counts[r] = (counts[r] || 0) + 1);
+            Object.entries(counts).forEach(([key, n]) => {
+                const def = RELICS[key];
+                relicHtml += `<button class="action-btn" style="padding: 6px 8px; font-size: 0.85rem; background:#4527a0;" onclick="window.startRelicEquip('${key}')">${def.icon} ${def.name} ausrüsten (${n}x)</button>`;
+            });
+        }
+    }
 
-    const tileMenuHtml = unitMenuHtml + (recruitHtml ? `<div class="recruit-scroll" style="width:100%;">${recruitHtml}</div>` : '');
+    if (!clickedUnit && !recruitHtml && !relicHtml) { selectedUnit = null; validMoves = []; validAttacks = []; }
+
+    const tileMenuHtml = unitMenuHtml
+        + (recruitHtml ? `<div class="recruit-scroll" style="width:100%;">${recruitHtml}</div>` : '')
+        + (relicHtml ? `<div class="recruit-scroll" style="width:100%;">${relicHtml}</div>` : '');
     if (tileMenuHtml) showActionMenu(tileMenuHtml);
 }
 
@@ -1310,10 +1602,19 @@ function confirmSurrender() {
 
     gameState.p[surrenderingId].dead = 1;
     gameState.u = gameState.u.filter(u => u.p !== surrenderingId);
+    if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(u => u.p !== surrenderingId);
 
     Object.keys(gameState.v).forEach(k => {
         if (gameState.v[k] === surrenderingId) delete gameState.v[k];
     });
+
+    // Siehe doEndTurn: uw.n wird durch die Marker des gerade beendeten (hier:
+    // abgebrochenen) Zugs ersetzt.
+    if (gameState.uw || (window.uwNoiseScratch && window.uwNoiseScratch.length)) {
+        if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {} };
+        gameState.uw.n = window.uwNoiseScratch || [];
+    }
+    window.uwNoiseScratch = [];
 
     gameState.la = turnActions;
     turnActions = [];
@@ -1338,11 +1639,13 @@ function confirmSurrender() {
 
     gameState.p.forEach(p => {
         if (Array.isArray(p.e)) p.e = compressFog(p.e);
+        if (Array.isArray(p.ue)) p.ue = compressFog(p.ue);
         if (p.al && p.al.length === 0) delete p.al;
         if (p.req && p.req.length === 0) delete p.req;
         if (p.tc && p.tc.length === 0) delete p.tc;
         if (p.of && p.of.length === 0) delete p.of;
         if (p.gifts && p.gifts.length === 0) delete p.gifts;
+        if (p.rel && p.rel.length === 0) delete p.rel;
         if (gameState.tu && gameState.tu.length === 0) delete gameState.tu;
         if (gameState.wa && gameState.wa.length === 0) delete gameState.wa;
         if (gameState.st && gameState.st.length === 0) delete gameState.st;
@@ -1356,21 +1659,50 @@ function confirmSurrender() {
         if (!u.bn) delete u.bn;
         delete u.i;
     });
+    // Unterwelt-Zustand (M9b/M10): gleiches Delete-Defaults-Muster wie u[] oben +
+    // uw.d komprimiert wie p[].e/ue; state.uw komplett weglassen, wenn nichts
+    // von der Unterwelt je berührt wurde (spart Blob-Bytes in den meisten Spielen).
+    // uw.f (geplünderte Fundkammern) folgt demselben Muster wie uw.a.
+    if (gameState.uw) {
+        (gameState.uw.u || []).forEach(u => {
+            if (u.a === 0) delete u.a;
+            delete u.i;
+        });
+        if (Array.isArray(gameState.uw.d)) gameState.uw.d = compressFog(gameState.uw.d);
+        if (gameState.uw.n && gameState.uw.n.length === 0) delete gameState.uw.n;
+        if (gameState.uw.a && Object.keys(gameState.uw.a).length === 0) delete gameState.uw.a;
+        if (gameState.uw.f && Object.keys(gameState.uw.f).length === 0) delete gameState.uw.f;
+        if (!gameState.uw.d && (!gameState.uw.u || gameState.uw.u.length === 0) && !gameState.uw.n && !gameState.uw.a && !gameState.uw.f) delete gameState.uw;
+    }
     if (gameState.bd && gameState.bd.length === 0) delete gameState.bd;
     const encodedState = LZString.compressToEncodedURIComponent(JSON.stringify(gameState));
 
     gameState.p.forEach(p => {
         if (typeof p.e === 'string') p.e = decompressFog(p.e);
+        if (typeof p.ue === 'string') p.ue = decompressFog(p.ue);
+        if (!p.ue) p.ue = [];
         if (!p.al) p.al = [];
         if (!p.req) p.req = [];
         if (!p.tc) p.tc = [];
         if (!p.of) p.of = [];
+        if (!p.rel) p.rel = [];
         if (p.dead === undefined) p.dead = 0;
     });
     if (!gameState.tu) gameState.tu = [];
     if (!gameState.wa) gameState.wa = [];
     if (!gameState.st) gameState.st = [];
     if (!gameState.tw) gameState.tw = [];
+    if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {}, f: {} };
+    if (typeof gameState.uw.d === 'string') gameState.uw.d = decompressFog(gameState.uw.d);
+    if (!gameState.uw.d) gameState.uw.d = [];
+    if (!gameState.uw.u) gameState.uw.u = [];
+    if (!gameState.uw.n) gameState.uw.n = [];
+    if (!gameState.uw.a) gameState.uw.a = {};
+    if (!gameState.uw.f) gameState.uw.f = {};
+    gameState.uw.u.forEach((u, idx) => {
+        if (u.a === undefined) u.a = 0;
+        if (!u.i) u.i = idx + 1;
+    });
     gameState.u.forEach((u, idx) => {
         if (u.a === undefined) u.a = 0;
         if (!u.i) u.i = idx + 1;
@@ -1471,8 +1803,10 @@ function hasRemainingActions() {
     const myVillageKeys = Object.entries(gameState.v)
         .filter(([k, v]) => v === pId)
         .map(([k]) => k);
-    // Kaufbare Typen: Basis 0,1,2 + Fraktions-Einheiten
-    const factionUnitMap = { 0: [3], 1: [4], 2: [5, 6], 3: [6, 7] };
+    // Kaufbare Typen: Basis 0,1,2 + Fraktions-Einheiten (inkl. Unterwelt-Spezial-
+    // einheiten 19-22, M10 — "kaufbar" ist hier nur eine Kosten-Untergrenze für
+    // den End-Zug-Hinweis, keine Verfügbarkeitsprüfung gegen Dorf/Stollenkopf).
+    const factionUnitMap = { 0: [3, 19], 1: [4, 20], 2: [5, 6, 21], 3: [6, 7, 22] };
     let buyableTypes = [0, 1, 2];
     if (pState.f) pState.f.forEach(fId => { if (factionUnitMap[fId]) buyableTypes = buyableTypes.concat(factionUnitMap[fId]); });
     const cheapest = Math.min(...buyableTypes.map(t => getUnitCost(pState, t)));
@@ -1532,7 +1866,7 @@ function openEndTurnConfirm() {
 
     const myVillageKeys = Object.entries(gameState.v).filter(([k, v]) => v === pId).map(([k]) => k);
     if (actions.length === 0 && myVillageKeys.length > 0) {
-        const factionUnitMap = { 0: [3, 10, 12], 1: [4, 8, 13], 2: [5, 9, 14], 3: [6, 11, 15] };
+        const factionUnitMap = { 0: [3, 10, 12, 19], 1: [4, 8, 13, 20], 2: [5, 9, 14, 21], 3: [6, 11, 15, 22] };
         let buyableTypes = [0, 1, 2];
         if (pState.f) pState.f.forEach(fId => { if (factionUnitMap[fId]) buyableTypes = buyableTypes.concat(factionUnitMap[fId]); });
         const cheapest = Math.min(...buyableTypes.map(t => getUnitCost(pState, t)));
@@ -1566,6 +1900,15 @@ function doEndTurn() {
     undoStack = [];
     updateUndoButton();
 
+    // Unterwelt-Lärm (M9b): uw.n wird durch die Marker des GERADE BEENDETEN Zugs
+    // ersetzt (nicht ergänzt) — siehe PLAN.md Abschn. 3/getUWNoisePings. Der
+    // Scratch-Puffer liegt bewusst außerhalb von gameState (siehe globals.js).
+    if (gameState.uw || (window.uwNoiseScratch && window.uwNoiseScratch.length)) {
+        if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {} };
+        gameState.uw.n = window.uwNoiseScratch || [];
+    }
+    window.uwNoiseScratch = [];
+
     processAutoMining(gameState.cp);
     floatingTexts = [];
     attackAnims = [];
@@ -1578,6 +1921,13 @@ function doEndTurn() {
     gameState.u.forEach(u => {
         u.a = 0;
         delete u.br;
+    });
+    // Unterwelt-Einheiten (M9b/M10): a-Reset wie oben, unfiltriert für alle Spieler
+    // (gleiches Muster). Horcher (21) wird dabei automatisch wieder unsichtbar —
+    // seine Tarnung bricht nur für den REST des Zugs, in dem er angreift.
+    ((gameState.uw && gameState.uw.u) || []).forEach(u => {
+        u.a = 0;
+        if (u.t === 21) u.iv = 1;
     });
     if (gameState.p[gameState.cp].tc) gameState.p[gameState.cp].tc = [];
 
@@ -1669,11 +2019,13 @@ function doEndTurn() {
 
     gameState.p.forEach(p => {
         if (Array.isArray(p.e)) p.e = compressFog(p.e);
+        if (Array.isArray(p.ue)) p.ue = compressFog(p.ue);
         if (p.al && p.al.length === 0) delete p.al;
         if (p.req && p.req.length === 0) delete p.req;
         if (p.tc && p.tc.length === 0) delete p.tc;
         if (p.of && p.of.length === 0) delete p.of;
         if (p.gifts && p.gifts.length === 0) delete p.gifts;
+        if (p.rel && p.rel.length === 0) delete p.rel;
         if (gameState.tu && gameState.tu.length === 0) delete gameState.tu;
         if (gameState.wa && gameState.wa.length === 0) delete gameState.wa;
         if (gameState.st && gameState.st.length === 0) delete gameState.st;
@@ -1687,21 +2039,50 @@ function doEndTurn() {
         if (!u.bn) delete u.bn;
         delete u.i;
     });
+    // Unterwelt-Zustand (M9b/M10): gleiches Delete-Defaults-Muster wie u[] oben +
+    // uw.d komprimiert wie p[].e/ue; state.uw komplett weglassen, wenn nichts
+    // von der Unterwelt je berührt wurde (spart Blob-Bytes in den meisten Spielen).
+    // uw.f (geplünderte Fundkammern) folgt demselben Muster wie uw.a.
+    if (gameState.uw) {
+        (gameState.uw.u || []).forEach(u => {
+            if (u.a === 0) delete u.a;
+            delete u.i;
+        });
+        if (Array.isArray(gameState.uw.d)) gameState.uw.d = compressFog(gameState.uw.d);
+        if (gameState.uw.n && gameState.uw.n.length === 0) delete gameState.uw.n;
+        if (gameState.uw.a && Object.keys(gameState.uw.a).length === 0) delete gameState.uw.a;
+        if (gameState.uw.f && Object.keys(gameState.uw.f).length === 0) delete gameState.uw.f;
+        if (!gameState.uw.d && (!gameState.uw.u || gameState.uw.u.length === 0) && !gameState.uw.n && !gameState.uw.a && !gameState.uw.f) delete gameState.uw;
+    }
     if (gameState.bd && gameState.bd.length === 0) delete gameState.bd;
     const encodedState = LZString.compressToEncodedURIComponent(JSON.stringify(gameState));
 
     gameState.p.forEach(p => {
         if (typeof p.e === 'string') p.e = decompressFog(p.e);
+        if (typeof p.ue === 'string') p.ue = decompressFog(p.ue);
+        if (!p.ue) p.ue = [];
         if (!p.al) p.al = [];
         if (!p.req) p.req = [];
         if (!p.tc) p.tc = [];
         if (!p.of) p.of = [];
+        if (!p.rel) p.rel = [];
         if (p.dead === undefined) p.dead = 0;
     });
     if (!gameState.tu) gameState.tu = [];
     if (!gameState.wa) gameState.wa = [];
     if (!gameState.st) gameState.st = [];
     if (!gameState.tw) gameState.tw = [];
+    if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {}, f: {} };
+    if (typeof gameState.uw.d === 'string') gameState.uw.d = decompressFog(gameState.uw.d);
+    if (!gameState.uw.d) gameState.uw.d = [];
+    if (!gameState.uw.u) gameState.uw.u = [];
+    if (!gameState.uw.n) gameState.uw.n = [];
+    if (!gameState.uw.a) gameState.uw.a = {};
+    if (!gameState.uw.f) gameState.uw.f = {};
+    gameState.uw.u.forEach((u, idx) => {
+        if (u.a === undefined) u.a = 0;
+        if (!u.i) u.i = idx + 1;
+    });
     gameState.u.forEach((u, idx) => {
         if (u.a === undefined) u.a = 0;
         if (!u.i) u.i = idx + 1;

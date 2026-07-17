@@ -318,6 +318,92 @@ function renderBoard(state) {
     if (!isAnimating) Renderer.render(state);
 }
 
+// Unterwelt-2D-Fallback: einfache Draufsicht statt der leeren, blanken Karte —
+// dunkle Fels-Hexes, hellere offene Hexes, Kristalladern mit Akzentfarbe,
+// Herzkaverne markiert. Keine Perfektion nötig — Parität der Information, nicht
+// der Optik (siehe Auftrag). Seit M9b: echte Netz-Sicht (getVisibleUWHexes)
+// statt "immer alles zeigen", + Einheiten-Marker/Ziel-Highlights/Gehör-Pings.
+const UW_2D_COLORS = {
+    [UW_FELS]: '#232326', [UW_KAVERNE]: '#4a3c2a', [UW_ADER]: '#2e3a42',
+    [UW_RUINE]: '#4a3c2a', [UW_HERZ]: '#4a2a2a'
+};
+
+// Sichtbarer Terrain-Typ inkl. Laufzeit-Zustand — gleiche Logik wie
+// uwVisualType in render3d.js (dort ausführlicher kommentiert), hier als
+// eigene, schlanke Kopie (2D-Fallback bleibt bewusst minimal/unabhängig).
+function uw2DVisualType(x, y) {
+    const t = getUnderworldType(gameState, x, y);
+    if (t === UW_ADER) return getUWVeinRemaining(gameState, x, y) > 0 ? UW_ADER : UW_KAVERNE;
+    if (t === UW_FELS && isUnderworldOpen(gameState, x, y)) return UW_KAVERNE;
+    return t;
+}
+
+function drawUnderworldHex2D(x, y, uwVis, noisePings) {
+    const center = getHexCenter(x, y);
+    const key = `${x},${y}`;
+
+    if (!uwVis.has(key)) {
+        drawHexPath(center.px, center.py);
+        ctx.fillStyle = "#0a0a0a"; ctx.fill(); ctx.strokeStyle = "#111"; ctx.stroke();
+        return;
+    }
+
+    const uType = uw2DVisualType(x, y);
+    drawHexPath(center.px, center.py);
+    ctx.fillStyle = UW_2D_COLORS[uType] || UW_2D_COLORS[UW_FELS];
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.6)"; ctx.lineWidth = 1; ctx.stroke();
+
+    if (uType === UW_ADER) {
+        ctx.fillStyle = '#7fe3ff';
+        ctx.beginPath(); ctx.arc(center.px, center.py, 3, 0, Math.PI * 2); ctx.fill();
+    } else if (uType === UW_RUINE) {
+        ctx.strokeStyle = '#c9a24b'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(center.px - 6, center.py); ctx.lineTo(center.px + 6, center.py); ctx.stroke();
+    } else if (uType === UW_HERZ) {
+        ctx.fillStyle = '#ff6f61';
+        ctx.beginPath(); ctx.arc(center.px, center.py, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+    }
+
+    // Ziel-Highlights: Bewegen grün, Graben bräunlich, Abbauen cyan, Angreifen rot
+    // (M10) — gleiche Farbwahl wie render3d.js.
+    if (uwValidMoves.some(m => m.x === x && m.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(100, 255, 100, 0.35)"; ctx.fill(); }
+    if (uwValidDigs.some(d => d.x === x && d.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(161, 102, 47, 0.55)"; ctx.fill(); }
+    if (uwValidMine.some(m => m.x === x && m.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(0, 229, 255, 0.5)"; ctx.fill(); }
+    if (uwValidAttacks.some(a => a.x === x && a.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
+
+    // Tiefeneinheiten: eigene immer, fremde nur im Umkreis 2 eigener Einheiten
+    // (isUWUnitVisible, js/logic.js). Icon pro Typ statt fixem ⛏ (M9b-Rest).
+    const UW_UNIT_ICONS = { 16: '⛏', 17: '🛡', 18: '💥', 19: '⚔', 20: '🪙', 21: '👂', 22: '⚙' };
+    const unit = uwUnitAt(x, y);
+    if (unit && isUWUnitVisible(gameState.cp, unit)) {
+        ctx.globalAlpha = unit.iv === 1 ? 0.5 : 1;
+        ctx.fillStyle = playerColors[unit.p];
+        ctx.beginPath(); ctx.arc(center.px, center.py, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(UW_UNIT_ICONS[unit.t] || '?', center.px, center.py + 3);
+        if (unit.cr) { ctx.fillStyle = '#7fe3ff'; ctx.font = 'bold 8px monospace'; ctx.fillText(`💎${unit.cr}`, center.px, center.py - 10); }
+        if (unit.art) { ctx.fillStyle = '#ba68c8'; ctx.font = 'bold 8px monospace'; ctx.fillText(RELICS[unit.art].icon, center.px + 9, center.py - 6); }
+        ctx.globalAlpha = 1;
+    }
+
+    // Gehör: Horcher-Ortung (exact) als deutlicheres rotes Fadenkreuz, sonst
+    // ungefähre Richtungsmarkierung als kleines Symbol am Netzrand.
+    const ping = noisePings.find(p => p.x === x && p.y === y);
+    if (ping) {
+        ctx.fillStyle = ping.exact ? '#ff5252' : '#ffb300'; ctx.font = `bold ${ping.exact ? 13 : 11}px monospace`; ctx.textAlign = 'center';
+        ctx.fillText(ping.exact ? '🎯' : '👂', center.px, center.py - 14);
+    }
+
+    if (window.selectedUnderworldHex && window.selectedUnderworldHex.x === x && window.selectedUnderworldHex.y === y) {
+        drawHexPath(center.px, center.py);
+        ctx.fillStyle = "rgba(192, 132, 252, 0.35)"; ctx.fill();
+        ctx.strokeStyle = "#c084fc"; ctx.lineWidth = 2; ctx.stroke();
+    }
+}
+
 function drawScene(state) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
@@ -325,6 +411,7 @@ function drawScene(state) {
     ctx.scale(camScale, camScale);
 
     updateExploration();
+    updateUWExploration();
     const vis = getVisibleHexes(gameState.cp);
     const explored = gameState.p[gameState.cp].e || [];
 
@@ -333,9 +420,22 @@ function drawScene(state) {
         return !state.u.some(u => u.p !== state.cp && u.iv === 1 && u.x === a.x && u.y === a.y);
     });
 
+    // Unterwelt-Fokus (2): eigene, vom Oberflächen-Terrain unabhängige Draufsicht
+    // statt der normalen Hex-Schleife (Netz-Sicht statt Oberflächen-Fog, siehe
+    // getVisibleUWHexes/js/logic.js — "Unterwelt aufdecken" im Debug-Panel
+    // übersteuert weiterhin alles).
+    const uwVis = window.cameraFocus === 2 ? getVisibleUWHexes(gameState.cp) : null;
+    const uwNoisePings = window.cameraFocus === 2 ? getUWNoisePings(gameState.cp) : [];
+
     for (let y = 0; y < state.bh; y++) {
         for (let x = 0; x < state.bw; x++) {
             if (!isInsideMap(state, x, y)) continue;
+
+            if (window.cameraFocus === 2) {
+                drawUnderworldHex2D(x, y, uwVis, uwNoisePings);
+                continue;
+            }
+
             const idx = y * state.bw + x;
             const isVisible = vis.has(`${x},${y}`);
 
