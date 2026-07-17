@@ -31,6 +31,30 @@
 
     function tileHeight(tType) { return tType === 'hill' ? HILL_H : TILE_H; }
 
+    // Y-Rotation, mit der die lokale X-Achse (Wand-Längsrichtung im Modell) auf die
+    // Weltrichtung (dx, dz) zeigt. Mod π, da das Wandmodell an beiden Enden
+    // spiegelsymmetrisch ist (180°-Rotation ergibt dasselbe Bild).
+    function wallDirAngle(dx, dz) { return Math.atan2(-dz, dx); }
+
+    // Rotation eines Mauer-Hex, ausgerichtet auf seine Mauer-Nachbarn, damit
+    // aneinandergrenzende Mauersegmente sich optisch verbinden statt isoliert
+    // dazustehen. Bei mehreren Nachbarn wird der Achsen-Mittelwert (doppelter
+    // Winkel, um die π-Symmetrie sauber zu mitteln) verwendet — bei einer
+    // geraden Linie ergibt das exakt die Verbindungsrichtung, bei einer Ecke
+    // einen Kompromisswinkel zwischen beiden (kein eigenes Eck-Modell vorhanden).
+    function computeWallRotation(x, y, wallSet) {
+        const { wx, wz } = worldPos(x, y);
+        let sx = 0, sz = 0, count = 0;
+        getNeighbors(x, y).forEach(n => {
+            if (!wallSet.has(`${n.x},${n.y}`)) return;
+            const p = worldPos(n.x, n.y);
+            const a = wallDirAngle(p.wx - wx, p.wz - wz);
+            sx += Math.cos(2 * a); sz += Math.sin(2 * a); count++;
+        });
+        if (!count) return 0;
+        return Math.atan2(sz, sx) / 2;
+    }
+
     // ── Modul-Zustand ─────────────────────────────────────────────────────────
     let canvas3d = null, renderer = null, scene = null, camera = null;
     let tileMesh = null;                   // InstancedMesh aller Tiles
@@ -517,6 +541,10 @@
     const _sPos = new THREE.Vector3();
     const _sScale = new THREE.Vector3(1, 1, 0.55);
     const _sQuat = new THREE.Quaternion();
+    const _rPos = new THREE.Vector3();
+    const _rQuat = new THREE.Quaternion();
+    const _rEuler = new THREE.Euler();
+    const _rScale = new THREE.Vector3();
     const _sEuler = new THREE.Euler();
     let _voxelCount = 0;
     let _airVoxelCount = 0;
@@ -611,21 +639,31 @@
         return _modelCache[key];
     }
 
-    function addVoxelModel(key, wx, wz, groundY, playerColor, dimFactor, tint) {
+    function addVoxelModel(key, wx, wz, groundY, playerColor, dimFactor, tint, rotY) {
         const { voxels, w, h, d, s } = modelVoxels(key);
         // Flieger mit 3D-Körper (Gleiter/Luftschraube) routen wie Billboard-Sprites
         // in die transparente Luft-Ebene; Gebäude setzen _voxelAir nie, bleiben also
         // immer im Boden-Mesh.
         const mesh = _voxelAir ? airVoxelMesh : voxelMesh;
+        const rotate = !!rotY;
+        if (rotate) { _rEuler.set(0, rotY, 0); _rQuat.setFromEuler(_rEuler); _rScale.set(s, s, s); }
+        const cos = rotate ? Math.cos(rotY) : 1, sin = rotate ? Math.sin(rotY) : 0;
         for (const v of voxels) {
             const idx = _voxelAir ? _airVoxelCount : _voxelCount;
             if (idx >= VOXEL_CAP) return;
-            _vm.makeScale(s, s, s);
-            _vm.setPosition(
-                wx + (v.x - (w - 1) / 2) * s,
-                groundY + (h - 1 - v.y + 0.5) * s,
-                wz + (v.z - (d - 1) / 2) * s
-            );
+            const lx = (v.x - (w - 1) / 2) * s;
+            const lz = (v.z - (d - 1) / 2) * s;
+            const ly = groundY + (h - 1 - v.y + 0.5) * s;
+            if (rotate) {
+                // Modell (inkl. Würfelorientierung, damit die Voxel weiter bündig
+                // aneinanderliegen) um Y rotiert, damit die Wand-Längsachse zum
+                // Nachbar-Hex zeigt statt immer fix in Ost-West-Richtung.
+                _rPos.set(wx + lx * cos + lz * sin, ly, wz - lx * sin + lz * cos);
+                _vm.compose(_rPos, _rQuat, _rScale);
+            } else {
+                _vm.makeScale(s, s, s);
+                _vm.setPosition(wx + lx, ly, wz + lz);
+            }
             mesh.setMatrixAt(idx, _vm);
             _vc.set(spritePixelColor(v.val, playerColor));
             if (tint) _vc.lerp(tint, 0.45);
@@ -794,9 +832,12 @@
                 if (vis.has(`${ex},${ey}`)) entities.push({ x: ex, y: ey, spriteKey: 'tunnel', ownerId: t.o, hp: t.h, maxHp: 13, dim: (t.r > state.rn) ? 0.4 : 1, flag: true, bn: t.bn });
             });
         });
-        if (state.wa) state.wa.forEach(w => {
-            if (vis.has(`${w.x},${w.y}`)) entities.push({ x: w.x, y: w.y, spriteKey: 'wall', ownerId: w.o, hp: w.h, maxHp: 10, bn: w.bn });
-        });
+        if (state.wa) {
+            const wallSet = new Set(state.wa.map(w => `${w.x},${w.y}`));
+            state.wa.forEach(w => {
+                if (vis.has(`${w.x},${w.y}`)) entities.push({ x: w.x, y: w.y, spriteKey: 'wall', ownerId: w.o, hp: w.h, maxHp: 10, bn: w.bn, rot: computeWallRotation(w.x, w.y, wallSet) });
+            });
+        }
         if (state.st) state.st.forEach(s => {
             if (s.h > 0 && vis.has(`${s.x},${s.y}`)) entities.push({ x: s.x, y: s.y, spriteKey: 'stone', color: '#9e9e9e', hp: s.h, maxHp: 40 });
         });
@@ -886,7 +927,7 @@
                 const color = e.color || getEntityColor(e.ownerId);
                 if (voxelModels[e.spriteKey]) {
                     // Echtes 3D-Modell — steht bündig auf dem Boden, kein Blob-Schatten
-                    addVoxelModel(e.spriteKey, wx, wz, gy, color, e.dim || 1, null);
+                    addVoxelModel(e.spriteKey, wx, wz, gy, color, e.dim || 1, null, e.rot || 0);
                 } else {
                     addShadow(wx, wz, gy);
                     addVoxelSprite(e.spriteKey, wx, wz, gy, color, e.dim || 1, null);
