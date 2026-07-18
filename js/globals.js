@@ -76,10 +76,9 @@ window.demolishTargets = [];
 let selectedUWUnit = null;
 let uwValidMoves = [];      // BFS-Bewegungsziele (nur offene Hexes)
 let uwValidDigs = [];       // angrenzende FELS-Hexes — Klick darauf = Graben + Nachrücken in einem Zug
-let uwValidMine = [];       // Kristalladern-Ziele während der "Abbauen"-Zielauswahl
 let uwValidAttacks = [];    // Angriffsziele (M10, calculateAttacksUW)
 let uwValidCollapse = [];   // Stollenbruch-Ziele (M12, calculateStollenbruchTargetsUW)
-window.uwSpecialActive = null; // z.B. 'mine_select', 'collapse_select', 'relic_<key>' — mehrstufige Unterwelt-/Reliquien-Aktionen
+window.uwSpecialActive = null; // z.B. 'collapse_select', 'relic_<key>' — mehrstufige Unterwelt-/Reliquien-Aktionen
 // Lärm-Marker des GERADE LAUFENDEN Zugs, noch nicht in gameState.uw.n übernommen
 // (das passiert erst in doEndTurn — "wird durch die Marker des beendeten Zugs
 // ersetzt", siehe PLAN.md Abschn. 3). Bewusst außerhalb von gameState: rein

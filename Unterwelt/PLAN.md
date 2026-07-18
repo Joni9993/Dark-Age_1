@@ -26,7 +26,7 @@ Unterwelt-Terrain-Typen, erzeugt aus `sd` (eigener Hash-Kanal, damit oben/unten 
 |---|---|
 | **Fels** | Standard, massiv — nur durch Graben passierbar |
 | **Kaverne** | natürliche hohle Tasche (alte Wühlgänge des Wurms), bereits offen, nicht miteinander verbunden |
-| **Kristallader** | Fels mit Kristallen — wird abgebaut wie Steinhaufen oben (`h`-Abbau), gibt Kristalle, danach offener Gang |
+| **Kristallader** | Fels mit Kristallen — Gesamtmenge seed-deterministisch zufällig zwischen 4 und 12 (Korrektur Juli 2026, vorher fix 4). Wird abgebaut wie Steinhaufen oben (Toggle-Abbau, kein Aktionsverbrauch), danach offener/begehbarer Gang |
 | **Stollenruine** | verlassene Gänge eines längst verschwundenen Bergvolks: fertige Korridore + **Fundkammer** (einmalige Beute: Kristalle oder eine Reliquie) |
 | **Herzkaverne** | fixe große Kaverne (Zentrum + 6 Nachbarn(angepasst auf map größe) **exakt unter dem zentralen Wachturm** — beide Machtorte der Karte liegen senkrecht übereinander |
 
@@ -103,7 +103,7 @@ Historisches Sappieren: Kammer unter die Befestigung, Stützbalken, Brandsatz.
 
 ## 7. Ökonomie: Kristalle & Reliquien
 
-- **Kristalle** (`p[].k`) entstehen nur unten (Adern, Fundkammern). Der Arbeiter trägt sie (`u.cr`, max. 3) beim Aufsteigen zum Stollenkopf nach oben. Getragene Kristalle sind klaubar (Beutegräber-Kill).
+- **Kristalle** (`p[].k`) entstehen nur unten (Adern, Fundkammern). Abbau läuft als **Toggle** (Korrektur Juli 2026, Muster: Steinabbau des Arbeiters oben) — „Abbau starten"/„stoppen", verbraucht keine Aktion, läuft automatisch am Zugende, solange die Einheit in Reichweite (eigenes Hex oder angrenzend) einer Ader mit Restbestand steht. **Tragen bleibt nötig, aber ohne Obergrenze** (`u.cr`, uncapped) — die Fracht muss weiterhin physisch zum eigenen Stollenkopf getragen werden, liefert dort aber **automatisch** ab, sobald die Einheit auf/neben ihm steht (kein manueller „Abliefern"-Klick mehr). Stirbt ein Träger, **fällt seine Fracht als Haufen** auf das Sterbe-Hex (`uw.dr`) — jede andere trage-fähige Einheit (Arbeiter, Beutegräber) sammelt ihn beim Betreten automatisch ein; ein Beutegräber-Kill stiehlt sie stattdessen direkt (uncapped).
 - **Reliquien** = Fundstücke alter Handwerkskunst (nicht sakral!), kaufbar für Kristalle im Dorf-Menü, Erstentwurf:
   - **Damaszener Klinge** (4 💎): eine Einheit permanent +5 DMG
   - **Harnisch des Bergvolks** (4 💎): eine Einheit permanent +10 max-HP
@@ -124,7 +124,7 @@ Historisches Sappieren: Kammer unter die Befestigung, Stützbalken, Brandsatz.
 
 - **Kamerafokus-Zyklus** (fertig): Standard → Luftansicht → Unterwelt. Im Unterwelt-Fokus ist die Oberfläche komplett aus (nicht sichtbar, nicht anwählbar) — Spiegelbild der strikten Ebenen-Trennung der Luftansicht.
 - **Unterseiten-Rendering:** Fels = geschlossene dunkle Tile-Unterseiten; offene Hexes „ausgehöhlt" (vertieft, wärmeres Material); Kristalladern glitzern; Herzkaverne mit eigenem Großmodell (`voxelModels`). Einheiten stehen als Voxel-Billboards in den Gängen, von unten betrachtet. 2D-Fallback (`?r2d=1`): abgedunkelte Karte mit Gang-Overlays.
-- **Klick-Flow:** `handleUnderworldClick` (existiert) wächst zum vollen Pendant von `handleCanvasClick`: Auswahl → Grab-/Bewegungs-/Angriffs-Vorschau → Aktionsmenü (`mkBtn`-Muster: „⛏ Graben", „💎 Abbauen", „💥 Kammer anlegen", „🧨 Zünden", „🕳 Aufsteigen").
+- **Klick-Flow:** `handleUnderworldClick` (existiert) wächst zum vollen Pendant von `handleCanvasClick`: Auswahl → Grab-/Bewegungs-/Angriffs-Vorschau → Aktionsmenü (`mkBtn`-Muster: „⛏ Graben", „💎 Abbau starten"/„🛑 Abbau stoppen" (Toggle, Korrektur Juli 2026), „💥 Kammer anlegen", „🧨 Zünden", „🕳 Aufsteigen").
 - **Gehör-Anzeige:** Richtungs-Pings als pulsierende Sektor-Markierung am Rand des eigenen Netzes; Horcher-Ortung als exaktes Hex-Icon.
 - **Countdown & Beben:** Erschließungs-Fortschritt im HUD aller Spieler; Beben-Partikel am Wachturm; Unterminierungs-Vorwarnung als leichtes Zittern des Oberflächen-Hexes.
 - Rekrutierung am Stollenkopf über das bestehende Kauf-Menü-Muster (`buyUnit` ebenenbewusst, wie bei Luft).
@@ -135,7 +135,8 @@ Historisches Sappieren: Kammer unter die Befestigung, Stützbalken, Brandsatz.
 - `p[].k` — Kristalle
 - `p[].ue` — Unterwelt-Erkundung (Netz-Geometrie, `compressFog`-Muster)
 - `uw.d` — global gegrabene Hexes (kompakter String, gleiche Kompression)
-- `uw.u[]` — Tiefeneinheiten (gleiche Feldnamen wie `u[]`: `p,t,x,y,h,a,vet,k` + `cr` Kristalle, `ch` Kammer angelegt)
+- `uw.u[]` — Tiefeneinheiten (gleiche Feldnamen wie `u[]`: `p,t,x,y,h,a,vet,k` + `cr` Kristalle uncapped, `mi` Abbau-Toggle-Ziel `{x,y}` wie beim Arbeiter oben, `ch` Kammer angelegt)
+- `uw.dr` — herrenlose Kristallhaufen `{"x,y": Menge}` (Korrektur Juli 2026: fällt beim Tod eines Trägers, wird von trage-fähigen Einheiten beim Betreten automatisch eingesammelt)
 - `uw.c[]` — Kreaturen `{t, x, y, h}`; Wurm tot = Eintrag fehlt + Flag `uw.wd = 1`
 - `uw.n[]` — Lärm-Marker der letzten Runde `{x, y}` (transient, wird pro Runde ersetzt)
 - `uw.hz` — Erschließung `{p, n}`

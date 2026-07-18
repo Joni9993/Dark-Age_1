@@ -369,6 +369,14 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
     }
 
+    // Herrenloser Kristallhaufen (Korrektur Juli 2026): fällt beim Tod eines
+    // Trägers, wird von Arbeiter/Beutegräber beim Betreten automatisch eingesammelt.
+    const dropAmount = gameState.uw && gameState.uw.dr && gameState.uw.dr[`${x},${y}`];
+    if (dropAmount) {
+        ctx.fillStyle = '#7fe3ff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(`💎${dropAmount}`, center.px, center.py + 2);
+    }
+
     // Tunnel-HUB (Korrektur Juli 2026): der Oberflächen-Tunnel wird auf sein
     // Startpunkt-Hex gespiegelt — 🚇-Symbol in der Besitzerfarbe + gemeinsamer
     // HP-Pool (t.h), gleiche Info wie das gespiegelte 3D-Gebäude.
@@ -383,11 +391,11 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
         ctx.globalAlpha = 1;
     }
 
-    // Ziel-Highlights: Bewegen grün, Graben bräunlich, Abbauen cyan, Angreifen rot
-    // (M10) — gleiche Farbwahl wie render3d.js.
+    // Ziel-Highlights: Bewegen grün, Graben bräunlich, Angreifen rot (M10) —
+    // gleiche Farbwahl wie render3d.js. Abbauen läuft seit der Toggle-Umstellung
+    // (Korrektur Juli 2026) ohne Ziel-Klick, kein Highlight mehr nötig.
     if (uwValidMoves.some(m => m.x === x && m.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(100, 255, 100, 0.35)"; ctx.fill(); }
     if (uwValidDigs.some(d => d.x === x && d.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(161, 102, 47, 0.55)"; ctx.fill(); }
-    if (uwValidMine.some(m => m.x === x && m.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(0, 229, 255, 0.5)"; ctx.fill(); }
     if (uwValidCollapse.some(c => c.x === x && c.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(255, 152, 0, 0.5)"; ctx.fill(); }
     if (uwValidAttacks.some(a => a.x === x && a.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
 

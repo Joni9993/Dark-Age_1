@@ -31,8 +31,9 @@ function bootGame() {
     // komprimierter Index-String nur auf dem Wire — siehe hex.js/isUnderworldOpen),
     // u = Tiefeneinheiten, n = Lärm-Marker der letzten Runde, a = angebrochene
     // Kristalladern, f = geplünderte Fundkammern ({"x,y": 1}), c = Kreaturen
-    // {t,x,y,h}, w = Spinnennetze ({"x,y": 1}), wd = Alter Wurm dauerhaft tot.
-    if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {}, f: {}, w: {}, c: [] };
+    // {t,x,y,h}, w = Spinnennetze ({"x,y": 1}), dr = herrenlose Kristallhaufen
+    // ({"x,y": Menge}, Korrektur Juli 2026), wd = Alter Wurm dauerhaft tot.
+    if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {}, f: {}, w: {}, dr: {}, c: [] };
     if (!gameState.uw.d) gameState.uw.d = [];
     if (typeof gameState.uw.d === 'string') gameState.uw.d = decompressFog(gameState.uw.d);
     if (!gameState.uw.u) gameState.uw.u = [];
@@ -40,6 +41,7 @@ function bootGame() {
     if (!gameState.uw.a) gameState.uw.a = {};
     if (!gameState.uw.f) gameState.uw.f = {};
     if (!gameState.uw.w) gameState.uw.w = {};
+    if (!gameState.uw.dr) gameState.uw.dr = {};
     if (!gameState.uw.c) gameState.uw.c = [];
     gameState.uw.u.forEach((u, idx) => {
         if (u.a === undefined) u.a = 0;

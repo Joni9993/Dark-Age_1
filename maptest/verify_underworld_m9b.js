@@ -24,11 +24,12 @@ function loadGameCode() {
     const fn = new Function(src + `
         return {
             buildInitialGameState, createPRNG, isInsideMap, hexDistance, getNeighbors,
-            getUnderworldType, isUnderworldOpen, getUWVeinRemaining, getStollenkopfOwner,
+            getUnderworldType, isUnderworldOpen, getUWVeinRemaining, getUWVeinMaxAmount, getStollenkopfOwner,
             getUnderworldTunnelHeads, isUnderworldTunnelHead,
             UW_FELS, UW_KAVERNE, UW_ADER, UW_RUINE, UW_HERZ,
             calculateMovesUW, calculateDigsUW, calculateMineTargetsUW, uwUnitAt,
             digUWHex, mineUWVein, deliverUWCrystals, ascendUWUnit, descendUWUnit, buyUWUnitAt,
+            processAutoMiningUW, processUWCrystalAutoDeliver, dropUWCrystalsOnDeath, pickupUWCrystalDrop,
             getUnitMaxHp, getUnitCost, getUnitMove, unitStats
         };
     `);
@@ -126,7 +127,7 @@ console.log('\n=== (b) Graben öffnet genau das Ziel-Hex und erzeugt Lärm ===')
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n=== (c) Ader-Abbau 4x -> Hex offen, cr korrekt, Abliefern bucht auf p[].k ===');
+console.log('\n=== (c) Ader-Abbau: zufällige Menge 4-12, cr UNCAPPED, Hex offen nach Erschöpfung, Abliefern bucht auf p[].k ===');
 {
     const state = freshState(3, 12, 2); // großzügige Karte -> genug Adern zum Testen
     // Erste Ader-Hex suchen (unabhängig von Position, reiner Logik-Test)
@@ -138,25 +139,28 @@ console.log('\n=== (c) Ader-Abbau 4x -> Hex offen, cr korrekt, Abliefern bucht a
     assert(!!aderHex, 'mindestens eine Kristallader auf der Karte gefunden (R12)');
     if (aderHex) {
         const unit = { i: 1, p: 0, t: 7, x: aderHex.x, y: aderHex.y, h: 8, a: 0 };
-        assert(M.getUWVeinRemaining(state, aderHex.x, aderHex.y) === 4, 'Ader startet mit vollem Bestand (4)');
+        const maxAmount = M.getUWVeinMaxAmount(state, aderHex.x, aderHex.y);
+        assert(maxAmount >= 4 && maxAmount <= 12, `Ader-Gesamtmenge im Band 4-12 (gemessen: ${maxAmount}, Korrektur Juli 2026)`);
+        assert(M.getUWVeinRemaining(state, aderHex.x, aderHex.y) === maxAmount, 'Ader startet mit vollem (zufälligem) Bestand');
 
         let remaining;
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < maxAmount; i++) {
             remaining = M.mineUWVein(state, unit, aderHex.x, aderHex.y);
         }
-        assert(remaining === 0, 'nach 4 Abbauten ist der Restbestand 0');
-        assert(M.isUnderworldOpen(state, aderHex.x, aderHex.y), 'Ader-Hex ist nach Erschöpfung dauerhaft offen (in uw.d)');
+        assert(remaining === 0, `nach ${maxAmount} Abbauten ist der Restbestand 0`);
+        assert(M.isUnderworldOpen(state, aderHex.x, aderHex.y), 'Ader-Hex ist nach Erschöpfung dauerhaft offen (in uw.d) -> begehbar/frei');
         assert(!state.uw.a[`${aderHex.x},${aderHex.y}`], 'uw.a-Eintrag wurde beim Erschöpfen gelöscht');
-        assert(unit.cr === 3, `getragene Kristalle bei max. 3 gedeckelt (gemessen: ${unit.cr})`);
+        assert(unit.cr === maxAmount, `getragene Kristalle UNCAPPED, entspricht der vollen Adermenge (gemessen: ${unit.cr}, erwartet: ${maxAmount})`);
+        assert(unit.a === undefined || unit.a === 0, 'mineUWVein verbraucht KEINE Aktion mehr (Korrektur Juli 2026)');
 
         const before = state.p[0].k || 0;
         const delivered = M.deliverUWCrystals(state, 0, unit);
-        assert(delivered === 3, 'Abliefern gibt die getragene Menge zurück');
-        assert(state.p[0].k === before + 3, 'p[0].k um die gelieferte Menge erhöht');
+        assert(delivered === maxAmount, 'Abliefern gibt die volle getragene Menge zurück (kein Trage-Limit)');
+        assert(state.p[0].k === before + maxAmount, 'p[0].k um die gelieferte Menge erhöht');
         assert(unit.cr === 0, 'Träger ist nach dem Abliefern leer');
     }
 
-    // Zweite Ader separat: exakter Verlauf 4 -> 3 -> 2 -> 1 -> 0
+    // Zweite Ader separat: exakter Verlauf max -> max-1 -> ... -> 0, uncapped
     let aderHex2 = null;
     outer3:
     for (let y = 0; y < state.bh; y++) for (let x = 0; x < state.bw; x++) {
@@ -164,10 +168,101 @@ console.log('\n=== (c) Ader-Abbau 4x -> Hex offen, cr korrekt, Abliefern bucht a
     }
     if (aderHex2) {
         const unit2 = { i: 2, p: 1, t: 7, x: aderHex2.x, y: aderHex2.y, h: 8, a: 0 };
+        const max2 = M.getUWVeinMaxAmount(state, aderHex2.x, aderHex2.y);
+        const expected = Array.from({ length: max2 }, (_, i) => max2 - i - 1);
         const sequence = [];
-        for (let i = 0; i < 4; i++) sequence.push(M.mineUWVein(state, unit2, aderHex2.x, aderHex2.y));
-        assert(JSON.stringify(sequence) === JSON.stringify([3, 2, 1, 0]), `Restbestand-Sequenz exakt 4->3->2->1->0 (gemessen: ${sequence.join(',')})`);
+        for (let i = 0; i < max2; i++) sequence.push(M.mineUWVein(state, unit2, aderHex2.x, aderHex2.y));
+        assert(JSON.stringify(sequence) === JSON.stringify(expected), `Restbestand-Sequenz exakt ${max2}->0 (gemessen: ${sequence.join(',')}, erwartet: ${expected.join(',')})`);
+        assert(unit2.cr === max2, `zweiter Träger hat die volle Menge uncapped (gemessen: ${unit2.cr}, erwartet: ${max2})`);
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n=== (c2) Toggle-Abbau (Korrektur Juli 2026, Muster: Steinabbau) — läuft automatisch, keine Aktion verbraucht ===');
+{
+    const state = freshState(3, 12, 2);
+    let aderHex = null;
+    outerT:
+    for (let y = 0; y < state.bh; y++) for (let x = 0; x < state.bw; x++) {
+        if (M.isInsideMap(state, x, y) && M.getUnderworldType(state, x, y) === M.UW_ADER) { aderHex = { x, y }; break outerT; }
+    }
+    assert(!!aderHex, 'Ader für Toggle-Test gefunden');
+    if (aderHex) {
+        const nb = M.getNeighbors(aderHex.x, aderHex.y).find(n => M.isInsideMap(state, n.x, n.y));
+        const unit = { i: 1, p: 0, t: 7, x: nb.x, y: nb.y, h: 8, a: 0, mi: { x: aderHex.x, y: aderHex.y } };
+        state.uw.u.push(unit);
+        const max = M.getUWVeinMaxAmount(state, aderHex.x, aderHex.y);
+
+        M.processAutoMiningUW(0);
+        assert(unit.cr === 1, `1. Tick: +1 Kristall (gemessen: ${unit.cr})`);
+        assert(unit.a === 0, 'Toggle-Abbau verbraucht keine Aktion');
+        assert(!!unit.mi, 'Toggle bleibt aktiv, solange die Ader noch Bestand hat');
+
+        M.processAutoMiningUW(0);
+        assert(unit.cr === 2, '2. Tick (nächster Zugende-Aufruf): weiter +1');
+
+        // Bewegung weg von der Ader (Distanz > 1) -> Toggle stoppt automatisch (wie Steinabbau)
+        let far = { x: (aderHex.x + 4) % state.bw, y: aderHex.y };
+        if (M.hexDistance(far, aderHex) <= 1) far = { x: (aderHex.x + 4) % state.bw, y: (aderHex.y + 4) % state.bh };
+        assert(M.hexDistance(far, aderHex) > 1, 'Testaufbau: gewählte Fern-Position ist tatsächlich außer Reichweite');
+        unit.x = far.x; unit.y = far.y;
+        unit.mi = { x: aderHex.x, y: aderHex.y };
+        M.processAutoMiningUW(0);
+        assert(!unit.mi, 'Toggle stoppt automatisch, sobald die Einheit die Ader verlässt (Distanz > 1)');
+        assert(unit.cr === 2, 'kein weiterer Abbau-Tick nach dem Verlassen');
+
+        // Erschöpfung stoppt den Toggle ebenfalls (unabhängig von der Bewegung)
+        unit.x = nb.x; unit.y = nb.y; unit.mi = { x: aderHex.x, y: aderHex.y };
+        for (let i = 0; i < max; i++) M.processAutoMiningUW(0);
+        assert(!unit.mi, 'Toggle stoppt automatisch, sobald die Ader erschöpft ist');
+        assert(M.getUWVeinRemaining(state, aderHex.x, aderHex.y) === 0, 'Ader ist erschöpft');
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n=== (c3) Auto-Ablieferung (Korrektur Juli 2026) — automatisch am Zugende in Reichweite des eigenen Stollenkopfs ===');
+{
+    const state = freshState(9, 7, 2);
+    const headX = 2, headY = 2;
+    state.tu = [{ x1: headX, y1: headY, x2: 0, y2: 0, o: 0, h: 13, r: state.rn }];
+    const nb = M.getNeighbors(headX, headY)[0];
+    const carrier = { i: 1, p: 0, t: 7, x: nb.x, y: nb.y, h: 10, a: 0, cr: 5 };
+    state.uw.u.push(carrier);
+
+    M.processUWCrystalAutoDeliver(0);
+    assert(state.p[0].k === 5, `Kristalle wurden automatisch abgeliefert, ohne dass die Einheit direkt auf dem Stollenkopf steht (gemessen: ${state.p[0].k})`);
+    assert(carrier.cr === 0, 'Träger ist nach der Auto-Ablieferung leer');
+
+    // Außerhalb der Reichweite -> keine Ablieferung
+    const farCarrier = { i: 2, p: 0, t: 7, x: (headX + 10) % state.bw, y: headY, h: 10, a: 0, cr: 3 };
+    state.uw.u.push(farCarrier);
+    M.processUWCrystalAutoDeliver(0);
+    assert(farCarrier.cr === 3, 'außerhalb der Reichweite bleibt die Fracht unangetastet');
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n=== (c4) Kristalle fallen beim Tod & werden von trage-fähigen Einheiten aufgesammelt (Korrektur Juli 2026) ===');
+{
+    const state = freshState(5, 7, 2);
+    const dead = { x: 4, y: 4, cr: 6 };
+    M.dropUWCrystalsOnDeath(state, dead);
+    assert(state.uw.dr['4,4'] === 6, 'Haufen liegt exakt mit der getragenen Menge auf dem Sterbe-Hex');
+
+    // Nicht trage-fähiger Typ (z.B. Grubenwache 17) sammelt NICHT ein
+    const guard = { t: 17, x: 4, y: 4 };
+    const pickedGuard = M.pickupUWCrystalDrop(state, guard);
+    assert(pickedGuard === 0 && state.uw.dr['4,4'] === 6, 'Grubenwache (17) kann keine Kristalle einsammeln — Haufen bleibt liegen');
+
+    // Trage-fähiger Typ (Arbeiter 7) sammelt vollständig ein
+    const worker = { t: 7, x: 4, y: 4, cr: 2 };
+    const picked = M.pickupUWCrystalDrop(state, worker);
+    assert(picked === 6 && worker.cr === 8, `Arbeiter sammelt den kompletten Haufen uncapped zur bestehenden Fracht dazu (gemessen: ${worker.cr})`);
+    assert(!('4,4' in state.uw.dr), 'Haufen ist nach dem Einsammeln verschwunden');
+
+    // Beutegräber (20) kann ebenfalls einsammeln
+    M.dropUWCrystalsOnDeath(state, { x: 1, y: 1, cr: 4 });
+    const looter = { t: 20, x: 1, y: 1 };
+    assert(M.pickupUWCrystalDrop(state, looter) === 4, 'Beutegräber (20) kann Kristallhaufen ebenfalls einsammeln');
 }
 
 // ─────────────────────────────────────────────────────────────────────────

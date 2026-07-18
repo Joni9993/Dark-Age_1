@@ -150,10 +150,13 @@ console.log('\n=== (c) Beutegräber-Diebstahl: cr wandert beim Kill ===');
     state.uw.u.push(beutegraeber, opfer);
     const result = M.resolveUWAttack(state, beutegraeber, opfer);
     assert(result.killed === true, 'Opfer stirbt (1 HP)');
-    assert(result.stolenCrystals === 2, `genau bis zum Träger-Limit gestohlen (1 schon getragen + 2 gestohlen = 3, gemessen: ${result.stolenCrystals})`);
-    assert(beutegraeber.cr === 3, `Beutegräber trägt danach 3 (Limit), gemessen: ${beutegraeber.cr}`);
+    assert(result.stolenCrystals === 3, `komplette Fracht des Opfers gestohlen, UNCAPPED (gemessen: ${result.stolenCrystals}, erwartet: 3)`);
+    assert(beutegraeber.cr === 4, `Beutegräber trägt danach 1 (eigene) + 3 (gestohlen) = 4, kein Limit mehr (gemessen: ${beutegraeber.cr})`);
 
-    // Kein Diebstahl durch andere Einheitstypen
+    // Kein Diebstahl durch andere Einheitstypen — die Fracht fällt stattdessen
+    // als Haufen zu Boden (Korrektur Juli 2026, dropUWCrystalsOnDeath), der
+    // Killer sammelt sie beim Nachrücken NICHT automatisch ein (Grubenwache
+    // kann laut PLAN keine Kristalle tragen).
     const state2 = freshState(7, 5, 2);
     const cx2 = state2.rad, cy2 = state2.rad;
     const n2 = M.getNeighbors(cx2, cy2)[0];
@@ -162,6 +165,7 @@ console.log('\n=== (c) Beutegräber-Diebstahl: cr wandert beim Kill ===');
     state2.uw.u.push(wache, opfer2);
     const result2 = M.resolveUWAttack(state2, wache, opfer2);
     assert(result2.killed === true && result2.stolenCrystals === 0, 'Grubenwache (kein Beutegräber) stiehlt NICHTS beim Kill');
+    assert(state2.uw.dr[`${n2.x},${n2.y}`] === 2, 'Opfer-Fracht liegt stattdessen als herrenloser Haufen auf dem Sterbe-Hex');
 }
 
 // ─────────────────────────────────────────────────────────────────────────

@@ -1363,6 +1363,13 @@
                 } else if (isFundkammerHex(state, c.x, c.y) && !(state.uw && state.uw.f && state.uw.f[`${c.x},${c.y}`])) {
                     addIcon('🏺', '#c9a24b', wx, wz, -underworldDepth(UW_RUINE) - 8, 11);
                 }
+                // Herrenloser Kristallhaufen (Korrektur Juli 2026): fällt beim Tod
+                // eines Trägers, wird von Arbeiter/Beutegräber beim Betreten
+                // automatisch eingesammelt (pickupUWCrystalDrop, js/logic.js).
+                const dropAmount = state.uw && state.uw.dr && state.uw.dr[`${c.x},${c.y}`];
+                if (dropAmount) {
+                    addIcon(`💎${dropAmount}`, '#7fe3ff', wx, wz, -underworldDepth(uwVisualType(state, c.x, c.y)) - 8, 11);
+                }
             });
 
             // Kreaturen (M11): neutral, gleiche Umkreis-2-Sichtregel wie fremde
@@ -1422,12 +1429,12 @@
             addOverlay(window.selectedUnderworldHex.x, window.selectedUnderworldHex.y, 0xc084fc, 0.55, state, true);
         }
         // Unterwelt-Ziel-Highlights: Bewegung grün wie oben, Graben bräunlich (eigene
-        // Farbe, siehe M9b-Auftrag), Abbauen cyan, Angreifen rot wie oben (M10),
-        // Stollenbruch orange (M12) — alle unterseitig (underside).
+        // Farbe, siehe M9b-Auftrag), Angreifen rot wie oben (M10), Stollenbruch orange
+        // (M12) — alle unterseitig (underside). Abbauen läuft seit der Toggle-
+        // Umstellung (Korrektur Juli 2026) ohne Ziel-Klick, kein Highlight mehr nötig.
         if (!surfaceVisible) {
             uwValidMoves.forEach(mv => addOverlay(mv.x, mv.y, 0x64ff64, 0.3, state, true));
             uwValidDigs.forEach(d => addOverlay(d.x, d.y, 0xa1662f, 0.45, state, true));
-            uwValidMine.forEach(m => addOverlay(m.x, m.y, 0x00e5ff, 0.5, state, true));
             uwValidAttacks.forEach(a => addOverlay(a.x, a.y, 0xff6464, 0.5, state, true));
             uwValidCollapse.forEach(c => addOverlay(c.x, c.y, 0xff9800, 0.5, state, true));
         }

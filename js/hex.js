@@ -406,13 +406,21 @@ function isUnderworldOpen(state, x, y) {
     return state.uw.d.includes(idx);
 }
 
-// Restbestand einer Kristallader (voller Bestand = 4, 0 = leergegraben/dauerhaft
-// offen). Kein Ader-Hex -> 0. Bereits über isUnderworldOpen (uw.d) als leer
-// vermerkt -> 0, unabhängig vom (dann gelöschten) uw.a-Eintrag.
+// Gesamtmenge einer Kristallader: seed-deterministisch zufällig zwischen 4 und
+// 12 (Korrektur Juli 2026, vorher fix 4) — eigener Hash-Kanal (Salt 11),
+// unabhängig von Terrain-/Fundkammer-/Kreaturen-Verteilung.
+function getUWVeinMaxAmount(state, x, y) {
+    return 4 + Math.floor(underworldHash(state, x, y, 11) * 9); // 4..12
+}
+
+// Restbestand einer Kristallader (voller Bestand = getUWVeinMaxAmount, 0 =
+// leergegraben/dauerhaft offen). Kein Ader-Hex -> 0. Bereits über
+// isUnderworldOpen (uw.d) als leer vermerkt -> 0, unabhängig vom (dann
+// gelöschten) uw.a-Eintrag.
 function getUWVeinRemaining(state, x, y) {
     if (getUnderworldType(state, x, y) !== UW_ADER) return 0;
     if (isUnderworldOpen(state, x, y)) return 0;
     const key = `${x},${y}`;
     if (state.uw && state.uw.a && state.uw.a[key] !== undefined) return state.uw.a[key];
-    return 4; // noch unangebrochen: voller Bestand (Balance-Erstentwurf, siehe PLAN.md)
+    return getUWVeinMaxAmount(state, x, y); // noch unangebrochen: voller (zufälliger) Bestand
 }

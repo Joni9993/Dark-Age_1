@@ -528,21 +528,9 @@ window.uwDescend = function () {
     hideActionMenu(); renderBoard(gameState); updateUI();
 };
 
-// Abliefern verbraucht bewusst KEINE Aktion (Komfort, siehe M9b-Auftrag) —
-// nur am eigenen Stollenkopf möglich (Button-Gate in showUnderworldTileUI).
-window.uwDeliverCrystals = function () {
-    if (!selectedUWUnit || !selectedUWUnit.cr) return;
-    saveUndoState();
-    const unit = selectedUWUnit;
-    const amount = deliverUWCrystals(gameState, gameState.cp, unit);
-    showToast(`💎 ${amount} Kristalle abgeliefert!`, 'gold');
-    // uw:true (M13): Ablieferung passiert am eigenen Stollenkopf unten — nur über
-    // das Unterwelt-Netz sichtbar, gleiche Sichtbarkeitsregel wie Graben/Abbau.
-    turnActions.push({ x: unit.x, y: unit.y, t: 'deliver', uw: true });
-    updateUI();
-    showUnderworldTileUI(unit.x, unit.y);
-    renderBoard(gameState);
-};
+// Abliefern lief bis Juli 2026 über einen manuellen Button — jetzt automatisch
+// am Zugende (processUWCrystalAutoDeliver, js/logic.js), sobald eine Einheit
+// auf/neben ihrem Stollenkopf steht. Kein window.uwDeliverCrystals mehr nötig.
 
 // === RELIQUIEN-ZIELAUSWAHL (M10) ===
 // mkBtn/specialActive-Muster wie Tunnel/Mauer/Turm-Bau oben: startRelicEquip

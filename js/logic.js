@@ -463,7 +463,12 @@ function applyUnderminingDamage(state, target, dmg, byPlayerId) {
         if (p.sh <= 0) {
             p.dead = 1;
             state.u = state.u.filter(u => u.p !== target.ownerId);
-            if (state.uw) state.uw.u = (state.uw.u || []).filter(u => u.p !== target.ownerId);
+            if (state.uw) {
+                // Korrektur Juli 2026: getragene Kristalle der eliminierten Tiefen-
+                // einheiten fallen wie bei jedem anderen Tod, statt spurlos zu verfallen.
+                (state.uw.u || []).filter(u => u.p === target.ownerId).forEach(u => dropUWCrystalsOnDeath(state, u));
+                state.uw.u = (state.uw.u || []).filter(u => u.p !== target.ownerId);
+            }
             state.v[p.sv] = byPlayerId;
         }
     } else if (target.type === 'tower') {
@@ -551,20 +556,25 @@ function resolveUWAttack(state, attacker, target) {
     }
 
     result.killed = true;
+    // Beutegräber (20): stiehlt getragene Kristalle des Opfers beim Kill (Korrektur
+    // Juli 2026, uncapped — kein Diebstahl-Limit mehr). Andere Killer lassen die
+    // Fracht des Opfers auf dessen Hex fallen (dropUWCrystalsOnDeath).
+    if (attacker.t === 20 && target.cr) {
+        attacker.cr = (attacker.cr || 0) + target.cr;
+        result.stolenCrystals = target.cr;
+    } else {
+        dropUWCrystalsOnDeath(state, target);
+    }
     state.uw.u = state.uw.u.filter(u => u !== target);
     checkVeteran(attacker);
-    // Beutegräber (20): stiehlt getragene Kristalle des Opfers beim Kill (max. 3)
-    if (attacker.t === 20 && target.cr) {
-        const room = 3 - (attacker.cr || 0);
-        const stolen = Math.min(room, target.cr);
-        if (stolen > 0) { attacker.cr = (attacker.cr || 0) + stolen; result.stolenCrystals = stolen; }
-    }
     // Nahkampf-Killer rückt aufs Ziel-Hex nach (frei, da das Ziel gerade starb —
     // Stacking anderer Einheiten/Kreaturen dort wäre nur bei einem zweiten,
     // zeitgleichen Kill auf demselben Hex möglich, daher defensiv geprüft)
     if (!(state.uw.u || []).some(u => u.x === target.x && u.y === target.y) && !(state.uw.c || []).some(c => c.x === target.x && c.y === target.y && c.h > 0)) {
         attacker.x = target.x; attacker.y = target.y;
         delete attacker.ch; // Kammer verfällt bei Bewegung (M12) — auch beim Nachrücken
+        const picked = pickupUWCrystalDrop(state, attacker);
+        if (picked > 0) result.stolenCrystals = (result.stolenCrystals || 0) + picked;
     }
     return result;
 }
@@ -605,6 +615,7 @@ function resolveUWAttackOnCreature(state, attacker, creature) {
         if (!(state.uw.u || []).some(u => u.x === creature.x && u.y === creature.y) && !(state.uw.c || []).some(c => c.x === creature.x && c.y === creature.y && c.h > 0)) {
             attacker.x = creature.x; attacker.y = creature.y;
             delete attacker.ch; // Kammer verfällt bei Bewegung (M12) — auch beim Nachrücken
+            pickupUWCrystalDrop(state, attacker); // falls dort zufällig ein Kristallhaufen liegt
         }
     }
     return result;
@@ -620,11 +631,13 @@ function findWeakestAdjacentPlayerUnit(x, y) {
 }
 
 // Kreatur trifft eine Spieler-Einheit — kein Veteranen-Credit (Kreaturen kennen
-// kein vet-Konzept), tötet aber normal; getragene Kristalle verfallen einfach
-// (Auftrag: "keep simple"). Gibt true zurück, wenn die Einheit dabei starb.
+// kein vet-Konzept), tötet aber normal; getragene Kristalle fallen wie bei
+// jedem anderen Tod (Korrektur Juli 2026, dropUWCrystalsOnDeath). Gibt true
+// zurück, wenn die Einheit dabei starb.
 function creatureHitUnit(target, dmg) {
     target.h -= dmg;
     if (target.h <= 0) {
+        dropUWCrystalsOnDeath(gameState, target);
         gameState.uw.u = gameState.uw.u.filter(u => u !== target);
         return true;
     }
@@ -855,19 +868,22 @@ function digUWHex(state, unit, x, y) {
 
 // Ein Abbau-Tick: Beutegräber (20) nimmt bis zu 2 statt 1 (nie mehr als der
 // Restbestand hergibt), Träger bekommt exakt die tatsächlich entnommene Menge
-// (max. 3 insgesamt). Bei Restbestand 0 wird das Hex dauerhaft offen (uw.d)
-// und der uw.a-Eintrag gelöscht. Gibt den neuen Restbestand zurück.
+// OHNE Obergrenze (Korrektur Juli 2026 — Tragen ist weiterhin nötig, nur das
+// Limit fällt weg). Bei Restbestand 0 wird das Hex dauerhaft offen (uw.d) und
+// der uw.a-Eintrag gelöscht. Verbraucht KEINE Aktion mehr (Toggle-Abbau wie
+// beim Arbeiter/Stein, siehe processAutoMiningUW/startUWMining) — anders als
+// beim einmaligen Graben ist Abbauen ein passiver Dauerzustand. Gibt den neuen
+// Restbestand zurück.
 function mineUWVein(state, unit, x, y) {
     if (!state.uw) state.uw = { d: [], u: [], n: [], a: {} };
     if (!state.uw.a) state.uw.a = {};
     if (!state.uw.d) state.uw.d = [];
     const key = `${x},${y}`;
     let remaining = state.uw.a[key];
-    if (remaining === undefined) remaining = 4;
+    if (remaining === undefined) remaining = getUWVeinMaxAmount(state, x, y);
     const take = Math.min(remaining, unit.t === 20 ? 2 : 1);
     remaining -= take;
-    if (!unit.cr) unit.cr = 0;
-    unit.cr = Math.min(3, unit.cr + take);
+    unit.cr = (unit.cr || 0) + take;
     if (remaining <= 0) {
         const idx = y * state.bw + x;
         if (!state.uw.d.includes(idx)) state.uw.d.push(idx);
@@ -875,17 +891,88 @@ function mineUWVein(state, unit, x, y) {
     } else {
         state.uw.a[key] = remaining;
     }
-    unit.a = 1;
     return Math.max(0, remaining);
 }
 
-// Abliefern: verbraucht bewusst KEINE Aktion (Komfort, siehe PLAN.md).
+// === UNTERWELT: AUTO-ABBAU (Korrektur Juli 2026) ===
+// Läuft am Zugende wie processAutoMining (Steinabbau oben): jede eigene
+// Tiefeneinheit mit gesetztem `mi` (Toggle, siehe startUWMining/js/abilities.js)
+// baut 1 Tick ab, SOLANGE sie noch in Reichweite (Distanz <=1, deckt sowohl
+// "angrenzend" als auch "auf einem Stollenkopf über der Ader stehend" ab) einer
+// Ader mit Restbestand steht — sonst stoppt der Abbau automatisch (Bewegung
+// weg, Ader erschöpft). Verbraucht keine Aktion, läuft für jeden eigenen Zug.
+function processAutoMiningUW(pId) {
+    if (!gameState.uw || !gameState.uw.u) return;
+    const myWorkers = gameState.uw.u.filter(u => u.p === pId && u.mi);
+    myWorkers.forEach(w => {
+        if (!w.mi) return;
+        const tx = w.mi.x, ty = w.mi.y;
+        const remaining = getUWVeinRemaining(gameState, tx, ty);
+        const stillInRange = remaining > 0 && hexDistance({ x: w.x, y: w.y }, { x: tx, y: ty }) <= 1;
+        if (stillInRange) {
+            mineUWVein(gameState, w, tx, ty);
+            addUWNoise(tx, ty);
+            if (getUWVeinRemaining(gameState, tx, ty) === 0) {
+                // Ader erschöpft: Toggle für ALLE Einheiten lösen, die noch
+                // darauf zeigten (Muster: processAutoMining/Steinabbau oben).
+                gameState.uw.u.forEach(u => { if (u.mi && u.mi.x === tx && u.mi.y === ty) delete u.mi; });
+            }
+        } else {
+            delete w.mi;
+        }
+    });
+}
+
+// === UNTERWELT: AUTO-ABLIEFERUNG (Korrektur Juli 2026) ===
+// Läuft ebenfalls am Zugende: jede eigene Tiefeneinheit mit Fracht, die auf
+// oder neben (Distanz <=1) einem eigenen nutzbaren Stollenkopf steht, liefert
+// automatisch ab — kein manueller "Abliefern"-Klick mehr nötig.
+function processUWCrystalAutoDeliver(pId) {
+    if (!gameState.uw || !gameState.uw.u) return;
+    const heads = getUnderworldTunnelHeads(gameState).filter(h => h.owner === pId);
+    if (heads.length === 0) return;
+    gameState.uw.u.filter(u => u.p === pId && u.cr > 0).forEach(u => {
+        const inRange = heads.some(h => hexDistance({ x: u.x, y: u.y }, { x: h.x, y: h.y }) <= 1);
+        if (inRange) deliverUWCrystals(gameState, pId, u);
+    });
+}
+
+// Abliefern: verbraucht bewusst KEINE Aktion (Komfort, siehe PLAN.md) — wird
+// jetzt automatisch von processUWCrystalAutoDeliver aufgerufen, die reine
+// Buchungsfunktion bleibt aber eigenständig (u. a. von den Tests direkt genutzt).
 function deliverUWCrystals(state, playerId, unit) {
     const pState = state.p[playerId];
     if (!pState.k) pState.k = 0;
     const amount = unit.cr || 0;
     pState.k += amount;
     unit.cr = 0;
+    return amount;
+}
+
+// === UNTERWELT: KRISTALLE FALLEN LASSEN (Korrektur Juli 2026) ===
+// Stirbt eine Tiefeneinheit mit Fracht, bleibt die Fracht als Haufen auf ihrem
+// Hex liegen (uw.dr = {"x,y": Menge}, wie uw.a/uw.f/uw.w strukturiert) — eine
+// andere trage-fähige Einheit (Arbeiter 7, Beutegräber 20) sammelt sie beim
+// Betreten automatisch ein (pickupUWCrystalDrop).
+function dropUWCrystalsOnDeath(state, unit) {
+    if (!unit.cr) return;
+    if (!state.uw.dr) state.uw.dr = {};
+    const key = `${unit.x},${unit.y}`;
+    state.uw.dr[key] = (state.uw.dr[key] || 0) + unit.cr;
+}
+
+// Einsammeln eines Kristallhaufens: nur trage-fähige Typen (Arbeiter 7,
+// Beutegräber 20) — läuft beim Betreten des Hex (executeUWMoveTo, js/input.js)
+// bzw. beim Nachrücken auf ein frisch getötetes Ziel (resolveUWAttack(OnCreature)).
+// Uncapped wie normales Tragen. Gibt die eingesammelte Menge zurück.
+function pickupUWCrystalDrop(state, unit) {
+    if (unit.t !== 7 && unit.t !== 20) return 0;
+    if (!state.uw.dr) return 0;
+    const key = `${unit.x},${unit.y}`;
+    const amount = state.uw.dr[key];
+    if (!amount) return 0;
+    unit.cr = (unit.cr || 0) + amount;
+    delete state.uw.dr[key];
     return amount;
 }
 
@@ -1055,7 +1142,11 @@ function applyMoralCollapse(state, playerId) {
     const myUWUnits = state.uw.u.filter(u => u.p === playerId);
     if (myUWUnits.length === 0) return [];
     const floats = [];
-    myUWUnits.forEach(u => { u.h -= 1; floats.push({ x: u.x, y: u.y, val: 1 }); });
+    myUWUnits.forEach(u => {
+        u.h -= 1;
+        floats.push({ x: u.x, y: u.y, val: 1 });
+        if (u.h <= 0) dropUWCrystalsOnDeath(state, u); // Korrektur Juli 2026
+    });
     state.uw.u = state.uw.u.filter(u => u.h > 0);
     return floats;
 }

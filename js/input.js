@@ -541,15 +541,6 @@ function handleUnderworldClick(clientX, clientY) {
         return;
     }
 
-    if (window.uwSpecialActive === 'mine_select') {
-        const target = uwValidMine.find(m => m.x === clickedX && m.y === clickedY);
-        if (target) { executeUWMine(target.x, target.y); return; }
-        window.uwSpecialActive = null; uwValidMine = [];
-        showUnderworldTileUI(clickedX, clickedY);
-        renderBoard(gameState);
-        return;
-    }
-
     if (window.uwSpecialActive === 'collapse_select') {
         const target = uwValidCollapse.find(c => c.x === clickedX && c.y === clickedY);
         if (target) { executeUWCollapse(target.x, target.y); return; }
@@ -579,7 +570,7 @@ function handleUnderworldClick(clientX, clientY) {
 
 function clearUWSelection() {
     window.selectedUnderworldHex = null;
-    selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidMine = []; uwValidAttacks = []; uwValidCollapse = [];
+    selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidAttacks = []; uwValidCollapse = [];
     window.uwSpecialActive = null;
     hideActionMenu();
 }
@@ -597,7 +588,7 @@ function showUnderworldTileUI(clickedX, clickedY) {
     const creature = (rawCreature && isUWCreatureVisible(gameState.cp, rawCreature)) ? rawCreature : null;
 
     window.selectedUnderworldHex = { x: clickedX, y: clickedY };
-    selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidMine = []; uwValidAttacks = [];
+    selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidAttacks = [];
     window.uwSpecialActive = null;
 
     if (unit) {
@@ -618,7 +609,7 @@ function showUnderworldTileUI(clickedX, clickedY) {
         let extra = '';
         if (stollenOwner !== -1) extra += `<br><span style="color:${getEntityColor(stollenOwner)}">${formatOwnerName(stollenOwner, gameState.cp)} Stollenkopf</span>`;
         const rem = getUWVeinRemaining(gameState, clickedX, clickedY);
-        if (rem > 0) extra += `<br><span style="color:#7fe3ff">💎 Ader: ${rem}/4</span>`;
+        if (rem > 0) extra += `<br><span style="color:#7fe3ff">💎 Ader: ${rem}/${getUWVeinMaxAmount(gameState, clickedX, clickedY)}</span>`;
         if (isFundkammerHex(gameState, clickedX, clickedY)) {
             const looted = gameState.uw && gameState.uw.f && gameState.uw.f[`${clickedX},${clickedY}`];
             extra += `<br><span style="color:#c9a24b">🏺 Fundkammer${looted ? ' (geplündert)' : ''}</span>`;
@@ -626,6 +617,8 @@ function showUnderworldTileUI(clickedX, clickedY) {
         if (gameState.uw && gameState.uw.w && gameState.uw.w[`${clickedX},${clickedY}`]) {
             extra += `<br><span style="color:#dddddd">🕸 Spinnennetz (stoppt Bewegung)</span>`;
         }
+        const dropHere = gameState.uw && gameState.uw.dr && gameState.uw.dr[`${clickedX},${clickedY}`];
+        if (dropHere) extra += `<br><span style="color:#7fe3ff">💎 Herrenloser Kristallhaufen: ${dropHere}</span>`;
         infoPanel.innerHTML = `${UW_TYPE_NAMES[uType]}${open ? '' : ' (massiv)'}${extra}`;
     }
 
@@ -641,13 +634,17 @@ function showUnderworldTileUI(clickedX, clickedY) {
         uwValidMoves = calculateMovesUW(unit);
         uwValidDigs = calculateDigsUW(unit);
         uwValidAttacks = calculateAttacksUW(unit);
+        // Abbau (Korrektur Juli 2026): Toggle wie beim Steinabbau des Arbeiters oben
+        // (startMining/stopMining, js/abilities.js) — läuft automatisch am Zugende
+        // (processAutoMiningUW), verbraucht keine Aktion, kein Träger-Limit mehr.
+        // Abliefern läuft ebenfalls automatisch (processUWCrystalAutoDeliver), sobald
+        // die Einheit auf/neben ihrem Stollenkopf steht — kein manueller Button mehr.
         const mineTargets = calculateMineTargetsUW(unit);
-
-        if (mineTargets.length > 0 && (unit.cr || 0) < 3) {
-            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #00838f;" onclick="window.startUWMine()">💎 Abbauen</button>`;
+        if (!unit.mi && mineTargets.length > 0) {
+            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #00838f;" onclick="window.startUWMining()">💎 Abbau starten</button>`;
         }
-        if ((unit.cr || 0) > 0 && stollenOwner === gameState.cp) {
-            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #ffab00;" onclick="window.uwDeliverCrystals()">💎 Abliefern (${unit.cr})</button>`;
+        if (unit.mi) {
+            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #455a64;" onclick="window.stopUWMining()">🛑 Abbau stoppen</button>`;
         }
         if (unit.t === 7 && stollenOwner === gameState.cp) {
             const surfaceFree = !groundUnitAt(clickedX, clickedY) && gameState.v[`${clickedX},${clickedY}`] === undefined;
@@ -738,6 +735,15 @@ function executeUWMoveTo(clickedX, clickedY) {
         }
     }
 
+    // Herrenloser Kristallhaufen (Korrektur Juli 2026): nur trage-fähige Typen
+    // (Arbeiter 7, Beutegräber 20) sammeln automatisch ein, sobald sie das Hex
+    // betreten (pickupUWCrystalDrop prüft den Typ selbst).
+    const picked = pickupUWCrystalDrop(gameState, unit);
+    if (picked > 0) {
+        showToast(`💎 ${picked} herrenlose Kristalle eingesammelt!`, 'gold');
+        turnActions.push({ x: clickedX, y: clickedY, t: 'pickup', uw: true });
+    }
+
     clearUWSelection();
     renderBoard(gameState); updateUI();
 }
@@ -760,36 +766,30 @@ function executeUWDig(clickedX, clickedY) {
     renderBoard(gameState); updateUI();
 }
 
-// Startet die Ziel-Auswahl fürs Abbauen (mehrstufig wie Tunnel/Mauer/Turm-Bau
-// oben, window.uwSpecialActive statt window.specialActive) — nötig, weil
-// mehrere Adern gleichzeitig in Reichweite liegen können.
-window.startUWMine = function () {
+// Abbau-Toggle (Korrektur Juli 2026, Muster: startMining/stopMining oben) —
+// wählt automatisch die Ader mit dem höchsten Restbestand in Reichweite (eigenes
+// Hex oder angrenzend), kein Ziel-Klick mehr nötig. Der eigentliche Abbau läuft
+// passiv am Zugende (processAutoMiningUW, js/logic.js), verbraucht keine Aktion.
+window.startUWMining = function () {
     if (!selectedUWUnit) return;
     const targets = calculateMineTargetsUW(selectedUWUnit);
     if (targets.length === 0) return;
-    uwValidMoves = []; uwValidDigs = []; uwValidAttacks = [];
-    uwValidMine = targets;
-    window.uwSpecialActive = 'mine_select';
+    saveUndoState();
+    targets.sort((a, b) => getUWVeinRemaining(gameState, b.x, b.y) - getUWVeinRemaining(gameState, a.x, a.y));
+    selectedUWUnit.mi = { x: targets[0].x, y: targets[0].y };
     hideActionMenu();
-    infoPanel.innerHTML = `💎 Abbauen<br><div class="info-detail" style="color: #4fc3f7;">Wähle eine markierte Ader.</div>`;
+    infoPanel.innerHTML = `💎 Abbau gestartet!<div class="info-detail" style="color:#4fc3f7;">Am Rundenende: Kristalle +1 (solange du in Reichweite der Ader bleibst).</div>`;
     renderBoard(gameState);
 };
 
-// Ein Abbau-Tick: -1 (Beutegräber: -2) Restbestand der Ader, entsprechend viel
-// getragener Kristall (max. 3, siehe Button-Gate in showUnderworldTileUI). Bei
-// Restbestand 0 wird das Hex dauerhaft offen (wie gegraben) und der uw.a-Eintrag
-// gelöscht. Erzeugt Lärm.
-function executeUWMine(clickedX, clickedY) {
+window.stopUWMining = function () {
+    if (!selectedUWUnit) return;
     saveUndoState();
-    const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
-    const remaining = mineUWVein(gameState, selectedUWUnit, clickedX, clickedY);
-    addUWNoise(clickedX, clickedY);
-    turnActions.push({ x: clickedX, y: clickedY, t: 'mine', fx: fromX, fy: fromY, uw: true });
-    infoPanel.innerHTML = `💎 Ader abgebaut! (Rest: ${remaining}/4)`;
-    window.uwSpecialActive = null; uwValidMine = [];
-    clearUWSelection();
-    renderBoard(gameState); updateUI();
-}
+    delete selectedUWUnit.mi;
+    hideActionMenu();
+    infoPanel.innerHTML = `💎 Abbau gestoppt.`;
+    renderBoard(gameState);
+};
 
 // === UNTERMINIERUNG (M12, Sprengmeister 18, PLAN.md Abschn. 6) ===
 // "Kammer anlegen": nur auf dem eigenen Hex, direkt unter einem gültigen Ziel
@@ -1817,6 +1817,7 @@ function confirmSurrender() {
     if (gameState.uw) {
         (gameState.uw.u || []).forEach(u => {
             if (u.a === 0) delete u.a;
+            if (!u.mi) delete u.mi; // Abbau-Toggle (Korrektur Juli 2026, Muster: u.mi oben)
             delete u.i;
         });
         if (Array.isArray(gameState.uw.d)) gameState.uw.d = compressFog(gameState.uw.d);
@@ -1824,8 +1825,9 @@ function confirmSurrender() {
         if (gameState.uw.a && Object.keys(gameState.uw.a).length === 0) delete gameState.uw.a;
         if (gameState.uw.f && Object.keys(gameState.uw.f).length === 0) delete gameState.uw.f;
         if (gameState.uw.w && Object.keys(gameState.uw.w).length === 0) delete gameState.uw.w;
+        if (gameState.uw.dr && Object.keys(gameState.uw.dr).length === 0) delete gameState.uw.dr; // Kristallhaufen (Korrektur Juli 2026)
         if (gameState.uw.c && gameState.uw.c.length === 0) delete gameState.uw.c;
-        if (!gameState.uw.d && (!gameState.uw.u || gameState.uw.u.length === 0) && !gameState.uw.n && !gameState.uw.a && !gameState.uw.f && !gameState.uw.w && !gameState.uw.c && !gameState.uw.wd && !gameState.uw.hz) delete gameState.uw;
+        if (!gameState.uw.d && (!gameState.uw.u || gameState.uw.u.length === 0) && !gameState.uw.n && !gameState.uw.a && !gameState.uw.f && !gameState.uw.w && !gameState.uw.dr && !gameState.uw.c && !gameState.uw.wd && !gameState.uw.hz) delete gameState.uw;
     }
     if (gameState.bd && gameState.bd.length === 0) delete gameState.bd;
     if (gameState.uwbd && gameState.uwbd.length === 0) delete gameState.uwbd; // Moral-Kollaps-Floats (M12)
@@ -2089,6 +2091,12 @@ function doEndTurn() {
     }
 
     processAutoMining(gameState.cp);
+    // Unterwelt-Pendant (Korrektur Juli 2026, Toggle-Abbau + Auto-Ablieferung wie
+    // beim Steinabbau oben): Reihenfolge bewusst Abbau -> Ablieferung, damit frisch
+    // abgebaute Kristalle im selben Zugende schon gebucht werden, falls die Einheit
+    // zufällig direkt am eigenen Stollenkopf steht.
+    processAutoMiningUW(gameState.cp);
+    processUWCrystalAutoDeliver(gameState.cp);
     floatingTexts = [];
     attackAnims = [];
     isAnimating = false;
@@ -2256,6 +2264,7 @@ function doEndTurn() {
     if (gameState.uw) {
         (gameState.uw.u || []).forEach(u => {
             if (u.a === 0) delete u.a;
+            if (!u.mi) delete u.mi; // Abbau-Toggle (Korrektur Juli 2026, Muster: u.mi oben)
             delete u.i;
         });
         if (Array.isArray(gameState.uw.d)) gameState.uw.d = compressFog(gameState.uw.d);
@@ -2263,8 +2272,9 @@ function doEndTurn() {
         if (gameState.uw.a && Object.keys(gameState.uw.a).length === 0) delete gameState.uw.a;
         if (gameState.uw.f && Object.keys(gameState.uw.f).length === 0) delete gameState.uw.f;
         if (gameState.uw.w && Object.keys(gameState.uw.w).length === 0) delete gameState.uw.w;
+        if (gameState.uw.dr && Object.keys(gameState.uw.dr).length === 0) delete gameState.uw.dr; // Kristallhaufen (Korrektur Juli 2026)
         if (gameState.uw.c && gameState.uw.c.length === 0) delete gameState.uw.c;
-        if (!gameState.uw.d && (!gameState.uw.u || gameState.uw.u.length === 0) && !gameState.uw.n && !gameState.uw.a && !gameState.uw.f && !gameState.uw.w && !gameState.uw.c && !gameState.uw.wd && !gameState.uw.hz) delete gameState.uw;
+        if (!gameState.uw.d && (!gameState.uw.u || gameState.uw.u.length === 0) && !gameState.uw.n && !gameState.uw.a && !gameState.uw.f && !gameState.uw.w && !gameState.uw.dr && !gameState.uw.c && !gameState.uw.wd && !gameState.uw.hz) delete gameState.uw;
     }
     if (gameState.bd && gameState.bd.length === 0) delete gameState.bd;
     if (gameState.uwbd && gameState.uwbd.length === 0) delete gameState.uwbd; // Moral-Kollaps-Floats (M12)
