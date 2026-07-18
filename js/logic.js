@@ -972,8 +972,12 @@ function getCreatureAttackHexes(state, creature) {
 
 // === UNTERWELT-SICHT & -GEHÖR (M9b) ===
 // Netz-Geometrie persistent in p[].ue (compressFog-Muster wie p[].e), analog
-// getVisibleHexes/updateExploration oben, aber ohne Radius-Sichtfeld: sichtbar
-// ist nur, was die eigenen Tiefeneinheiten je selbst betreten/gegraben haben.
+// getVisibleHexes/updateExploration oben — plus SICHTWEITE 1 (Korrektur Juli
+// 2026, Jonathans Playtest): Einheiten und eigene Stollenköpfe decken
+// zusätzlich die direkt angrenzenden Hexes auf (persistent via
+// updateUWExploration), sonst wären Felsbrocken, Kristalladern und Fundkammern
+// direkt neben dem eigenen Gang praktisch unauffindbar. Tiefer in den Fels
+// hinein sieht man weiterhin NICHTS (kein Radius-2+-Sichtfeld wie oben).
 // M13 Diplomatie-Pass: analog zur Oberfläche (getVisibleHexes(playerId,
 // includeAllies=true) vereint p[].e mit dem der Verbündeten) wird hier das
 // persistente Stollen-Netz (p[].ue) mit dem aller Verbündeten vereint — ein
@@ -1002,9 +1006,20 @@ function getVisibleUWHexes(playerId, includeAllies = true) {
     // Eigene (und verbündete) Stollenköpfe sind immer sichtbar, auch bevor je
     // eine eigene Einheit dort stand — der Tunnel selbst ist an der Oberfläche
     // ohnehin bekannt, das HUB darunter soll nicht erst "entdeckt" werden müssen.
+    // SICHTWEITE 1 (Korrektur Juli 2026): Stollenköpfe UND eigene/verbündete
+    // Einheiten decken zusätzlich ihre 6 Nachbarhexes live auf — sonst wären
+    // Felsbrocken/Adern/Fundkammern direkt neben dem Gang unauffindbar.
+    // (updateUWExploration persistiert dieselben Hexes zusätzlich in p[].ue.)
     const visibleOwners = includeAllies ? [playerId, ...((gameState.p[playerId].al) || [])] : [playerId];
+    const addWithRing = (x, y) => {
+        set.add(`${x},${y}`);
+        getNeighbors(x, y).forEach(n => set.add(`${n.x},${n.y}`));
+    };
     getUnderworldTunnelHeads(gameState).forEach(h => {
-        if (visibleOwners.includes(h.owner)) set.add(`${h.x},${h.y}`);
+        if (visibleOwners.includes(h.owner)) addWithRing(h.x, h.y);
+    });
+    ((gameState.uw && gameState.uw.u) || []).forEach(u => {
+        if (visibleOwners.includes(u.p)) addWithRing(u.x, u.y);
     });
     return set;
 }
@@ -1061,10 +1076,20 @@ function markUWExplored(playerId, x, y) {
 // Persistiert die Netz-Geometrie des aktiven Spielers — läuft bei jedem Render
 // (wie updateExploration), rein additiv: jedes Hex, auf dem gerade eine eigene
 // Tiefeneinheit steht (frisch gegraben, abgebaut, bewegt, kurz nach Kauf/
-// Ebenenwechsel), wird dauerhaft Teil von p[].ue.
+// Ebenenwechsel), wird dauerhaft Teil von p[].ue — PLUS Sichtweite 1 (Korrektur
+// Juli 2026): auch die 6 Nachbarhexes jeder Einheit und jedes eigenen
+// Stollenkopfs, damit einmal Gesehenes (Adern, Fundkammern, Felswände) wie an
+// der Oberfläche dauerhaft auf der Karte bleibt.
 function updateUWExploration() {
     const pId = gameState.cp;
-    uwOwnUnits(pId).forEach(u => markUWExplored(pId, u.x, u.y));
+    const markWithRing = (x, y) => {
+        markUWExplored(pId, x, y);
+        getNeighbors(x, y).forEach(n => markUWExplored(pId, n.x, n.y));
+    };
+    uwOwnUnits(pId).forEach(u => markWithRing(u.x, u.y));
+    getUnderworldTunnelHeads(gameState).forEach(h => {
+        if (h.owner === pId) markWithRing(h.x, h.y);
+    });
 }
 
 // Gehör (Minimal-Implementierung, PLAN.md Abschn. 3+9): fremde Lärm-Marker aus

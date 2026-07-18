@@ -151,6 +151,30 @@ console.log('\n=== (b) Diplomatie: Verbündete teilen die Netz-Geometrie im Unte
     assert(!M.getVisibleUWHexes(2, false).has('5,5'), 'includeAllies=false liefert wie an der Oberfläche nur die eigene Geometrie');
 }
 
+console.log('\n=== (b2) Sichtweite 1 (Korrektur Juli 2026): Einheiten und Stollenköpfe decken ihre Nachbarhexes auf ===');
+{
+    const state = freshState(21, 7, 3);
+    state.p.forEach(p => { p.ue = []; });
+    const unit = { i: 1, p: 0, t: 7, x: 8, y: 8, h: 10, a: 0 };
+    state.uw.u = [unit];
+    state.tu = [{ x1: 3, y1: 3, x2: 0, y2: 0, o: 0, h: 13, r: state.rn }];
+
+    const vis0 = M.getVisibleUWHexes(0);
+    const unitRingOk = M.getNeighbors(8, 8).every(n => vis0.has(`${n.x},${n.y}`));
+    assert(unitRingOk, 'alle 6 Nachbarhexes der eigenen Einheit sind live sichtbar (Felsbrocken/Adern/Fundkammern auffindbar)');
+    const headRingOk = M.getNeighbors(3, 3).every(n => vis0.has(`${n.x},${n.y}`));
+    assert(headRingOk, 'alle 6 Nachbarhexes des eigenen Stollenkopfs sind live sichtbar');
+    const vis1 = M.getVisibleUWHexes(1);
+    assert(!vis1.has('8,8') && !M.getNeighbors(8, 8).some(n => vis1.has(`${n.x},${n.y}`)), 'ein fremder Spieler ohne Einheiten in der Nähe sieht davon NICHTS');
+
+    // Persistenz: updateUWExploration schreibt die Ringe dauerhaft in p[].ue
+    // (updateUWExploration nutzt gameState.cp — hier ist Spieler 0 am Zug).
+    M.updateUWExploration();
+    const ueSet = new Set(state.p[0].ue.map(idx => `${idx % state.bw},${Math.floor(idx / state.bw)}`));
+    assert(M.getNeighbors(8, 8).every(n => ueSet.has(`${n.x},${n.y}`)), 'die Nachbarhexes der Einheit sind dauerhaft in p[].ue persistiert');
+    assert(M.getNeighbors(3, 3).every(n => ueSet.has(`${n.x},${n.y}`)), 'die Nachbarhexes des Stollenkopfs sind dauerhaft in p[].ue persistiert');
+}
+
 console.log('\n=== (c) Diplomatie: Verbündete Tiefeneinheiten immer sichtbar, Feinde bleiben auf Umkreis 2 beschränkt ===');
 {
     const state = freshState(21, 7, 3);
