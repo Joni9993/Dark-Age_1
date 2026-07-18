@@ -377,6 +377,11 @@
     let uwTileMesh = null, uwAccentMesh = null, uwBuiltSeed = null;
     let uwTileIndex = [];      // instanceId -> {x, y} (uwTileMesh), für die Pro-Frame-Sichtfärbung
     let uwAccentIndex = [];    // instanceId -> {x, y} (uwAccentMesh), zum Ausblenden unerforschter Akzente
+    // Echte Voxel-Felsbrocken (M-Auftrag "richtige Steine aus Voxeln"): eigenes
+    // InstancedMesh, seed-memoisiert wie uwTileMesh/uwAccentMesh — NICHT über
+    // das per-Frame-voxelMesh (bis zu ~370 Fels-Hexes je Karte, s. PLAN.md).
+    let uwFelsMesh = null;
+    let uwFelsIndex = [];      // instanceId -> {x, y} (uwFelsMesh), zum Wegparken unerforschter Brocken
 
     // Sichtbarer Terrain-Typ inkl. Laufzeit-Zustand (M9b): durchgegrabener Fels
     // zeigt sich wie eine Kaverne, eine leergegrabene Ader wie eine Kaverne ohne
@@ -403,6 +408,7 @@
 
         if (uwTileMesh) { scene.remove(uwTileMesh); uwTileMesh.dispose(); uwTileMesh.geometry.dispose(); uwTileMesh.material.dispose(); uwTileMesh = null; }
         if (uwAccentMesh) { scene.remove(uwAccentMesh); uwAccentMesh.dispose(); uwAccentMesh.geometry.dispose(); uwAccentMesh.material.dispose(); uwAccentMesh = null; }
+        if (uwFelsMesh) { scene.remove(uwFelsMesh); uwFelsMesh.dispose(); uwFelsMesh.geometry.dispose(); uwFelsMesh.material.dispose(); uwFelsMesh = null; }
 
         // tileIndex ist zu diesem Zeitpunkt bereits von buildTiles() befüllt
         // (drawScene3d ruft beide im selben Seed-Wechsel-Zweig auf); Fallback
@@ -431,6 +437,10 @@
 
         uwTileIndex = coords;
         const accentPositions = [];
+        // Massive Fels-Hexes (+ Adern mit Restbestand, die zählen als Fels bis
+        // zum Abbau) — Sammelstelle für die echten Voxel-Felsbrocken weiter
+        // unten (M-Auftrag "richtige Steine aus Voxeln").
+        const felsPositions = [];
         const m = new THREE.Matrix4();
         const col = new THREE.Color();
         coords.forEach((c, i) => {
@@ -449,6 +459,9 @@
 
             if (uType === UW_ADER || uType === UW_RUINE || uType === UW_HERZ) {
                 accentPositions.push({ x: c.x, y: c.y, uType, wx, wz, depth });
+            }
+            if (uType === UW_FELS || uType === UW_ADER) {
+                felsPositions.push({ x: c.x, y: c.y, wx, wz, depth });
             }
             // Stollenköpfe bekommen KEINEN Tile-Akzent mehr — dort wird stattdessen
             // das Oberflächen-Tunnelgebäude 1:1 in die Unterwelt gespiegelt (inkl.
@@ -492,6 +505,77 @@
         uwAccentMesh.instanceMatrix.needsUpdate = true;
         uwAccentMesh.instanceColor.needsUpdate = true;
         scene.add(uwAccentMesh);
+
+        // Echte Voxel-Felsbrocken (M-Auftrag "richtige Steine aus Voxeln, leicht
+        // unterschiedlich"): EIN InstancedMesh für alle Fels-/Ader-Hexes der
+        // Karte (Muster: uwAccentMesh oben) statt über das per-Frame-voxelMesh
+        // (bei bis zu ~370 Fels-Hexes je Karte ein spürbarer Unterschied) —
+        // modelVoxels() (weiter unten definiert, aber zur Laufzeit längst
+        // vorhanden) liefert je Variante die bereits Culling-bereinigte
+        // Voxelliste + Basisgröße, exakt wie addVoxelModel sie für Gebäude
+        // nutzt. Pro Hex: Variante/Rotation/Skalen-Jitter deterministisch aus
+        // dem Hex selbst (createPRNG-Muster wie die Kristall-Akzente oben) —
+        // gegrabene/abgebaute Hexes fallen automatisch aus felsPositions raus,
+        // sobald buildUnderworldTiles nach uw.d/uw.a neu läuft (Cache-Signatur
+        // s. seedKey oben).
+        const FELS_VARIANTS = ['uw_fels_a', 'uw_fels_b', 'uw_fels_c'];
+        if (felsPositions.length && FELS_VARIANTS.every(k => voxelModels[k])) {
+            const variantData = FELS_VARIANTS.map(k => modelVoxels(k));
+            // Variantenwahl ist rein vom Hex abhängig (createPRNG(seed) liefert bei
+            // gleichem seed immer dieselbe Folge) — ein Vorab-Durchlauf bestimmt
+            // daher exakt dieselbe Variante wie der Bau-Durchlauf unten und liefert
+            // die WIRKLICHE Voxelsumme statt einer worst-case-Schätzung (jede
+            // Variante <40 Voxel, aber 412 Fels-Hexes × größte Variante würde die
+            // ~15k-Instanzbudget-Vorgabe knapp reißen; der Voranschlag hält den
+            // Puffer exakt).
+            let plannedTotal = 0;
+            felsPositions.forEach(f => {
+                const idx = Math.floor(createPRNG(f.x * 7247 + f.y * 5119 + 911)() * FELS_VARIANTS.length) % FELS_VARIANTS.length;
+                plannedTotal += variantData[idx].voxels.length;
+            });
+            const felsGeo = new THREE.BoxGeometry(1, 1, 1);
+            const felsMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });
+            uwFelsMesh = new THREE.InstancedMesh(felsGeo, felsMat, Math.max(1, plannedTotal));
+            uwFelsMesh.frustumCulled = false;
+            uwFelsMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(uwFelsMesh.count * 3), 3);
+            uwFelsIndex = [];
+            const fPos = new THREE.Vector3(), fQuat = new THREE.Quaternion(), fEuler = new THREE.Euler(), fScale = new THREE.Vector3();
+            let fn = 0;
+            felsPositions.forEach(f => {
+                const rng = createPRNG(f.x * 7247 + f.y * 5119 + 911);
+                const variant = variantData[Math.floor(rng() * FELS_VARIANTS.length) % FELS_VARIANTS.length];
+                const rotY = Math.floor(rng() * 4) * (Math.PI / 2); // 0/90/180/270
+                const scaleJitter = 0.85 + rng() * 0.3;
+                const s = variant.s * scaleJitter;
+                const topH = variant.h * s;
+                // Gleiches Hänge-Prinzip wie addVoxelModel(mirrorY): groundY sitzt
+                // an der Fels-"Deckenzähne"-Wurzel (Unterseite der flachen
+                // uwTileMesh-Scheibe), die Voxel wachsen von dort nach unten
+                // (Richtung Kamera) in den Raum.
+                const groundY = -f.depth - topH;
+                fEuler.set(0, rotY, 0);
+                fQuat.setFromEuler(fEuler);
+                fScale.set(s, s, s);
+                const cosR = Math.cos(rotY), sinR = Math.sin(rotY);
+                variant.voxels.forEach(v => {
+                    if (fn >= uwFelsMesh.count) return;
+                    const lx = (v.x - (variant.w - 1) / 2) * s;
+                    const lz = (v.z - (variant.d - 1) / 2) * s;
+                    const ly = groundY + (v.y + 0.5) * s;
+                    fPos.set(f.wx + lx * cosR + lz * sinR, ly, f.wz - lx * sinR + lz * cosR);
+                    m.compose(fPos, fQuat, fScale);
+                    uwFelsMesh.setMatrixAt(fn, m);
+                    col.set(spritePixelColor(v.val, '#7d838f'));
+                    uwFelsMesh.setColorAt(fn, col);
+                    uwFelsIndex.push({ x: f.x, y: f.y });
+                    fn++;
+                });
+            });
+            uwFelsMesh.count = Math.max(fn, 1);
+            uwFelsMesh.instanceMatrix.needsUpdate = true;
+            uwFelsMesh.instanceColor.needsUpdate = true;
+            scene.add(uwFelsMesh);
+        }
     }
 
     // Pro-Frame-Sichtfärbung der Unterwelt-Terrain-Schicht (M9b): läuft bei jedem
@@ -525,6 +609,20 @@
                 uwAccentMesh.setMatrixAt(i, parkM);
             });
             uwAccentMesh.instanceMatrix.needsUpdate = true;
+        }
+
+        // Fels-Voxel-Brocken folgen derselben Netz-Sichtregel wie die
+        // Kristall-Akzente: unerforscht -> wegparken (kein Rebuild nötig, reine
+        // Pro-Frame-Sichtbarkeit wie überall sonst in dieser Funktion).
+        if (uwFelsMesh) {
+            const parkM = new THREE.Matrix4();
+            uwFelsIndex.forEach((a, i) => {
+                if (uwVis.has(`${a.x},${a.y}`)) return; // sichtbar: Matrix kommt bereits korrekt aus buildUnderworldTiles
+                parkM.makeScale(0, 0, 0);
+                parkM.setPosition(0, -1000, 0);
+                uwFelsMesh.setMatrixAt(i, parkM);
+            });
+            uwFelsMesh.instanceMatrix.needsUpdate = true;
         }
     }
 
@@ -1141,6 +1239,7 @@
         const uwVis = getVisibleUWHexes(state.cp);
         if (uwTileMesh) uwTileMesh.visible = !surfaceVisible;
         if (uwAccentMesh) uwAccentMesh.visible = !surfaceVisible;
+        if (uwFelsMesh) uwFelsMesh.visible = !surfaceVisible;
         if (!surfaceVisible) updateUWTileColors(state, uwVis);
         const entities = [];
         if (surfaceVisible) {
@@ -1375,9 +1474,16 @@
             });
 
             // Kreaturen (M11): neutral, gleiche Umkreis-2-Sichtregel wie fremde
-            // Einheiten (isUWCreatureVisible). Der Alte Wurm wird deutlich größer
-            // dargestellt (sizeMultiplier), sein 14x14-Sprite normalisiert sich
-            // über spriteBottomRow/size ohnehin automatisch mit ein.
+            // Einheiten (isUWCreatureVisible). Echtes 3D-Voxelmodell (Muster:
+            // Tunnel-HUB/Herzkaverne, mirrorY für die Von-unten-Sicht) sobald
+            // voxelModels[cStats.sprite] existiert — Kreaturen gehören
+            // niemandem, daher ein neutraler Ton statt einer Spielerfarbe (die
+            // Kreaturen-Modelle/-Sprites verwenden ohnehin keine P/p-Zeichen).
+            // Fallback ohne Modell (z. B. CLASSIC-Art ohne 3D-Datensatz) bleibt
+            // das alte Billboard-Sprite inkl. sizeMultiplier für den Wurm — mit
+            // echtem Modell braucht der Wurm keinen sizeMultiplier mehr, seine
+            // Größe steckt bereits im Modell selbst (s: 3.0 vs. 2.6, art.js).
+            const UW_CREATURE_NEUTRAL_COLOR = '#e57373';
             (state.uw && state.uw.c || []).forEach(c => {
                 if (c.h <= 0) return;
                 if (!isUWCreatureVisible(state.cp, c)) return;
@@ -1387,8 +1493,15 @@
                 const groundY = -underworldDepth(uType);
                 const { wx, wz } = worldPos(c.x, c.y);
                 const isWurm = c.t === UWC_WURM;
-                addUWVoxelSprite(cStats.sprite, wx, wz, groundY, '#e57373', 1, isWurm ? 1.6 : 1);
-                const topY = groundY - (isWurm ? 46 : 34);
+                let topY;
+                if (voxelModels[cStats.sprite]) {
+                    const topH = modelTopHeight(cStats.sprite);
+                    addVoxelModel(cStats.sprite, wx, wz, groundY - topH, UW_CREATURE_NEUTRAL_COLOR, 1, null, 0, true);
+                    topY = groundY - topH - 8;
+                } else {
+                    addUWVoxelSprite(cStats.sprite, wx, wz, groundY, UW_CREATURE_NEUTRAL_COLOR, 1, isWurm ? 1.6 : 1);
+                    topY = groundY - (isWurm ? 46 : 34);
+                }
                 addHpText(c.h, wx, wz, topY, -1, c.h / cStats.hp < 0.15);
             });
 
