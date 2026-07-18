@@ -194,7 +194,7 @@ console.log('\n=== (d) Steinpanzer bewegt sich nie ===');
 
         // Greift nur an, wenn eine Einheit angrenzt
         const n = M.getNeighbors(panzer.x, panzer.y)[0];
-        const target = { i: 2, p: 0, t: 16, x: n.x, y: n.y, h: 8, a: 0 };
+        const target = { i: 2, p: 0, t: 7, x: n.x, y: n.y, h: 8, a: 0 };
         state.uw.u.push(target);
         const hpBefore = target.h;
         M.processUWCreatureTurn();
@@ -282,7 +282,7 @@ console.log('\n=== (f) Kreaturen-Kill: Veteranen-Credit + Beutegräber-Gold, kei
     const panzer4 = findCreature(state4, M.UWC_STEINPANZER);
     if (panzer4) {
         const n = M.getNeighbors(panzer4.x, panzer4.y)[0];
-        const victim = { i: 4, p: 1, t: 16, x: n.x, y: n.y, h: 1, cr: 2 };
+        const victim = { i: 4, p: 1, t: 7, x: n.x, y: n.y, h: 1, cr: 2 };
         state4.uw.u.push(victim);
         let threw = false;
         try { M.processUWCreatureTurn(); } catch (e) { threw = true; console.error(e); }
@@ -320,6 +320,26 @@ console.log('\n=== (g) Serialisierungs-Roundtrip uw.c/uw.w/uw.wd ===');
     if (emptyState.uw.c && emptyState.uw.c.length === 0) delete emptyState.uw.c;
     if (emptyState.uw.w && Object.keys(emptyState.uw.w).length === 0) delete emptyState.uw.w;
     assert(!('c' in emptyState.uw) && !('w' in emptyState.uw), 'leere uw.c/uw.w werden vor dem Encode entfernt (Default-Cleanup)');
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n=== (i) Spawn-Platzierung: Kreaturen stehen NIE auf massivem Fels/Adern ("Gebirge", Korrektur Juli 2026) ===');
+{
+    for (const seed of [3, 21, 4242]) {
+        for (const radius of [5, 7, 12]) {
+            const state = freshState(seed, radius, 2);
+            const bad = (state.uw.c || []).filter(c => !M.isUnderworldOpen(state, c.x, c.y));
+            assert(bad.length === 0, `Seed ${seed} R${radius}: alle ${state.uw.c.length} Kreaturen spawnen auf offenen Hexes (massiv: ${bad.length})`);
+            // Keine Doppelbelegung: jedes Kreaturen-Hex nur einmal
+            const seen = new Set();
+            const dup = (state.uw.c || []).some(c => { const k = `${c.x},${c.y}`; if (seen.has(k)) return true; seen.add(k); return false; });
+            assert(!dup, `Seed ${seed} R${radius}: keine zwei Kreaturen auf demselben Hex`);
+            // Steinpanzer bewachen weiterhin eine Ader: mind. eine ADER angrenzend
+            const panzers = (state.uw.c || []).filter(c => c.t === M.UWC_STEINPANZER);
+            const guarding = panzers.every(c => M.getNeighbors(c.x, c.y).some(n => M.getUnderworldType(state, n.x, n.y) === M.UW_ADER));
+            assert(guarding, `Seed ${seed} R${radius}: jeder Steinpanzer (${panzers.length}) steht NEBEN einer Ader (Wach-Hex)`);
+        }
+    }
 }
 
 console.log(`\n=== Zusammenfassung: ${failures === 0 ? 'ALLE CHECKS BESTANDEN' : failures + ' FEHLGESCHLAGEN'} ===`);

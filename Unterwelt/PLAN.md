@@ -32,11 +32,11 @@ Unterwelt-Terrain-Typen, erzeugt aus `sd` (eigener Hash-Kanal, damit oben/unten 
 
 Verteilung fairness-gebändert wie `SPAWN_BUDGETS` oben (gleiche Kristall-/Ruinen-Chancen pro Spieler-Sektor); nach dem Tuning mit einem `maptest`-Analog messen.
 
-**Lore-Anker:** Die bestehenden Tunnel (`tu[]`) führten schon immer *durch* die Unterwelt — das erklärt rückwirkend, warum sie unter Fronten hindurchkommen. Der Tunnelbau öffnet daher automatisch die beiden Unterwelt-Hexes unter seinen Endpunkten.
+**Lore-Anker:** Die bestehenden Tunnel (`tu[]`) führten schon immer *durch* die Unterwelt — das erklärt rückwirkend, warum sie unter Fronten hindurchkommen. Der Tunnelbau öffnet daher automatisch das Unterwelt-Hex unter seinem **Startpunkt** (Korrektur Juli 2026, s. u.).
 
 ## 3. Regeln unten
 
-**Graben:** Nur Tunnelgräber (und Bohrwagen) können Fels entfernen — 1 Hex pro Zug (Bohrwagen 2). Gegrabene Hexes sind dauerhaft offen und für alle Tiefeneinheiten begehbar (auch gegnerische — angeschnittene Netze verbinden sich).
+**Graben:** Nur der Arbeiter (die Ebenen-Brücke, s. u.) und der Bohrwagen können Fels entfernen — 1 Hex pro Zug (Bohrwagen 2). Gegrabene Hexes sind dauerhaft offen und für alle Tiefeneinheiten begehbar (auch gegnerische — angeschnittene Netze verbinden sich).
 
 **Sicht („Nur Stollen sichtbar"):** Ein Spieler sieht dauerhaft die **Geometrie** seines Netzes: alles selbst Gegrabene + jedes offene Hex, das eine eigene Einheit je betreten hat (persistiert wie Fog, `compressFog`-Muster). Keinerlei Umgebungssicht in den Fels hinein. **Bewegliches** (fremde Einheiten, Kreaturen) ist nur im **Umkreis 2 um eigene Einheiten** sichtbar — bekannte Gänge können also jederzeit Hinterhalte enthalten.
 
@@ -44,23 +44,28 @@ Verteilung fairness-gebändert wie `SPAWN_BUDGETS` oben (gleiche Kristall-/Ruine
 
 **Engstellen-Kampf:** In Gängen gibt es kein Vorbeikommen — wer vorn steht, blockt. **Engstelle** = offenes Hex mit ≤ 2 offenen Nachbarn; die Grubenwache nimmt dort −1 Schaden. Flankieren heißt unten: sich eine Flanke *graben*.
 
-**Nachschub & Moral:** Tiefeneinheiten werden am **Stollenkopf** gekauft (Unterwelt-Hex unter einem eigenen Tunnel-Endpunkt), bezahlt mit Gold von oben. Verliert ein Spieler **seinen letzten Tunnel** in die Unterwelt (zerstört/unterminiert), setzt der **Moral-Kollaps** ein: alle seine Tiefeneinheiten verlieren **1 HP zu Beginn jedes eigenen Zuges**, bis wieder ein Tunnel steht. Tunnel-Jagd oben ist damit die schärfste Antwort auf eine starke Tiefen-Expedition.
+**Nachschub & Moral:** Kampfeinheiten (17–22) werden am **Stollenkopf** gekauft (Unterwelt-Hex unter dem **Startpunkt** eines eigenen Tunnels — s. u.), bezahlt mit Gold von oben. Verliert ein Spieler **seinen letzten Tunnel** in die Unterwelt (zerstört/unterminiert), setzt der **Moral-Kollaps** ein: alle seine Tiefeneinheiten verlieren **1 HP zu Beginn jedes eigenen Zuges**, bis wieder ein Tunnel steht. Tunnel-Jagd oben ist damit die schärfste Antwort auf eine starke Tiefen-Expedition.
 
-**Ebenen-Wechsel:** Vorerst kann **nur der Tunnelgräber** durch Tunnel zwischen den Ebenen wechseln (Aktion am Stollenkopf bzw. Tunnel-Endpunkt oben).
+**Ebenen-Wechsel:** **Nur der Arbeiter** wechselt zwischen den Ebenen — **kein eigener Tunnelgräber-Einheitstyp** (zweite Korrektur Juli 2026: Jonathan wollte nicht zwei verschiedene "Tunnelgräber" im Dorf-Menü sehen — Arbeiter UND Tunnelgräber wirkten wie Dopplung). Der ganz normale, im Dorf rekrutierte Arbeiter (kein Fraktions-Lock) läuft zu seinem eigenen Tunnel-Startpunkt; steht er dort, bietet ihm das Menü zusätzlich zum normalen Tunnelgang die Option **„Abtauchen"** an — er behält dabei seinen Typ und seine Oberflächen-Werte, es findet **keine Typumwandlung** statt (kein separater Unterwelt-Stat-Block). Am Stollenkopf unten kann er wieder **„Aufsteigen"**. Es gibt **keinen Kauf eines Tunnelgräbers am Stollenkopf** — der einzige Weg nach unten ist, den eigenen Arbeiter runterzuschicken.
 
-## 4. Das Roster (Typ-IDs 16–22)
+**Stollenkopf-Regel (Korrektur Juli 2026):** Ein Tunnel hat zwei Enden — den **Startpunkt** (die Bewegungsreichweite der bauenden Einheit, also physisch nahe eigenem Territorium) und den frei wählbaren **Zielpunkt** (jedes bereits entdeckte Feld, ggf. weit weg). Der Stollenkopf entsteht **ausschließlich unter dem Startpunkt** — sonst könnten Spieler ihren Tunnel-Zielpunkt direkt in die Herzkaverne legen und hätten ungegraben freien Zugang zum Wurm und zum Siegweg. Der Zielpunkt bleibt für alles andere unverändert (Oberflächen-Teleport, Unterminierungs-Ziel) — nur das Unterwelt-HUB hängt am Startpunkt.
+
+## 4. Das Roster (Typ-IDs 17–22 + der Arbeiter als Ebenen-Brücke)
 
 Alle Kosten/Werte sind **Balance-Erstentwurf** (Playtest-Vorbehalt wie bei den Lufteinheiten).
 
-| | ⛏ Tunnelgräber | 🛡 Grubenwache | 💥 Sprengmeister |
-|---|---|---|---|
-| Typ-ID | 16 | 17 | 18 |
-| Verfügbar | alle | alle | alle |
-| Kosten | 3 G | 5 G | 6 G |
-| HP | 8 | 14 | 8 |
-| Bewegung | 1 (gräbt ODER läuft) | 2 | 2 |
-| Angriff | 1 DMG, RW 1 (Notwehr) | 4 DMG, RW 1 | 3 DMG, RW 1 |
-| Fähigkeiten | Graben (1 Hex/Zug) · Kristallabbau · trägt Kristalle (max. 3) · **einziger Ebenen-Wechsler** | **Schildstellung**: −1 erlittener Schaden in Engstellen | **Unterminierung** (s. Abschn. 6) · **Stollenbruch**: eigenes offenes Nachbar-Hex wieder verfüllen (Verfolger aussperren, Gegenstollen kappen) |
+**Kein eigener Tunnelgräber-Typ** (Korrektur Juli 2026): die Ebenen-Brücke ist der ganz normale **⛏ Arbeiter** (Typ 7, 2 G, 10 HP, BEW 1, 2 DMG — Oberflächen-Werte gelten unverändert auch unten, kein separater Stat-Block, keine Typumwandlung beim Ab-/Aufsteigen). Zusätzlich zu seinen bestehenden Oberflächen-Fähigkeiten (Mauer/Turm/Tunnel bauen, Stein abbauen) kann er unten graben und Kristalladern abbauen — exakt dieselben Fähigkeiten, die früher am eigenen Tunnelgräber-Typ hingen.
+
+| | 🛡 Grubenwache | 💥 Sprengmeister |
+|---|---|---|
+| Typ-ID | 17 | 18 |
+| Verfügbar | alle | alle |
+| Rekrutierung | am Stollenkopf | am Stollenkopf |
+| Kosten | 5 G | 6 G |
+| HP | 14 | 8 |
+| Bewegung | 2 | 2 |
+| Angriff | 4 DMG, RW 1 | 3 DMG, RW 1 |
+| Fähigkeiten | **Schildstellung**: −1 erlittener Schaden in Engstellen | **Unterminierung** (s. Abschn. 6) · **Stollenbruch**: eigenes offenes Nachbar-Hex wieder verfüllen (Verfolger aussperren, Gegenstollen kappen) |
 
 | | ⚔ Grubenritter | 🪙 Beutegräber | 👂 Horcher | ⚙ Bohrwagen |
 |---|---|---|---|---|
@@ -94,11 +99,11 @@ Historisches Sappieren: Kammer unter die Befestigung, Stützbalken, Brandsatz.
 - **Nur gegen:** Tunnel-Endpunkte, Mauern, Türme, **Startdörfer**. Normale Dörfer sind tabu.
 - Der **Sprengmeister** steht auf dem Unterwelt-Hex direkt unter dem Ziel: Aktion **„Kammer anlegen"** (kostet 3 Holz, 1 Zug, laut!) → Folgezug **„Zünden"**: **6 Schaden** auf die Oberflächen-Struktur, Beben-Anzeige oben für alle Sichtbaren.
 - Gegenspiel: Der Lärm der Kammer-Arbeiten ist oben als schwaches Beben auf dem Hex sichtbar (Vorwarnung), unten hörbar; Gegenstollen können die Kammer vor der Zündung stürmen.
-- Krater/Einsturz-Löcher, die die Ebenen physisch verbinden: **bewusst verschoben** (Phase 4-Idee), kollidiert vorerst mit „nur Tunnelgräber wechselt die Ebene".
+- Krater/Einsturz-Löcher, die die Ebenen physisch verbinden: **bewusst verschoben** (Phase 4-Idee), kollidiert vorerst mit „nur der Arbeiter wechselt die Ebene".
 
 ## 7. Ökonomie: Kristalle & Reliquien
 
-- **Kristalle** (`p[].k`) entstehen nur unten (Adern, Fundkammern). Tunnelgräber tragen sie (`u.cr`, max. 3) zum nächsten tunnel nach oben,  Getragene Kristalle sind klaubar (Beutegräber-Kill).
+- **Kristalle** (`p[].k`) entstehen nur unten (Adern, Fundkammern). Der Arbeiter trägt sie (`u.cr`, max. 3) beim Aufsteigen zum Stollenkopf nach oben. Getragene Kristalle sind klaubar (Beutegräber-Kill).
 - **Reliquien** = Fundstücke alter Handwerkskunst (nicht sakral!), kaufbar für Kristalle im Dorf-Menü, Erstentwurf:
   - **Damaszener Klinge** (4 💎): eine Einheit permanent +5 DMG
   - **Harnisch des Bergvolks** (4 💎): eine Einheit permanent +10 max-HP
@@ -147,7 +152,7 @@ Historisches Sappieren: Kammer unter die Befestigung, Stützbalken, Brandsatz.
 | M | Inhalt | Verifikation |
 |---|---|---|
 | **M9a** | Unterwelt-Terrain-Generierung + Unterseiten-Rendering (Fels/Kaverne/Ader/Ruine/Herz) + Debug-Tools (Aufdecken, Spawnen) | gleiche Karte bei gleichem Seed; Fairness-Kurzanalyse; Kamera-Roundtrip ohne Render-Artefakte |
-| **M9b** | Tunnelgräber: Kauf am Stollenkopf, Graben, Ebenen-Wechsel, Netz-Sicht + Persistenz, Gehör-Pings | Tunnel bauen → unten kaufen → graben → Kristall abbauen → oben abliefern; Sicht zeigt nur eigenes Netz; URL-Roundtrip mit `uw.*` |
+| **M9b** | Ebenen-Brücke: Arbeiter (kein eigener Tunnelgräber-Typ, zweite Korrektur Juli 2026) taucht am Tunnel-Startpunkt ab/auf, Graben, Netz-Sicht + Persistenz, Gehör-Pings | Tunnel bauen → Arbeiter hinschicken → abtauchen → graben → Kristall abbauen → aufsteigen/abliefern; Sicht zeigt nur eigenes Netz; URL-Roundtrip mit `uw.*` |
 | **M10** | Kampfeinheiten 17–22, Engstellen-Regel, Kristall-Tragen/Stehlen, Reliquien-Shop | Engstellen-Bonus greift; Beutegräber-Diebstahl; jede Fraktion rekrutiert ihre Tiefeneinheit; Reliquie kauf- und ausrüstbar |
 | **M11** | PvE: Spinne/Wühler/Steinpanzer + Lärm-System + Alter Wurm | Wühler gräbt nachweislich auf Lärm zu (deterministisch reproduzierbar per Seed); Wurm verteidigt Herz, bleibt nach Tod tot |
 | **M12** | Unterminierung + Moral-Kollaps + Erschließung + Sieg + Events/Countdown oben | Kammer→Zünden = exakt 6 DMG nur auf erlaubte Ziele; letzter Tunnel weg → −1 HP/Zug; Erschließung unterbricht/resettet korrekt; Sieg feuert Win-Check inkl. Team-Logik |
@@ -163,4 +168,4 @@ Historisches Sappieren: Kammer unter die Befestigung, Stützbalken, Brandsatz.
 - Kristall-Preise der Reliquien und Aderngrößen — komplett Playtest-Sache.
 - Sicht-Kompromiss „Geometrie persistent, Bewegliches nur Umkreis 2": im Playtest prüfen, ob Hinterhalte sich gut anfühlen oder nur frustrieren.
 - Krater/physische Ebenen-Durchbrüche: Phase-4-Idee, bewusst raus.
-- Sprites/Modelle: 7 neue `pixelSprites` (16–22) + Kreaturen (4) + Herzkaverne als `voxelModels`-Großmodell — Abnahme wie bei Luft per Debug-Spawn + Screenshot.
+- Sprites/Modelle: 6 neue `pixelSprites` (17–22, der Arbeiter (7) nutzt sein bestehendes Sprite auch unten) + Kreaturen (4) + Herzkaverne als `voxelModels`-Großmodell — Abnahme wie bei Luft per Debug-Spawn + Screenshot.

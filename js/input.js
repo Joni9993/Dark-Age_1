@@ -649,7 +649,7 @@ function showUnderworldTileUI(clickedX, clickedY) {
         if ((unit.cr || 0) > 0 && stollenOwner === gameState.cp) {
             menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #ffab00;" onclick="window.uwDeliverCrystals()">💎 Abliefern (${unit.cr})</button>`;
         }
-        if (unit.t === 16 && stollenOwner === gameState.cp) {
+        if (unit.t === 7 && stollenOwner === gameState.cp) {
             const surfaceFree = !groundUnitAt(clickedX, clickedY) && gameState.v[`${clickedX},${clickedY}`] === undefined;
             if (surfaceFree) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #6d4c41;" onclick="window.uwAscend()">🕳 Aufsteigen</button>`;
         }
@@ -670,13 +670,16 @@ function showUnderworldTileUI(clickedX, clickedY) {
         infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Einheit ausgewählt${hint}. Ziel wählen oder Aktion.</div>`;
     }
 
-    // Eigener freier Stollenkopf -> Rekrutieren: 16-18 immer verfügbar, 19-22 nur
+    // Eigener freier Stollenkopf -> Rekrutieren: 17-18 immer verfügbar, 19-22 nur
     // bei der jeweils gewählten Fraktion (uwFactionUnitMap, js/data.js — gleiches
-    // Muster wie die Fraktions-Einheiten der Dorf-Rekrutierung unten). Belegt-Check
-    // bewusst gegen rawUnit/rawCreature (nicht das fog-gefilterte `unit`) — ein
-    // durch Nebel unsichtbarer Besetzer (oder eine Kreatur, M11) darf trotzdem
-    // nicht überkauft werden (wie groundUnitAt bei buyUnit auf der Oberfläche,
-    // das auch unabhängig von Sicht blockiert).
+    // Muster wie die Fraktions-Einheiten der Dorf-Rekrutierung unten). Es gibt
+    // hier KEINEN eigenen Tunnelgräber-Kauf (Korrektur Juli 2026) — die Ebenen-
+    // Brücke ist der ganz normale Arbeiter (7), oben im Dorf rekrutiert, der an
+    // seinem eigenen Tunnel-Startpunkt abtaucht (uwDescend, js/abilities.js).
+    // Belegt-Check bewusst gegen rawUnit/rawCreature (nicht das fog-gefilterte
+    // `unit`) — ein durch Nebel unsichtbarer Besetzer (oder eine Kreatur, M11)
+    // darf trotzdem nicht überkauft werden (wie groundUnitAt bei buyUnit auf
+    // der Oberfläche, das auch unabhängig von Sicht blockiert).
     if (stollenOwner === gameState.cp && !rawUnit && !rawCreature) {
         const uwMkBtn = (t, icon) => {
             const cost = getUnitCost(pState, t);
@@ -686,7 +689,7 @@ function showUnderworldTileUI(clickedX, clickedY) {
                 <div style="font-size: 0.65rem; color: #b0bec5; display:flex; gap:8px;"><span>❤️${unitStats[t].maxHp}</span><span>⚔️${unitStats[t].dmg}</span><span>👟${unitStats[t].move}</span></div>
             </button>`;
         };
-        menuHtml += uwMkBtn(16, '⛏') + uwMkBtn(17, '🛡') + uwMkBtn(18, '💥');
+        menuHtml += uwMkBtn(17, '🛡') + uwMkBtn(18, '💥');
         // Ein Spieler kann bis zu 2 Fraktionen freischalten (Kultur 1+2) — wie bei
         // der Dorf-Rekrutierung unten zeigt jede gewählte Fraktion ihre Einheit.
         const facIcons = { 19: '⚔', 20: '🪙', 21: '👂', 22: '⚙' };
@@ -1068,12 +1071,17 @@ function executeMoveTo(clickedX, clickedY) {
             const prevX = selectedUnit.x, prevY = selectedUnit.y;
 
             let targetX = clickedX; let targetY = clickedY; let teleported = false;
-            // Tunnelgräber (16) betreten Tunnel-Endpunkte wie jede andere Boden-
-            // einheit (kein Erobern-Verbot), nutzen aber NICHT den Oberflächen-
-            // Teleport — ihr Ebenenwechsel läuft exklusiv über Aufsteigen/Abtauchen
-            // (window.uwAscend/uwDescend, js/abilities.js), damit sich beide Wege
-            // nicht gegenseitig kreuzen (Konfliktfreiheit, siehe M9b-Auftrag).
-            if (gameState.tu && !isFlying(selectedUnit) && !isHeavyUnit(selectedUnit) && selectedUnit.t !== 16) {
+            // Der Arbeiter (7) nutzt Tunnel normalerweise wie jede andere Boden-
+            // einheit (Auto-Teleport auf Betreten). NUR wenn das Ziel exakt sein
+            // EIGENER Tunnel-Startpunkt ist (der einzige Ort, an dem Abtauchen
+            // möglich ist, siehe getUnderworldTunnelHeads/js/hex.js), landet er
+            // stattdessen einfach dort — sonst würde er beim bloßen Heranlaufen
+            // sofort quer über die Karte teleportiert, statt die Wahl zwischen
+            // normalem Tunnelgang und Abtauchen (uwDescend, js/abilities.js) zu
+            // bekommen (Korrektur Juli 2026).
+            const isOwnDescendPoint = selectedUnit.t === 7 && gameState.tu && gameState.tu.some(t =>
+                t.o === gameState.cp && t.r <= gameState.rn && t.x1 === clickedX && t.y1 === clickedY);
+            if (gameState.tu && !isFlying(selectedUnit) && !isHeavyUnit(selectedUnit) && !isOwnDescendPoint) {
                 let tunnel = gameState.tu.find(t => t.r <= gameState.rn && ((t.x1 === clickedX && t.y1 === clickedY) || (t.x2 === clickedX && t.y2 === clickedY)));
                 if (tunnel) {
                     let linkX = tunnel.x1 === clickedX ? tunnel.x2 : tunnel.x1;
@@ -1480,13 +1488,19 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                 let onTunnel = gameState.tu.find(t => (t.x1 === clickedUnit.x && t.y1 === clickedUnit.y) || (t.x2 === clickedUnit.x && t.y2 === clickedUnit.y));
                 if (onTunnel) {
                     window.highlightedTunnelEnd = { x: onTunnel.x1 === clickedUnit.x ? onTunnel.x2 : onTunnel.x1, y: onTunnel.y1 === clickedUnit.y ? onTunnel.y2 : onTunnel.y1 };
-                    // Tunnelgräber (16) nutzen an ihrem EIGENEN Tunnel-Endpunkt exklusiv
-                    // Abtauchen (Ebenenwechsel, js/abilities.js) statt des Oberflächen-
-                    // Teleports — Konfliktfreiheit, siehe Kommentar in executeMoveTo.
-                    if (clickedUnit.t === 16 && onTunnel.o === gameState.cp && onTunnel.r <= gameState.rn && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
+                    // Der Arbeiter (7) bekommt an seinem EIGENEN Tunnel-STARTPUNKT (x1,y1)
+                    // ZUSÄTZLICH zum normalen Teleport die Option "Abtauchen" (Ebenenwechsel,
+                    // js/abilities.js) — kein Entweder-Oder, der Spieler entscheidet frei.
+                    // Nur x1,y1, nicht x2,y2: kein Stollenkopf am frei wählbaren Zielpunkt
+                    // (js/hex.js, getUnderworldTunnelHeads). Korrektur Juli 2026: früher gab
+                    // es dafür einen eigenen Tunnelgräber-Typ (16) mit exklusivem, den
+                    // normalen Teleport ausschließendem Sonderpfad — jetzt ist es einfach
+                    // der Arbeiter, der beide Wege nutzen darf.
+                    const isTunnelStart = onTunnel.x1 === clickedUnit.x && onTunnel.y1 === clickedUnit.y;
+                    if (clickedUnit.t === 7 && isTunnelStart && onTunnel.o === gameState.cp && onTunnel.r <= gameState.rn && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
                         menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4527a0;" onclick="window.uwDescend()">🕳 Abtauchen</button>`;
                     }
-                    if (clickedUnit.t !== 16 && onTunnel.r <= gameState.rn && (clickedUnit.a === 0 || clickedUnit.a === 2) && !isHeavyUnit(clickedUnit)) {
+                    if (onTunnel.r <= gameState.rn && (clickedUnit.a === 0 || clickedUnit.a === 2) && !isHeavyUnit(clickedUnit)) {
                         menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #8d6e63;" onclick="useTunnel()">🚇 Durch Tunnel gehen</button>`;
                     }
                 }
@@ -1554,6 +1568,11 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
             };
             if (freeGroundHere) {
                 recruitHtml += mkBtn(0, '⚔️', 'Schwert') + mkBtn(1, '🏹', 'Bogen') + mkBtn(2, '🐎', 'Pferd');
+                // Arbeiter (7) ist die EINZIGE Brücke zwischen Oberfläche und Unterwelt
+                // (Korrektur Juli 2026, kein eigener Tunnelgräber-Typ mehr) — an seinem
+                // eigenen Tunnel-Startpunkt kann er zusätzlich zum normalen Tunnelgang
+                // "Abtauchen" (uwDescend, js/abilities.js), am Stollenkopf unten wieder
+                // "Aufsteigen" (uwAscend). Kein separater Rekrutierungs-Button nötig.
                 recruitHtml += mkBtn(7, '⛏️', 'Arbeiter', '#fff176');
                 if (pState.f.includes(0)) { recruitHtml += mkBtn(3, '🛡️', 'Ritter', '#fff176'); recruitHtml += mkBtn(10, '🐪', 'Kamelreiter', '#e65100'); }
                 if (pState.f.includes(1)) { recruitHtml += mkBtn(4, '🪓', 'Berserker', '#fff176'); recruitHtml += mkBtn(8, '💣', 'Saboteur', '#fff176'); }

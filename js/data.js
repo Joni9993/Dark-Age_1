@@ -50,12 +50,18 @@ const unitStats = {
     13: { dmg: 5, range: 1, move: 4, name: "Gleiter", cost: 6, maxHp: 10, isMelee: true, isAir: true, hitsAir: true, hitsGround: true },
     14: { dmg: 4, range: 2, move: 2, name: "Fallschirmspringer", cost: 4, maxHp: 10, isMelee: false, isAir: true, hitsAir: true, hitsGround: false, ldMove: 2 },
     15: { dmg: 4, range: 1, move: 2, name: "Bombenballon", cost: 9, maxHp: 14, isMelee: false, isAir: true, hitsAir: false, hitsGround: true, igniteDmg: 4, fsCost: 5, fsDmg: 3 },
-    // Unterwelt (isUW, Phase 3): eigene Ebene unter der Karte, siehe Unterwelt/PLAN.md.
-    // Kein Fraktions-Lock für 16-18 (jeder Spieler kann sie bauen); 19-22 sind
+    // Unterwelt (Phase 3): eigene Ebene unter der Karte, siehe Unterwelt/PLAN.md.
+    // Kein Fraktions-Lock für 17-18 (jeder Spieler kann sie bauen); 19-22 sind
     // Fraktions-Spezialeinheiten (Zuordnung wie oben über die faktionUnitMap-Stellen
     // in input.js, nicht hier — unitStats selbst kennt keine Fraktionsbindung, exakt
     // wie bei den Boden-/Lufteinheiten). "RW 1" heißt hier durchgehend Nahkampf.
-    16: { dmg: 1, range: 1, move: 1, name: "Tunnelgräber", cost: 3, maxHp: 8, isMelee: true, light: true, isUW: true },
+    // KEIN eigener Tunnelgräber-Typ (Korrektur Juli 2026, Jonathan: "es soll einfach
+    // nur der Arbeiter sein"): die Brücke zwischen den Ebenen ist der ganz normale
+    // Arbeiter (7, oben) — steht er an seinem eigenen Tunnel-Startpunkt, kann er
+    // abtauchen (uwDescend) und behält dabei Typ 7 sowie seine Oberflächen-Werte
+    // auch unten (kein separater Unterwelt-Stat-Block, keine zweite Rekrutierungs-
+    // option). Graben/Abbau-Fähigkeiten unten sind daher an Typ 7 gebunden
+    // (calculateDigsUW/calculateMineTargetsUW, js/logic.js), nicht mehr an 16.
     17: { dmg: 4, range: 1, move: 2, name: "Grubenwache", cost: 5, maxHp: 14, isMelee: true, light: true, isUW: true },
     18: { dmg: 3, range: 1, move: 2, name: "Sprengmeister", cost: 6, maxHp: 8, isMelee: true, light: true, isUW: true },
     // Grubenritter (19, Feudalismus): +fb-Bonus wie Ritter/Kamelreiter oben (getUnitMaxHp).

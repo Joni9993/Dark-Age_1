@@ -122,7 +122,7 @@ console.log('\n=== (b) Startdorf-Kill via Zünden triggert die normale Spieler-t
     const victimId = 1;
     state.p[victimId].sh = 5; // stirbt an 6 Schaden
     const [svx, svy] = state.p[victimId].sv.split(',').map(Number);
-    const uwVictimUnit = { i: 99, p: victimId, t: 16, x: 0, y: 0, h: 8 };
+    const uwVictimUnit = { i: 99, p: victimId, t: 7, x: 0, y: 0, h: 8 };
     state.uw.u.push(uwVictimUnit);
     const surfaceVictimUnit = { i: 98, p: victimId, t: 0, x: 1, y: 1, h: 10 };
     state.u.push(surfaceVictimUnit);
@@ -179,13 +179,13 @@ console.log('\n=== (c) Stollenbruch nur auf gegrabene, unbesetzte Hexes, uw.d ko
     }
 
     // Besetztes gegrabenes Hex ist kein gültiges Ziel
-    state.uw.u.push({ i: 2, p: 1, t: 16, x: dugHex.x, y: dugHex.y, h: 8 });
+    state.uw.u.push({ i: 2, p: 1, t: 7, x: dugHex.x, y: dugHex.y, h: 8 });
     targets = M.calculateStollenbruchTargetsUW(sprengmeister);
     assert(!targets.some(t => t.x === dugHex.x && t.y === dugHex.y), 'besetztes gegrabenes Hex ist NICHT verfüllbar');
     state.uw.u = [];
 
     // Nur Sprengmeister (18) darf Stollenbruch nutzen
-    const nonSprengmeister = { i: 3, p: 0, t: 16, x: sprengmeister.x, y: sprengmeister.y, h: 8 };
+    const nonSprengmeister = { i: 3, p: 0, t: 7, x: sprengmeister.x, y: sprengmeister.y, h: 8 };
     assert(M.calculateStollenbruchTargetsUW(nonSprengmeister).length === 0, 'nur der Sprengmeister (18) darf Stollenbruch — andere Typen liefern 0 Ziele');
 
     // collapseUWHex reduziert uw.d korrekt
@@ -199,7 +199,7 @@ console.log('\n=== (c) Stollenbruch nur auf gegrabene, unbesetzte Hexes, uw.d ko
 console.log('\n=== (d) Moral-Kollaps: nur bei 0 nutzbaren Tunneln, genau -1 HP pro eigenem Zugbeginn ===');
 {
     const state = freshState(4, 7, 2);
-    state.uw.u.push({ i: 1, p: 0, t: 16, x: 1, y: 1, h: 8 }, { i: 2, p: 0, t: 17, x: 2, y: 2, h: 14 });
+    state.uw.u.push({ i: 1, p: 0, t: 7, x: 1, y: 1, h: 8 }, { i: 2, p: 0, t: 17, x: 2, y: 2, h: 14 });
     state.tu = []; // kein Tunnel -> Kollaps sollte greifen
 
     assert(M.hasUsableTunnel(state, 0) === false, 'ohne Tunnel: hasUsableTunnel === false');
@@ -210,7 +210,7 @@ console.log('\n=== (d) Moral-Kollaps: nur bei 0 nutzbaren Tunneln, genau -1 HP p
 
     // Mit nutzbarem Tunnel: kein Kollaps
     const state2 = freshState(4, 7, 2);
-    state2.uw.u.push({ i: 1, p: 0, t: 16, x: 1, y: 1, h: 8 });
+    state2.uw.u.push({ i: 1, p: 0, t: 7, x: 1, y: 1, h: 8 });
     state2.tu = [{ x1: 0, y1: 0, x2: 5, y2: 5, o: 0, h: 13, r: state2.rn }];
     assert(M.hasUsableTunnel(state2, 0) === true, 'mit nutzbarem Tunnel: hasUsableTunnel === true');
     const floats2 = M.applyMoralCollapse(state2, 0);
@@ -218,7 +218,7 @@ console.log('\n=== (d) Moral-Kollaps: nur bei 0 nutzbaren Tunneln, genau -1 HP p
 
     // Tunnel im Bau (r > rn) zählt NICHT als nutzbar
     const state3 = freshState(4, 7, 2);
-    state3.uw.u.push({ i: 1, p: 0, t: 16, x: 1, y: 1, h: 8 });
+    state3.uw.u.push({ i: 1, p: 0, t: 7, x: 1, y: 1, h: 8 });
     state3.tu = [{ x1: 0, y1: 0, x2: 5, y2: 5, o: 0, h: 13, r: state3.rn + 1 }];
     assert(M.hasUsableTunnel(state3, 0) === false, 'Tunnel im Bau (r > rn) zählt nicht als nutzbar');
     const floats3 = M.applyMoralCollapse(state3, 0);
@@ -226,14 +226,14 @@ console.log('\n=== (d) Moral-Kollaps: nur bei 0 nutzbaren Tunneln, genau -1 HP p
 
     // Fremder Tunnel schützt nicht
     const state4 = freshState(4, 7, 2);
-    state4.uw.u.push({ i: 1, p: 0, t: 16, x: 1, y: 1, h: 8 });
+    state4.uw.u.push({ i: 1, p: 0, t: 7, x: 1, y: 1, h: 8 });
     state4.tu = [{ x1: 0, y1: 0, x2: 5, y2: 5, o: 1, h: 13, r: state4.rn }]; // gehört Spieler 1, nicht 0
     const floats4 = M.applyMoralCollapse(state4, 0);
     assert(floats4.length === 1, 'ein FREMDER Tunnel schützt nicht vor Moral-Kollaps');
 
     // Tod durch Moral-Kollaps: Einheit mit 1 HP stirbt normal
     const state5 = freshState(4, 7, 2);
-    state5.uw.u.push({ i: 1, p: 0, t: 16, x: 1, y: 1, h: 1 });
+    state5.uw.u.push({ i: 1, p: 0, t: 7, x: 1, y: 1, h: 1 });
     M.applyMoralCollapse(state5, 0);
     assert(state5.uw.u.length === 0, 'Einheit mit 1 HP stirbt durch Moral-Kollaps und wird aus uw.u entfernt');
 }
@@ -245,7 +245,7 @@ console.log('\n=== (e) Erschließung: Bedingungen, Verbündete unterbrechen nich
     const cx = state.rad, cy = state.rad;
 
     // Solange der Wurm lebt: kein Fortschritt
-    state.uw.u.push({ i: 1, p: 0, t: 16, x: cx, y: cy, h: 8 });
+    state.uw.u.push({ i: 1, p: 0, t: 7, x: cx, y: cy, h: 8 });
     assert(M.checkErschliessungProgress(state, 0) === false, 'kein Fortschritt solange der Alte Wurm lebt (uw.wd nicht 1)');
 
     state.uw.wd = 1;
@@ -259,7 +259,7 @@ console.log('\n=== (e) Erschließung: Bedingungen, Verbündete unterbrechen nich
     // Feind irgendwo in der Kaverne (nicht nur im Zentrum) unterbricht
     const state3 = freshState(5, 5, 3);
     state3.uw.wd = 1;
-    state3.uw.u.push({ i: 1, p: 0, t: 16, x: cx, y: cy, h: 8 });
+    state3.uw.u.push({ i: 1, p: 0, t: 7, x: cx, y: cy, h: 8 });
     const heartHexes = M.getHeartCavernHexes(state3);
     const otherHeartHex = heartHexes.find(h => !(h.x === cx && h.y === cy));
     state3.uw.u.push({ i: 2, p: 1, t: 17, x: otherHeartHex.x, y: otherHeartHex.y, h: 14 });
@@ -270,14 +270,14 @@ console.log('\n=== (e) Erschließung: Bedingungen, Verbündete unterbrechen nich
     state4.uw.wd = 1;
     state4.p[0].al = [1];
     state4.p[1].al = [0];
-    state4.uw.u.push({ i: 1, p: 0, t: 16, x: cx, y: cy, h: 8 });
+    state4.uw.u.push({ i: 1, p: 0, t: 7, x: cx, y: cy, h: 8 });
     state4.uw.u.push({ i: 2, p: 1, t: 17, x: otherHeartHex.x, y: otherHeartHex.y, h: 14 });
     assert(M.checkErschliessungProgress(state4, 0) === true, 'ein VERBÜNDETER in der Herzkaverne unterbricht NICHT');
 
     // advanceErschliessung: Start -> Fortschritt -> ... -> 4, dann Reset bei Unterbrechung
     const state5 = freshState(5, 5, 3);
     state5.uw.wd = 1;
-    state5.uw.u.push({ i: 1, p: 0, t: 16, x: cx, y: cy, h: 8 });
+    state5.uw.u.push({ i: 1, p: 0, t: 7, x: cx, y: cy, h: 8 });
     const e1 = M.advanceErschliessung(state5, 0);
     assert(e1 && e1.type === 'start' && e1.n === 1 && state5.uw.hz.n === 1, 'erster gehaltener Zugende startet uw.hz bei n=1');
     const e2 = M.advanceErschliessung(state5, 0);

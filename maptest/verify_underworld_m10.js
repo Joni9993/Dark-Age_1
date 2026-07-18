@@ -146,7 +146,7 @@ console.log('\n=== (c) Beutegräber-Diebstahl: cr wandert beim Kill ===');
     const n1 = M.getNeighbors(cx, cy)[0];
 
     const beutegraeber = { i: 1, p: 0, t: 20, x: cx, y: cy, h: 10, cr: 1 };
-    const opfer = { i: 2, p: 1, t: 16, x: n1.x, y: n1.y, h: 1, cr: 3 }; // trägt 3, stirbt am Treffer
+    const opfer = { i: 2, p: 1, t: 7, x: n1.x, y: n1.y, h: 1, cr: 3 }; // trägt 3, stirbt am Treffer
     state.uw.u.push(beutegraeber, opfer);
     const result = M.resolveUWAttack(state, beutegraeber, opfer);
     assert(result.killed === true, 'Opfer stirbt (1 HP)');
@@ -158,7 +158,7 @@ console.log('\n=== (c) Beutegräber-Diebstahl: cr wandert beim Kill ===');
     const cx2 = state2.rad, cy2 = state2.rad;
     const n2 = M.getNeighbors(cx2, cy2)[0];
     const wache = { i: 3, p: 0, t: 17, x: cx2, y: cy2, h: 14 };
-    const opfer2 = { i: 4, p: 1, t: 16, x: n2.x, y: n2.y, h: 1, cr: 2 };
+    const opfer2 = { i: 4, p: 1, t: 7, x: n2.x, y: n2.y, h: 1, cr: 2 };
     state2.uw.u.push(wache, opfer2);
     const result2 = M.resolveUWAttack(state2, wache, opfer2);
     assert(result2.killed === true && result2.stolenCrystals === 0, 'Grubenwache (kein Beutegräber) stiehlt NICHTS beim Kill');
@@ -173,7 +173,7 @@ console.log('\n=== (d) Fundkammer: nur einmal plünderbar, deterministisch gleic
 
     if (fundkammern.length > 0) {
         const fk = fundkammern[0];
-        const unit = { i: 1, p: 0, t: 16, x: fk.x, y: fk.y, h: 8 };
+        const unit = { i: 1, p: 0, t: 7, x: fk.x, y: fk.y, h: 8 };
         const kBefore = state.p[0].k || 0;
         const relBefore = (state.p[0].rel || []).length;
 
@@ -192,7 +192,7 @@ console.log('\n=== (d) Fundkammer: nur einmal plünderbar, deterministisch gleic
         // Determinismus: gleicher Seed + gleiche Karte -> gleiche Beute an derselben
         // Fundkammer, unabhängig vom Spieler/der Einheit, die sie plündert.
         const stateB = freshState(9, 12, 3);
-        const unitB = { i: 1, p: 1, t: 16, x: fk.x, y: fk.y, h: 8 };
+        const unitB = { i: 1, p: 1, t: 7, x: fk.x, y: fk.y, h: 8 };
         const lootB = M.lootFundkammer(stateB, 1, unitB, fk.x, fk.y);
         assert(lootB.type === loot1.type, `gleicher Seed -> gleicher Beutetyp (${lootB.type} === ${loot1.type})`);
         if (loot1.type === 'crystal') assert(lootB.amount === 2, 'Basis-Kristallmenge ohne Beutegräber-Passiv ist 2');
@@ -238,12 +238,12 @@ console.log('\n=== (e) Reliquien-Effekte in getExpectedDamage(UW)/getUnitMaxHp =
 
     // applyRelicToUnit: verbraucht das Inventar-Item, heilt beim Ausrüsten mit,
     // verweigert eine zweite Reliquie auf derselben Einheit
-    const freshUnit = { i: 5, p: 0, t: 16, x: 0, y: 0, h: 5 }; // 5/8 HP
+    const freshUnit = { i: 5, p: 0, t: 7, x: 0, y: 0, h: 5 }; // 5/10 HP (Arbeiter)
     const relBefore = pState.rel.length;
     const ok = M.applyRelicToUnit(state, 0, 'armor', freshUnit);
     assert(ok === true, 'applyRelicToUnit gelingt mit Reliquie im Inventar');
     assert(freshUnit.art === 'armor', 'Einheit trägt die Reliquie jetzt');
-    assert(freshUnit.h === Math.min(M.getUnitMaxHp(pState, 16, freshUnit), 5 + 10), `Einheit heilt beim Ausrüsten um 10 mit (gemessen: ${freshUnit.h})`);
+    assert(freshUnit.h === Math.min(M.getUnitMaxHp(pState, 7, freshUnit), 5 + 10), `Einheit heilt beim Ausrüsten um 10 mit (gemessen: ${freshUnit.h})`);
     assert(pState.rel.length === relBefore - 1, 'Reliquie aus dem Inventar entfernt');
     const okTwice = M.applyRelicToUnit(state, 0, 'blade', freshUnit);
     assert(okTwice === false, 'zweite Reliquie auf derselben Einheit wird verweigert (eine pro Einheit)');

@@ -156,7 +156,7 @@ console.log('\n=== (c) Diplomatie: Verbündete Tiefeneinheiten immer sichtbar, F
     const state = freshState(21, 7, 3);
     state.p[0].al = [2]; state.p[2].al = [0];
     state.uw.u = [
-        { i: 1, p: 0, t: 16, x: 10, y: 10, h: 8 },
+        { i: 1, p: 0, t: 7, x: 10, y: 10, h: 8 },
         { i: 2, p: 2, t: 17, x: 20, y: 20, h: 14 }, // Verbündete Einheit, weit weg von p0
         { i: 3, p: 1, t: 18, x: 15, y: 15, h: 8 },  // Feind, weit weg von allem Eigenen/Verbündeten (Distanz > 2 zu beiden)
     ];
@@ -179,8 +179,8 @@ console.log('\n=== (d) Diplomatie: calculateAttacksUW schließt Verbündete/Waff
     const attacker = { i: 1, p: 0, t: 17, x: 10, y: 10, h: 14, a: 0 };
     state.uw.u = [
         attacker,
-        { i: 2, p: 2, t: 16, x: 11, y: 10, h: 8 }, // Verbündeter Nachbar
-        { i: 3, p: 1, t: 16, x: 10, y: 9, h: 8 },  // Waffenstillstand-Nachbar
+        { i: 2, p: 2, t: 7, x: 11, y: 10, h: 8 }, // Verbündeter Nachbar
+        { i: 3, p: 1, t: 7, x: 10, y: 9, h: 8 },  // Waffenstillstand-Nachbar
     ];
     const attacks = M.calculateAttacksUW(attacker);
     assert(!attacks.some(a => a.x === 11 && a.y === 10), 'Verbündete Einheit ist kein gültiges Angriffsziel');
@@ -196,8 +196,8 @@ console.log('\n=== (e) Diplomatie: Bündnisbruch WÄHREND laufender Erschließun
     state.uw.c = (state.uw.c || []).filter(c => c.t !== M.UWC_WURM);
     state.p[0].al = [2]; state.p[2].al = [0];
     state.uw.u = [
-        { i: 1, p: 0, t: 16, x: center.x, y: center.y, h: 8 },
-        { i: 2, p: 2, t: 16, x: heart[1].x, y: heart[1].y, h: 8 }, // Verbündeter, ebenfalls in der Kaverne
+        { i: 1, p: 0, t: 7, x: center.x, y: center.y, h: 8 },
+        { i: 2, p: 2, t: 7, x: heart[1].x, y: heart[1].y, h: 8 }, // Verbündeter, ebenfalls in der Kaverne
     ];
     assert(M.checkErschliessungProgress(state, 0) === true, 'Erschließung hält mit Verbündetem in der Kaverne (Bündnis noch aktiv)');
     let evt = M.advanceErschliessung(state, 0);
@@ -262,8 +262,9 @@ let lateGameStateForUrlTest = null;
         }
     }
 
-    // 8 Tiefeneinheiten (gemischtes Roster)
-    const uwTypes = [16, 17, 18, 19, 20, 21, 22, 16];
+    // 8 Tiefeneinheiten (gemischtes Roster) — 7 (Arbeiter) statt 16, kein
+    // eigener Tunnelgräber-Typ mehr (Korrektur Juli 2026).
+    const uwTypes = [7, 17, 18, 19, 20, 21, 22, 7];
     let uid = 1;
     state.uw.u = uwTypes.map((t, k) => ({ i: uid++, p: k % 3, t, x: 3 + k, y: 3 + (k % 5), h: M.unitStats[t].maxHp, a: 0, cr: k % 3 }));
 
@@ -285,7 +286,7 @@ let lateGameStateForUrlTest = null;
     const heart = M.getHeartCavernHexes(state);
     state.uw.wd = 1;
     state.uw.hz = { p: 0, n: 2 };
-    state.uw.u.push({ i: uid++, p: 0, t: 16, x: heart[0].x, y: heart[0].y, h: 8, a: 0 });
+    state.uw.u.push({ i: uid++, p: 0, t: 7, x: heart[0].x, y: heart[0].y, h: 8, a: 0 });
 
     // etwas Netz-Erkundung + Lärm-Marker (realistische Spätspiel-Fog-Größe)
     state.p.forEach((p, idx) => { p.ue = Array.from({ length: 25 }, (_, i) => i + idx * 30); p.e = Array.from({ length: 60 }, (_, i) => i + idx * 10); });
@@ -429,12 +430,25 @@ function roundtrip(state, label) {
     // Player 0: EIN Tunnel (einziger, damit die spätere Unterminierung den
     // Moral-Kollaps sauber auslöst) von einer Ecke nahe des eigenen Startdorfs
     // hin zu einem Punkt einige Hexes von der Herzkaverne entfernt.
+    // x1,y1 = Tunnel-STARTPUNKT (physische Bewegungsreichweite der bauenden
+    // Einheit) -> hier entsteht der Stollenkopf. x2,y2 = frei wählbarer
+    // Zielpunkt -> bewusst KEIN Stollenkopf (Juli-2026-Korrektur, js/hex.js
+    // getUnderworldTunnelHeads) — sonst könnte Player 0 seinen zweiten Tunnel-
+    // Ausgang direkt an die Herzkaverne legen und bräuchte gar nicht zu graben.
     const startX = Math.max(0, state.rad - 3), startY = state.rad;
-    state.tu = [{ x1: startX - 1, y1: startY, x2: startX, y2: startY, o: 0, h: 13, r: state.rn }];
-    assert(M.isUnderworldTunnelHead(state, startX, startY), 'Tunnel-Endpunkt ist sofort ein nutzbarer Stollenkopf (M9b-Verhalten)');
+    const tunnelHeadX = startX - 1, tunnelHeadY = startY;
+    state.tu = [{ x1: tunnelHeadX, y1: tunnelHeadY, x2: startX, y2: startY, o: 0, h: 13, r: state.rn }];
+    assert(M.isUnderworldTunnelHead(state, tunnelHeadX, tunnelHeadY), 'Tunnel-STARTPUNKT ist sofort ein nutzbarer Stollenkopf (M9b-Verhalten)');
+    assert(!M.isUnderworldTunnelHead(state, startX, startY), 'Tunnel-ZIELPUNKT ist KEIN Stollenkopf (Juli-2026-Korrektur)');
 
-    // Tunnelgräber kaufen + zur Herzkaverne durchgraben (echte digUWHex-Aufrufe).
-    let digger = M.buyUWUnitAt(state, 0, startX, startY, 16);
+    // Arbeiter (7): Rekrutierung oben (Dorf, Muster buyUnit) + echtes Abtauchen
+    // am Tunnel-STARTPUNKT (descendUWUnit, Juli-2026-Korrektur — kein eigener
+    // Tunnelgräber-Typ mehr, der Arbeiter behält Typ 7 auch unten), dann zur
+    // Herzkaverne durchgraben (echte digUWHex-Aufrufe).
+    const surfaceDigger = { i: 9001, p: 0, t: 7, x: tunnelHeadX, y: tunnelHeadY, h: M.getUnitMaxHp(state.p[0], 7), a: 0 };
+    state.u.push(surfaceDigger);
+    let digger = M.descendUWUnit(state, surfaceDigger);
+    assert(digger.t === 7 && digger.x === tunnelHeadX && digger.y === tunnelHeadY, 'Arbeiter taucht exakt am Tunnel-Startpunkt in die Unterwelt ab (kein Typwechsel)');
     const digStartDist = M.hexDistance({ x: digger.x, y: digger.y }, center);
     const steps = walkAndDig(digger, center.x, center.y);
     assert(digger.x === center.x && digger.y === center.y, `Tunnelgräber erreicht das Herzkaverne-Zentrum nach ${steps} echten Grab-Schritten (Startdistanz war ${digStartDist})`);
@@ -455,7 +469,11 @@ function roundtrip(state, label) {
     // Player 2 ist mit Player 0 verbündet und stellt sich mit in die Kaverne —
     // das darf die laufende Erschließung NICHT unterbrechen.
     state.p[0].al = [2]; state.p[2].al = [0];
-    const allyUnit = M.buyUWUnitAt(state, 2, heart[1].x, heart[1].y, 16);
+    // Grubenwache (17) statt Tunnelgräber — jede reguläre, am Stollenkopf
+    // kaufbare Unterwelt-Einheit belegt die Kaverne, das ist hier nicht
+    // Gegenstand des Tests (Juli-2026-Korrektur: 16 wäre hier gar nicht mehr
+    // direkt kaufbar).
+    const allyUnit = M.buyUWUnitAt(state, 2, heart[1].x, heart[1].y, 17);
     assert(M.checkErschliessungProgress(state, 0) === true, 'Verbündete Einheit (Player 3) IN der Kaverne unterbricht die Erschließung NICHT');
     evt = M.advanceErschliessung(state, 0);
     assert(evt.type === 'progress' && state.uw.hz.n === 3, 'Erschließung schreitet trotz Verbündeten-Präsenz weiter fort (n=3)');
@@ -497,7 +515,7 @@ console.log('\n=== (h2) Regression: eine ECHTE Unterbrechung (Gegner betritt die
     state.uw.c = (state.uw.c || []).filter(c => c.t !== M.UWC_WURM);
     state.p.forEach(p => { p.g = 999; });
 
-    state.uw.u = [{ i: 1, p: 0, t: 16, x: center.x, y: center.y, h: 8, a: 0 }];
+    state.uw.u = [{ i: 1, p: 0, t: 7, x: center.x, y: center.y, h: 8, a: 0 }];
     assert(M.checkErschliessungProgress(state, 0) === true, 'Ausgangslage: Erschließung würde halten');
     let evt = M.advanceErschliessung(state, 0);
     assert(evt.type === 'start' && state.uw.hz.n === 1, 'Erschließung gestartet (n=1)');
@@ -506,7 +524,7 @@ console.log('\n=== (h2) Regression: eine ECHTE Unterbrechung (Gegner betritt die
     state = roundtrip(state, 'vor der echten Unterbrechung');
 
     // Player 1 (NICHT verbündet) schickt eine Einheit physisch in die Kaverne.
-    state.uw.u.push({ i: 2, p: 1, t: 16, x: heart[2].x, y: heart[2].y, h: 8, a: 0 });
+    state.uw.u.push({ i: 2, p: 1, t: 7, x: heart[2].x, y: heart[2].y, h: 8, a: 0 });
     assert(M.checkErschliessungProgress(state, 0) === false, 'echte Gegner-Präsenz in der Kaverne unterbricht die Bedingung');
     evt = M.advanceErschliessung(state, 0);
     assert(evt.type === 'reset' && !state.uw.hz, 'echte Unterbrechung resettet n auf 0 (uw.hz gelöscht) — Gegenprobe zu (h), wo NUR ein Verbündeter/Moral-Kollaps NICHT resettet');

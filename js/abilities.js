@@ -463,9 +463,11 @@ window.demolishWall = function (wx, wy) {
 };
 
 window.useTunnel = function () {
-    // Lufteinheiten & schwere Einheiten ignorieren Tunnel; Tunnelgräber (16) nutzen
-    // exklusiv Aufsteigen/Abtauchen (uwAscend/uwDescend unten) — Konfliktfreiheit.
-    if (!selectedUnit || isFlying(selectedUnit) || isHeavyUnit(selectedUnit) || selectedUnit.t === 16) return;
+    // Lufteinheiten & schwere Einheiten ignorieren Tunnel. Der Arbeiter (7) nutzt
+    // Tunnel ganz normal wie jede andere Bodeneinheit — NUR an seinem eigenen
+    // Tunnel-Startpunkt bietet input.js zusätzlich "Abtauchen" (uwDescend) als
+    // Alternative an; hier keine Sonderbehandlung nötig (Korrektur Juli 2026).
+    if (!selectedUnit || isFlying(selectedUnit) || isHeavyUnit(selectedUnit)) return;
     saveUndoState();
     if (gameState.tu) {
         let tunnel = gameState.tu.find(t => t.r <= gameState.rn && ((t.x1 === selectedUnit.x && t.y1 === selectedUnit.y) || (t.x2 === selectedUnit.x && t.y2 === selectedUnit.y)));
@@ -486,13 +488,14 @@ window.useTunnel = function () {
     }
 };
 
-// === UNTERWELT-EBENENWECHSEL (M9b) ===
-// Nur der Tunnelgräber (16) wechselt die Ebene — Aktion am Stollenkopf bzw.
-// Tunnel-Endpunkt oben (siehe PLAN.md Abschn. 3). Beide Richtungen verbrauchen
-// die Aktion (a=1), verlieren aber weder Veteranenstatus noch getragene
-// Kristalle — nur das Trägerobjekt wandert zwischen u[] und uw.u.
+// === UNTERWELT-EBENENWECHSEL (M9b, Korrektur Juli 2026) ===
+// Nur der Arbeiter (7) wechselt die Ebene — kein eigener Tunnelgräber-Typ mehr,
+// der Arbeiter behält Typ 7 und seine Oberflächen-Werte auch unten. Aktion am
+// Stollenkopf bzw. Tunnel-Startpunkt oben (siehe PLAN.md Abschn. 3). Beide
+// Richtungen verbrauchen die Aktion (a=1), verlieren aber weder Veteranenstatus
+// noch getragene Kristalle — nur das Trägerobjekt wandert zwischen u[] und uw.u.
 window.uwAscend = function () {
-    if (!selectedUWUnit || selectedUWUnit.t !== 16) return;
+    if (!selectedUWUnit || selectedUWUnit.t !== 7) return;
     const { x, y } = selectedUWUnit;
     if (getStollenkopfOwner(gameState, x, y) !== gameState.cp) return;
     if (groundUnitAt(x, y) || gameState.v[`${x},${y}`] !== undefined) { showToast('Oberfläche blockiert!', 'error'); return; }
@@ -507,9 +510,12 @@ window.uwAscend = function () {
 };
 
 window.uwDescend = function () {
-    if (!selectedUnit || selectedUnit.t !== 16) return;
+    if (!selectedUnit || selectedUnit.t !== 7) return;
     const { x, y } = selectedUnit;
-    const ownHead = (gameState.tu || []).some(t => t.o === gameState.cp && t.r <= gameState.rn && ((t.x1 === x && t.y1 === y) || (t.x2 === x && t.y2 === y)));
+    // Nur am Tunnel-STARTPUNKT (x1,y1) — der Zielpunkt (x2,y2) hat seit der
+    // Stollenkopf-Korrektur (js/hex.js, getUnderworldTunnelHeads) keinen
+    // Stollenkopf mehr darunter, siehe Kommentar dort.
+    const ownHead = (gameState.tu || []).some(t => t.o === gameState.cp && t.r <= gameState.rn && t.x1 === x && t.y1 === y);
     if (!ownHead) return;
     if (uwUnitAt(x, y) || uwCreatureAt(x, y)) { showToast('Unterwelt-Feld belegt!', 'error'); return; }
     saveUndoState();

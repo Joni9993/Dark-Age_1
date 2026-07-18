@@ -1462,19 +1462,27 @@
       <div class="callout info">
         <span class="callout-label">Einstieg</span>
         Baue oben einen <strong>🚇 Tunnel</strong> (siehe Abschnitt 07). Sobald er fertig ist, öffnet sich automatisch
-        das Unterwelt-Hex direkt unter jedem seiner beiden Eingänge – das ist dein <strong>Stollenkopf</strong>.
-        Schalte im <strong>„🔄 Kamerafokus"</strong>-Button im HUD auf <strong>Unterwelt</strong> (3. Kamerafahrt im
-        Zyklus Standard → Luftansicht → Unterwelt), um dort zu bauen, zu kaufen und zu kämpfen. Im Unterwelt-Fokus ist
-        die Oberfläche komplett ausgeblendet, genau wie in der Luftansicht.
+        das Unterwelt-Hex direkt unter seinem <strong>Startpunkt</strong> (dort, wo du mit dem Bau begonnen hast) –
+        das ist dein <strong>Stollenkopf</strong>. Der frei wählbare Zielpunkt am anderen Ende bleibt bewusst ohne
+        Stollenkopf, sonst könnte man den zweiten Tunnel-Eingang einfach direkt an die Herzkaverne legen, ohne
+        je einen Meter zu graben. Schicke deinen <strong>⛏️ Arbeiter</strong> zum Tunnel-Startpunkt – dort bietet ihm
+        das Menü zusätzlich zum normalen Tunnelgang die Option <strong>„Abtauchen"</strong> an: er ist die einzige
+        Einheit, die zwischen den Ebenen wechseln kann, und bleibt dabei ganz normaler Arbeiter (kein eigener
+        Tunnelgräber-Typ, keine Umwandlung). Schalte im <strong>„🔄 Kamerafokus"</strong>-Button im HUD auf
+        <strong>Unterwelt</strong> (3. Kamerafahrt im Zyklus Standard → Luftansicht → Unterwelt), um dort zu bauen,
+        zu kaufen und zu kämpfen. Im Unterwelt-Fokus ist die Oberfläche komplett ausgeblendet, genau wie in der
+        Luftansicht.
       </div>
 
-      <p><strong>Rekrutieren am Stollenkopf:</strong> Tippe auf einen eigenen Stollenkopf (ein Unterwelt-Hex unter
-        einem eigenen Tunnel-Eingang) – das Aktionsmenü zeigt die kaufbaren Tiefeneinheiten, bezahlt mit
-        <strong>Gold von oben</strong>.</p>
+      <p><strong>Rekrutieren am Stollenkopf:</strong> Tippe unten auf einen eigenen Stollenkopf – das Aktionsmenü
+        zeigt die dort kaufbaren Kampfeinheiten (🛡️ Grubenwache, 💥 Sprengmeister und deine Fraktionseinheit),
+        bezahlt mit <strong>Gold von oben</strong>. Es gibt hier <strong>keinen eigenen Tunnelgräber-Kauf</strong> –
+        die Ebenen-Brücke ist immer dein ganz normaler, im Dorf rekrutierter Arbeiter.</p>
 
-      <p><strong>Ebenen-Wechsel:</strong> Nur der <strong>⛏️ Tunnelgräber</strong> kann zwischen Oberfläche und
-        Unterwelt wechseln (Aktion „Abtauchen" am Tunnel-Eingang oben, „Aufsteigen" am Stollenkopf unten). Alle
-        anderen Tiefeneinheiten bleiben dauerhaft unten.</p>
+      <p><strong>Ebenen-Wechsel:</strong> Nur der <strong>⛏️ Arbeiter</strong> kann zwischen Oberfläche und
+        Unterwelt wechseln – zusätzlich zum normalen Tunnelgang bietet ihm sein eigener Tunnel-Startpunkt oben die
+        Option „Abtauchen", am Stollenkopf unten kann er wieder „Aufsteigen", immer derselbe physische Trupp mit
+        seinen normalen Oberflächen-Werten. Alle anderen Tiefeneinheiten bleiben dauerhaft unten.</p>
 
       <p><strong>Vier Regeln, die unten alles verändern:</strong></p>
 
@@ -1482,7 +1490,7 @@
         <div class="build-item">
           <div class="build-icon">⛏️</div>
           <div><strong>Graben statt Laufen</strong><br>
-            Fels ist Hindernis. Nur der Tunnelgräber (1 Hex/Zug) und der Bohrwagen (2 Hex/Zug) können ihn entfernen.
+            Fels ist Hindernis. Nur der Arbeiter (1 Hex/Zug) und der Bohrwagen (2 Hex/Zug) können ihn entfernen.
             Einmal gegraben, bleibt ein Hex dauerhaft offen und begehbar – auch für gegnerische Einheiten. Wer sich
             an ein fremdes Netz heranarbeitet, verbindet die beiden Stollen.</div>
         </div>
@@ -1520,8 +1528,10 @@
         genauso wichtig wie deine Expedition unten.
       </div>
 
-      <p><strong>Das Tiefen-Roster</strong> (Typ-IDs 16–22, Kosten in Gold, Fähigkeiten Holz-finanziert soweit
-        angegeben):</p>
+      <p><strong>Das Tiefen-Roster</strong> (Typ-IDs 17–22, Kosten in Gold, Fähigkeiten Holz-finanziert soweit
+        angegeben). Die Ebenen-Brücke selbst ist kein eigener Roster-Eintrag – dein normaler
+        <strong>⛏️ Arbeiter</strong> (2 G, 10 HP, 2 DMG, BEW 1, im Dorf-Menü wie gewohnt) taucht mit genau diesen
+        Oberflächen-Werten auch unten ab:</p>
 
       <table class="unit-table">
         <thead>
@@ -1535,14 +1545,6 @@
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>⛏️ Tunnelgräber</td>
-            <td>3 G</td>
-            <td>8</td>
-            <td>1 (Notwehr)</td>
-            <td>1 (gräbt <em>oder</em> läuft)</td>
-            <td>Alle</td>
-          </tr>
           <tr>
             <td>🛡️ Grubenwache</td>
             <td>5 G</td>
@@ -1602,10 +1604,10 @@
       <div class="build-row">
         <div class="build-item">
           <div class="build-icon">⛏️</div>
-          <div><strong>Tunnelgräber – Graben, Abbau & Ebenen-Wechsel</strong><br>
-            Gräbt 1 Fels-Hex/Zug frei, baut Kristalladern ab (wie Arbeiter Stein oben) und trägt bis zu
-            <strong>3 Kristalle</strong> zum nächsten eigenen Tunnel, um sie oben abzuliefern. Einziger Ebenen-
-            Wechsler.</div>
+          <div><strong>Arbeiter – Graben, Abbau & Ebenen-Wechsel</strong><br>
+            Gräbt unten 1 Fels-Hex/Zug frei, baut Kristalladern ab (wie er oben Stein abbaut) und trägt bis zu
+            <strong>3 Kristalle</strong> zum eigenen Stollenkopf, um sie oben abzuliefern. Einziger Ebenen-
+            Wechsler – kein separater Unterwelt-Typ, dieselbe Einheit mit denselben Werten.</div>
         </div>
         <div class="build-item">
           <div class="build-icon">💥</div>
@@ -1661,7 +1663,7 @@
 
       <p><strong>Kristalle & Reliquien:</strong> Kristalle entstehen nur unten – aus Kristalladern (Abbau wie
         Stein oben) und aus <strong>Fundkammern</strong> in Stollenruinen (einmalige Beute: Kristalle oder direkt
-        eine Reliquie). Tunnelgräber tragen sie hoch; oben angekommen kannst du im Dorf-Menü Reliquien kaufen:</p>
+        eine Reliquie). Dein Arbeiter trägt sie beim Aufsteigen hoch; oben angekommen kannst du im Dorf-Menü Reliquien kaufen:</p>
 
       <div class="build-row">
         <div class="build-item">

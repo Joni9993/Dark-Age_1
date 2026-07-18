@@ -382,9 +382,10 @@ function calculateMovesUW(unit) {
 // Angrenzende FELS-Hexes, die noch nicht offen sind — ein Klick darauf gräbt UND
 // rückt die Einheit nach (siehe executeUWDig in input.js). Kaverne/Ruine/Herz
 // sind schon offen (keine Grab-Ziele), Kristalladern laufen über calculateMineTargetsUW.
-// Graben ist Tunnelgräber (16) und Bohrwagen (22) vorbehalten (PLAN.md Abschn. 3).
+// Graben ist Arbeiter (7, DIE Ebenen-Brücke — Korrektur Juli 2026) und Bohrwagen
+// (22) vorbehalten (PLAN.md Abschn. 3).
 function calculateDigsUW(unit) {
-    if (unit.t !== 16 && unit.t !== 22) return [];
+    if (unit.t !== 7 && unit.t !== 22) return [];
     const targets = [];
     getNeighbors(unit.x, unit.y).forEach(n => {
         if (getUnderworldType(gameState, n.x, n.y) === UW_FELS && !isUnderworldOpen(gameState, n.x, n.y)) {
@@ -396,9 +397,9 @@ function calculateDigsUW(unit) {
 
 // Kristalladern, die die Einheit abbauen kann: das eigene Hex selbst (falls ein
 // Stollenkopf zufällig auf einer Ader liegt) + angrenzende Ader-Hexes mit Restbestand.
-// Abbau ist Tunnelgräber (16) und Beutegräber (20) vorbehalten (PLAN.md Abschn. 4).
+// Abbau ist Arbeiter (7, Ebenen-Brücke) und Beutegräber (20) vorbehalten (PLAN.md Abschn. 4).
 function calculateMineTargetsUW(unit) {
-    if (unit.t !== 16 && unit.t !== 20) return [];
+    if (unit.t !== 7 && unit.t !== 20) return [];
     const targets = [];
     const consider = (x, y) => {
         if (getUWVeinRemaining(gameState, x, y) > 0) targets.push({ x, y });
@@ -774,6 +775,13 @@ function getVisibleUWHexes(playerId, includeAllies = true) {
         const pState = gameState.p[playerId];
         (pState.al || []).forEach(allyId => addUE(allyId));
     }
+    // Eigene (und verbündete) Stollenköpfe sind immer sichtbar, auch bevor je
+    // eine eigene Einheit dort stand — der Tunnel selbst ist an der Oberfläche
+    // ohnehin bekannt, das HUB darunter soll nicht erst "entdeckt" werden müssen.
+    const visibleOwners = includeAllies ? [playerId, ...((gameState.p[playerId].al) || [])] : [playerId];
+    getUnderworldTunnelHeads(gameState).forEach(h => {
+        if (visibleOwners.includes(h.owner)) set.add(`${h.x},${h.y}`);
+    });
     return set;
 }
 

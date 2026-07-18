@@ -260,7 +260,10 @@ function getNearestSpiderNest(state, x, y) {
     return best;
 }
 
-// Steinpanzer: die (per Hash-Rang) "reichsten" Kristalladern-Hexes.
+// Steinpanzer: die (per Hash-Rang) "reichsten" Kristalladern-Hexes. Das sind die
+// ADERN selbst (massiv!) — der Steinpanzer STEHT nicht darauf, sondern auf einem
+// Wach-Hex daneben, siehe getSteinpanzerGuardHex (Korrektur Juli 2026: Kreaturen
+// spawnen nie auf massiven "Gebirgs"-Feldern).
 const _steinpanzerCache = {};
 function getSteinpanzerVeinHexes(state) {
     const key = `${state.sd}|${state.bw}|${state.bh}|${state.rad}`;
@@ -275,18 +278,66 @@ function getSteinpanzerVeinHexes(state) {
     return picks;
 }
 
-// Blindwühler: Startposition auf (per Hash-Rang) Fels-Hexes — er gräbt sich von
-// dort ohnehin selbst weiter (siehe processUWCreatureTurn, js/logic.js).
+// Wach-Hex eines Steinpanzers neben "seiner" Ader: deterministisch der Nachbar
+// mit dem besten Hash-Rang (Salt 10), bevorzugt natürlich offen (Kaverne/Ruine).
+// Hat die Ader keinen natürlich offenen Nachbarn, wird der bestplatzierte
+// Fels-Nachbar zurückgegeben und `needsCarve` gesetzt — buildInitialGameState
+// gräbt dieses Hex dann vor (uw.d), damit der Panzer in einer kleinen Fels-
+// Tasche neben der Ader sitzt statt AUF dem massiven Ader-Block zu schweben.
+function getSteinpanzerGuardHex(state, vein) {
+    // hexRingAround statt getNeighbors: getNeighbors liest den globalen gameState
+    // (isInsideMap-Filter), diese Funktion läuft aber bereits WÄHREND
+    // buildInitialGameState — hexRingAround ist eine reine Kubik-Rechnung.
+    const neighbors = hexRingAround(vein, 1).filter(n => isInsideMap(state, n.x, n.y) && !isHeartCavernHex(state, n.x, n.y));
+    const rank = (list) => list.map(n => ({ ...n, score: underworldHash(state, n.x, n.y, 10) })).sort((a, b) => b.score - a.score);
+    const open = rank(neighbors.filter(n => {
+        const t = getUnderworldType(state, n.x, n.y);
+        return t === UW_KAVERNE || t === UW_RUINE;
+    }));
+    if (open.length > 0) return { x: open[0].x, y: open[0].y, needsCarve: false };
+    const fels = rank(neighbors.filter(n => getUnderworldType(state, n.x, n.y) === UW_FELS));
+    if (fels.length > 0) return { x: fels[0].x, y: fels[0].y, needsCarve: true };
+    return null; // Ader komplett von Adern/Herz umschlossen — dann kein Panzer hier
+}
+
+// Die "vorgegrabenen" Fels-Taschen der Steinpanzer (needsCarve-Fall oben) sind
+// vollständig seed-deterministisch — sie werden deshalb NICHT in uw.d
+// gespeichert (ein unberührter Unterwelt-Zustand bleibt so weiterhin 0 Bytes
+// im Blob), sondern hier abgeleitet und in isUnderworldOpen als natürlich
+// offen behandelt. Set-Cache pro Karte, isUnderworldOpen läuft im BFS heiß.
+const _panzerPocketCache = {};
+function getSteinpanzerPocketSet(state) {
+    const key = `${state.sd}|${state.bw}|${state.bh}|${state.rad}`;
+    if (_panzerPocketCache[key]) return _panzerPocketCache[key];
+    const pockets = new Set();
+    getSteinpanzerVeinHexes(state).forEach(vein => {
+        const guard = getSteinpanzerGuardHex(state, vein);
+        if (guard && guard.needsCarve) pockets.add(`${guard.x},${guard.y}`);
+    });
+    _panzerPocketCache[key] = pockets;
+    return pockets;
+}
+
+// Blindwühler: Startposition auf natürlich OFFENEN Hexes (Kaverne/Ruine, nie
+// Herzkaverne — die gehört dem Wurm). Korrektur Juli 2026: früher spawnte er
+// mitten im massiven Fels und schien dadurch "auf dem Gebirge" zu stehen; er
+// gräbt sich von seiner offenen Tasche aus ohnehin selbst weiter
+// (processUWCreatureTurn, js/logic.js).
 const _wuehlerCache = {};
 function getWuehlerSpawnHexes(state) {
     const key = `${state.sd}|${state.bw}|${state.bh}|${state.rad}`;
     if (_wuehlerCache[key]) return _wuehlerCache[key];
-    const felsHexes = [];
+    // Spinnen-Nester ausschließen, damit Spinne und Wühler nie dasselbe
+    // Spawn-Hex bekommen (beide wählen aus den natürlichen Öffnungen).
+    const nests = new Set(getSpiderNestHexes(state).map(h => `${h.x},${h.y}`));
+    const openHexes = [];
     for (let y = 0; y < state.bh; y++) for (let x = 0; x < state.bw; x++) {
-        if (isInsideMap(state, x, y) && getUnderworldType(state, x, y) === UW_FELS) felsHexes.push({ x, y });
+        if (!isInsideMap(state, x, y) || nests.has(`${x},${y}`)) continue;
+        const t = getUnderworldType(state, x, y);
+        if (t === UW_KAVERNE || t === UW_RUINE) openHexes.push({ x, y });
     }
     const count = densityForRadius(state.rad, 1, 1, 2);
-    const picks = pickHashRankedHexes(state, felsHexes, 9, count);
+    const picks = pickHashRankedHexes(state, openHexes, 9, count);
     _wuehlerCache[key] = picks;
     return picks;
 }
@@ -304,18 +355,24 @@ function getUnderworldType(state, x, y) {
     return UW_FELS;
 }
 
-// Stollenköpfe (M9b): das Unterwelt-Hex unter einem nutzbaren Tunnel-Endpunkt
-// (tu[], r <= rn) zählt automatisch als offen + als Stollenkopf des Tunnel-
-// Besitzers — wird NICHT in uw.d gespeichert, sondern aus tu[] abgeleitet
-// (Tunnel bauen -> sofort offen; Tunnel zerstört -> sofort wieder zu, ohne
-// jeden Zustand doppelt pflegen zu müssen).
+// Stollenköpfe (M9b, korrigiert Juli 2026): das Unterwelt-Hex unter dem
+// STARTPUNKT (x1,y1) eines nutzbaren Tunnels (tu[], r <= rn) zählt automatisch
+// als offen + als Stollenkopf des Tunnel-Besitzers — wird NICHT in uw.d
+// gespeichert, sondern aus tu[] abgeleitet (Tunnel bauen -> sofort offen;
+// Tunnel zerstört -> sofort wieder zu, ohne jeden Zustand doppelt pflegen zu
+// müssen). Bewusst NUR x1,y1, nicht auch x2,y2: der Zielpunkt (x2,y2) eines
+// Tunnels darf jedes bereits entdeckte Feld sein (js/input.js, tunnel_step2) —
+// ohne diese Einschränkung könnten Spieler ihren zweiten Tunnel-Ausgang direkt
+// in die Kartenmitte legen und stünden ohne jedes Graben am Herzkaverne-
+// Eingang. Der Startpunkt (x1,y1) ist dagegen an die tatsächliche Bewegungs-
+// reichweite der bauenden Einheit gebunden (tunnel_step1) — echte physische
+// Präsenz statt bloß aufgedecktem Nebel.
 function getUnderworldTunnelHeads(state) {
     if (!state.tu) return [];
     const heads = [];
     state.tu.forEach(t => {
         if (t.r > state.rn) return; // noch im Bau, kein nutzbarer Kopf
         heads.push({ x: t.x1, y: t.y1, owner: t.o });
-        heads.push({ x: t.x2, y: t.y2, owner: t.o });
     });
     return heads;
 }
@@ -339,6 +396,10 @@ function isUnderworldOpen(state, x, y) {
     const t = getUnderworldType(state, x, y);
     if (t === UW_KAVERNE || t === UW_RUINE || t === UW_HERZ) return true;
     if (isUnderworldTunnelHead(state, x, y)) return true;
+    // Steinpanzer-Wachtaschen: seed-deterministisch vorgegrabene Fels-Nischen
+    // neben den reichsten Adern (getSteinpanzerPocketSet) — zählen als natürlich
+    // offen, ohne uw.d zu belasten.
+    if (t === UW_FELS && getSteinpanzerPocketSet(state).has(`${x},${y}`)) return true;
     if (!state.uw || !state.uw.d) return false;
     const idx = y * state.bw + x;
     if (typeof state.uw.d === 'string') return decompressFog(state.uw.d).includes(idx);

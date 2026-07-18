@@ -357,6 +357,9 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
     if (uType === UW_ADER) {
         ctx.fillStyle = '#7fe3ff';
         ctx.beginPath(); ctx.arc(center.px, center.py, 3, 0, Math.PI * 2); ctx.fill();
+        // Restbestand als Zahl (Korrektur Juli 2026, Parität zum 3D-Renderer)
+        const rem = getUWVeinRemaining(gameState, x, y);
+        if (rem > 0) { ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(`💎${rem}`, center.px, center.py - 8); }
     } else if (uType === UW_RUINE) {
         ctx.strokeStyle = '#c9a24b'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(center.px - 6, center.py); ctx.lineTo(center.px + 6, center.py); ctx.stroke();
@@ -364,6 +367,20 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
         ctx.fillStyle = '#ff6f61';
         ctx.beginPath(); ctx.arc(center.px, center.py, 5, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+    }
+
+    // Tunnel-HUB (Korrektur Juli 2026): der Oberflächen-Tunnel wird auf sein
+    // Startpunkt-Hex gespiegelt — 🚇-Symbol in der Besitzerfarbe + gemeinsamer
+    // HP-Pool (t.h), gleiche Info wie das gespiegelte 3D-Gebäude.
+    const hubTunnel = (gameState.tu || []).find(t => t.x1 === x && t.y1 === y);
+    if (hubTunnel) {
+        ctx.globalAlpha = hubTunnel.r > gameState.rn ? 0.4 : 1;
+        ctx.fillStyle = playerColors[hubTunnel.o] || '#888';
+        ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('🚇', center.px, center.py + 4);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 9px monospace';
+        ctx.fillText(`${hubTunnel.h}`, center.px, center.py - 10);
+        ctx.globalAlpha = 1;
     }
 
     // Ziel-Highlights: Bewegen grün, Graben bräunlich, Abbauen cyan, Angreifen rot
@@ -376,7 +393,7 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
 
     // Tiefeneinheiten: eigene immer, fremde nur im Umkreis 2 eigener Einheiten
     // (isUWUnitVisible, js/logic.js). Icon pro Typ statt fixem ⛏ (M9b-Rest).
-    const UW_UNIT_ICONS = { 16: '⛏', 17: '🛡', 18: '💥', 19: '⚔', 20: '🪙', 21: '👂', 22: '⚙' };
+    const UW_UNIT_ICONS = { 7: '⛏', 17: '🛡', 18: '💥', 19: '⚔', 20: '🪙', 21: '👂', 22: '⚙' };
     const unit = uwUnitAt(x, y);
     if (unit && isUWUnitVisible(gameState.cp, unit)) {
         ctx.globalAlpha = unit.iv === 1 ? 0.5 : 1;

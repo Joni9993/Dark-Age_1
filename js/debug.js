@@ -132,11 +132,11 @@ function debugApplyTool(hex) {
         if (!unitAt) { showToast('Keine Einheit auf dem Feld.'); return; }
         unitAt.a = unitAt.a ? 0 : 1;
     } else if (tool === 'uwspawn') {
-        // Unterwelt-Einheit (16-22, aus dbg-spawn-type) auf ein Unterwelt-Hex setzen
+        // Unterwelt-Einheit (17-22, aus dbg-spawn-type) auf ein Unterwelt-Hex setzen
         // (unabhängig von Kamerafokus/Kauf-Regeln) — nur auf bereits offenen Hexes,
         // nicht auf belegten.
         const t = parseInt(document.getElementById('dbg-spawn-type').value);
-        if (!unitStats[t].isUW) { showToast('Keine Unterwelt-Einheit ausgewählt (16-22).'); return; }
+        if (!unitStats[t].isUW) { showToast('Keine Unterwelt-Einheit ausgewählt (17-22). Der Arbeiter (7) taucht über "Abtauchen" an seinem Tunnel-Startpunkt ab.'); return; }
         if (!isUnderworldOpen(gameState, x, y)) { showToast('Hex ist noch massiver Fels — nicht setzbar.'); return; }
         if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {} };
         if (uwUnitAt(x, y)) { showToast('Unterwelt-Feld belegt.'); return; }
@@ -220,7 +220,7 @@ function debugSetupErschliessung() {
     if (!uwUnitAt(cx, cy)) {
         if (!gameState.uw.u) gameState.uw.u = [];
         const nextId = gameState.uw.u.reduce((m, u) => Math.max(m, u.i || 0), 0) + 1;
-        gameState.uw.u.push({ i: nextId, p: gameState.cp, t: 16, x: cx, y: cy, h: getUnitMaxHp(gameState.p[gameState.cp], 16), a: 0 });
+        gameState.uw.u.push({ i: nextId, p: gameState.cp, t: 7, x: cx, y: cy, h: getUnitMaxHp(gameState.p[gameState.cp], 7), a: 0 });
     }
     renderBoard(gameState);
     updateUI();

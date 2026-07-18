@@ -238,14 +238,29 @@ function buildInitialGameState(playerNames, radius, teamMode = 'ffa') {
     // kein Besitzer), w = Spinnennetze {"x,y": 1}, wd = Alter Wurm dauerhaft tot.
     const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [], ct: { x: cx, y: cy, ctrl: -1 }, uw: { d: [], u: [], n: [], a: {}, f: {}, w: {} } };
 
-    // Unterwelt-Kreaturen (M11): deterministisch aus dem Seed platziert — Spinnen
-    // in den (Hash-Rang) "besten" natürlichen Kavernen, Steinpanzer auf den
-    // "reichsten" Kristalladern, Wühler auf Fels-Hexes, der Wurm exakt im
-    // Herzkaverne-Zentrum (== ct, s.o.). Dichte-Bänder siehe densityForRadius.
+    // Unterwelt-Kreaturen (M11, Platzierung korrigiert Juli 2026): deterministisch
+    // aus dem Seed, und IMMER auf offenen Hexes — nie auf massivem Fels/Adern
+    // ("Gebirge"). Spinnen in den (Hash-Rang) "besten" natürlichen Kavernen,
+    // Steinpanzer auf einem Wach-Hex NEBEN den "reichsten" Adern (ggf. wird die
+    // Fels-Tasche daneben vorgegraben, getSteinpanzerGuardHex), Wühler in
+    // natürlichen Öffnungen, der Wurm exakt im Herzkaverne-Zentrum (== ct, s.o.).
+    // Dichte-Bänder siehe densityForRadius; `used` verhindert Doppelbelegungen.
     const creatures = [];
-    getSpiderNestHexes(state).forEach(h => creatures.push({ t: UWC_SPINNE, x: h.x, y: h.y, h: uwCreatureStats[UWC_SPINNE].hp }));
-    getSteinpanzerVeinHexes(state).forEach(h => creatures.push({ t: UWC_STEINPANZER, x: h.x, y: h.y, h: uwCreatureStats[UWC_STEINPANZER].hp }));
-    getWuehlerSpawnHexes(state).forEach(h => creatures.push({ t: UWC_WUEHLER, x: h.x, y: h.y, h: uwCreatureStats[UWC_WUEHLER].hp }));
+    const used = new Set([`${cx},${cy}`]); // Zentrum ist für den Wurm reserviert
+    const place = (t, x, y) => {
+        if (used.has(`${x},${y}`)) return;
+        used.add(`${x},${y}`);
+        creatures.push({ t, x, y, h: uwCreatureStats[t].hp });
+    };
+    getSpiderNestHexes(state).forEach(h => place(UWC_SPINNE, h.x, h.y));
+    getSteinpanzerVeinHexes(state).forEach(vein => {
+        // needsCarve-Taschen landen NICHT in uw.d — sie sind seed-deterministisch
+        // und zählen über getSteinpanzerPocketSet (isUnderworldOpen, js/hex.js)
+        // als natürlich offen. Unberührte Unterwelt bleibt so 0 Bytes im Blob.
+        const guard = getSteinpanzerGuardHex(state, vein);
+        if (guard) place(UWC_STEINPANZER, guard.x, guard.y);
+    });
+    getWuehlerSpawnHexes(state).forEach(h => place(UWC_WUEHLER, h.x, h.y));
     creatures.push({ t: UWC_WURM, x: cx, y: cy, h: uwCreatureStats[UWC_WURM].hp });
     state.uw.c = creatures;
 

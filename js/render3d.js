@@ -32,7 +32,12 @@
     // sonst würde der protrudierende Fels das lila Auswahl-Overlay verdecken.
     const UW_SOLID_DEPTH = 2.2;
     const UW_OPEN_DEPTH = 0.7;
-    function underworldDepth(uType) { return uType === UW_FELS ? UW_SOLID_DEPTH : UW_OPEN_DEPTH; }
+    // ADER zählt zur SOLID-Tiefe (Korrektur Juli 2026): eine Kristallader mit
+    // Restbestand ist massiver Fels (isUnderworldOpen = false, erst der Abbau
+    // öffnet sie) — sie flach wie einen offenen Gang zu rendern, ließ Adern
+    // begehbar wirken. uwVisualType liefert für leergebaute Adern ohnehin
+    // UW_KAVERNE, die hier automatisch offen gerendert wird.
+    function underworldDepth(uType) { return (uType === UW_FELS || uType === UW_ADER) ? UW_SOLID_DEPTH : UW_OPEN_DEPTH; }
 
     // Basisfarben je Unterwelt-Typ (bewusst hier lokal definiert, nicht in
     // art.js/pal — die Unterwelt-Grafik ist noch reiner Platzhalter, art.js
@@ -445,6 +450,9 @@
             if (uType === UW_ADER || uType === UW_RUINE || uType === UW_HERZ) {
                 accentPositions.push({ x: c.x, y: c.y, uType, wx, wz, depth });
             }
+            // Stollenköpfe bekommen KEINEN Tile-Akzent mehr — dort wird stattdessen
+            // das Oberflächen-Tunnelgebäude 1:1 in die Unterwelt gespiegelt (inkl.
+            // gemeinsamem HP-Pool), siehe den Tunnel-HUB-Block in drawScene3d.
         });
         uwTileMesh.instanceMatrix.needsUpdate = true;
         scene.add(uwTileMesh);
@@ -842,7 +850,9 @@
         }
     }
 
-    // Unterwelt-Einheiten als Voxel-Billboards (M9b, pixelSprites[16..]). Eigene,
+    // Unterwelt-Einheiten als Voxel-Billboards (M9b, pixelSprites[7,17..22] — der
+    // Arbeiter (7) nutzt dabei automatisch sein normales Oberflächen-Sprite, kein
+    // separates Unterwelt-Asset). Eigene,
     // bewusst vereinfachte Kopie von addVoxelSprite statt Verzweigung: unter der
     // Karte steht die Kamera UNTER der y=0-Ebene und blickt nach OBEN — "hoch" im
     // Sprite muss deshalb Richtung Kamera (negatives Welt-Y) zeigen, umgekehrt zur
@@ -905,7 +915,7 @@
         return _modelCache[key];
     }
 
-    function addVoxelModel(key, wx, wz, groundY, playerColor, dimFactor, tint, rotY) {
+    function addVoxelModel(key, wx, wz, groundY, playerColor, dimFactor, tint, rotY, mirrorY) {
         const { voxels, w, h, d, s } = modelVoxels(key);
         // Flieger mit 3D-Körper (Gleiter/Luftschraube) routen wie Billboard-Sprites
         // in die transparente Luft-Ebene; Gebäude setzen _voxelAir nie, bleiben also
@@ -919,7 +929,11 @@
             if (idx >= VOXEL_CAP) return;
             const lx = (v.x - (w - 1) / 2) * s;
             const lz = (v.z - (d - 1) / 2) * s;
-            const ly = groundY + (h - 1 - v.y + 0.5) * s;
+            // mirrorY (Unterwelt): vertikal gespiegelt gestapelt — die Kamera steht
+            // UNTER der Karte und blickt nach oben, ohne Spiegelung stünde das
+            // Modell aus ihrer Sicht auf dem Kopf (gleiches Prinzip wie die
+            // invertierte Zeilenrichtung in addUWVoxelSprite).
+            const ly = groundY + ((mirrorY ? v.y : (h - 1 - v.y)) + 0.5) * s;
             if (rotate) {
                 // Modell (inkl. Würfelorientierung, damit die Voxel weiter bündig
                 // aneinanderliegen) um Y rotiert, damit die Wand-Längsachse zum
@@ -1224,6 +1238,8 @@
                 if (u.mi) addIcon('⛏', '#fff176', wx, wz, topY - 2, 11, uiA, 1);
                 if (u.bn) addIcon('🔥', '#ff6e40', wx, wz, topY, 11, uiA, 1);
                 if (u.cg) addIcon('📦', '#ffcc80', wx, wz, topY - 10, 10, uiA, 1);
+                // Aufgestiegener Arbeiter mit Kristallfracht: auch oben sichtbar machen
+                if (u.cr) addIcon(`💎${u.cr}`, '#7fe3ff', wx, wz, topY + 12, 11, uiA, 1);
             } else {
                 const tType = getTerrainType(state, e.x, e.y);
                 const { wx, wz } = worldPos(e.x, e.y);
@@ -1272,8 +1288,37 @@
         }
 
         } else {
+            // Tunnel-HUB (Korrektur Juli 2026): das Oberflächen-Tunnelgebäude wird
+            // 1:1 auf sein Startpunkt-Hex in der Unterwelt gespiegelt — gleiches
+            // Sprite, GEMEINSAMER HP-Pool (t.h, oben wie unten dieselbe Zahl).
+            // Im Bau (r > rn) gedimmt wie an der Oberfläche. Nur der Startpunkt:
+            // der Zielpunkt hat keinen Stollenkopf (js/hex.js).
+            (state.tu || []).forEach(t => {
+                if (!uwVis.has(`${t.x1},${t.y1}`)) return;
+                const gyT = -underworldDepth(uwVisualType(state, t.x1, t.y1));
+                const { wx, wz } = worldPos(t.x1, t.y1);
+                const dimT = (t.r > state.rn) ? 0.4 : 1;
+                if (voxelModels['tunnel']) {
+                    // Echtes 3D-Voxelmodell wie an der Oberfläche (nicht das alte
+                    // 2D-Sprite) — unter die Unterseiten-Ebene gehängt, gleiches
+                    // Platzierungsmuster wie das Herzkaverne-Modell unten;
+                    // mirrorY, damit es aus der Von-unten-Sicht richtig herum steht.
+                    addVoxelModel('tunnel', wx, wz, -(underworldDepth(uwVisualType(state, t.x1, t.y1)) + modelTopHeight('tunnel')), playerColors[t.o], dimT, null, 0, true);
+                    addHpText(t.h, wx, wz, gyT - modelTopHeight('tunnel') - 8, -1, t.h / 13 < 0.3);
+                } else {
+                    // Fallback ohne Modell (z. B. CLASSIC-Art ohne 3D-Datensatz)
+                    addUWVoxelSprite('tunnel', wx, wz, gyT, playerColors[t.o], dimT);
+                    addHpText(t.h, wx, wz, gyT - 34, -1, t.h / 13 < 0.3);
+                }
+            });
+
             const cx = Math.floor(state.bw / 2), cy = Math.floor(state.bh / 2);
-            if (voxelModels['herzkaverne'] && uwVis.has(`${cx},${cy}`)) {
+            // Herzkaverne-Modell nur, solange NIEMAND auf dem Zentrums-Hex steht —
+            // sonst thront der Wurm (oder eine Einheit) optisch "auf dem Gebirge"
+            // obenauf statt in der Kaverne (Korrektur Juli 2026).
+            const centerOccupied = ((state.uw && state.uw.u) || []).some(u => u.x === cx && u.y === cy)
+                || ((state.uw && state.uw.c) || []).some(c => c.h > 0 && c.x === cx && c.y === cy);
+            if (voxelModels['herzkaverne'] && !centerOccupied && uwVis.has(`${cx},${cy}`)) {
                 // Herzkaverne deutlich hervorgehoben, falls der (parallel arbeitende)
                 // Art-Agent bereits ein echtes Voxelmodell geliefert hat — sonst bleibt
                 // es beim rein prozeduralen Akzent-Cluster aus buildUnderworldTiles.
@@ -1281,7 +1326,7 @@
                 // Abgleich mit dem fertigen Modell nicht endgültig kalibrierbar und
                 // ggf. nachzujustieren, sobald das Modell vorliegt.
                 const { wx, wz } = worldPos(cx, cy);
-                addVoxelModel('herzkaverne', wx, wz, -(UW_OPEN_DEPTH + modelTopHeight('herzkaverne')), '#ff6f61', 1, null, 0);
+                addVoxelModel('herzkaverne', wx, wz, -(UW_OPEN_DEPTH + modelTopHeight('herzkaverne')), '#ff6f61', 1, null, 0, true);
             }
 
             // Tiefeneinheiten (M9b): eigene stehen immer, fremde nur im Umkreis 2
@@ -1297,8 +1342,27 @@
                 const topY = groundY - 34;
                 addHpText(u.h, wx, wz, topY, -1, u.h / getUnitMaxHp(state.p[u.p], u.t, u) < 0.15);
                 if (u.vet) addIcon('★', '#e8b84a', wx, wz, topY - 4, 9);
-                if (u.cr) addIcon('💎', '#7fe3ff', wx, wz, topY - 12, 10, 1, 1);
+                // Getragene Kristalle MIT Anzahl (Korrektur Juli 2026): "💎2" statt
+                // nur eines Symbols — man soll auf einen Blick sehen, wie voll der
+                // Träger ist (max. 3).
+                if (u.cr) addIcon(`💎${u.cr}`, '#7fe3ff', wx, wz, topY - 12, 11, 1, 1);
                 if (u.art) addIcon(RELICS[u.art].icon, '#ba68c8', wx, wz, topY - 4, 9, 1, -1);
+            });
+
+            // Kristalladern: Restbestand als Zahl direkt am Hex (Korrektur Juli
+            // 2026 — wie die HP-Zahlen der Steinhaufen oben; das Glitzern allein
+            // verriet nicht, wie viel noch drinsteckt). Fundkammern bekommen ein
+            // 🏺-Icon, solange sie ungeplündert sind.
+            uwTileIndex.forEach(c => {
+                if (!uwVis.has(`${c.x},${c.y}`)) return;
+                const rem = getUWVeinRemaining(state, c.x, c.y);
+                const { wx, wz } = worldPos(c.x, c.y);
+                if (rem > 0) {
+                    const gyA = -underworldDepth(UW_ADER);
+                    addIcon(`💎${rem}`, '#7fe3ff', wx, wz, gyA - 8, 11);
+                } else if (isFundkammerHex(state, c.x, c.y) && !(state.uw && state.uw.f && state.uw.f[`${c.x},${c.y}`])) {
+                    addIcon('🏺', '#c9a24b', wx, wz, -underworldDepth(UW_RUINE) - 8, 11);
+                }
             });
 
             // Kreaturen (M11): neutral, gleiche Umkreis-2-Sichtregel wie fremde
