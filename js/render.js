@@ -371,6 +371,7 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
     if (uwValidMoves.some(m => m.x === x && m.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(100, 255, 100, 0.35)"; ctx.fill(); }
     if (uwValidDigs.some(d => d.x === x && d.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(161, 102, 47, 0.55)"; ctx.fill(); }
     if (uwValidMine.some(m => m.x === x && m.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(0, 229, 255, 0.5)"; ctx.fill(); }
+    if (uwValidCollapse.some(c => c.x === x && c.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(255, 152, 0, 0.5)"; ctx.fill(); }
     if (uwValidAttacks.some(a => a.x === x && a.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
 
     // Tiefeneinheiten: eigene immer, fremde nur im Umkreis 2 eigener Einheiten
@@ -387,6 +388,26 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
         if (unit.cr) { ctx.fillStyle = '#7fe3ff'; ctx.font = 'bold 8px monospace'; ctx.fillText(`💎${unit.cr}`, center.px, center.py - 10); }
         if (unit.art) { ctx.fillStyle = '#ba68c8'; ctx.font = 'bold 8px monospace'; ctx.fillText(RELICS[unit.art].icon, center.px + 9, center.py - 6); }
         ctx.globalAlpha = 1;
+    }
+
+    // Kreaturen (M11): neutral, gleiche Umkreis-2-Sichtregel (isUWCreatureVisible).
+    const UW_CREATURE_ICONS = { [UWC_SPINNE]: '🕷', [UWC_WUEHLER]: '🦡', [UWC_STEINPANZER]: '🪨', [UWC_WURM]: '🐛' };
+    const creature = uwCreatureAt(x, y);
+    if (creature && isUWCreatureVisible(gameState.cp, creature)) {
+        const isWurm = creature.t === UWC_WURM;
+        ctx.fillStyle = '#7a3b3b';
+        ctx.beginPath(); ctx.arc(center.px, center.py, isWurm ? 10 : 7, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.font = `bold ${isWurm ? 12 : 9}px monospace`; ctx.textAlign = 'center';
+        ctx.fillText(UW_CREATURE_ICONS[creature.t] || '?', center.px, center.py + 4);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 8px monospace';
+        ctx.fillText(`${creature.h}`, center.px, center.py - (isWurm ? 15 : 11));
+    }
+
+    // Spinnennetze (M11): dezenter Bodenring.
+    if (gameState.uw && gameState.uw.w && gameState.uw.w[`${x},${y}`]) {
+        ctx.strokeStyle = 'rgba(221,221,221,0.6)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(center.px, center.py, 10, 0, Math.PI * 2); ctx.stroke();
     }
 
     // Gehör: Horcher-Ortung (exact) als deutlicheres rotes Fadenkreuz, sonst
@@ -415,7 +436,16 @@ function drawScene(state) {
     const vis = getVisibleHexes(gameState.cp);
     const explored = gameState.p[gameState.cp].e || [];
 
+    // M13: gleiche uw/global-Sichtregeln wie der Recap-Playback in bootGame (siehe
+    // dortiger Kommentar) — Unterwelt-Aktionen prüfen das Unterwelt-Netz statt der
+    // Oberflächen-Sicht, globale Meldungen (Wurm-Tod/Erschließung) immer sichtbar.
     const visibleRecaps = (state.la || []).filter(a => {
+        if (a.global) return true;
+        if (a.uw) {
+            const uwVis = getVisibleUWHexes(gameState.cp);
+            if (!uwVis.has(`${a.x},${a.y}`)) return false;
+            return !((gameState.uw && gameState.uw.u) || []).some(u => u.p !== gameState.cp && u.iv === 1 && u.x === a.x && u.y === a.y);
+        }
         if (!vis.has(`${a.x},${a.y}`)) return false;
         return !state.u.some(u => u.p !== state.cp && u.iv === 1 && u.x === a.x && u.y === a.y);
     });
@@ -542,6 +572,25 @@ function drawScene(state) {
             drawEntity(item.vx, item.vy, item.color, false, undefined, undefined, "watchtower", false);
         }
     });
+
+    // Unterminierungs-Vorwarnung + Erschließungs-Beben (M12, minimal): einfache
+    // Text-Icons direkt auf dem Canvas, nur in der Oberflächen-Ansicht.
+    if (window.cameraFocus !== 2) {
+        (state.uw && state.uw.u || []).forEach(u => {
+            if (u.ch !== 1) return;
+            if (!vis.has(`${u.x},${u.y}`)) return;
+            const c = getHexCenter(u.x, u.y);
+            ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+            ctx.fillStyle = '#ffb300';
+            ctx.fillText('💣', c.px, c.py - 16);
+        });
+        if (state.uw && state.uw.hz && state.ct) {
+            const c = getHexCenter(state.ct.x, state.ct.y);
+            ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center';
+            ctx.fillStyle = '#8d6e63';
+            ctx.fillText('🌍', c.px, c.py - 26);
+        }
+    }
 
     ctx.restore();
     updateUI();

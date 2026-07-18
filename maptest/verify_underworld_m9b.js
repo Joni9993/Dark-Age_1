@@ -63,6 +63,11 @@ console.log('=== (a) calculateMovesUW bewegt nur über offene Hexes ===');
 {
     const state = freshState(7, 5, 2);
     const cx = state.rad, cy = state.rad; // Herzkaverne-Zentrum, immer offen
+    // Seit M11 bewacht der Alte Wurm das Herzkaverne-Zentrum und blockiert es wie
+    // eine Einheit (gewolltes Design) — für diesen reinen Bewegungs/Offenheits-
+    // Test (M9b-Belang) hier entfernt, damit "Zentrum erreichbar" unverfälscht
+    // die BFS-Reichweite prüft, nicht die M11-Kreaturen-Blockade.
+    state.uw.c = [];
     // Stollenkopf künstlich neben dem Zentrum anlegen (Tunnel-Endpunkt), damit
     // der Test unabhängig von zufälliger Ader/Kaverne-Platzierung ist.
     const heartNeighbors = M.getNeighbors(cx, cy);

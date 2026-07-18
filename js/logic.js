@@ -343,6 +343,11 @@ function uwUnitAt(x, y) {
     return ((gameState.uw && gameState.uw.u) || []).find(u => u.x === x && u.y === y);
 }
 
+// Kreaturen (M11) — neutral, blockieren Hexes wie Einheiten.
+function uwCreatureAt(x, y) {
+    return ((gameState.uw && gameState.uw.c) || []).find(c => c.x === x && c.y === y && c.h > 0);
+}
+
 function calculateMovesUW(unit) {
     const pState = gameState.p[unit.p];
     const moveStat = getUnitMove(pState, unit.t, unit);
@@ -353,12 +358,19 @@ function calculateMovesUW(unit) {
     while (queue.length > 0) {
         const current = queue.shift();
         if (current.steps > 0) moves.push({ x: current.x, y: current.y });
+        // Spinnennetz (M11): stoppt die Bewegung sofort — von einem Netz-Hex aus
+        // wird nicht weiter expandiert, selbst wenn noch Bewegungspunkte übrig
+        // wären (das Netz wird beim tatsächlichen Betreten verbraucht, siehe
+        // executeUWMoveTo, js/input.js).
+        const isWebbed = gameState.uw && gameState.uw.w && gameState.uw.w[`${current.x},${current.y}`];
+        if (current.steps > 0 && isWebbed) continue;
         if (current.steps < moveStat) {
             for (const n of getNeighbors(current.x, current.y)) {
                 const key = `${n.x},${n.y}`;
                 if (visited.has(key)) continue;
                 if (!isUnderworldOpen(gameState, n.x, n.y)) continue;
                 if (uwUnitAt(n.x, n.y)) continue; // besetzt, egal von wem (kein Stacking)
+                if (uwCreatureAt(n.x, n.y)) continue; // Kreaturen blockieren wie Einheiten
                 visited.add(key);
                 queue.push({ x: n.x, y: n.y, steps: current.steps + 1 });
             }
@@ -396,6 +408,75 @@ function calculateMineTargetsUW(unit) {
     return targets;
 }
 
+// Stollenbruch (M12, Sprengmeister 18): angrenzende, EXPLIZIT gegrabene Hexes
+// (nur uw.d — natürliche Kavernen/Ruinen/Adern/Herz und Stollenköpfe sind nicht
+// verfüllbar, auch wenn isUnderworldOpen für sie ebenfalls true liefert), die
+// nicht von einer Einheit/Kreatur besetzt sind.
+function calculateStollenbruchTargetsUW(unit) {
+    if (unit.t !== 18) return [];
+    const targets = [];
+    getNeighbors(unit.x, unit.y).forEach(n => {
+        const idx = n.y * gameState.bw + n.x;
+        const isDug = gameState.uw && gameState.uw.d && gameState.uw.d.includes(idx);
+        if (!isDug) return;
+        if (uwUnitAt(n.x, n.y) || uwCreatureAt(n.x, n.y)) return;
+        targets.push({ x: n.x, y: n.y });
+    });
+    return targets;
+}
+
+// Verfüllt ein gegrabenes Hex wieder zu massivem Fels (Stollenbruch, M12).
+function collapseUWHex(state, x, y) {
+    if (!state.uw || !state.uw.d) return;
+    const idx = y * state.bw + x;
+    state.uw.d = state.uw.d.filter(i => i !== idx);
+}
+
+// Unterminierung (M12, PLAN.md Abschn. 6): gültiges Oberflächen-Ziel exakt über
+// dem Unterwelt-Hex (x,y) — Priorität Startdorf > Turm > Mauer > Tunnel (die
+// überlappen real nie, Priorität ist reine Absicherung). Normale Dörfer sind
+// NIE ein gültiges Ziel.
+function getUnderminingTargetAt(state, x, y) {
+    for (let i = 0; i < state.p.length; i++) {
+        if (state.p[i].dead !== 1 && state.p[i].sv === `${x},${y}`) return { type: 'startvillage', ownerId: i };
+    }
+    const tower = (state.tw || []).find(t => t.x === x && t.y === y && t.h > 0);
+    if (tower) return { type: 'tower', ref: tower, ownerId: tower.o };
+    const wall = (state.wa || []).find(w => w.x === x && w.y === y);
+    if (wall) return { type: 'wall', ref: wall, ownerId: wall.o };
+    const tunnel = (state.tu || []).find(t => (t.x1 === x && t.y1 === y) || (t.x2 === x && t.y2 === y));
+    if (tunnel) return { type: 'tunnel', ref: tunnel, ownerId: tunnel.o };
+    return null;
+}
+
+// Wendet exakt `dmg` Unterminierungs-Schaden auf ein zuvor per
+// getUnderminingTargetAt ermitteltes Ziel an — Struktur-Tod läuft über die
+// BESTEHENDEN Zerstörungs-Pfade (Startdorf -> normale Spieler-tot-Logik, siehe
+// executeAttackOnTarget/js/input.js für das Oberflächen-Pendant). `byPlayerId`
+// erobert ein zerstörtes Startdorf (Muster: der aktuell aktive Spieler,
+// entspricht immer dem Sprengmeister-Besitzer).
+function applyUnderminingDamage(state, target, dmg, byPlayerId) {
+    if (target.type === 'startvillage') {
+        const p = state.p[target.ownerId];
+        p.sh -= dmg;
+        if (p.sh <= 0) {
+            p.dead = 1;
+            state.u = state.u.filter(u => u.p !== target.ownerId);
+            if (state.uw) state.uw.u = (state.uw.u || []).filter(u => u.p !== target.ownerId);
+            state.v[p.sv] = byPlayerId;
+        }
+    } else if (target.type === 'tower') {
+        target.ref.h -= dmg;
+        if (target.ref.h <= 0) state.tw = state.tw.filter(t => t !== target.ref);
+    } else if (target.type === 'wall') {
+        target.ref.h -= dmg;
+        if (target.ref.h <= 0) state.wa = state.wa.filter(w => w !== target.ref);
+    } else if (target.type === 'tunnel') {
+        target.ref.h -= dmg;
+        if (target.ref.h <= 0) state.tu = state.tu.filter(t => t !== target.ref);
+    }
+}
+
 // Engstelle (M10, PLAN.md Abschn. 3): offenes Hex mit <= 2 offenen Nachbarn.
 function isChokepoint(state, x, y) {
     if (!isUnderworldOpen(state, x, y)) return false;
@@ -416,6 +497,15 @@ function calculateAttacksUW(unit) {
         if (!isUWUnitVisible(unit.p, enemy)) return; // Sichtregel: nur sichtbare Ziele
         if (hexDistance({ x: unit.x, y: unit.y }, { x: enemy.x, y: enemy.y }) <= range) {
             attacks.push({ x: enemy.x, y: enemy.y, target: enemy });
+        }
+    });
+    // Kreaturen (M11): neutral, keine Diplomatie-Prüfung nötig — nur Sicht
+    // (isUWCreatureVisible, gleiche Umkreis-2-Regel wie fremde Spieler-Einheiten).
+    ((gameState.uw && gameState.uw.c) || []).forEach(creature => {
+        if (creature.h <= 0) return;
+        if (!isUWCreatureVisible(unit.p, creature)) return;
+        if (hexDistance({ x: unit.x, y: unit.y }, { x: creature.x, y: creature.y }) <= range) {
+            attacks.push({ x: creature.x, y: creature.y, target: creature, isCreature: true });
         }
     });
     return attacks;
@@ -469,19 +559,201 @@ function resolveUWAttack(state, attacker, target) {
         if (stolen > 0) { attacker.cr = (attacker.cr || 0) + stolen; result.stolenCrystals = stolen; }
     }
     // Nahkampf-Killer rückt aufs Ziel-Hex nach (frei, da das Ziel gerade starb —
-    // Stacking anderer Einheiten dort wäre nur bei einem zweiten, zeitgleichen
-    // Kill auf demselben Hex möglich, daher defensiv geprüft)
-    if (!(state.uw.u || []).some(u => u.x === target.x && u.y === target.y)) {
+    // Stacking anderer Einheiten/Kreaturen dort wäre nur bei einem zweiten,
+    // zeitgleichen Kill auf demselben Hex möglich, daher defensiv geprüft)
+    if (!(state.uw.u || []).some(u => u.x === target.x && u.y === target.y) && !(state.uw.c || []).some(c => c.x === target.x && c.y === target.y && c.h > 0)) {
         attacker.x = target.x; attacker.y = target.y;
+        delete attacker.ch; // Kammer verfällt bei Bewegung (M12) — auch beim Nachrücken
     }
     return result;
+}
+
+// === UNTERWELT-KREATUREN: KAMPF (M11, PLAN.md Abschn. 5) ===
+// Unterwelt-Pendant zu resolveUWAttack, aber gegen ein uw.c[]-Ziel statt eine
+// Spieler-Einheit: Kreaturen kontern normal (nur wenn sie den Treffer über-
+// leben), der Alte Wurm IMMER (unbedingter Konter, "wer ihn angreift, erleidet
+// SOFORT 8 DMG zurück" — auch bei einem tödlichen Treffer). Kreaturen-Kills
+// zählen für Veteranenstatus UND geben dem Beutegräber (20) zusätzlich +1 Gold
+// (Roster-Passiv "Kopfgeld-Upgrade greift auf Kreaturen", PLAN Abschn. 4).
+function resolveUWAttackOnCreature(state, attacker, creature) {
+    const cStats = uwCreatureStats[creature.t];
+    // getExpectedDamageUW liest vom "Ziel" nur targetUnit.t/x/y (Engstellen-Check
+    // für 17/19) — Kreaturen-Typ-IDs (100+) treffen diesen Zweig nie, die Funktion
+    // ist also gefahrlos auch gegen Kreaturen wiederverwendbar.
+    const finalDmg = getExpectedDamageUW(attacker, creature);
+    creature.h -= finalDmg;
+    const result = { finalDmg, killed: false, retDmg: 0, bonusGold: 0, wormDied: false };
+
+    const isWurm = creature.t === UWC_WURM;
+    if (isWurm || creature.h > 0) result.retDmg = cStats.dmg;
+
+    if (creature.h <= 0) {
+        result.killed = true;
+        state.uw.c = state.uw.c.filter(c => c !== creature);
+        checkVeteran(attacker);
+        if (attacker.t === 20) {
+            const pState = state.p[attacker.p];
+            pState.g = (pState.g || 0) + 1;
+            result.bonusGold = 1;
+        }
+        if (isWurm) {
+            state.uw.wd = 1;
+            result.wormDied = true;
+        }
+        // Nahkampf-Killer rückt aufs Ziel-Hex nach (frei, da die Kreatur starb)
+        if (!(state.uw.u || []).some(u => u.x === creature.x && u.y === creature.y) && !(state.uw.c || []).some(c => c.x === creature.x && c.y === creature.y && c.h > 0)) {
+            attacker.x = creature.x; attacker.y = creature.y;
+            delete attacker.ch; // Kammer verfällt bei Bewegung (M12) — auch beim Nachrücken
+        }
+    }
+    return result;
+}
+
+// Schwächste angrenzende Spieler-Einheit einer Kreatur — deterministischer
+// Tiebreak (niedrigste HP, dann Position), kein Zufall nötig.
+function findWeakestAdjacentPlayerUnit(x, y) {
+    const candidates = getNeighbors(x, y).map(n => uwUnitAt(n.x, n.y)).filter(Boolean);
+    if (candidates.length === 0) return null;
+    candidates.sort((a, b) => (a.h - b.h) || (a.x - b.x) || (a.y - b.y));
+    return candidates[0];
+}
+
+// Kreatur trifft eine Spieler-Einheit — kein Veteranen-Credit (Kreaturen kennen
+// kein vet-Konzept), tötet aber normal; getragene Kristalle verfallen einfach
+// (Auftrag: "keep simple"). Gibt true zurück, wenn die Einheit dabei starb.
+function creatureHitUnit(target, dmg) {
+    target.h -= dmg;
+    if (target.h <= 0) {
+        gameState.uw.u = gameState.uw.u.filter(u => u !== target);
+        return true;
+    }
+    return false;
+}
+
+// Kreaturen-Zug (M11): deterministisch in doEndTurn (Muster: Brand-Ticks), PRNG
+// aus sd+rn+cp NUR für echte Gleichstands-Tiebreaks (Angriffs-/Bewegungsziel
+// selbst sind bereits vollständig deterministisch über HP/Position/Distanz
+// sortiert — die PRNG kommt nur bei mehreren exakt gleich guten Optionen zum
+// Zug, z. B. mehrere gleich weit entfernte Lärmquellen).
+// Gibt Events zurück (für Recap/Toast in doEndTurn, z. B. Wurm-Tod).
+function processUWCreatureTurn() {
+    if (!gameState.uw || !gameState.uw.c || gameState.uw.c.length === 0) return [];
+    const rng = createPRNG((gameState.sd ^ (gameState.rn * 7919) ^ (gameState.cp * 104729)) | 0);
+    const events = [];
+
+    gameState.uw.c.forEach(creature => {
+        if (creature.h <= 0) return;
+        const stats = uwCreatureStats[creature.t];
+
+        if (creature.t === UWC_STEINPANZER) {
+            // Bewegt sich NIE, greift nur an, wenn eine Einheit angrenzt.
+            const target = findWeakestAdjacentPlayerUnit(creature.x, creature.y);
+            if (target) {
+                const killed = creatureHitUnit(target, stats.dmg);
+                events.push({ type: 'creatureAtk', x: target.x, y: target.y, dmg: stats.dmg, killed });
+            }
+            return;
+        }
+
+        if (creature.t === UWC_WURM) {
+            // Verlässt die Herzkaverne nie; AoE trifft ALLE angrenzenden Einheiten.
+            getNeighbors(creature.x, creature.y).forEach(n => {
+                const t = uwUnitAt(n.x, n.y);
+                if (!t) return;
+                const killed = creatureHitUnit(t, stats.dmg);
+                events.push({ type: 'creatureAtk', x: t.x, y: t.y, dmg: stats.dmg, killed });
+            });
+            return;
+        }
+
+        if (creature.t === UWC_SPINNE) {
+            const target = findWeakestAdjacentPlayerUnit(creature.x, creature.y);
+            let attacked = false;
+            if (target) {
+                const killed = creatureHitUnit(target, stats.dmg);
+                events.push({ type: 'creatureAtk', x: target.x, y: target.y, dmg: stats.dmg, killed });
+                attacked = true;
+            }
+            // Legt auf ihrem AKTUELLEN Hex ein Netz ab (max. 1 pro Hex — ein
+            // erneutes Ablegen auf demselben Hex ist ein No-Op).
+            if (!gameState.uw.w) gameState.uw.w = {};
+            gameState.uw.w[`${creature.x},${creature.y}`] = 1;
+            // Bewegt sich nur, wenn sie nicht gerade verteidigt hat — bleibt im
+            // Nest-Umkreis 2 (Nest wird aus der aktuellen Position abgeleitet,
+            // nicht gespeichert, siehe getNearestSpiderNest). Meidet Stollenköpfe
+            // wie jede Kreatur.
+            if (!attacked) {
+                const nest = getNearestSpiderNest(gameState, creature.x, creature.y);
+                const options = getNeighbors(creature.x, creature.y).filter(n =>
+                    isUnderworldOpen(gameState, n.x, n.y) &&
+                    !uwUnitAt(n.x, n.y) && !uwCreatureAt(n.x, n.y) &&
+                    !isUnderworldTunnelHead(gameState, n.x, n.y) &&
+                    (!nest || hexDistance({ x: n.x, y: n.y }, nest) <= 2)
+                );
+                if (options.length > 0) {
+                    const pick = options[Math.floor(rng() * options.length)];
+                    creature.x = pick.x; creature.y = pick.y;
+                }
+            }
+            return;
+        }
+
+        if (creature.t === UWC_WUEHLER) {
+            const target = findWeakestAdjacentPlayerUnit(creature.x, creature.y);
+            if (target) {
+                const killed = creatureHitUnit(target, stats.dmg);
+                events.push({ type: 'creatureAtk', x: target.x, y: target.y, dmg: stats.dmg, killed });
+            }
+            // Zieht 1 Hex/Zug auf die nächstgelegene Lärmquelle im Umkreis 4 zu
+            // (uw.n der LETZTEN Runde — von doEndTurn bereits "scharf" geschaltet,
+            // BEVOR die Kreaturen ziehen, siehe Aufrufreihenfolge in input.js).
+            // Ohne Lärm in Reichweite bleibt er stehen.
+            const markers = (gameState.uw.n || []).filter(m => hexDistance({ x: creature.x, y: creature.y }, m) <= 4);
+            if (markers.length > 0) {
+                let bestDist = Infinity, bestMarkers = [];
+                markers.forEach(m => {
+                    const d = hexDistance({ x: creature.x, y: creature.y }, m);
+                    if (d < bestDist) { bestDist = d; bestMarkers = [m]; }
+                    else if (d === bestDist) bestMarkers.push(m);
+                });
+                const chosenMarker = bestMarkers[Math.floor(rng() * bestMarkers.length)];
+                // Gräbt sich selbst durch Fels (uw.d, dauerhaft offen) und nutzt
+                // dabei auch fremde, bereits offene Stollen — Kristalladern umgeht
+                // er (KEINE Zerstörung), Stollenköpfe meidet er wie jede Kreatur.
+                let best = null, bestNeighborD = hexDistance({ x: creature.x, y: creature.y }, chosenMarker);
+                getNeighbors(creature.x, creature.y).forEach(n => {
+                    if (uwUnitAt(n.x, n.y) || uwCreatureAt(n.x, n.y)) return;
+                    if (isUnderworldTunnelHead(gameState, n.x, n.y)) return;
+                    const nType = getUnderworldType(gameState, n.x, n.y);
+                    if (nType === UW_ADER && !isUnderworldOpen(gameState, n.x, n.y)) return; // Adern umgeht er
+                    const d = hexDistance(n, chosenMarker);
+                    if (d < bestNeighborD) { bestNeighborD = d; best = n; }
+                });
+                if (best) {
+                    if (!isUnderworldOpen(gameState, best.x, best.y)) {
+                        if (!gameState.uw.d) gameState.uw.d = [];
+                        const idx = best.y * gameState.bw + best.x;
+                        if (!gameState.uw.d.includes(idx)) gameState.uw.d.push(idx);
+                    }
+                    creature.x = best.x; creature.y = best.y;
+                }
+            }
+        }
+    });
+
+    gameState.uw.c = gameState.uw.c.filter(c => c.h > 0);
+    return events;
 }
 
 // === UNTERWELT-SICHT & -GEHÖR (M9b) ===
 // Netz-Geometrie persistent in p[].ue (compressFog-Muster wie p[].e), analog
 // getVisibleHexes/updateExploration oben, aber ohne Radius-Sichtfeld: sichtbar
 // ist nur, was die eigenen Tiefeneinheiten je selbst betreten/gegraben haben.
-function getVisibleUWHexes(playerId) {
+// M13 Diplomatie-Pass: analog zur Oberfläche (getVisibleHexes(playerId,
+// includeAllies=true) vereint p[].e mit dem der Verbündeten) wird hier das
+// persistente Stollen-Netz (p[].ue) mit dem aller Verbündeten vereint — ein
+// Bündnis teilt die erkundete Tiefen-Geometrie genau wie den Oberflächen-Nebel.
+function getVisibleUWHexes(playerId, includeAllies = true) {
     const set = new Set();
     if (window.DEBUG_UW_REVEAL !== false) {
         for (let y = 0; y < gameState.bh; y++)
@@ -489,11 +761,19 @@ function getVisibleUWHexes(playerId) {
                 if (isInsideMap(gameState, x, y)) set.add(`${x},${y}`);
         return set;
     }
-    const pState = gameState.p[playerId];
-    (pState.ue || []).forEach(idx => {
-        const x = idx % gameState.bw, y = Math.floor(idx / gameState.bw);
-        set.add(`${x},${y}`);
-    });
+    const addUE = (pId) => {
+        const pState = gameState.p[pId];
+        if (!pState) return;
+        (pState.ue || []).forEach(idx => {
+            const x = idx % gameState.bw, y = Math.floor(idx / gameState.bw);
+            set.add(`${x},${y}`);
+        });
+    };
+    addUE(playerId);
+    if (includeAllies) {
+        const pState = gameState.p[playerId];
+        (pState.al || []).forEach(allyId => addUE(allyId));
+    }
     return set;
 }
 
@@ -501,16 +781,29 @@ function uwOwnUnits(playerId) {
     return ((gameState.uw && gameState.uw.u) || []).filter(u => u.p === playerId);
 }
 
-// Bewegliches (fremde Einheiten) ist nur im Umkreis 2 eigener Tiefeneinheiten
+// Bewegliches (fremde Einheiten) ist nur im Umkreis 2 eigener (oder verbündeter,
+// M13 — Bündnisse teilen wie an der Oberfläche die volle Sicht) Tiefeneinheiten
 // sichtbar, unabhängig von der persistenten Netz-Geometrie — bekannte Gänge
 // können jederzeit Hinterhalte enthalten (PLAN.md Abschn. 3). Horcher (21,
 // M10): passiv unsichtbar (iv=1, siehe doEndTurn/executeUWAttack) — wie die
 // Assassine oben gilt das UNABHÄNGIG vom Umkreis, nur der eigene Besitzer sieht ihn.
+// Verbündete Einheiten selbst sind immer sichtbar (keine Umkreis-Beschränkung
+// unter Bündnispartnern, exakt wie Oberflächen-Verbündete stets sichtbar sind).
 function isUWUnitVisible(playerId, unit) {
     if (window.DEBUG_UW_REVEAL !== false) return true;
     if (unit.p === playerId) return true;
+    const pState = gameState.p[playerId];
+    if (unit.p !== undefined && pState.al && pState.al.includes(unit.p)) return true;
     if (unit.iv === 1) return false;
-    return uwOwnUnits(playerId).some(o => hexDistance({ x: o.x, y: o.y }, { x: unit.x, y: unit.y }) <= 2);
+    const alliedIds = [playerId, ...((pState.al) || [])];
+    return alliedIds.some(pid => uwOwnUnits(pid).some(o => hexDistance({ x: o.x, y: o.y }, { x: unit.x, y: unit.y }) <= 2));
+}
+
+// Kreaturen (M11) nutzen dieselbe Umkreis-2-Sichtregel wie fremde Spieler-
+// Einheiten — isUWUnitVisible degradiert dafür schon korrekt (Kreaturen haben
+// weder .p noch .iv), dieser Wrapper macht die Erweiterung nur explizit lesbar.
+function isUWCreatureVisible(playerId, creature) {
+    return isUWUnitVisible(playerId, creature);
 }
 
 function markUWExplored(playerId, x, y) {
@@ -549,6 +842,7 @@ function digUWHex(state, unit, x, y) {
     if (!state.uw.d.includes(idx)) state.uw.d.push(idx);
     unit.x = x; unit.y = y;
     unit.a = 1;
+    delete unit.ch; // Kammer verfällt bei Bewegung (M12) — Graben rückt ebenfalls nach
 }
 
 // Ein Abbau-Tick: Beutegräber (20) nimmt bis zu 2 statt 1 (nie mehr als der
@@ -737,4 +1031,73 @@ function applyMapRelic(state, playerId) {
     const all = Array.from({ length: total }, (_, i) => i);
     pState.e = all.slice();
     pState.ue = all.slice();
+}
+
+// === MORAL-KOLLAPS (M12, PLAN.md Abschn. 3) ===
+function hasUsableTunnel(state, playerId) {
+    return (state.tu || []).some(t => t.o === playerId && t.r <= state.rn);
+}
+
+// Zu Beginn des eigenen Zuges: kein nutzbarer Tunnel mehr -> alle eigenen
+// Tiefeneinheiten verlieren genau 1 HP (Tode normal abgewickelt). Gibt die
+// Float-Liste zurück (leer = nichts passiert, auch wenn ein Tunnel da ist).
+function applyMoralCollapse(state, playerId) {
+    if (!state.uw || !state.uw.u || state.uw.u.length === 0) return [];
+    if (hasUsableTunnel(state, playerId)) return [];
+    const myUWUnits = state.uw.u.filter(u => u.p === playerId);
+    if (myUWUnits.length === 0) return [];
+    const floats = [];
+    myUWUnits.forEach(u => { u.h -= 1; floats.push({ x: u.x, y: u.y, val: 1 }); });
+    state.uw.u = state.uw.u.filter(u => u.h > 0);
+    return floats;
+}
+
+// === DER HERZ-SIEG: ERSCHLIESSUNG (M12, PLAN.md Abschn. 8) ===
+// Bedingung an EINEM Zugende: Wurm tot, eigene Einheit exakt im Herzkaverne-
+// ZENTRUM, keine nicht-verbündete fremde Tiefeneinheit irgendwo in der ganzen
+// Herzkaverne (getHeartCavernHexes, js/hex.js). Verbündete unterbrechen NICHT
+// (gleiche al[]-Logik wie checkTeamWin, js/diplomacy.js).
+function checkErschliessungProgress(state, playerId) {
+    if (!state.uw || state.uw.wd !== 1) return false;
+    const cx = Math.floor(state.bw / 2), cy = Math.floor(state.bh / 2);
+    const ownInCenter = (state.uw.u || []).some(u => u.p === playerId && u.x === cx && u.y === cy);
+    if (!ownInCenter) return false;
+    const pState = state.p[playerId];
+    const isAllied = (otherId) => otherId === playerId || (pState.al && pState.al.includes(otherId));
+    const heartHexes = getHeartCavernHexes(state);
+    const enemyPresent = (state.uw.u || []).some(u => !isAllied(u.p) && heartHexes.some(h => h.x === u.x && h.y === u.y));
+    return !enemyPresent;
+}
+
+// Aktualisiert uw.hz um EINEN Zugenden-Schritt für `playerId` (den gerade
+// endenden Spieler) — neu gestartet, fortgesetzt (n bis max. 4) oder komplett
+// zurückgesetzt (Unterbrechung, "Reset auf 0" statt Abbau um 1). Gibt ein
+// Ereignis-Objekt für Toast/Recap zurück (oder null bei "nichts passiert").
+function advanceErschliessung(state, playerId) {
+    const held = checkErschliessungProgress(state, playerId);
+    if (held) {
+        if (!state.uw.hz || state.uw.hz.p !== playerId) {
+            state.uw.hz = { p: playerId, n: 1 };
+        } else {
+            state.uw.hz.n = Math.min(4, state.uw.hz.n + 1);
+        }
+        return { type: state.uw.hz.n === 1 ? 'start' : 'progress', p: playerId, n: state.uw.hz.n };
+    }
+    if (state.uw.hz) {
+        const interrupted = state.uw.hz.p;
+        delete state.uw.hz;
+        return { type: 'reset', p: interrupted };
+    }
+    return null;
+}
+
+// Sieg durch Erschließung: n==4 -> Erschließer + seine (noch lebenden)
+// Verbündeten gewinnen — exakt wie ein regulärer Team-Sieg (checkTeamWin),
+// nur unabhängig davon, ob noch andere Spieler leben.
+function checkErschliessungWin(state) {
+    if (!state.uw || !state.uw.hz || state.uw.hz.n < 4) return null;
+    const p = state.uw.hz.p;
+    if (!state.p[p] || state.p[p].dead === 1) return null;
+    const allies = (state.p[p].al || []).filter(id => state.p[id] && state.p[id].dead !== 1);
+    return [p, ...allies].map(id => state.p[id]);
 }

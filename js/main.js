@@ -27,17 +27,20 @@ function bootGame() {
     if (!gameState.st) gameState.st = [];
     if (!gameState.tw) gameState.tw = [];
     if (!gameState.ct) gameState.ct = { x: gameState.rad, y: gameState.rad, ctrl: -1 };
-    // Unterwelt-Zustand (M9b/M10): d = gegrabene Hexes (Array im Speicher, komprimierter
-    // Index-String nur auf dem Wire — siehe hex.js/isUnderworldOpen), u = Tiefen-
-    // einheiten, n = Lärm-Marker der letzten Runde, a = angebrochene Kristalladern,
-    // f = geplünderte Fundkammern (M10, {"x,y": 1}).
-    if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {}, f: {} };
+    // Unterwelt-Zustand (M9b/M10/M11): d = gegrabene Hexes (Array im Speicher,
+    // komprimierter Index-String nur auf dem Wire — siehe hex.js/isUnderworldOpen),
+    // u = Tiefeneinheiten, n = Lärm-Marker der letzten Runde, a = angebrochene
+    // Kristalladern, f = geplünderte Fundkammern ({"x,y": 1}), c = Kreaturen
+    // {t,x,y,h}, w = Spinnennetze ({"x,y": 1}), wd = Alter Wurm dauerhaft tot.
+    if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {}, f: {}, w: {}, c: [] };
     if (!gameState.uw.d) gameState.uw.d = [];
     if (typeof gameState.uw.d === 'string') gameState.uw.d = decompressFog(gameState.uw.d);
     if (!gameState.uw.u) gameState.uw.u = [];
     if (!gameState.uw.n) gameState.uw.n = [];
     if (!gameState.uw.a) gameState.uw.a = {};
     if (!gameState.uw.f) gameState.uw.f = {};
+    if (!gameState.uw.w) gameState.uw.w = {};
+    if (!gameState.uw.c) gameState.uw.c = [];
     gameState.uw.u.forEach((u, idx) => {
         if (u.a === undefined) u.a = 0;
         if (!u.i) u.i = idx + 1;
@@ -63,8 +66,20 @@ function bootGame() {
     showRecap = false;
     focusCamera();
 
+    // M13: Recap-Sichtbarkeit ist NICHT einheitlich Oberflächen-Sicht — jede Aktion
+    // trägt optional a.uw (Sichtbarkeit über das Unterwelt-Netz, getVisibleUWHexes,
+    // statt getVisibleHexes) oder a.global (fog-unabhängig — PLAN.md nennt Wurm-Tod
+    // und Erschließungs-Fortschritt explizit "globale Meldung"). Design-Entscheidung
+    // fürs verdeckte Verhalten: unsichtbare Aktionen werden KOMPLETT WEGGELASSEN statt
+    // generisch umformuliert ("Es wurde in der Tiefe gegraben") — konsistent mit dem
+    // bestehenden Oberflächen-Recap, das genauso hart filtert statt zu anonymisieren.
+    // Das verhindert jeden Informations-Leak über fremde Stollen-Netze (kein Hinweis,
+    // DASS überhaupt etwas passiert ist, nicht nur WAS). Kammer/Zünden (M12) sind
+    // bewusst NICHT uw-getaggt: PLAN.md Abschn. 6 beschreibt beide explizit als
+    // oberirdisch wahrnehmbar ("Beben-Anzeige oben für alle Sichtbaren").
     const recapActions = (gameState.la || []).filter(a => {
-        const vis = getVisibleHexes(gameState.cp);
+        if (a.global) return true;
+        const vis = a.uw ? getVisibleUWHexes(gameState.cp) : getVisibleHexes(gameState.cp);
         return vis.has(`${a.x},${a.y}`);
     });
 
@@ -77,11 +92,11 @@ function bootGame() {
         }
 
         let recapIndex = 0;
-        // dig/mine (M9b, Unterwelt) nutzen dieselben Tags wie oben — eigene Farbe/
-        // Icon statt der defensiven '•'/#fff-Fallbacks in playNextRecap unten.
-        // loot/relicbuy/relicuse (M10, Unterwelt) nutzen dieselben Tags wie oben.
-        const recapColors = { mv: '#64b5f6', atk: '#ff5252', buy: '#69f0ae', cap: '#ffab40', dig: '#a1662f', mine: '#7fe3ff', loot: '#c9a24b', relicbuy: '#ba68c8', relicuse: '#ba68c8' };
-        const recapIcons = { mv: '→', atk: '⚔', buy: '✦', cap: '⚑', dig: '⛏', mine: '💎', loot: '🏺', relicbuy: '🗺️', relicuse: '🔧' };
+        // dig/mine/loot/relicbuy/relicuse/wormdeath (M9b-M11, Unterwelt) + chamber/
+        // detonate/collapse/erschl (M12) nutzen dieselben Tags wie oben — eigene
+        // Farbe/Icon statt der defensiven '•'/#fff-Fallbacks in playNextRecap unten.
+        const recapColors = { mv: '#64b5f6', atk: '#ff5252', buy: '#69f0ae', cap: '#ffab40', dig: '#a1662f', mine: '#7fe3ff', deliver: '#ffca28', loot: '#c9a24b', relicbuy: '#ba68c8', relicuse: '#ba68c8', wormdeath: '#8d6e63', chamber: '#ffb300', detonate: '#d84315', collapse: '#ff9800', erschl: '#8d6e63', creatureAtk: '#ff8a65' };
+        const recapIcons = { mv: '→', atk: '⚔', buy: '✦', cap: '⚑', dig: '⛏', mine: '💎', deliver: '💰', loot: '🏺', relicbuy: '🗺️', relicuse: '🔧', wormdeath: '🐛', chamber: '💣', detonate: '🧨', collapse: '💥', erschl: '🌍', creatureAtk: '🐾' };
 
         function playNextRecap() {
             if (recapIndex >= recapActions.length) {
@@ -159,6 +174,16 @@ function bootGame() {
                 gameState.bd.forEach(b => spawnFloatingText(b.x, b.y, `-${b.val}🔥`, "#ff7043"));
                 gameState.bd = [];
             }, 700);
+        }
+
+        // Moral-Kollaps-Schäden (M12, PLAN.md Abschn. 3) anzeigen — eigenes Array
+        // statt gameState.bd wiederzuverwenden, damit das Icon thematisch passt
+        // (kein Feuer, sondern "abgeschnittene Versorgung").
+        if (gameState.uwbd && gameState.uwbd.length > 0) {
+            setTimeout(() => {
+                gameState.uwbd.forEach(b => spawnFloatingText(b.x, b.y, `-${b.val}`, "#b0bec5"));
+                gameState.uwbd = [];
+            }, 900);
         }
     }
 

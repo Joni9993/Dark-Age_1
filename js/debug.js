@@ -145,6 +145,15 @@ function debugApplyTool(hex) {
         const unitObj = { i: nextId, p: owner, t, x, y, h: getUnitMaxHp(gameState.p[owner], t), a: 0 };
         if (t === 21) unitObj.iv = 1; // Horcher: passiv unsichtbar
         gameState.uw.u.push(unitObj);
+    } else if (tool === 'uwcreature') {
+        // Kreatur (M11, Typ aus dbg-creature-type) auf ein offenes Unterwelt-Hex
+        // setzen — neutral, kein Besitzer, keine Kauf-/Kamerafokus-Prüfung nötig.
+        const t = parseInt(document.getElementById('dbg-creature-type').value);
+        if (!isUnderworldOpen(gameState, x, y)) { showToast('Hex ist noch massiver Fels — nicht setzbar.'); return; }
+        if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {}, f: {}, w: {}, c: [] };
+        if (!gameState.uw.c) gameState.uw.c = [];
+        if (uwUnitAt(x, y) || uwCreatureAt(x, y)) { showToast('Unterwelt-Feld belegt.'); return; }
+        gameState.uw.c.push({ t, x, y, h: uwCreatureStats[t].hp });
     }
 
     renderBoard(gameState);
@@ -185,6 +194,48 @@ function debugGiveRelics() {
     renderBoard(gameState);
     updateUI();
     showToast('Je 1 Reliquie ins Inventar gelegt (außer Karte der Tiefe).');
+}
+
+// Alten Wurm sofort besiegen (M11) — entfernt ihn aus uw.c und setzt uw.wd
+// dauerhaft, exakt wie ein regulärer Spielerkill (siehe resolveUWAttackOnCreature).
+function debugKillWorm() {
+    if (!gameState.uw || !gameState.uw.c) { showToast('Kein Unterwelt-Zustand geladen.'); return; }
+    const worm = gameState.uw.c.find(c => c.t === UWC_WURM && c.h > 0);
+    if (!worm) { showToast('Der Alte Wurm ist bereits tot (oder nicht auf der Karte).'); return; }
+    gameState.uw.c = gameState.uw.c.filter(c => c !== worm);
+    gameState.uw.wd = 1;
+    renderBoard(gameState);
+    updateUI();
+    showToast('🐛 Ein Beben läuft durch das Land — der Alte Wurm ist gefallen!', 'gold');
+}
+
+// Erschließungs-Setup mit einem Klick (M12): tötet den Wurm (falls noch am
+// Leben) UND setzt eine eigene Einheit exakt ins Herzkaverne-Zentrum — damit
+// ist die Fortschritts-Bedingung sofort erfüllt (nächstes doEndTurn zählt hoch).
+function debugSetupErschliessung() {
+    if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {}, f: {}, w: {}, c: [] };
+    gameState.uw.wd = 1;
+    gameState.uw.c = (gameState.uw.c || []).filter(c => c.t !== UWC_WURM);
+    const cx = Math.floor(gameState.bw / 2), cy = Math.floor(gameState.bh / 2);
+    if (!uwUnitAt(cx, cy)) {
+        if (!gameState.uw.u) gameState.uw.u = [];
+        const nextId = gameState.uw.u.reduce((m, u) => Math.max(m, u.i || 0), 0) + 1;
+        gameState.uw.u.push({ i: nextId, p: gameState.cp, t: 16, x: cx, y: cy, h: getUnitMaxHp(gameState.p[gameState.cp], 16), a: 0 });
+    }
+    renderBoard(gameState);
+    updateUI();
+    showToast('Wurm tot + eigene Einheit im Herzkaverne-Zentrum gesetzt (nächster Zugende zählt).');
+}
+
+// Kammer sofort bereit (M12): findet den ersten eigenen Sprengmeister in der
+// Unterwelt und setzt ch=1, unabhängig von Holz/Position — reines Testwerkzeug.
+function debugArmChamber() {
+    const sprengmeister = ((gameState.uw && gameState.uw.u) || []).find(u => u.p === gameState.cp && u.t === 18);
+    if (!sprengmeister) { showToast('Kein eigener Sprengmeister in der Unterwelt.'); return; }
+    sprengmeister.ch = 1;
+    renderBoard(gameState);
+    updateUI();
+    showToast('💥 Kammer sofort bereit (Zünden möglich).');
 }
 
 function debugRefreshActions() {
@@ -307,6 +358,7 @@ function buildDebugPanel() {
     document.body.appendChild(toggle);
 
     const unitOptions = Object.entries(unitStats).map(([t, s]) => `<option value="${t}">${s.name}</option>`).join('');
+    const creatureOptions = Object.entries(uwCreatureStats).map(([t, s]) => `<option value="${t}">${s.name}</option>`).join('');
 
     const panel = document.createElement('div');
     panel.id = 'dbg-panel';
@@ -342,6 +394,11 @@ function buildDebugPanel() {
             <button onclick="dbg.uwStats()" title="Typ-Verteilung des aktuellen Seeds in die Konsole loggen">📊 uwStats()</button>
             <button onclick="dbg.uwState()" title="gameState.uw in die Konsole loggen">🗂 uw-State</button>
         </div>
+        <div class="dbg-row">
+            <button onclick="debugKillWorm()" title="Alten Wurm sofort besiegen (uw.wd=1)">🐛 Wurm töten</button>
+            <button onclick="debugSetupErschliessung()" title="Wurm tot + eigene Einheit ins Herzkaverne-Zentrum">🌍 Erschließungs-Setup</button>
+        </div>
+        <button onclick="debugArmChamber()" title="ch=1 auf dem ersten eigenen Sprengmeister — Zünden sofort möglich">💥 Kammer sofort bereit</button>
 
         <h4>Klick-Werkzeug</h4>
         <label class="dbg-tool"><input type="radio" name="dbg-tool" value="none" checked
@@ -365,6 +422,11 @@ function buildDebugPanel() {
             onchange="DEBUG_TOOL=this.value"> Aktion verbraucht an/aus</label>
         <label class="dbg-tool"><input type="radio" name="dbg-tool" value="uwspawn"
             onchange="DEBUG_TOOL=this.value"> ⛏ Unterwelt setzen (Typ oben, akt. Spieler)</label>
+        <label class="dbg-tool"><input type="radio" name="dbg-tool" value="uwcreature"
+            onchange="DEBUG_TOOL=this.value"> 🕷 Kreatur setzen:</label>
+        <div class="dbg-row" style="padding-left:16px;">
+            <select id="dbg-creature-type">${creatureOptions}</select>
+        </div>
 
         <h4>Spielstand</h4>
         <button onclick="debugStateToUrl()" title="Zustand in URL — Code ändern, F5, weitertesten">🔗 State → URL (F5-sicher)</button>
@@ -445,6 +507,17 @@ window.dbg = {
         if (!gameState) { console.log('Kein Spiel geladen.'); return; }
         console.log('gameState.uw:', gameState.uw);
         gameState.p.forEach((p, i) => console.log(`Spieler ${i} (${p.n}): 💎${p.k || 0} · Netz-Hexes: ${(p.ue || []).length}`));
+        // Kreaturen (M11): Bestand nach Typ + Wurm-Status.
+        const creatures = (gameState.uw && gameState.uw.c) || [];
+        const counts = {};
+        creatures.forEach(c => { counts[c.t] = (counts[c.t] || 0) + 1; });
+        const line = Object.keys(uwCreatureStats).map(t => `${uwCreatureStats[t].name} ${counts[t] || 0}`).join(' · ');
+        console.log(`Kreaturen: ${line} · Wurm tot: ${gameState.uw && gameState.uw.wd ? 'ja' : 'nein'} · Netze: ${Object.keys((gameState.uw && gameState.uw.w) || {}).length}`);
+        // Erschließung (M12): Fortschritt + aktive Kammern.
+        const hz = gameState.uw && gameState.uw.hz;
+        console.log(`Erschließung: ${hz ? `${gameState.p[hz.p].n} (${hz.n}/4)` : 'keine'}`);
+        const chambers = ((gameState.uw && gameState.uw.u) || []).filter(u => u.ch === 1);
+        console.log(`Aktive Kammern: ${chambers.length} (${chambers.map(c => `${c.x},${c.y}`).join(' · ')})`);
         return gameState.uw;
     },
 };

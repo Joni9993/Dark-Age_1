@@ -102,6 +102,12 @@ function updateUI() {
 
     const income = calculateIncome(pId);
     resourceHud.innerHTML = `💰 ${pState.g} <span class="income-text">(+${income.g})</span> | 🪵 ${pState.m} <span class="income-text">(+${income.m})</span> | 🪨 ${pState.s || 0}`;
+    // Erschließungs-Countdown (M12): dauerhaft im HUD ALLER Spieler sichtbar,
+    // solange uw.hz existiert — "volle Information, kein heimlicher Sieg".
+    if (gameState.uw && gameState.uw.hz) {
+        const hzName = gameState.p[gameState.uw.hz.p] ? gameState.p[gameState.uw.hz.p].n : '?';
+        resourceHud.innerHTML += ` | 🌍 Erschließung: ${hzName} (${gameState.uw.hz.n}/4)`;
+    }
 
     infoPanel.style.color = playerColors[pId];
     if (!selectedUnit && !selectedHex && window.specialActive !== 'tribok') {
@@ -222,12 +228,12 @@ window.buyUWUnit = function (type) {
     const { x, y } = window.selectedUnderworldHex;
     const pState = gameState.p[gameState.cp];
     if (getStollenkopfOwner(gameState, x, y) !== gameState.cp) return;
-    if (uwUnitAt(x, y)) { showToast('Stollenkopf ist belegt!', 'error'); return; }
+    if (uwUnitAt(x, y) || uwCreatureAt(x, y)) { showToast('Stollenkopf ist belegt!', 'error'); return; }
     const cost = getUnitCost(pState, type);
     if (pState.g < cost) { showToast('Nicht genug Gold!', 'error'); return; }
     saveUndoState();
     buyUWUnitAt(gameState, gameState.cp, x, y, type);
-    turnActions.push({ x, y, t: 'buy' });
+    turnActions.push({ x, y, t: 'buy', uw: true });
     hideActionMenu();
     renderBoard(gameState); updateUI();
 };

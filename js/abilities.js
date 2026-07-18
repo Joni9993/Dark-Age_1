@@ -498,6 +498,8 @@ window.uwAscend = function () {
     if (groundUnitAt(x, y) || gameState.v[`${x},${y}`] !== undefined) { showToast('Oberfläche blockiert!', 'error'); return; }
     saveUndoState();
     ascendUWUnit(gameState, selectedUWUnit);
+    // KEIN uw:true (M13): die Einheit erscheint jetzt AUF der Oberfläche — sichtbar
+    // über die Oberflächen-Sicht (Default), symmetrisch zu uwDescend unten.
     turnActions.push({ x, y, t: 'cap' });
     clearUWSelection();
     infoPanel.innerHTML = '🕳 Aufgestiegen zur Oberfläche!';
@@ -509,10 +511,12 @@ window.uwDescend = function () {
     const { x, y } = selectedUnit;
     const ownHead = (gameState.tu || []).some(t => t.o === gameState.cp && t.r <= gameState.rn && ((t.x1 === x && t.y1 === y) || (t.x2 === x && t.y2 === y)));
     if (!ownHead) return;
-    if (uwUnitAt(x, y)) { showToast('Unterwelt-Feld belegt!', 'error'); return; }
+    if (uwUnitAt(x, y) || uwCreatureAt(x, y)) { showToast('Unterwelt-Feld belegt!', 'error'); return; }
     saveUndoState();
     descendUWUnit(gameState, selectedUnit);
-    turnActions.push({ x, y, t: 'cap' });
+    // uw:true (M13): die Einheit verschwindet von der Oberfläche und taucht im
+    // Unterwelt-Netz auf — nur dort sichtbar.
+    turnActions.push({ x, y, t: 'cap', uw: true });
     selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
     infoPanel.innerHTML = '🕳 Abgetaucht in die Unterwelt!';
     hideActionMenu(); renderBoard(gameState); updateUI();
@@ -526,6 +530,9 @@ window.uwDeliverCrystals = function () {
     const unit = selectedUWUnit;
     const amount = deliverUWCrystals(gameState, gameState.cp, unit);
     showToast(`💎 ${amount} Kristalle abgeliefert!`, 'gold');
+    // uw:true (M13): Ablieferung passiert am eigenen Stollenkopf unten — nur über
+    // das Unterwelt-Netz sichtbar, gleiche Sichtbarkeitsregel wie Graben/Abbau.
+    turnActions.push({ x: unit.x, y: unit.y, t: 'deliver', uw: true });
     updateUI();
     showUnderworldTileUI(unit.x, unit.y);
     renderBoard(gameState);
@@ -573,7 +580,10 @@ function handleRelicTargetClick(clickedX, clickedY, underworld) {
         if (unit.art) { showToast('Einheit trägt schon eine Reliquie.', 'error'); renderBoard(gameState); return; }
         saveUndoState();
         const ok = applyRelicToUnit(gameState, gameState.cp, key, unit);
-        if (ok) { showToast(`${def.icon} ${def.name} ausgerüstet!`, 'gold'); turnActions.push({ x: clickedX, y: clickedY, t: 'relicuse' }); }
+        // uw:true nur wenn die ausgerüstete Einheit unten steht (M13) — die
+        // Meisterwerkzeug-Variante oben bleibt Oberflächen-Sicht (Gebäude sind
+        // immer oben).
+        if (ok) { showToast(`${def.icon} ${def.name} ausgerüstet!`, 'gold'); turnActions.push({ x: clickedX, y: clickedY, t: 'relicuse', uw: underworld }); }
     }
     renderBoard(gameState); updateUI();
 }

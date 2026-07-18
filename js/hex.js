@@ -212,6 +212,85 @@ function isFundkammerHex(state, x, y) {
     return getFundkammerHexes(state).some(h => h.x === x && h.y === y);
 }
 
+// === UNTERWELT-KREATUREN: INITIALE PLATZIERUNG (M11, PLAN.md Abschn. 5) ===
+// Deterministisch aus dem Seed — Hash-RANG statt Zufallsziehung (wie Herzkaverne/
+// Fundkammer): dieselben Kandidaten zweimal sortiert liefern immer dieselbe
+// Auswahl, ganz ohne PRNG-Zustand. Eigene Salt-Werte (7/8/9), unabhängig von
+// underworldHash-Salt 1 (Kaverne/Ader-Verteilung) und 2/3 (Fundkammer-Beute).
+function pickHashRankedHexes(state, candidates, salt, count) {
+    const scored = candidates.map(c => ({ x: c.x, y: c.y, score: underworldHash(state, c.x, c.y, salt) }));
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, Math.min(count, scored.length)).map(c => ({ x: c.x, y: c.y }));
+}
+
+// Dichte-Bänder nach Kartenradius (wie SPAWN_BUDGETS oben, aber grob — M11
+// braucht laut Auftrag nur "plausible" Dichten, keine Fairness-Analyse).
+function densityForRadius(rad, low, mid, high) {
+    if (rad <= 5) return low;
+    if (rad <= 9) return mid;
+    return high;
+}
+
+// Spinnen-Nester: die (per Hash-Rang) "besten" natürlichen Kavernen-Hexes.
+const _spiderNestCache = {};
+function getSpiderNestHexes(state) {
+    const key = `${state.sd}|${state.bw}|${state.bh}|${state.rad}`;
+    if (_spiderNestCache[key]) return _spiderNestCache[key];
+    const caverns = [];
+    for (let y = 0; y < state.bh; y++) for (let x = 0; x < state.bw; x++) {
+        if (isInsideMap(state, x, y) && getUnderworldType(state, x, y) === UW_KAVERNE) caverns.push({ x, y });
+    }
+    const count = densityForRadius(state.rad, 2, 3, 4);
+    const nests = pickHashRankedHexes(state, caverns, 7, count);
+    _spiderNestCache[key] = nests;
+    return nests;
+}
+
+// Nächstgelegenes Nest zu einer (aktuellen) Spinnen-Position — die Spinne merkt
+// sich ihr Nest NICHT im State, sondern es wird bei Bedarf aus der Position neu
+// abgeleitet (deterministisch, siehe Auftrag).
+function getNearestSpiderNest(state, x, y) {
+    const nests = getSpiderNestHexes(state);
+    if (nests.length === 0) return null;
+    let best = nests[0], bestD = hexDistance({ x, y }, nests[0]);
+    for (const n of nests) {
+        const d = hexDistance({ x, y }, n);
+        if (d < bestD) { bestD = d; best = n; }
+    }
+    return best;
+}
+
+// Steinpanzer: die (per Hash-Rang) "reichsten" Kristalladern-Hexes.
+const _steinpanzerCache = {};
+function getSteinpanzerVeinHexes(state) {
+    const key = `${state.sd}|${state.bw}|${state.bh}|${state.rad}`;
+    if (_steinpanzerCache[key]) return _steinpanzerCache[key];
+    const veins = [];
+    for (let y = 0; y < state.bh; y++) for (let x = 0; x < state.bw; x++) {
+        if (isInsideMap(state, x, y) && getUnderworldType(state, x, y) === UW_ADER) veins.push({ x, y });
+    }
+    const count = densityForRadius(state.rad, 2, 2, 3);
+    const picks = pickHashRankedHexes(state, veins, 8, count);
+    _steinpanzerCache[key] = picks;
+    return picks;
+}
+
+// Blindwühler: Startposition auf (per Hash-Rang) Fels-Hexes — er gräbt sich von
+// dort ohnehin selbst weiter (siehe processUWCreatureTurn, js/logic.js).
+const _wuehlerCache = {};
+function getWuehlerSpawnHexes(state) {
+    const key = `${state.sd}|${state.bw}|${state.bh}|${state.rad}`;
+    if (_wuehlerCache[key]) return _wuehlerCache[key];
+    const felsHexes = [];
+    for (let y = 0; y < state.bh; y++) for (let x = 0; x < state.bw; x++) {
+        if (isInsideMap(state, x, y) && getUnderworldType(state, x, y) === UW_FELS) felsHexes.push({ x, y });
+    }
+    const count = densityForRadius(state.rad, 1, 1, 2);
+    const picks = pickHashRankedHexes(state, felsHexes, 9, count);
+    _wuehlerCache[key] = picks;
+    return picks;
+}
+
 // Haupt-Typabfrage: Herzkaverne schlägt Ruine schlägt Kaverne/Ader-Hash
 // schlägt Fels. Deterministisch aus state.sd (+ eigenem Hash-Kanal) — zweimal
 // mit denselben Argumenten aufgerufen liefert immer denselben Typ.

@@ -545,6 +545,7 @@
     <a href="#combat">11 Kampf</a>
     <a href="#diplomacy">12 Diplomatie</a>
     <a href="#victory">13 Sieg</a>
+    <a href="#underworld">14 Unterwelt</a>
   </nav>
 
   <main>
@@ -1440,6 +1441,293 @@
       <div class="screenshot">
         <span class="screenshot-label">Screenshot: Sieg-Screen</span>
         Goldenes „SIEG!"-Banner mit dem Sieger-Namen
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+     14 · DIE UNTERWELT
+══════════════════════════════════════════════════════════ -->
+    <div class="section" id="underworld">
+      <div class="section-head">
+        <span class="section-num">14</span>
+        <span class="section-icon">⛏️</span>
+        <h2>Die Unterwelt</h2>
+      </div>
+
+      <p>Unter der Karte liegt eine zweite Spielebene aus <strong>massivem Fels</strong> – deterministisch aus
+        demselben Karten-Seed erzeugt wie die Oberfläche. Dort gilt ein komplett anderes Regelset: Statt freier
+        Bewegung wird jeder Meter <strong>gegraben</strong>, statt Sichtfeld gibt es nur das eigene Stollennetz, und
+        statt offener Feldschlachten kämpft man sich durch enge Gänge.</p>
+
+      <div class="callout info">
+        <span class="callout-label">Einstieg</span>
+        Baue oben einen <strong>🚇 Tunnel</strong> (siehe Abschnitt 07). Sobald er fertig ist, öffnet sich automatisch
+        das Unterwelt-Hex direkt unter jedem seiner beiden Eingänge – das ist dein <strong>Stollenkopf</strong>.
+        Schalte im <strong>„🔄 Kamerafokus"</strong>-Button im HUD auf <strong>Unterwelt</strong> (3. Kamerafahrt im
+        Zyklus Standard → Luftansicht → Unterwelt), um dort zu bauen, zu kaufen und zu kämpfen. Im Unterwelt-Fokus ist
+        die Oberfläche komplett ausgeblendet, genau wie in der Luftansicht.
+      </div>
+
+      <p><strong>Rekrutieren am Stollenkopf:</strong> Tippe auf einen eigenen Stollenkopf (ein Unterwelt-Hex unter
+        einem eigenen Tunnel-Eingang) – das Aktionsmenü zeigt die kaufbaren Tiefeneinheiten, bezahlt mit
+        <strong>Gold von oben</strong>.</p>
+
+      <p><strong>Ebenen-Wechsel:</strong> Nur der <strong>⛏️ Tunnelgräber</strong> kann zwischen Oberfläche und
+        Unterwelt wechseln (Aktion „Abtauchen" am Tunnel-Eingang oben, „Aufsteigen" am Stollenkopf unten). Alle
+        anderen Tiefeneinheiten bleiben dauerhaft unten.</p>
+
+      <p><strong>Vier Regeln, die unten alles verändern:</strong></p>
+
+      <div class="build-row">
+        <div class="build-item">
+          <div class="build-icon">⛏️</div>
+          <div><strong>Graben statt Laufen</strong><br>
+            Fels ist Hindernis. Nur der Tunnelgräber (1 Hex/Zug) und der Bohrwagen (2 Hex/Zug) können ihn entfernen.
+            Einmal gegraben, bleibt ein Hex dauerhaft offen und begehbar – auch für gegnerische Einheiten. Wer sich
+            an ein fremdes Netz heranarbeitet, verbindet die beiden Stollen.</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🕯️</div>
+          <div><strong>Nur das eigene Netz sichtbar</strong><br>
+            Du siehst dauerhaft die <strong>Geometrie</strong> deines eigenen Stollennetzes: alles selbst Gegrabene
+            plus jedes offene Hex, das je eine deiner Einheiten betreten hat. In den massiven Fels hinein siehst du
+            nichts. <strong>Bewegliches</strong> (fremde Einheiten, Tiere) siehst du dagegen nur im
+            <strong>Umkreis 2</strong> um deine eigenen Einheiten – bekannte Gänge können also jederzeit einen
+            Hinterhalt verbergen.</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">👂</div>
+          <div><strong>Aufklärung durch Gehör</strong><br>
+            Graben, Abbau und Sprengarbeiten erzeugen Lärm. Fremder Lärm im Umkreis 3 einer eigenen Einheit zeigt dir
+            eine <strong>ungefähre Richtung</strong> (Sektor, kein exaktes Hex) – deine einzige Fernaufklärung unter
+            Tage. Der <strong>👂 Horcher</strong> (Spionage) hört exakt: Lärm im Umkreis 5 zeigt bei ihm das genaue
+            Hex.</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🚧</div>
+          <div><strong>Engstellen-Kampf</strong><br>
+            In Gängen gibt es kein Vorbeikommen – wer vorn steht, blockt den Weg. Eine <strong>Engstelle</strong> ist
+            ein offenes Hex mit höchstens 2 offenen Nachbarn; dort erleiden Grubenwache und Grubenritter
+            <strong>−1 Schaden</strong> (Schildstellung). Flankieren heißt unten: sich eine zweite Route graben.</div>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <span class="callout-label">Nachschub & Moral</span>
+        Verlierst du deinen <strong>letzten Tunnel</strong> nach unten (oben zerstört oder unterminiert), tritt der
+        <strong>Moral-Kollaps</strong> ein: alle deine Tiefeneinheiten verlieren <strong>1 HP zu Beginn jedes deiner
+        Züge</strong>, bis wieder irgendein eigener Tunnel steht. Deinen Tunnel oben zu verteidigen ist damit
+        genauso wichtig wie deine Expedition unten.
+      </div>
+
+      <p><strong>Das Tiefen-Roster</strong> (Typ-IDs 16–22, Kosten in Gold, Fähigkeiten Holz-finanziert soweit
+        angegeben):</p>
+
+      <table class="unit-table">
+        <thead>
+          <tr>
+            <th>Einheit</th>
+            <th>Kosten</th>
+            <th>HP</th>
+            <th>DMG</th>
+            <th>Bewegung</th>
+            <th>Fraktion</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>⛏️ Tunnelgräber</td>
+            <td>3 G</td>
+            <td>8</td>
+            <td>1 (Notwehr)</td>
+            <td>1 (gräbt <em>oder</em> läuft)</td>
+            <td>Alle</td>
+          </tr>
+          <tr>
+            <td>🛡️ Grubenwache</td>
+            <td>5 G</td>
+            <td>14</td>
+            <td>4</td>
+            <td>2</td>
+            <td>Alle</td>
+          </tr>
+          <tr>
+            <td>💥 Sprengmeister</td>
+            <td>6 G</td>
+            <td>8</td>
+            <td>3</td>
+            <td>2</td>
+            <td>Alle</td>
+          </tr>
+          <tr style="background: rgba(201,168,76,.05)">
+            <td>⚔️ Grubenritter</td>
+            <td>7 G</td>
+            <td>16 (+Feudal-Bonus)</td>
+            <td>5</td>
+            <td>2</td>
+            <td>🏰 Feudalismus</td>
+          </tr>
+          <tr style="background: rgba(201,168,76,.05)">
+            <td>🪙 Beutegräber</td>
+            <td>5 G</td>
+            <td>10</td>
+            <td>4 (+1 Plünderer-Passiv)</td>
+            <td>3</td>
+            <td>🩸 Plünderer</td>
+          </tr>
+          <tr style="background: rgba(201,168,76,.05)">
+            <td>👂 Horcher</td>
+            <td>4 G</td>
+            <td>8</td>
+            <td>3</td>
+            <td>2</td>
+            <td>👁️ Spionage</td>
+          </tr>
+          <tr style="background: rgba(201,168,76,.05)">
+            <td>⚙️ Bohrwagen</td>
+            <td>9 G</td>
+            <td>14</td>
+            <td>4 (Rammbohrer)</td>
+            <td>1 (gräbt 2 Hex/Zug)</td>
+            <td>⚖️ Gilden</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p style="font-size:.82rem; color:var(--text-dim)">Alle Angriffe haben Reichweite 1 (Nahkampf). Das
+        Veteranen-System (2 Kills → +1 DMG, ⭐) gilt auch unten – Kills gegen Tiere zählen mit.</p>
+
+      <p><strong>Besondere Fähigkeiten:</strong></p>
+
+      <div class="build-row">
+        <div class="build-item">
+          <div class="build-icon">⛏️</div>
+          <div><strong>Tunnelgräber – Graben, Abbau & Ebenen-Wechsel</strong><br>
+            Gräbt 1 Fels-Hex/Zug frei, baut Kristalladern ab (wie Arbeiter Stein oben) und trägt bis zu
+            <strong>3 Kristalle</strong> zum nächsten eigenen Tunnel, um sie oben abzuliefern. Einziger Ebenen-
+            Wechsler.</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">💥</div>
+          <div><strong>Sprengmeister – Unterminierung & Stollenbruch</strong><br>
+            Kann Oberflächen-Befestigungen von unten schwächen (siehe unten) und einen eigenen offenen
+            Nachbargang wieder verfüllen (<strong>Stollenbruch</strong>) – sperrt Verfolger aus oder kappt einen
+            Gegenstollen.</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🪙</div>
+          <div><strong>Beutegräber – Plünderer der Tiefe</strong><br>
+            Plündert Fundkammern und Adern schneller und stiehlt beim Töten alle Kristalle, die das Ziel gerade
+            trägt.</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">👂</div>
+          <div><strong>Horcher – Lauschen & Tarnung</strong><br>
+            Hört Lärm im Umkreis 5 als exaktes Hex statt nur als Richtung. Ist in offenen Gängen für Gegner
+            unsichtbar, solange er nicht selbst angreift.</div>
+        </div>
+      </div>
+
+      <p><strong>Höhlengetier – die PvE-Gefahren der Tiefe:</strong> Keine Geister, keine Untoten – nur Tiere, die
+        auf Lärm reagieren. Sie handeln automatisch am Ende jeder Runde.</p>
+
+      <div class="event-grid">
+        <div class="event-card">
+          <div class="event-icon">🕷️</div>
+          <div><span class="event-name">Höhlenspinne</span><span class="event-desc">6 HP · 3 DMG. Nistet in
+              Kavernen, spinnt Netze (machen ein Gang-Hex zur bewegungsstoppenden Engstelle) und jagt im Umkreis 2
+              um ihr Nest.</span></div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon">🦡</div>
+          <div><span class="event-name">Blindwühler</span><span class="event-desc">12 HP · 5 DMG. Gräbt selbst
+              (1 Hex/Zug) auf die letzte Lärmquelle im Umkreis 4 zu, auch durch fremde Stollen. Wer viel gräbt,
+              gräbt sich seine Feinde herbei.</span></div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon">🪨</div>
+          <div><span class="event-name">Steinpanzer</span><span class="event-desc">28 HP · 2 DMG. Träger
+              Panzerbrocken, sitzt auf den reichsten Kristalladern und verfolgt nie – ein Risk/Reward-Wächter.</span>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon">🐛</div>
+          <div><span class="event-name">Der Alte Wurm</span><span class="event-desc">30 HP · 8 DMG (trifft ALLE
+              Angreifer in Reichweite 1). Wächter der Herzkaverne, verlässt sie nie. Muss besiegt werden, bevor die
+              Erschließung beginnen kann – bleibt danach dauerhaft tot, alle Spieler erfahren sofort davon.</span>
+          </div>
+        </div>
+      </div>
+
+      <p><strong>Kristalle & Reliquien:</strong> Kristalle entstehen nur unten – aus Kristalladern (Abbau wie
+        Stein oben) und aus <strong>Fundkammern</strong> in Stollenruinen (einmalige Beute: Kristalle oder direkt
+        eine Reliquie). Tunnelgräber tragen sie hoch; oben angekommen kannst du im Dorf-Menü Reliquien kaufen:</p>
+
+      <div class="build-row">
+        <div class="build-item">
+          <div class="build-icon">🗡️</div>
+          <div><strong>Damaszener Klinge</strong> <span class="build-cost">4 💎</span><br>
+            Eine Einheit erhält permanent +5 DMG.</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🛡️</div>
+          <div><strong>Harnisch des Bergvolks</strong> <span class="build-cost">4 💎</span><br>
+            Eine Einheit erhält permanent +10 Max-HP (heilt beim Ausrüsten mit auf).</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🔧</div>
+          <div><strong>Meisterwerkzeug</strong> <span class="build-cost">3 💎</span><br>
+            Ein Bauwerk (Mauer, Turm, Tunnel oder Startdorf) sofort auf volle HP.</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">🗺️</div>
+          <div><strong>Karte der Tiefe</strong> <span class="build-cost">5 💎</span><br>
+            Deckt dauerhaft die gesamte Karte auf – Oberfläche und Unterwelt.</div>
+        </div>
+      </div>
+
+      <p><strong>Unterminierung (taktisches Werkzeug, kein Siegweg):</strong> Der Sprengmeister kann
+        Oberflächen-Befestigungen von unten angreifen – aber <strong>nur Tunnel-Endpunkte, Mauern, Türme und
+          Startdörfer</strong>, niemals normale Dörfer.</p>
+
+      <ol class="steps">
+        <li>Sprengmeister steht auf dem Unterwelt-Hex direkt unter dem Ziel → Aktion <strong>„💣 Kammer
+            anlegen"</strong> (3 🪵, 1 Zug, laut – erzeugt Lärm und ein schwaches Beben oben als Vorwarnung).</li>
+        <li>Im Folgezug: <strong>„🧨 Zünden"</strong> → <strong>6 Schaden</strong> auf die Oberflächen-Struktur, für
+          alle Sichtbaren als Beben oben erkennbar.</li>
+      </ol>
+
+      <div class="callout tip">
+        <span class="callout-label">Gegenspiel</span>
+        Die Kammer-Arbeiten sind unten hörbar und oben als leichtes Zittern des Hexes sichtbar – ein Gegenstollen
+        kann die Kammer noch vor der Zündung stürmen.
+      </div>
+
+      <p><strong>Der Herz-Sieg – die Erschließung:</strong> Der einzige Siegweg durch die Unterwelt führt über die
+        <strong>Herzkaverne</strong>, die exakt unter dem zentralen Wachturm liegt und vom Alten Wurm bewacht wird.</p>
+
+      <ol class="steps">
+        <li><strong>Wurm besiegen</strong> – die stärkste PvE-Hürde des Spiels, verhindert Früh-Rushes.</li>
+        <li><strong>Erschließung starten:</strong> eigene Einheit im Zentrum der Herzkaverne, keine gegnerische
+          Einheit irgendwo in der Kaverne (7 Hexes). Ab jetzt erfahren <strong>alle Spieler</strong> davon: „Die
+          Erde bebt – {Spieler} erschließt das Herz der Tiefe" + Countdown im HUD.</li>
+        <li><strong>4 eigene Zugenden lang halten.</strong> Wird die Bedingung unterbrochen (Zentrum verloren oder
+          ein Gegner betritt die Kaverne), fällt der Zähler auf 0 zurück.</li>
+        <li>Nach der 4. Runde: <strong>Sieg über die gesamte Partie</strong> – für den Erschließer und alle seine
+          lebenden Verbündeten, unabhängig davon, ob oben noch andere Spieler leben.</li>
+      </ol>
+
+      <div class="callout warn">
+        <span class="callout-label">Gegenspiel-Wege</span>
+        Eine eigene Expedition in die Herzkaverne schicken (schon 1 Einheit unterbricht) · den Tunnel des
+        Erschließers oben zerstören oder unterminieren, um seine Expedition per Moral-Kollaps zu schwächen ·
+        Beutegräber- oder Horcher-Guerilla in seinen Stollen.
+      </div>
+
+      <div class="callout">
+        <span class="callout-label">Diplomatie unten</span>
+        Verbündete greifen sich auch in der Unterwelt nicht an und teilen die Sicht auf ihr jeweiliges Stollennetz.
+        Steht ihr gemeinsam in der Herzkaverne, unterbricht das die Erschließung nicht – ihr gewinnt gemeinsam.
       </div>
     </div>
 

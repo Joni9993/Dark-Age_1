@@ -85,3 +85,19 @@ const RELICS = {
     tool: { name: "Meisterwerkzeug", icon: "🔧", cost: 3, desc: "Ein Bauwerk (Mauer/Turm/Tunnel/Startdorf) sofort auf volle HP.", target: "building" },
     map: { name: "Karte der Tiefe", icon: "🗺️", cost: 5, desc: "Deckt dauerhaft die gesamte Karte auf (Oberfläche + Unterwelt).", target: "instant" }
 };
+
+// === UNTERWELT-KREATUREN (M11, PLAN.md Abschn. 5) ===
+// Eigener Nummernkreis (100+), bewusst NICHT 0-3 — würde sonst mit den
+// Oberflächen-Einheiten-Typ-IDs 0-3 (Schwert/Bogen/Pferd/Ritter) kollidieren,
+// falls eine Kreatur je versehentlich durch surface-seitigen Code (unitStats[t])
+// gejagt würde. Kreaturen gehören keinem Spieler (uw.c[] = {t, x, y, h}, kein p/a).
+// Reichweite ist für alle fix 1 (reiner Nahkampf), daher kein range-Feld nötig.
+const UWC_SPINNE = 100, UWC_WUEHLER = 101, UWC_STEINPANZER = 102, UWC_WURM = 103;
+const uwCreatureStats = {
+    [UWC_SPINNE]: { name: "Höhlenspinne", hp: 6, dmg: 3, sprite: 'uw_spinne' },
+    [UWC_WUEHLER]: { name: "Blindwühler", hp: 12, dmg: 5, sprite: 'uw_wuehler' },
+    [UWC_STEINPANZER]: { name: "Steinpanzer", hp: 28, dmg: 2, sprite: 'uw_steinpanzer' },
+    // Der Alte Wurm: AoE (trifft ALLE Angreifer in RW 1) + unbedingter Konter,
+    // siehe processUWCreatureTurn/resolveUWAttackOnCreature (js/logic.js).
+    [UWC_WURM]: { name: "Der Alte Wurm", hp: 30, dmg: 8, sprite: 'uw_wurm' }
+};

@@ -230,12 +230,24 @@ function buildInitialGameState(playerNames, radius, teamMode = 'ffa') {
     placeForPlayers(restStoneBands, stoneOK, 2, placeStone);
     placeContested(budget.contestedStones[cnt], stoneOK, 2, placeStone);
 
-    // uw = Unterwelt-Zustand (M9b/M10): d = gegrabene Hexes (Indizes, wie p[].e/ue —
-    // Stollenköpfe zählen NICHT hierzu, die werden aus tu[] abgeleitet, siehe
-    // getStollenkopfOwner/isUnderworldOpen in hex.js), u = Tiefeneinheiten,
+    // uw = Unterwelt-Zustand (M9b/M10/M11): d = gegrabene Hexes (Indizes, wie
+    // p[].e/ue — Stollenköpfe zählen NICHT hierzu, die werden aus tu[] abgeleitet,
+    // siehe getStollenkopfOwner/isUnderworldOpen in hex.js), u = Tiefeneinheiten,
     // n = Lärm-Marker der letzten Runde, a = angebrochene Kristalladern {"x,y": restH},
-    // f = geplünderte Fundkammern {"x,y": 1}.
-    const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [], ct: { x: cx, y: cy, ctrl: -1 }, uw: { d: [], u: [], n: [], a: {}, f: {} } };
+    // f = geplünderte Fundkammern {"x,y": 1}, c = Kreaturen {t,x,y,h} (neutral,
+    // kein Besitzer), w = Spinnennetze {"x,y": 1}, wd = Alter Wurm dauerhaft tot.
+    const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [], ct: { x: cx, y: cy, ctrl: -1 }, uw: { d: [], u: [], n: [], a: {}, f: {}, w: {} } };
+
+    // Unterwelt-Kreaturen (M11): deterministisch aus dem Seed platziert — Spinnen
+    // in den (Hash-Rang) "besten" natürlichen Kavernen, Steinpanzer auf den
+    // "reichsten" Kristalladern, Wühler auf Fels-Hexes, der Wurm exakt im
+    // Herzkaverne-Zentrum (== ct, s.o.). Dichte-Bänder siehe densityForRadius.
+    const creatures = [];
+    getSpiderNestHexes(state).forEach(h => creatures.push({ t: UWC_SPINNE, x: h.x, y: h.y, h: uwCreatureStats[UWC_SPINNE].hp }));
+    getSteinpanzerVeinHexes(state).forEach(h => creatures.push({ t: UWC_STEINPANZER, x: h.x, y: h.y, h: uwCreatureStats[UWC_STEINPANZER].hp }));
+    getWuehlerSpawnHexes(state).forEach(h => creatures.push({ t: UWC_WUEHLER, x: h.x, y: h.y, h: uwCreatureStats[UWC_WUEHLER].hp }));
+    creatures.push({ t: UWC_WURM, x: cx, y: cy, h: uwCreatureStats[UWC_WURM].hp });
+    state.uw.c = creatures;
 
     const teamSize = teamMode === 'teams2' ? 2 : teamMode === 'teams3' ? 3 : 0;
     if (teamSize > 0 && count % teamSize === 0 && count / teamSize >= 2) {

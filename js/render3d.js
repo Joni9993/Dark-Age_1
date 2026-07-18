@@ -101,13 +101,15 @@
     // Horizont (90 = senkrecht von oben, ~40.5 = normale Bodenansicht,
     // negativ = Kamera unter der Karte, blickt nach oben).
     const AIR_VIEW_ELEV = 50 * Math.PI / 180;
-    // 270° statt -90°: die Luftansicht kippt die Kamera bereits weiter nach
-    // hinten/oben (40.5°→50°) — die Unterwelt-Fahrt setzt diese Drehrichtung
-    // fort (über die Rückseite/den Scheitel, weiter bis unter die Karte)
-    // statt umzukehren und durch die Vorderkante/den Horizont zu tauchen.
-    // sin/cos sind 360°-periodisch, daher landet die Kamera trotzdem exakt
-    // im "Süden" (senkrecht von unten) — nur der Anflugweg ist ein anderer.
-    const UNDERWORLD_ELEV = 270 * Math.PI / 180;
+    // 180° + CAM_ELEV statt -CAM_ELEV: die Luftansicht kippt die Kamera bereits
+    // weiter nach hinten/oben (40.5°→50°) — die Unterwelt-Fahrt setzt diese
+    // Drehrichtung fort (über den Scheitel, weiter bis unter die Karte) statt
+    // umzukehren und durch die Vorderkante/den Horizont zu tauchen. Der Winkel
+    // ist der punktgespiegelte Standard-Blick: dieselbe Schräge wie die normale
+    // Bodenansicht, nur von unten auf die Kartenunterseite — senkrecht von
+    // unten (früher 270°) standen die Billboard-Einheiten in Kantenlage zur
+    // Kamera und wurden zu flachen Strichen.
+    const UNDERWORLD_ELEV = Math.PI + CAM_ELEV;
     const AIR_ALPHA_GROUND = 0.1;          // Deckkraft der Flieger außerhalb der Luftansicht
     let airAlpha = AIR_ALPHA_GROUND;
     let viewTween = null;                  // {start, dur, from:{elev,alpha}, to:{elev,alpha}}
@@ -844,15 +846,24 @@
     // bewusst vereinfachte Kopie von addVoxelSprite statt Verzweigung: unter der
     // Karte steht die Kamera UNTER der y=0-Ebene und blickt nach OBEN — "hoch" im
     // Sprite muss deshalb Richtung Kamera (negatives Welt-Y) zeigen, umgekehrt zur
-    // Oberfläche. Ohne Kamera-Pitch-Kippung (nur Azimut-Facing) — Sichtachse von
-    // unten ist ohnehin fast immer nah an der Senkrechten. Reine Präsentation,
-    // keine Spiellogik; Null-Risiko für die bestehende Boden-Darstellung.
-    function addUWVoxelSprite(spriteKey, wx, wz, groundY, playerColor, dimFactor) {
+    // Oberfläche. Seit die Unterwelt-Kamera schräg statt senkrecht von unten
+    // blickt (UNDERWORLD_ELEV = 180° + CAM_ELEV), kippen die Sprites wie der
+    // Oberflächen-"Pappaufsteller" mit der Kamera-Neigung mit — Pitch ist die
+    // Abweichung vom Unterwelt-Nominalwinkel, die Formel das punktgespiegelte
+    // Pendant zu addVoxelSprite (y und Tiefenrichtung negiert). Reine
+    // Präsentation, keine Spiellogik; Null-Risiko für die Boden-Darstellung.
+    function addUWVoxelSprite(spriteKey, wx, wz, groundY, playerColor, dimFactor, sizeMultiplier) {
         const arr = pixelSprites[spriteKey];
         if (!arr) return;
         const { bottom, size } = spriteBottomRow(spriteKey, pixelSprites);
-        const s = 2.6 * 10 / size;
-        const { rx, rz } = camGroundAxes();
+        // sizeMultiplier (M11): der Alte Wurm nutzt ein größeres 14x14-Sprite und
+        // soll auch optisch deutlich größer wirken als die 10x10-Standardgröße —
+        // die "10/size"-Normalisierung gleicht Quellauflösungen sonst automatisch
+        // an, ein expliziter Multiplikator hebt ihn zusätzlich hervor.
+        const s = 2.6 * 10 / size * (sizeMultiplier || 1);
+        const pitch = cam3d.elev - UNDERWORLD_ELEV;
+        const cosP = Math.cos(pitch), sinP = Math.sin(pitch);
+        const { rx, rz, fx, fz } = camGroundAxes();
         for (let i = 0; i < arr.length; i++) {
             const val = arr[i];
             if (val === 0) continue;
@@ -861,7 +872,11 @@
             const across = (colIdx - (size - 1) / 2) * s;
             const dy = (bottom - rowIdx + 0.5) * s;
             _vm.makeScale(s, s, s);
-            _vm.setPosition(wx + across * rx, groundY - dy, wz + across * rz);
+            _vm.setPosition(
+                wx + across * rx - dy * sinP * fx,
+                groundY - dy * cosP,
+                wz + across * rz - dy * sinP * fz
+            );
             voxelMesh.setMatrixAt(_voxelCount, _vm);
             _vc.set(spritePixelColor(val, playerColor));
             if (dimFactor !== 1) _vc.multiplyScalar(dimFactor);
@@ -1080,7 +1095,16 @@
         _shadowCount = 0;
         airVoxelMesh.material.opacity = airAlpha;
 
+        // M13: gleiche uw/global-Sichtregeln wie der Recap-Playback in bootGame (siehe
+        // dortiger Kommentar) — Unterwelt-Aktionen prüfen das Unterwelt-Netz statt der
+        // Oberflächen-Sicht, globale Meldungen (Wurm-Tod/Erschließung) immer sichtbar.
         const visibleRecaps = (state.la || []).filter(a => {
+            if (a.global) return true;
+            if (a.uw) {
+                const uwVisR = getVisibleUWHexes(state.cp);
+                if (!uwVisR.has(`${a.x},${a.y}`)) return false;
+                return !((state.uw && state.uw.u) || []).some(u => u.p !== state.cp && u.iv === 1 && u.x === a.x && u.y === a.y);
+            }
             if (!vis.has(`${a.x},${a.y}`)) return false;
             return !state.u.some(u => u.p !== state.cp && u.iv === 1 && u.x === a.x && u.y === a.y);
         });
@@ -1225,6 +1249,28 @@
             }
         });
 
+        // Unterminierungs-Vorwarnung (M12, PLAN.md Abschn. 6): dezentes Beben-Indiz
+        // über jeder aktiven Kammer (u.ch=1 auf einem Sprengmeister) — nur wenn das
+        // Oberflächen-Hex für den aktuellen Betrachter sichtbar ist ("sehen Spieler,
+        // die das Oberflächen-Hex sehen können, dort ein Indiz").
+        (state.uw && state.uw.u || []).forEach(u => {
+            if (u.ch !== 1) return;
+            if (!vis.has(`${u.x},${u.y}`)) return;
+            const tType = getTerrainType(state, u.x, u.y);
+            const gy = tileHeight(tType);
+            const { wx, wz } = worldPos(u.x, u.y);
+            addIcon('💣', '#ffb300', wx, wz, gy + 26, 12);
+        });
+
+        // Erschließung (M12, PLAN.md Abschn. 8): dauerhaftes Beben-Indiz am
+        // zentralen Wachturm, solange eine Erschließung läuft — unconditional wie
+        // der ct-Entity selbst (volle Information, kein heimlicher Fortschritt).
+        if (state.uw && state.uw.hz && state.ct) {
+            const gyCt = tileHeight(getTerrainType(state, state.ct.x, state.ct.y));
+            const { wx, wz } = worldPos(state.ct.x, state.ct.y);
+            addIcon('🌍', '#8d6e63', wx, wz, gyCt + 42, 14);
+        }
+
         } else {
             const cx = Math.floor(state.bw / 2), cy = Math.floor(state.bh / 2);
             if (voxelModels['herzkaverne'] && uwVis.has(`${cx},${cy}`)) {
@@ -1254,6 +1300,33 @@
                 if (u.cr) addIcon('💎', '#7fe3ff', wx, wz, topY - 12, 10, 1, 1);
                 if (u.art) addIcon(RELICS[u.art].icon, '#ba68c8', wx, wz, topY - 4, 9, 1, -1);
             });
+
+            // Kreaturen (M11): neutral, gleiche Umkreis-2-Sichtregel wie fremde
+            // Einheiten (isUWCreatureVisible). Der Alte Wurm wird deutlich größer
+            // dargestellt (sizeMultiplier), sein 14x14-Sprite normalisiert sich
+            // über spriteBottomRow/size ohnehin automatisch mit ein.
+            (state.uw && state.uw.c || []).forEach(c => {
+                if (c.h <= 0) return;
+                if (!isUWCreatureVisible(state.cp, c)) return;
+                if (!uwVis.has(`${c.x},${c.y}`)) return;
+                const cStats = uwCreatureStats[c.t];
+                const uType = uwVisualType(state, c.x, c.y);
+                const groundY = -underworldDepth(uType);
+                const { wx, wz } = worldPos(c.x, c.y);
+                const isWurm = c.t === UWC_WURM;
+                addUWVoxelSprite(cStats.sprite, wx, wz, groundY, '#e57373', 1, isWurm ? 1.6 : 1);
+                const topY = groundY - (isWurm ? 46 : 34);
+                addHpText(c.h, wx, wz, topY, -1, c.h / cStats.hp < 0.15);
+            });
+
+            // Spinnennetze (M11): dezentes Overlay auf jedem Netz-Hex im eigenen Netz.
+            if (state.uw && state.uw.w) {
+                Object.keys(state.uw.w).forEach(key => {
+                    if (!uwVis.has(key)) return;
+                    const [wx2, wy2] = key.split(',').map(Number);
+                    addOverlay(wx2, wy2, 0xdddddd, 0.3, state, true);
+                });
+            }
 
             // Gehör (Minimal-Implementierung, PLAN.md Abschn. 3+9): Horcher-Ortung
             // (exact=true) heller/größer als die Richtungs-Näherung am Netzrand.
@@ -1285,13 +1358,14 @@
             addOverlay(window.selectedUnderworldHex.x, window.selectedUnderworldHex.y, 0xc084fc, 0.55, state, true);
         }
         // Unterwelt-Ziel-Highlights: Bewegung grün wie oben, Graben bräunlich (eigene
-        // Farbe, siehe M9b-Auftrag), Abbauen cyan, Angreifen rot wie oben (M10) —
-        // alle unterseitig (underside).
+        // Farbe, siehe M9b-Auftrag), Abbauen cyan, Angreifen rot wie oben (M10),
+        // Stollenbruch orange (M12) — alle unterseitig (underside).
         if (!surfaceVisible) {
             uwValidMoves.forEach(mv => addOverlay(mv.x, mv.y, 0x64ff64, 0.3, state, true));
             uwValidDigs.forEach(d => addOverlay(d.x, d.y, 0xa1662f, 0.45, state, true));
             uwValidMine.forEach(m => addOverlay(m.x, m.y, 0x00e5ff, 0.5, state, true));
             uwValidAttacks.forEach(a => addOverlay(a.x, a.y, 0xff6464, 0.5, state, true));
+            uwValidCollapse.forEach(c => addOverlay(c.x, c.y, 0xff9800, 0.5, state, true));
         }
 
         applyCamera();
