@@ -382,6 +382,13 @@
     // das per-Frame-voxelMesh (bis zu ~370 Fels-Hexes je Karte, s. PLAN.md).
     let uwFelsMesh = null;
     let uwFelsIndex = [];      // instanceId -> {x, y} (uwFelsMesh), zum Wegparken unerforschter Brocken
+    // Original-Matrizen der Akzent-/Fels-Instanzen (Kopie nach dem Build): nötig,
+    // um geparkte Instanzen wiederherzustellen, wenn ein Hex OHNE Geometrie-
+    // Rebuild sichtbar wird (z. B. Karte-der-Tiefe-Reliquie deckt alles auf,
+    // oder ein Verbündeter teilt sein Netz) — vorher blieben solche Instanzen
+    // bis zum nächsten uw.d/uw.a/tu-Rebuild unsichtbar.
+    let uwAccentOrigM = null;
+    let uwFelsOrigM = null;
 
     // Sichtbarer Terrain-Typ inkl. Laufzeit-Zustand (M9b): durchgegrabener Fels
     // zeigt sich wie eine Kaverne, eine leergegrabene Ader wie eine Kaverne ohne
@@ -504,6 +511,7 @@
         uwAccentMesh.count = Math.max(n, 1);
         uwAccentMesh.instanceMatrix.needsUpdate = true;
         uwAccentMesh.instanceColor.needsUpdate = true;
+        uwAccentOrigM = uwAccentMesh.instanceMatrix.array.slice(); // s. Kommentar an der Deklaration
         scene.add(uwAccentMesh);
 
         // Echte Voxel-Felsbrocken (M-Auftrag "richtige Steine aus Voxeln, leicht
@@ -574,6 +582,7 @@
             uwFelsMesh.count = Math.max(fn, 1);
             uwFelsMesh.instanceMatrix.needsUpdate = true;
             uwFelsMesh.instanceColor.needsUpdate = true;
+            uwFelsOrigM = uwFelsMesh.instanceMatrix.array.slice(); // s. Kommentar an der Deklaration
             scene.add(uwFelsMesh);
         }
     }
@@ -600,30 +609,28 @@
         });
         uwTileMesh.instanceColor.needsUpdate = true;
 
-        if (uwAccentMesh) {
+        // Akzente + Fels-Brocken folgen der Netz-Sichtregel: unerforscht ->
+        // wegparken, sichtbar -> Original-Matrix aus dem Build WIEDERHERSTELLEN
+        // (nicht nur "in Ruhe lassen") — sonst blieben Instanzen, die einmal
+        // geparkt wurden, nach reiner Sicht-Aufdeckung ohne Geometrie-Rebuild
+        // (Karte-der-Tiefe-Reliquie, Verbündeten-Netz) dauerhaft unsichtbar.
+        const applyVisParking = (mesh, index, origM) => {
+            if (!mesh || !origM) return;
             const parkM = new THREE.Matrix4();
-            uwAccentIndex.forEach((a, i) => {
-                if (uwVis.has(`${a.x},${a.y}`)) return; // sichtbar: Matrix kommt bereits korrekt aus buildUnderworldTiles
-                parkM.makeScale(0, 0, 0);
-                parkM.setPosition(0, -1000, 0);
-                uwAccentMesh.setMatrixAt(i, parkM);
+            parkM.makeScale(0, 0, 0);
+            parkM.setPosition(0, -1000, 0);
+            const arr = mesh.instanceMatrix.array;
+            index.forEach((a, i) => {
+                if (uwVis.has(`${a.x},${a.y}`)) {
+                    arr.set(origM.subarray(i * 16, i * 16 + 16), i * 16);
+                } else {
+                    mesh.setMatrixAt(i, parkM);
+                }
             });
-            uwAccentMesh.instanceMatrix.needsUpdate = true;
-        }
-
-        // Fels-Voxel-Brocken folgen derselben Netz-Sichtregel wie die
-        // Kristall-Akzente: unerforscht -> wegparken (kein Rebuild nötig, reine
-        // Pro-Frame-Sichtbarkeit wie überall sonst in dieser Funktion).
-        if (uwFelsMesh) {
-            const parkM = new THREE.Matrix4();
-            uwFelsIndex.forEach((a, i) => {
-                if (uwVis.has(`${a.x},${a.y}`)) return; // sichtbar: Matrix kommt bereits korrekt aus buildUnderworldTiles
-                parkM.makeScale(0, 0, 0);
-                parkM.setPosition(0, -1000, 0);
-                uwFelsMesh.setMatrixAt(i, parkM);
-            });
-            uwFelsMesh.instanceMatrix.needsUpdate = true;
-        }
+            mesh.instanceMatrix.needsUpdate = true;
+        };
+        applyVisParking(uwAccentMesh, uwAccentIndex, uwAccentOrigM);
+        applyVisParking(uwFelsMesh, uwFelsIndex, uwFelsOrigM);
     }
 
     // Group.clear() entfernt Kinder nur aus der Szene, gibt aber ihre GPU-Buffer
