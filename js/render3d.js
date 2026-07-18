@@ -482,7 +482,10 @@
         // auch ohne direktes Licht als heller Akzent auffallen.
         const perHexAccents = 3;
         const boxGeo = new THREE.BoxGeometry(1, 1, 1);
-        const accentMat = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true });
+        // KEIN vertexColors: BoxGeometry hat kein Farb-Attribut — mit dem Flag
+        // liest der Shader (0,0,0) und alles rendert schwarz/unsichtbar. Die
+        // Pro-Instanz-Farbe kommt allein über instanceColor (Muster: voxelMesh).
+        const accentMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
         uwAccentMesh = new THREE.InstancedMesh(boxGeo, accentMat, Math.max(1, accentPositions.length * perHexAccents * 2));
         uwAccentMesh.frustumCulled = false;
         uwAccentMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(uwAccentMesh.count * 3), 3);
@@ -542,7 +545,8 @@
                 plannedTotal += variantData[idx].voxels.length;
             });
             const felsGeo = new THREE.BoxGeometry(1, 1, 1);
-            const felsMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });
+            // KEIN vertexColors (s. accentMat oben): sonst schwarze/unsichtbare Brocken.
+            const felsMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
             uwFelsMesh = new THREE.InstancedMesh(felsGeo, felsMat, Math.max(1, plannedTotal));
             uwFelsMesh.frustumCulled = false;
             uwFelsMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(uwFelsMesh.count * 3), 3);
@@ -1428,9 +1432,12 @@
 
             // Tiefeneinheiten (M9b): eigene stehen immer, fremde nur im Umkreis 2
             // eigener Einheiten (isUWUnitVisible, js/logic.js — Hinterhalt-Regel).
+            // BEWUSST KEIN uwVis-Gate (Korrektur Juli 2026): "Bewegliches ist im
+            // Umkreis 2 sichtbar, UNABHÄNGIG von der Netz-Geometrie" (PLAN §3) —
+            // eine fremde Einheit im eigenen, nie betretenen Gang direkt neben dir
+            // war sonst unsichtbar, obwohl sie dich angreifen konnte.
             (state.uw && state.uw.u || []).forEach(u => {
                 if (!isUWUnitVisible(state.cp, u)) return;
-                if (!uwVis.has(`${u.x},${u.y}`)) return;
                 const uType = uwVisualType(state, u.x, u.y);
                 const groundY = -underworldDepth(uType);
                 const { wx, wz } = worldPos(u.x, u.y);
@@ -1491,10 +1498,15 @@
             // echtem Modell braucht der Wurm keinen sizeMultiplier mehr, seine
             // Größe steckt bereits im Modell selbst (s: 3.0 vs. 2.6, art.js).
             const UW_CREATURE_NEUTRAL_COLOR = '#e57373';
+            // BEWUSST KEIN uwVis-Gate (Korrektur Juli 2026, wie bei den Einheiten
+            // oben): Kreaturen stehen fast immer auf Hexes, die der Spieler nie
+            // selbst betreten hat (ihre Nest-Kavernen, selbstgegrabene Gänge) —
+            // mit dem Netz-Gate war eine Kreatur direkt neben der eigenen Einheit
+            // unsichtbar, obwohl die Umkreis-2-Regel sie explizit sichtbar machen
+            // soll. isUWCreatureVisible allein trägt jetzt die komplette Regel.
             (state.uw && state.uw.c || []).forEach(c => {
                 if (c.h <= 0) return;
                 if (!isUWCreatureVisible(state.cp, c)) return;
-                if (!uwVis.has(`${c.x},${c.y}`)) return;
                 const cStats = uwCreatureStats[c.t];
                 const uType = uwVisualType(state, c.x, c.y);
                 const groundY = -underworldDepth(uType);
@@ -1536,7 +1548,10 @@
             (state.uw && state.uw.c || []).forEach(c => {
                 if (c.h <= 0 || !c.ap) return;
                 getCreatureAttackHexes(state, c).forEach(h => {
-                    if (!uwVis.has(`${h.x},${h.y}`)) return;
+                    // Netz-Geometrie ODER Umkreis 2 eigener Einheiten (Korrektur Juli
+                    // 2026): eine Kreatur direkt neben dir zielt oft auf Hexes, die du
+                    // nie betreten hast — die Warnung muss trotzdem sichtbar sein.
+                    if (!uwVis.has(`${h.x},${h.y}`) && !uwHexNearOwnUnits(state.cp, h.x, h.y)) return;
                     addOverlay(h.x, h.y, 0xb71c1c, 0.5, state, true);
                     const { wx: twx, wz: twz } = worldPos(h.x, h.y);
                     addIcon('🎯', '#ffffff', twx, twz, -underworldDepth(uwVisualType(state, h.x, h.y)) - 8, 12);

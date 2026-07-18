@@ -342,11 +342,17 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
     const center = getHexCenter(x, y);
     const key = `${x},${y}`;
 
-    if (!uwVis.has(key)) {
+    // Korrektur Juli 2026: KEIN Early-Return mehr für unerkundete Hexes —
+    // Bewegliches (Einheiten/Kreaturen im Umkreis 2, isUW*Visible) und
+    // Telegraph-Markierungen in Einheitennähe müssen auch auf dunklen,
+    // nie betretenen Hexes gezeichnet werden (PLAN §3: "Bewegliches ist im
+    // Umkreis 2 sichtbar, UNABHÄNGIG von der Netz-Geometrie"). Statisches
+    // (Terrain, Adern, HUB, Netze) bleibt an `explored` gebunden.
+    const explored = uwVis.has(key);
+    if (!explored) {
         drawHexPath(center.px, center.py);
         ctx.fillStyle = "#0a0a0a"; ctx.fill(); ctx.strokeStyle = "#111"; ctx.stroke();
-        return;
-    }
+    } else {
 
     const uType = uw2DVisualType(x, y);
     drawHexPath(center.px, center.py);
@@ -410,8 +416,11 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
         }
     });
 
+    } // explored (Statisches endet hier — ab jetzt Bewegliches mit eigenen Sichtregeln)
+
     // Tiefeneinheiten: eigene immer, fremde nur im Umkreis 2 eigener Einheiten
-    // (isUWUnitVisible, js/logic.js). Icon pro Typ statt fixem ⛏ (M9b-Rest).
+    // (isUWUnitVisible, js/logic.js) — bewusst AUCH auf unerkundeten Hexes
+    // (Korrektur Juli 2026). Icon pro Typ statt fixem ⛏ (M9b-Rest).
     const UW_UNIT_ICONS = { 7: '⛏', 17: '🛡', 18: '💥', 19: '⚔', 20: '🪙', 21: '👂', 22: '⚙' };
     const unit = uwUnitAt(x, y);
     if (unit && isUWUnitVisible(gameState.cp, unit)) {
@@ -440,8 +449,8 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
         ctx.fillText(`${creature.h}`, center.px, center.py - (isWurm ? 15 : 11));
     }
 
-    // Spinnennetze (M11): dezenter Bodenring.
-    if (gameState.uw && gameState.uw.w && gameState.uw.w[`${x},${y}`]) {
+    // Spinnennetze (M11): dezenter Bodenring — statisch, nur im eigenen Netz.
+    if (explored && gameState.uw && gameState.uw.w && gameState.uw.w[`${x},${y}`]) {
         ctx.strokeStyle = 'rgba(221,221,221,0.6)'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.arc(center.px, center.py, 10, 0, Math.PI * 2); ctx.stroke();
     }
@@ -461,7 +470,7 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
     // die Kreatur dahinter darf verborgen bleiben (gruselig ist gewollt). Eigene
     // Farbe/Icon-Kombi (dunkles Rot-Overlay + 🎯), nicht mit den grün/braun/
     // orange/hellrot-halbtransparenten uwValid*-Auswahl-Highlights verwechselbar.
-    const telegraph = (gameState.uw && gameState.uw.c || []).find(c =>
+    const telegraph = (explored || uwHexNearOwnUnits(gameState.cp, x, y)) && (gameState.uw && gameState.uw.c || []).find(c =>
         c.h > 0 && c.ap && getCreatureAttackHexes(gameState, c).some(h => h.x === x && h.y === y));
     if (telegraph) {
         drawHexPath(center.px, center.py);

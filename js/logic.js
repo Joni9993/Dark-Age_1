@@ -1038,6 +1038,19 @@ function isUWCreatureVisible(playerId, creature) {
     return isUWUnitVisible(playerId, creature);
 }
 
+// Liegt (x,y) im Umkreis `radius` einer eigenen (oder verbündeten) Tiefen-
+// einheit? Gleiche Basis wie die Umkreis-2-Regel für Bewegliches, aber für
+// ORTE statt Entities — z. B. Telegraph-Markierungen, die knapp außerhalb des
+// eigenen Netzes liegen, aber in Sichtweite der eigenen Einheiten (Korrektur
+// Juli 2026: ohne das war eine Kreatur neben dir sichtbar, ihr Angriffsziel
+// aber nicht).
+function uwHexNearOwnUnits(playerId, x, y, radius = 2) {
+    if (window.DEBUG_UW_REVEAL !== false) return true;
+    const pState = gameState.p[playerId];
+    const ids = [playerId, ...((pState && pState.al) || [])];
+    return ids.some(pid => uwOwnUnits(pid).some(o => hexDistance({ x: o.x, y: o.y }, { x, y }) <= radius));
+}
+
 function markUWExplored(playerId, x, y) {
     const pState = gameState.p[playerId];
     if (!pState.ue) pState.ue = [];
