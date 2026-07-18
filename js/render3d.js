@@ -1265,18 +1265,9 @@
             }
         });
 
-        // Unterminierungs-Vorwarnung (M12, PLAN.md Abschn. 6): dezentes Beben-Indiz
-        // über jeder aktiven Kammer (u.ch=1 auf einem Sprengmeister) — nur wenn das
-        // Oberflächen-Hex für den aktuellen Betrachter sichtbar ist ("sehen Spieler,
-        // die das Oberflächen-Hex sehen können, dort ein Indiz").
-        (state.uw && state.uw.u || []).forEach(u => {
-            if (u.ch !== 1) return;
-            if (!vis.has(`${u.x},${u.y}`)) return;
-            const tType = getTerrainType(state, u.x, u.y);
-            const gy = tileHeight(tType);
-            const { wx, wz } = worldPos(u.x, u.y);
-            addIcon('💣', '#ffb300', wx, wz, gy + 26, 12);
-        });
+        // Dynamit (Korrektur Juli 2026) hat bewusst KEINE Oberflächen-Anzeige mehr
+        // (ersetzt die alte Unterminierungs-Vorwarnung) — es wirkt ausschließlich
+        // unten, siehe den Dynamit-Marker im Unterwelt-Zweig weiter unten.
 
         // Erschließung (M12, PLAN.md Abschn. 8): dauerhaftes Beben-Indiz am
         // zentralen Wachturm, solange eine Erschließung läuft — unconditional wie
@@ -1372,6 +1363,17 @@
                 }
             });
 
+            // Ausstehende Dynamit-Ladungen (Korrektur Juli 2026, ersetzt
+            // Unterminierung): 🧨-Icon auf jedem der 3 Ziel-Hexes — rein
+            // unterirdisch, keine Anzeige an der Oberfläche.
+            (state.uw && state.uw.dy || []).forEach(charge => {
+                charge.hexes.forEach(h => {
+                    if (!uwVis.has(`${h.x},${h.y}`)) return;
+                    const { wx: dwx, wz: dwz } = worldPos(h.x, h.y);
+                    addIcon('🧨', '#ff6e40', dwx, dwz, -underworldDepth(uwVisualType(state, h.x, h.y)) - 8, 12);
+                });
+            });
+
             // Kreaturen (M11): neutral, gleiche Umkreis-2-Sichtregel wie fremde
             // Einheiten (isUWCreatureVisible). Der Alte Wurm wird deutlich größer
             // dargestellt (sizeMultiplier), sein 14x14-Sprite normalisiert sich
@@ -1430,13 +1432,15 @@
         }
         // Unterwelt-Ziel-Highlights: Bewegung grün wie oben, Graben bräunlich (eigene
         // Farbe, siehe M9b-Auftrag), Angreifen rot wie oben (M10), Stollenbruch orange
-        // (M12) — alle unterseitig (underside). Abbauen läuft seit der Toggle-
-        // Umstellung (Korrektur Juli 2026) ohne Ziel-Klick, kein Highlight mehr nötig.
+        // (M12), Dynamit dunkelrot (Korrektur Juli 2026) — alle unterseitig
+        // (underside). Abbauen läuft seit der Toggle-Umstellung (Korrektur Juli
+        // 2026) ohne Ziel-Klick, kein Highlight mehr nötig.
         if (!surfaceVisible) {
             uwValidMoves.forEach(mv => addOverlay(mv.x, mv.y, 0x64ff64, 0.3, state, true));
             uwValidDigs.forEach(d => addOverlay(d.x, d.y, 0xa1662f, 0.45, state, true));
             uwValidAttacks.forEach(a => addOverlay(a.x, a.y, 0xff6464, 0.5, state, true));
             uwValidCollapse.forEach(c => addOverlay(c.x, c.y, 0xff9800, 0.5, state, true));
+            uwValidDynamite.forEach(d => addOverlay(d.x, d.y, 0xd84315, 0.55, state, true));
         }
 
         applyCamera();

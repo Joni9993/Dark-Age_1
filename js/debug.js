@@ -227,15 +227,19 @@ function debugSetupErschliessung() {
     showToast('Wurm tot + eigene Einheit im Herzkaverne-Zentrum gesetzt (nächster Zugende zählt).');
 }
 
-// Kammer sofort bereit (M12): findet den ersten eigenen Sprengmeister in der
-// Unterwelt und setzt ch=1, unabhängig von Holz/Position — reines Testwerkzeug.
-function debugArmChamber() {
+// Dynamit sofort platzieren (Korrektur Juli 2026, ersetzt debugArmChamber):
+// findet den ersten eigenen Sprengmeister in der Unterwelt und platziert eine
+// Ladung auf seinem ersten gültigen Fels-Nachbarn, unabhängig vom Holzvorrat —
+// reines Testwerkzeug, um die Detonation am nächsten Zugstart schnell zu prüfen.
+function debugPlaceDynamite() {
     const sprengmeister = ((gameState.uw && gameState.uw.u) || []).find(u => u.p === gameState.cp && u.t === 18);
     if (!sprengmeister) { showToast('Kein eigener Sprengmeister in der Unterwelt.'); return; }
-    sprengmeister.ch = 1;
+    const targets = calculateDynamiteTargetsUW(sprengmeister);
+    if (targets.length === 0) { showToast('Kein Fels-Hex neben dem Sprengmeister.'); return; }
+    placeUWDynamite(gameState, sprengmeister, targets[0].x, targets[0].y);
     renderBoard(gameState);
     updateUI();
-    showToast('💥 Kammer sofort bereit (Zünden möglich).');
+    showToast('🧨 Dynamit sofort platziert (detoniert am nächsten eigenen Zugstart).');
 }
 
 function debugRefreshActions() {
@@ -398,7 +402,7 @@ function buildDebugPanel() {
             <button onclick="debugKillWorm()" title="Alten Wurm sofort besiegen (uw.wd=1)">🐛 Wurm töten</button>
             <button onclick="debugSetupErschliessung()" title="Wurm tot + eigene Einheit ins Herzkaverne-Zentrum">🌍 Erschließungs-Setup</button>
         </div>
-        <button onclick="debugArmChamber()" title="ch=1 auf dem ersten eigenen Sprengmeister — Zünden sofort möglich">💥 Kammer sofort bereit</button>
+        <button onclick="debugPlaceDynamite()" title="Dynamit-Ladung auf einem Fels-Nachbarn des ersten eigenen Sprengmeisters, ohne Holzkosten">🧨 Dynamit sofort platzieren</button>
 
         <h4>Klick-Werkzeug</h4>
         <label class="dbg-tool"><input type="radio" name="dbg-tool" value="none" checked
@@ -513,11 +517,11 @@ window.dbg = {
         creatures.forEach(c => { counts[c.t] = (counts[c.t] || 0) + 1; });
         const line = Object.keys(uwCreatureStats).map(t => `${uwCreatureStats[t].name} ${counts[t] || 0}`).join(' · ');
         console.log(`Kreaturen: ${line} · Wurm tot: ${gameState.uw && gameState.uw.wd ? 'ja' : 'nein'} · Netze: ${Object.keys((gameState.uw && gameState.uw.w) || {}).length}`);
-        // Erschließung (M12): Fortschritt + aktive Kammern.
+        // Erschließung (M12): Fortschritt + ausstehende Dynamit-Ladungen.
         const hz = gameState.uw && gameState.uw.hz;
         console.log(`Erschließung: ${hz ? `${gameState.p[hz.p].n} (${hz.n}/4)` : 'keine'}`);
-        const chambers = ((gameState.uw && gameState.uw.u) || []).filter(u => u.ch === 1);
-        console.log(`Aktive Kammern: ${chambers.length} (${chambers.map(c => `${c.x},${c.y}`).join(' · ')})`);
+        const charges = (gameState.uw && gameState.uw.dy) || [];
+        console.log(`Ausstehende Dynamit-Ladungen: ${charges.length} (${charges.map(c => `${gameState.p[c.p].n}: ${c.hexes.map(h => `${h.x},${h.y}`).join('+')}`).join(' · ')})`);
         return gameState.uw;
     },
 };

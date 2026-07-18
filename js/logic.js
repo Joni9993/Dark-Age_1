@@ -433,54 +433,83 @@ function collapseUWHex(state, x, y) {
     state.uw.d = state.uw.d.filter(i => i !== idx);
 }
 
-// Unterminierung (M12, PLAN.md Abschn. 6): gültiges Oberflächen-Ziel exakt über
-// dem Unterwelt-Hex (x,y) — Priorität Startdorf > Turm > Mauer > Tunnel (die
-// überlappen real nie, Priorität ist reine Absicherung). Normale Dörfer sind
-// NIE ein gültiges Ziel.
-function getUnderminingTargetAt(state, x, y) {
-    for (let i = 0; i < state.p.length; i++) {
-        if (state.p[i].dead !== 1 && state.p[i].sv === `${x},${y}`) return { type: 'startvillage', ownerId: i };
-    }
-    const tower = (state.tw || []).find(t => t.x === x && t.y === y && t.h > 0);
-    if (tower) return { type: 'tower', ref: tower, ownerId: tower.o };
-    const wall = (state.wa || []).find(w => w.x === x && w.y === y);
-    if (wall) return { type: 'wall', ref: wall, ownerId: wall.o };
-    const tunnel = (state.tu || []).find(t => (t.x1 === x && t.y1 === y) || (t.x2 === x && t.y2 === y));
-    if (tunnel) return { type: 'tunnel', ref: tunnel, ownerId: tunnel.o };
-    return null;
+// === DYNAMIT (Sprengmeister 18, ersetzt Unterminierung — Korrektur Juli 2026) ===
+// Grundprinzip: Tiefeneinheiten haben KEINERLEI Auswirkung auf das Spiel oben —
+// Dynamit wirkt daher ausschließlich innerhalb der Unterwelt (Fels/Einheiten/
+// Kreaturen), nie auf Oberflächen-Strukturen (Tunnel/Mauern/Türme/Startdörfer).
+//
+// Ziel-Hexes: angrenzendes, noch massives FELS-Hex (identisches Muster wie
+// calculateDigsUW) — "im Gebirge platzieren".
+function calculateDynamiteTargetsUW(unit) {
+    if (unit.t !== 18) return [];
+    return getNeighbors(unit.x, unit.y).filter(n =>
+        getUnderworldType(gameState, n.x, n.y) === UW_FELS && !isUnderworldOpen(gameState, n.x, n.y));
 }
 
-// Wendet exakt `dmg` Unterminierungs-Schaden auf ein zuvor per
-// getUnderminingTargetAt ermitteltes Ziel an — Struktur-Tod läuft über die
-// BESTEHENDEN Zerstörungs-Pfade (Startdorf -> normale Spieler-tot-Logik, siehe
-// executeAttackOnTarget/js/input.js für das Oberflächen-Pendant). `byPlayerId`
-// erobert ein zerstörtes Startdorf (Muster: der aktuell aktive Spieler,
-// entspricht immer dem Sprengmeister-Besitzer).
-function applyUnderminingDamage(state, target, dmg, byPlayerId) {
-    if (target.type === 'startvillage') {
-        const p = state.p[target.ownerId];
-        p.sh -= dmg;
-        if (p.sh <= 0) {
-            p.dead = 1;
-            state.u = state.u.filter(u => u.p !== target.ownerId);
-            if (state.uw) {
-                // Korrektur Juli 2026: getragene Kristalle der eliminierten Tiefen-
-                // einheiten fallen wie bei jedem anderen Tod, statt spurlos zu verfallen.
-                (state.uw.u || []).filter(u => u.p === target.ownerId).forEach(u => dropUWCrystalsOnDeath(state, u));
-                state.uw.u = (state.uw.u || []).filter(u => u.p !== target.ownerId);
+// Das Dreieck aus 3 Hexes einer Dynamit-Platzierung: das Ziel-Hex selbst + seine
+// beiden "gemeinsamen Nachbarn" mit der platzierenden Einheit — geometrisch auf
+// jedem Hexraster genau die zwei Hexes, die zusammen mit Platzierer und Ziel die
+// beiden an der gemeinsamen Kante anliegenden Dreiecksflächen bilden. Wird EINMAL
+// bei der Platzierung berechnet und mit der Ladung gespeichert (state.uw.dy),
+// damit spätere Bewegungen der platzierenden Einheit die Sprengrichtung nicht
+// mehr verändern. Nahe am Kartenrand können es auch nur 2 Hexes sein (fehlende
+// gemeinsame Nachbarn liegen außerhalb der Karte, getNeighbors filtert bereits).
+function getDynamiteTriangle(fromX, fromY, targetX, targetY) {
+    const fromNeighbors = new Set(getNeighbors(fromX, fromY).map(n => `${n.x},${n.y}`));
+    const shared = getNeighbors(targetX, targetY).filter(n => fromNeighbors.has(`${n.x},${n.y}`));
+    return [{ x: targetX, y: targetY }, ...shared.slice(0, 2)];
+}
+
+// Platzieren: 1 Holz, verbraucht die Aktion, erzeugt Lärm (laut wie vormals die
+// Unterminierungs-Kammer). Die Ladung liegt lose in state.uw.dy (nicht am Gerät
+// selbst) — sie explodiert unabhängig davon, ob/wohin sich der Sprengmeister
+// danach noch bewegt.
+function placeUWDynamite(state, unit, x, y) {
+    if (!state.uw.dy) state.uw.dy = [];
+    state.uw.dy.push({ p: unit.p, hexes: getDynamiteTriangle(unit.x, unit.y, x, y) });
+    unit.a = 1;
+}
+
+// Detonation: läuft in doEndTurn für den NEU aktiven Spieler (Muster: Brand-
+// Ticks/Moral-Kollaps — "wenn der Spieler seinen nächsten Zug startet"). Jedes
+// der 3 Hexes: 6 Schaden an einer dort stehenden Tiefeneinheit/Kreatur (AoE,
+// unabhängig vom Besitzer — auch eigene Einheiten, Muster: Feuersturm oben),
+// UND massiver Fels wird dauerhaft offen ("Gebirge wegsprengen"). Rührt NIE an
+// tu[]/wa[]/tw[]/p[].sh — genau das ist der Kernunterschied zur alten
+// Unterminierung. Gibt die Float-Liste zurück (Schadenszahlen fürs UI).
+function processUWDynamiteDetonations(pId) {
+    if (!gameState.uw || !gameState.uw.dy || gameState.uw.dy.length === 0) return [];
+    const floats = [];
+    gameState.uw.dy.filter(c => c.p === pId).forEach(charge => {
+        charge.hexes.forEach(h => {
+            const victimUnit = uwUnitAt(h.x, h.y);
+            if (victimUnit) { victimUnit.h -= 6; floats.push({ x: h.x, y: h.y, val: 6 }); }
+            const victimCreature = uwCreatureAt(h.x, h.y);
+            if (victimCreature) { victimCreature.h -= 6; floats.push({ x: h.x, y: h.y, val: 6 }); }
+            // Jedes noch geschlossene Hex im Dreieck wird dauerhaft offen — Fels
+            // ("Gebirge wegsprengen") ebenso wie eine noch unangebrochene Ader, die
+            // dabei zerstört statt sauber abgebaut wird (uw.a-Eintrag verfällt).
+            if (!isUnderworldOpen(gameState, h.x, h.y)) {
+                const idx = h.y * gameState.bw + h.x;
+                if (!gameState.uw.d.includes(idx)) gameState.uw.d.push(idx);
+                if (gameState.uw.a) delete gameState.uw.a[`${h.x},${h.y}`];
             }
-            state.v[p.sv] = byPlayerId;
-        }
-    } else if (target.type === 'tower') {
-        target.ref.h -= dmg;
-        if (target.ref.h <= 0) state.tw = state.tw.filter(t => t !== target.ref);
-    } else if (target.type === 'wall') {
-        target.ref.h -= dmg;
-        if (target.ref.h <= 0) state.wa = state.wa.filter(w => w !== target.ref);
-    } else if (target.type === 'tunnel') {
-        target.ref.h -= dmg;
-        if (target.ref.h <= 0) state.tu = state.tu.filter(t => t !== target.ref);
+        });
+    });
+    (gameState.uw.u || []).filter(u => u.h <= 0).forEach(u => dropUWCrystalsOnDeath(gameState, u));
+    gameState.uw.u = (gameState.uw.u || []).filter(u => u.h > 0);
+    // Stirbt der Alte Wurm durch Dynamit statt im Kampf, muss dasselbe wd-Flag
+    // gesetzt werden wie in resolveUWAttackOnCreature — sonst bliebe die
+    // Erschließung ("Wurm besiegt?") für immer blockiert, obwohl er faktisch tot ist.
+    if ((gameState.uw.c || []).some(c => c.t === UWC_WURM && c.h <= 0)) {
+        gameState.uw.wd = 1;
+        showToast('🐛 Ein Beben läuft durch das Land — der Alte Wurm ist gefallen!', 'gold');
     }
+    gameState.uw.c = (gameState.uw.c || []).filter(c => c.h > 0);
+    // Verwaiste Ladungen (Besitzer ausgeschieden, kommt nie wieder ans Zug) beim
+    // Aufräumen mit entfernen, statt für immer im State hängen zu bleiben.
+    gameState.uw.dy = gameState.uw.dy.filter(c => c.p !== pId && gameState.p[c.p] && gameState.p[c.p].dead !== 1);
+    return floats;
 }
 
 // Engstelle (M10, PLAN.md Abschn. 3): offenes Hex mit <= 2 offenen Nachbarn.
@@ -572,7 +601,6 @@ function resolveUWAttack(state, attacker, target) {
     // zeitgleichen Kill auf demselben Hex möglich, daher defensiv geprüft)
     if (!(state.uw.u || []).some(u => u.x === target.x && u.y === target.y) && !(state.uw.c || []).some(c => c.x === target.x && c.y === target.y && c.h > 0)) {
         attacker.x = target.x; attacker.y = target.y;
-        delete attacker.ch; // Kammer verfällt bei Bewegung (M12) — auch beim Nachrücken
         const picked = pickupUWCrystalDrop(state, attacker);
         if (picked > 0) result.stolenCrystals = (result.stolenCrystals || 0) + picked;
     }
@@ -614,7 +642,6 @@ function resolveUWAttackOnCreature(state, attacker, creature) {
         // Nahkampf-Killer rückt aufs Ziel-Hex nach (frei, da die Kreatur starb)
         if (!(state.uw.u || []).some(u => u.x === creature.x && u.y === creature.y) && !(state.uw.c || []).some(c => c.x === creature.x && c.y === creature.y && c.h > 0)) {
             attacker.x = creature.x; attacker.y = creature.y;
-            delete attacker.ch; // Kammer verfällt bei Bewegung (M12) — auch beim Nachrücken
             pickupUWCrystalDrop(state, attacker); // falls dort zufällig ein Kristallhaufen liegt
         }
     }
@@ -863,7 +890,6 @@ function digUWHex(state, unit, x, y) {
     if (!state.uw.d.includes(idx)) state.uw.d.push(idx);
     unit.x = x; unit.y = y;
     unit.a = 1;
-    delete unit.ch; // Kammer verfällt bei Bewegung (M12) — Graben rückt ebenfalls nach
 }
 
 // Ein Abbau-Tick: Beutegräber (20) nimmt bis zu 2 statt 1 (nie mehr als der

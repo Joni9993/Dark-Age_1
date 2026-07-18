@@ -49,7 +49,7 @@ function loadGameCode() {
             getVisibleHexes, getVisibleUWHexes, isUWUnitVisible, isUWCreatureVisible,
             markUWExplored, updateUWExploration,
             calculateStollenbruchTargetsUW, collapseUWHex,
-            getUnderminingTargetAt, applyUnderminingDamage,
+            calculateDynamiteTargetsUW, getDynamiteTriangle, placeUWDynamite, processUWDynamiteDetonations,
             hasUsableTunnel, applyMoralCollapse,
             checkErschliessungProgress, advanceErschliessung, checkErschliessungWin,
             lootFundkammer, applyRelicToUnit, applyRelicToBuilding, applyMapRelic,
@@ -479,16 +479,18 @@ function roundtrip(state, label) {
     assert(evt.type === 'progress' && state.uw.hz.n === 3, 'Erschließung schreitet trotz Verbündeten-Präsenz weiter fort (n=3)');
     state = roundtrip(state, 'nach n=3 mit Verbündetem in der Kaverne');
 
-    // Player 1 unterminiert Player 0s einzigen Tunnel-Endpunkt -> Moral-
-    // Kollaps tritt ein. WICHTIG: das allein unterbricht die Erschließung
-    // NICHT (checkErschliessungProgress prüft nur Zentrum+Kaverne-Besatzung,
-    // nicht die Tunnel-/Moral-Lage der Expedition) — genau das wird hier
-    // gegengeprüft, siehe Auftrag: "Erschließung continues despite player 2's
-    // interruption attempt".
-    const tunnelTarget = M.getUnderminingTargetAt(state, startX, startY);
-    assert(tunnelTarget && tunnelTarget.type === 'tunnel', 'Unterminierungs-Ziel korrekt als Tunnel-Endpunkt erkannt');
-    M.applyUnderminingDamage(state, tunnelTarget, tunnelTarget.ref.h, 1); // mehrere Zündungen zu einer Aktion gebündelt (6-DMG/Zündung bereits in M12 exakt verifiziert)
-    assert(state.tu.length === 0, 'Player 0s einziger Tunnel wurde durch die Unterminierung zerstört');
+    // Player 1 zerstört Player 0s einzigen Tunnel-Endpunkt im normalen
+    // Oberflächen-Kampf (Tunnel-HP-Abbau ist bereits an anderer Stelle
+    // getestet, hier nur das Ergebnis direkt gesetzt — Dynamit/Unterminierung
+    // gibt es seit Juli 2026 nicht mehr, Tiefeneinheiten haben KEINE
+    // Auswirkung auf die Oberfläche) -> Moral-Kollaps tritt ein. WICHTIG: das
+    // allein unterbricht die Erschließung NICHT (checkErschliessungProgress
+    // prüft nur Zentrum+Kaverne-Besatzung, nicht die Tunnel-/Moral-Lage der
+    // Expedition) — genau das wird hier gegengeprüft, siehe Auftrag:
+    // "Erschließung continues despite player 2's interruption attempt".
+    assert(state.tu.some(t => t.o === 0), 'Testaufbau: Player 0 hat vor der Zerstörung noch seinen Tunnel');
+    state.tu = state.tu.filter(t => t.o !== 0);
+    assert(state.tu.length === 0, 'Player 0s einziger Tunnel wurde zerstört');
     assert(M.hasUsableTunnel(state, 0) === false, 'Player 0 hat keinen nutzbaren Tunnel mehr');
     const collapseFloats = M.applyMoralCollapse(state, 0);
     assert(collapseFloats.length === state.uw.u.filter(u => u.p === 0).length, 'Moral-Kollaps trifft alle Tiefeneinheiten von Player 0 (je -1 HP)');

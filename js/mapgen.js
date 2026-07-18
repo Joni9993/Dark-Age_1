@@ -236,7 +236,7 @@ function buildInitialGameState(playerNames, radius, teamMode = 'ffa') {
     // n = Lärm-Marker der letzten Runde, a = angebrochene Kristalladern {"x,y": restH},
     // f = geplünderte Fundkammern {"x,y": 1}, c = Kreaturen {t,x,y,h} (neutral,
     // kein Besitzer), w = Spinnennetze {"x,y": 1}, wd = Alter Wurm dauerhaft tot.
-    const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [], ct: { x: cx, y: cy, ctrl: -1 }, uw: { d: [], u: [], n: [], a: {}, f: {}, w: {}, dr: {} } };
+    const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [], ct: { x: cx, y: cy, ctrl: -1 }, uw: { d: [], u: [], n: [], a: {}, f: {}, w: {}, dr: {}, dy: [] } };
 
     // Unterwelt-Kreaturen (M11, Platzierung korrigiert Juli 2026): deterministisch
     // aus dem Seed, und IMMER auf offenen Hexes — nie auf massivem Fels/Adern

@@ -550,6 +550,15 @@ function handleUnderworldClick(clientX, clientY) {
         return;
     }
 
+    if (window.uwSpecialActive === 'dynamite_select') {
+        const target = uwValidDynamite.find(d => d.x === clickedX && d.y === clickedY);
+        if (target) { executeUWDynamitePlace(target.x, target.y); return; }
+        window.uwSpecialActive = null; uwValidDynamite = [];
+        showUnderworldTileUI(clickedX, clickedY);
+        renderBoard(gameState);
+        return;
+    }
+
     if (selectedUWUnit && uwValidAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
         const targetAttack = uwValidAttacks.find(a => a.x === clickedX && a.y === clickedY);
         executeUWAttack(clickedX, clickedY, targetAttack);
@@ -570,7 +579,7 @@ function handleUnderworldClick(clientX, clientY) {
 
 function clearUWSelection() {
     window.selectedUnderworldHex = null;
-    selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidAttacks = []; uwValidCollapse = [];
+    selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidAttacks = []; uwValidCollapse = []; uwValidDynamite = [];
     window.uwSpecialActive = null;
     hideActionMenu();
 }
@@ -650,13 +659,14 @@ function showUnderworldTileUI(clickedX, clickedY) {
             const surfaceFree = !groundUnitAt(clickedX, clickedY) && gameState.v[`${clickedX},${clickedY}`] === undefined;
             if (surfaceFree) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #6d4c41;" onclick="window.uwAscend()">🕳 Aufsteigen</button>`;
         }
-        // Unterminierung + Stollenbruch (M12, Sprengmeister 18 exklusiv).
+        // Dynamit + Stollenbruch (Sprengmeister 18 exklusiv). Dynamit ersetzt seit
+        // Juli 2026 die Unterminierung — wirkt nur innerhalb der Unterwelt, nie auf
+        // Oberflächen-Strukturen (siehe Kommentar bei processUWDynamiteDetonations).
         if (unit.t === 18) {
-            if (unit.ch === 1) {
-                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #d84315;" onclick="window.executeUWDetonate()">🧨 Zünden</button>`;
-            } else if (getUnderminingTargetAt(gameState, unit.x, unit.y)) {
-                const afford = pState.m >= 3;
-                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #6d4c41; ${afford ? '' : 'opacity:0.5;'}" ${afford ? `onclick="window.startUWChamber()"` : 'disabled'}>💥 Kammer anlegen (3🪵)</button>`;
+            const dynamiteTargets = calculateDynamiteTargetsUW(unit);
+            if (dynamiteTargets.length > 0) {
+                const afford = pState.m >= 1;
+                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #d84315; ${afford ? '' : 'opacity:0.5;'}" ${afford ? `onclick="window.startUWDynamite()"` : 'disabled'}>🧨 Dynamit legen (1🪵)</button>`;
             }
             const collapseTargets = calculateStollenbruchTargetsUW(unit);
             if (collapseTargets.length > 0) {
@@ -709,7 +719,6 @@ function executeUWMoveTo(clickedX, clickedY) {
     const unit = selectedUWUnit;
     unit.x = clickedX; unit.y = clickedY;
     unit.a = 1;
-    delete unit.ch; // Kammer verfällt bei Bewegung (M12)
     // uw:true (M13): Recap-Sichtbarkeit läuft über das Unterwelt-Netz (getVisibleUWHexes),
     // nicht über die Oberflächen-Sicht — sonst würden fremde Stollen-Bewegungen an
     // Spieler durchsickern, die zufällig die Oberfläche über dem Hex sehen können.
@@ -791,54 +800,40 @@ window.stopUWMining = function () {
     renderBoard(gameState);
 };
 
-// === UNTERMINIERUNG (M12, Sprengmeister 18, PLAN.md Abschn. 6) ===
-// "Kammer anlegen": nur auf dem eigenen Hex, direkt unter einem gültigen Ziel
-// (getUnderminingTargetAt) — kein Ziel-Klick nötig, es gibt nur die eine Stelle.
-window.startUWChamber = function () {
+// === DYNAMIT (Sprengmeister 18, ersetzt Unterminierung — Korrektur Juli 2026) ===
+// Ziel-Auswahl wie Abbauen/Stollenbruch (mehrstufig, window.uwSpecialActive) —
+// mehrere angrenzende Fels-Hexes können gleichzeitig in Frage kommen, die
+// Sprengrichtung (Dreieck) hängt vom gewählten Ziel ab.
+window.startUWDynamite = function () {
     if (!selectedUWUnit || selectedUWUnit.t !== 18) return;
-    const target = getUnderminingTargetAt(gameState, selectedUWUnit.x, selectedUWUnit.y);
-    if (!target) { showToast('Kein gültiges Ziel über diesem Hex (Tunnel/Mauer/Turm/Startdorf).', 'error'); return; }
+    const targets = calculateDynamiteTargetsUW(selectedUWUnit);
+    if (targets.length === 0) return;
     const pState = gameState.p[gameState.cp];
-    if (pState.m < 3) { showToast('Nicht genug Holz! (3 benötigt)', 'error'); return; }
-    saveUndoState();
-    pState.m -= 3;
-    selectedUWUnit.ch = 1;
-    addUWNoise(selectedUWUnit.x, selectedUWUnit.y);
-    // KEIN uw:true (M13): PLAN.md Abschn. 6 — "Der Lärm der Kammer-Arbeiten ist
-    // OBEN als schwaches Beben auf dem Hex sichtbar (Vorwarnung)" — Recap-
-    // Sichtbarkeit läuft daher bewusst über die Oberflächen-Sicht (Default), nicht
-    // über das Unterwelt-Netz.
-    turnActions.push({ x: selectedUWUnit.x, y: selectedUWUnit.y, t: 'chamber' });
-    selectedUWUnit.a = 1;
-    infoPanel.innerHTML = '💥 Kammer angelegt! (nächster Zug: Zünden)';
-    clearUWSelection();
-    renderBoard(gameState); updateUI();
+    if (pState.m < 1) { showToast('Nicht genug Holz! (1 benötigt)', 'error'); return; }
+    uwValidMoves = []; uwValidDigs = []; uwValidAttacks = [];
+    uwValidDynamite = targets;
+    window.uwSpecialActive = 'dynamite_select';
+    hideActionMenu();
+    infoPanel.innerHTML = `🧨 Dynamit legen<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes Fels-Hex.</div>`;
+    renderBoard(gameState);
 };
 
-// "Zünden": exakt 6 Schaden auf das (frisch ermittelte) Ziel über dem Hex —
-// verschwand das Ziel zwischenzeitlich (z.B. Gegenstollen hat es zerstört),
-// verpufft die Zündung ohne Schaden statt abzustürzen.
-window.executeUWDetonate = function () {
-    if (!selectedUWUnit || selectedUWUnit.t !== 18 || selectedUWUnit.ch !== 1) return;
+// Platzieren: 1 Holz, verbraucht die Aktion, erzeugt Lärm — die Ladung explodiert
+// automatisch, sobald der platzierende Spieler seinen NÄCHSTEN Zug startet
+// (processUWDynamiteDetonations, doEndTurn) und wirkt NUR innerhalb der
+// Unterwelt (Einheiten/Kreaturen/Fels) — nie auf Oberflächen-Strukturen.
+function executeUWDynamitePlace(clickedX, clickedY) {
     saveUndoState();
-    const target = getUnderminingTargetAt(gameState, selectedUWUnit.x, selectedUWUnit.y);
-    delete selectedUWUnit.ch;
-    if (target) {
-        applyUnderminingDamage(gameState, target, 6, gameState.cp);
-        spawnFloatingText(selectedUWUnit.x, selectedUWUnit.y, '-6', '#ff5252');
-        infoPanel.innerHTML = '🧨 Gezündet! 6 Schaden auf die Oberflächen-Struktur — ein Beben läuft durch das Land.';
-    } else {
-        infoPanel.innerHTML = '🧨 Gezündet — aber kein Ziel mehr vorhanden.';
-    }
-    addUWNoise(selectedUWUnit.x, selectedUWUnit.y);
-    // KEIN uw:true (M13): PLAN.md Abschn. 6 — "Beben-Anzeige oben für alle
-    // Sichtbaren" ist explizit ein Oberflächen-Ereignis, Recap-Sichtbarkeit
-    // läuft daher über die Oberflächen-Sicht (Default), nicht das UW-Netz.
-    turnActions.push({ x: selectedUWUnit.x, y: selectedUWUnit.y, t: 'detonate' });
-    selectedUWUnit.a = 1;
+    const pState = gameState.p[gameState.cp];
+    pState.m -= 1;
+    placeUWDynamite(gameState, selectedUWUnit, clickedX, clickedY);
+    addUWNoise(clickedX, clickedY);
+    turnActions.push({ x: clickedX, y: clickedY, t: 'dynamite', uw: true });
+    infoPanel.innerHTML = '🧨 Dynamit platziert! Explodiert zu Beginn deines nächsten Zuges.';
+    window.uwSpecialActive = null; uwValidDynamite = [];
     clearUWSelection();
     renderBoard(gameState); updateUI();
-};
+}
 
 // === STOLLENBRUCH (M12, Sprengmeister 18) ===
 // Ziel-Auswahl wie Abbauen/Mine (mehrstufig, window.uwSpecialActive) — mehrere
@@ -1826,8 +1821,9 @@ function confirmSurrender() {
         if (gameState.uw.f && Object.keys(gameState.uw.f).length === 0) delete gameState.uw.f;
         if (gameState.uw.w && Object.keys(gameState.uw.w).length === 0) delete gameState.uw.w;
         if (gameState.uw.dr && Object.keys(gameState.uw.dr).length === 0) delete gameState.uw.dr; // Kristallhaufen (Korrektur Juli 2026)
+        if (gameState.uw.dy && gameState.uw.dy.length === 0) delete gameState.uw.dy; // Dynamit-Ladungen (Korrektur Juli 2026)
         if (gameState.uw.c && gameState.uw.c.length === 0) delete gameState.uw.c;
-        if (!gameState.uw.d && (!gameState.uw.u || gameState.uw.u.length === 0) && !gameState.uw.n && !gameState.uw.a && !gameState.uw.f && !gameState.uw.w && !gameState.uw.dr && !gameState.uw.c && !gameState.uw.wd && !gameState.uw.hz) delete gameState.uw;
+        if (!gameState.uw.d && (!gameState.uw.u || gameState.uw.u.length === 0) && !gameState.uw.n && !gameState.uw.a && !gameState.uw.f && !gameState.uw.w && !gameState.uw.dr && !gameState.uw.dy && !gameState.uw.c && !gameState.uw.wd && !gameState.uw.hz) delete gameState.uw;
     }
     if (gameState.bd && gameState.bd.length === 0) delete gameState.bd;
     if (gameState.uwbd && gameState.uwbd.length === 0) delete gameState.uwbd; // Moral-Kollaps-Floats (M12)
@@ -2151,7 +2147,14 @@ function doEndTurn() {
     // Regel in applyMoralCollapse (js/logic.js), hier nur Toast + Float-Array.
     const uwCollapseFloats = applyMoralCollapse(gameState, gameState.cp);
     if (uwCollapseFloats.length > 0) showToast('⚠️ Deine Expedition ist abgeschnitten!', 'error');
-    gameState.uwbd = uwCollapseFloats;
+
+    // Dynamit-Detonation (ersetzt Unterminierung, Korrektur Juli 2026): läuft
+    // ebenfalls zu Beginn des eigenen Zuges — genau dann, wenn eine zuvor
+    // platzierte Ladung des NEUEN gameState.cp fällig ist (processUWDynamite-
+    // Detonations, js/logic.js). Wirkt ausschließlich innerhalb der Unterwelt.
+    const uwDynamiteFloats = processUWDynamiteDetonations(gameState.cp);
+    if (uwDynamiteFloats.length > 0) showToast('🧨 Dynamit detoniert!', 'gold');
+    gameState.uwbd = uwCollapseFloats.concat(uwDynamiteFloats);
 
     // === BRAND-TICKS (Ballon: Anzünden & Feuersturm, einheitlich über bn/bo) ===
     // Ein Brand-Tag (bn = ausstehender Folgeschaden, bo = verursachender Spieler) tickt genau
@@ -2273,8 +2276,9 @@ function doEndTurn() {
         if (gameState.uw.f && Object.keys(gameState.uw.f).length === 0) delete gameState.uw.f;
         if (gameState.uw.w && Object.keys(gameState.uw.w).length === 0) delete gameState.uw.w;
         if (gameState.uw.dr && Object.keys(gameState.uw.dr).length === 0) delete gameState.uw.dr; // Kristallhaufen (Korrektur Juli 2026)
+        if (gameState.uw.dy && gameState.uw.dy.length === 0) delete gameState.uw.dy; // Dynamit-Ladungen (Korrektur Juli 2026)
         if (gameState.uw.c && gameState.uw.c.length === 0) delete gameState.uw.c;
-        if (!gameState.uw.d && (!gameState.uw.u || gameState.uw.u.length === 0) && !gameState.uw.n && !gameState.uw.a && !gameState.uw.f && !gameState.uw.w && !gameState.uw.dr && !gameState.uw.c && !gameState.uw.wd && !gameState.uw.hz) delete gameState.uw;
+        if (!gameState.uw.d && (!gameState.uw.u || gameState.uw.u.length === 0) && !gameState.uw.n && !gameState.uw.a && !gameState.uw.f && !gameState.uw.w && !gameState.uw.dr && !gameState.uw.dy && !gameState.uw.c && !gameState.uw.wd && !gameState.uw.hz) delete gameState.uw;
     }
     if (gameState.bd && gameState.bd.length === 0) delete gameState.bd;
     if (gameState.uwbd && gameState.uwbd.length === 0) delete gameState.uwbd; // Moral-Kollaps-Floats (M12)

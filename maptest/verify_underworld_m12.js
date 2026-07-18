@@ -1,6 +1,7 @@
 // Verifikationsskript M12 — lädt die echten Spiel-Skripte (Muster wie
 // maptest/verify_underworld_m11.js), testet die DOM-freien Kernfunktionen:
-// Unterminierung (Kammer/Zünden), Stollenbruch, Moral-Kollaps, Erschließung + Sieg.
+// Dynamit (ersetzt Unterminierung, Korrektur Juli 2026), Stollenbruch,
+// Moral-Kollaps, Erschließung + Sieg.
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
@@ -26,7 +27,8 @@ function loadGameCode() {
             getUnderworldType, isUnderworldOpen, getHeartCavernHexes, getStollenkopfOwner,
             UW_FELS, UW_KAVERNE, UW_ADER, UW_RUINE, UW_HERZ,
             uwUnitAt, uwCreatureAt, digUWHex, calculateStollenbruchTargetsUW, collapseUWHex,
-            getUnderminingTargetAt, applyUnderminingDamage, resolveUWAttack, resolveUWAttackOnCreature,
+            calculateDynamiteTargetsUW, getDynamiteTriangle, placeUWDynamite, processUWDynamiteDetonations,
+            resolveUWAttack, resolveUWAttackOnCreature,
             hasUsableTunnel, applyMoralCollapse,
             checkErschliessungProgress, advanceErschliessung, checkErschliessungWin,
             getUnitMaxHp, getUnitCost, unitStats, uwCreatureStats, UWC_WURM
@@ -57,89 +59,108 @@ function freshState(seed, radius, playerCount = 2) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('=== (a) Kammer nur unter gültigen Zielen, Zünden = exakt 6, normale Dörfer nie, Kammer verfällt bei Bewegung ===');
+console.log('=== (a) Dynamit-Platzierung: nur auf angrenzendem massivem Fels, Dreieck-Geometrie, 1 Zug verbraucht ===');
 {
     const state = freshState(1, 7, 2);
-    const hx = 3, hy = 3;
+    // Ein offenes Hex mit einem massiven Fels-Nachbarn suchen (NICHT das Karten-
+    // zentrum verwenden — dessen unmittelbare Nachbarn gehören selbst zur
+    // Herzkaverne, sind also nie Fels).
+    let placerHex = null, felsTarget = null;
+    outerA:
+    for (let y = 0; y < state.bh; y++) for (let x = 0; x < state.bw; x++) {
+        if (!M.isInsideMap(state, x, y) || !M.isUnderworldOpen(state, x, y)) continue;
+        const fels = M.getNeighbors(x, y).find(n => M.getUnderworldType(state, n.x, n.y) === M.UW_FELS && !M.isUnderworldOpen(state, n.x, n.y)
+            && M.getDynamiteTriangle(x, y, n.x, n.y).length === 3); // volles Dreieck nötig, Kartenrand liefert oft nur 2
+        if (fels) { placerHex = { x, y }; felsTarget = fels; break outerA; }
+    }
+    assert(!!felsTarget, 'Testaufbau: offenes Hex mit massivem Fels-Nachbarn gefunden');
+    if (felsTarget) {
+        const sprengmeister = { i: 1, p: 0, t: 18, x: placerHex.x, y: placerHex.y, h: 8, a: 0 };
+        state.uw.u.push(sprengmeister);
 
-    // Turm als gültiges Ziel
-    state.tw = [{ x: hx, y: hy, o: 1, h: 15, a: 0 }];
-    let target = M.getUnderminingTargetAt(state, hx, hy);
-    assert(target && target.type === 'tower', 'Turm wird als gültiges Ziel erkannt');
-    state.tw = [];
+        const targets = M.calculateDynamiteTargetsUW(sprengmeister);
+        assert(targets.some(t => t.x === felsTarget.x && t.y === felsTarget.y), 'massives Fels-Nachbarhex erscheint als Dynamit-Ziel');
 
-    // Mauer als gültiges Ziel
-    state.wa = [{ x: hx, y: hy, o: 1, h: 10 }];
-    target = M.getUnderminingTargetAt(state, hx, hy);
-    assert(target && target.type === 'wall', 'Mauer wird als gültiges Ziel erkannt');
-    state.wa = [];
+        const nonSprengmeister = { t: 7, x: placerHex.x, y: placerHex.y };
+        assert(M.calculateDynamiteTargetsUW(nonSprengmeister).length === 0, 'nur der Sprengmeister (18) darf Dynamit legen — andere Typen liefern 0 Ziele');
 
-    // Tunnel-Endpunkt als gültiges Ziel
-    state.tu = [{ x1: hx, y1: hy, x2: 0, y2: 0, o: 1, h: 13, r: state.rn }];
-    target = M.getUnderminingTargetAt(state, hx, hy);
-    assert(target && target.type === 'tunnel', 'Tunnel-Endpunkt wird als gültiges Ziel erkannt');
-    state.tu = [];
+        const triangle = M.getDynamiteTriangle(sprengmeister.x, sprengmeister.y, felsTarget.x, felsTarget.y);
+        assert(triangle.length === 3, `Dreieck besteht aus 3 Hexes (gemessen: ${triangle.length})`);
+        assert(triangle[0].x === felsTarget.x && triangle[0].y === felsTarget.y, 'erstes Dreieck-Hex ist das gewählte Ziel-Hex');
+        const otherTwo = triangle.slice(1);
+        const bothAdjacentToBoth = otherTwo.every(h =>
+            M.hexDistance(h, { x: sprengmeister.x, y: sprengmeister.y }) === 1 && M.hexDistance(h, felsTarget) === 1);
+        assert(bothAdjacentToBoth, 'die beiden weiteren Dreieck-Hexes sind sowohl zum Platzierer als auch zum Ziel benachbart (echtes Dreieck)');
 
-    // Startdorf als gültiges Ziel
-    state.p[1].sv = `${hx},${hy}`;
-    target = M.getUnderminingTargetAt(state, hx, hy);
-    assert(target && target.type === 'startvillage', 'Startdorf wird als gültiges Ziel erkannt');
-
-    // Normales (neutrales) Dorf ist NIE ein gültiges Ziel
-    const state2 = freshState(1, 7, 2);
-    const hx2 = 4, hy2 = 4;
-    state2.v[`${hx2},${hy2}`] = -1; // neutrales Dorf, KEIN Startdorf
-    const t2 = M.getUnderminingTargetAt(state2, hx2, hy2);
-    assert(t2 === null, 'normales (neutrales) Dorf ist NIE ein gültiges Unterminierungs-Ziel');
-    // Auch ein SPIELER-besetztes normales Dorf (nicht sv) ist tabu
-    state2.v[`${hx2},${hy2}`] = 0;
-    const t2b = M.getUnderminingTargetAt(state2, hx2, hy2);
-    assert(t2b === null, 'auch ein spielerbesetztes normales Dorf bleibt tabu (kein sv-Eintrag)');
-
-    // Zünden = exakt 6 Schaden (Mauer: 10 -> 4, nicht zerstört)
-    const state3 = freshState(1, 7, 2);
-    const wall = { x: 1, y: 1, o: 1, h: 10 };
-    state3.wa = [wall];
-    M.applyUnderminingDamage(state3, { type: 'wall', ref: wall, ownerId: 1 }, 6, 0);
-    assert(wall.h === 4, `Zünden macht exakt 6 Schaden (10 -> ${wall.h})`);
-    assert(state3.wa.includes(wall), 'Mauer mit 4 HP übersteht die erste Zündung');
-    M.applyUnderminingDamage(state3, { type: 'wall', ref: wall, ownerId: 1 }, 6, 0);
-    assert(!state3.wa.includes(wall), 'zweite Zündung (4 HP - 6) zerstört die Mauer');
-
-    // Kammer verfällt bei Bewegung (digUWHex löscht ch, wie executeUWMoveTo)
-    const state4 = freshState(1, 7, 2);
-    const cx = state4.rad, cy = state4.rad;
-    const n1 = M.getNeighbors(cx, cy)[0];
-    const sprengmeister = { i: 1, p: 0, t: 18, x: cx, y: cy, h: 8, ch: 1 };
-    M.digUWHex(state4, sprengmeister, n1.x, n1.y);
-    assert(sprengmeister.ch === undefined, 'Kammer (ch) verfällt, sobald sich der Sprengmeister bewegt (hier: gräbt+rückt nach)');
+        M.placeUWDynamite(state, sprengmeister, felsTarget.x, felsTarget.y);
+        assert(state.uw.dy.length === 1, 'Ladung liegt in uw.dy');
+        assert(state.uw.dy[0].p === 0, 'Ladung ist Spieler 0 zugeordnet');
+        assert(JSON.stringify(state.uw.dy[0].hexes) === JSON.stringify(triangle), 'gespeichertes Dreieck entspricht der berechneten Geometrie');
+        assert(sprengmeister.a === 1, 'Platzieren verbraucht die Aktion');
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n=== (b) Startdorf-Kill via Zünden triggert die normale Spieler-tot-Logik ===');
+console.log('\n=== (b) Detonation: 6 Schaden pro Hex (AoE, auch eigene Einheiten), Fels wird offen, NIE Auswirkung auf tu/wa/tw/p[].sh ===');
 {
-    const state = freshState(2, 7, 2);
-    const victimId = 1;
-    state.p[victimId].sh = 5; // stirbt an 6 Schaden
-    const [svx, svy] = state.p[victimId].sv.split(',').map(Number);
-    const uwVictimUnit = { i: 99, p: victimId, t: 7, x: 0, y: 0, h: 8 };
-    state.uw.u.push(uwVictimUnit);
-    const surfaceVictimUnit = { i: 98, p: victimId, t: 0, x: 1, y: 1, h: 10 };
-    state.u.push(surfaceVictimUnit);
+    const state = freshState(1, 7, 2);
+    // Wieder ein offenes Hex mit massivem Fels-Nachbarn suchen (nicht das
+    // Kartenzentrum, siehe Kommentar in Test (a)).
+    let placerHex = null, felsTarget = null;
+    outerB:
+    for (let y = 0; y < state.bh; y++) for (let x = 0; x < state.bw; x++) {
+        if (!M.isInsideMap(state, x, y) || !M.isUnderworldOpen(state, x, y)) continue;
+        const fels = M.getNeighbors(x, y).find(n => M.getUnderworldType(state, n.x, n.y) === M.UW_FELS && !M.isUnderworldOpen(state, n.x, n.y)
+            && M.getDynamiteTriangle(x, y, n.x, n.y).length === 3);
+        if (fels) { placerHex = { x, y }; felsTarget = fels; break outerB; }
+    }
+    assert(!!felsTarget, 'Testaufbau: offenes Hex mit massivem Fels-Nachbarn gefunden');
+    if (felsTarget) {
+        const sprengmeister = { i: 1, p: 0, t: 18, x: placerHex.x, y: placerHex.y, h: 8, a: 0 };
+        state.uw.u.push(sprengmeister);
+        const triangle = M.getDynamiteTriangle(sprengmeister.x, sprengmeister.y, felsTarget.x, felsTarget.y);
+        assert(triangle.length === 3, 'Testaufbau: volles 3er-Dreieck vorhanden');
 
-    M.applyUnderminingDamage(state, { type: 'startvillage', ownerId: victimId }, 6, 0);
+        // Auf jedem der 3 Hexes steht eine Einheit — auch eine EIGENE (Friendly
+        // Fire wie beim Feuersturm der Bombenballon oben) — plus eine Kreatur.
+        const ownVictim = { i: 2, p: 0, t: 7, x: triangle[0].x, y: triangle[0].y, h: 5 };
+        const enemyVictim = { i: 3, p: 1, t: 17, x: triangle[1].x, y: triangle[1].y, h: 14 };
+        state.uw.u.push(ownVictim, enemyVictim);
+        state.uw.c.push({ t: M.UWC_WURM, x: triangle[2].x, y: triangle[2].y, h: 6 });
 
-    assert(state.p[victimId].dead === 1, 'Spieler ist nach dem Startdorf-Kill als tot markiert');
-    assert(state.p[victimId].sh <= 0, 'Startdorf-HP <= 0');
-    assert(!state.u.includes(surfaceVictimUnit), 'Oberflächen-Einheiten des toten Spielers entfernt (normale Zerstörungs-Logik)');
-    assert(!state.uw.u.includes(uwVictimUnit), 'Unterwelt-Einheiten des toten Spielers ebenfalls entfernt');
-    assert(state.v[`${svx},${svy}`] === 0, 'Startdorf wird vom unterminierenden Spieler erobert');
+        // Tunnel-Endpunkt zufällig auf einem der 3 Hexes -> darf NICHT beschädigt werden.
+        const tunnelWall = { x1: triangle[0].x, y1: triangle[0].y, x2: 0, y2: 0, o: 1, h: 13, r: state.rn };
+        state.tu = [tunnelWall];
+        const shBefore = state.p[1].sh;
 
-    // Nicht-tödlicher Treffer: Spieler bleibt am Leben
-    const state2 = freshState(2, 7, 2);
-    state2.p[1].sh = 30;
-    M.applyUnderminingDamage(state2, { type: 'startvillage', ownerId: 1 }, 6, 0);
-    assert(state2.p[1].dead !== 1 && state2.p[1].sh === 24, 'nicht-tödlicher Treffer tötet den Spieler nicht (30 -> 24)');
+        M.placeUWDynamite(state, sprengmeister, felsTarget.x, felsTarget.y);
+        const felsWasOpen = triangle.map(h => M.isUnderworldOpen(state, h.x, h.y));
+
+        // Detonation läuft erst, wenn der PLATZIERENDE Spieler (0) wieder dran ist.
+        let floats = M.processUWDynamiteDetonations(1);
+        assert(floats.length === 0, 'kein anderer Spieler löst die fremde Ladung aus');
+        assert(state.uw.dy.length === 1, 'Ladung bleibt bestehen, solange der Besitzer nicht am Zug ist');
+
+        floats = M.processUWDynamiteDetonations(0);
+        assert(state.uw.dy.length === 0, 'Ladung ist nach der Detonation verbraucht');
+        assert(!state.uw.u.some(u => u.i === 2), 'eigene Einheit im Dreieck stirbt ebenfalls (Friendly Fire, 6 DMG auf 5 HP)');
+        const survivor = state.uw.u.find(u => u.i === 3);
+        assert(survivor && survivor.h === 8, `feindliche Einheit nimmt exakt 6 Schaden (14 -> ${survivor ? survivor.h : 'tot'})`);
+        assert(!state.uw.c.some(c => c.x === triangle[2].x && c.y === triangle[2].y), 'Kreatur (Alter Wurm) im Dreieck stirbt (6 Schaden auf 6 HP) — geprüft an ihrer Position, da der ECHTE Wurm der Karte anderswo weiterlebt');
+        assert(state.uw.wd === 1, 'Wurm-Tod durch Dynamit setzt uw.wd genau wie ein Kampf-Tod (Erschließung sonst für immer blockiert)');
+        triangle.forEach((h, i) => {
+            if (!felsWasOpen[i]) assert(M.isUnderworldOpen(state, h.x, h.y) === true, `Fels-Hex ${i} ist nach der Detonation offen ("Gebirge wegsprengen")`);
+        });
+        assert(tunnelWall.h === 13, 'Tunnel-HP UNVERÄNDERT — Dynamit rührt nie an Oberflächen-Strukturen');
+        assert(state.p[1].sh === shBefore, 'Startdorf-HP UNVERÄNDERT — keinerlei Auswirkung auf das Spiel oben');
+    }
+
+    // Verwaiste Ladung eines ausgeschiedenen Spielers wird beim Aufräumen entfernt.
+    const state2 = freshState(1, 7, 2);
+    state2.uw.dy = [{ p: 1, hexes: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 0 }] }];
+    state2.p[1].dead = 1;
+    M.processUWDynamiteDetonations(0);
+    assert(state2.uw.dy.length === 0, 'Ladung eines ausgeschiedenen Spielers verfällt, statt für immer im State zu hängen');
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -309,28 +330,34 @@ console.log('\n=== (e) Erschließung: Bedingungen, Verbündete unterbrechen nich
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n=== (f) Serialisierungs-Roundtrip u.ch/uw.hz ===');
+console.log('\n=== (f) Serialisierungs-Roundtrip uw.dy/uw.hz ===');
 {
     const state = freshState(6, 7, 2);
-    state.uw.u.push({ i: 1, p: 0, t: 18, x: 3, y: 3, h: 8, ch: 1 });
+    state.uw.u.push({ i: 1, p: 0, t: 18, x: 3, y: 3, h: 8 });
+    state.uw.dy = [{ p: 0, hexes: [{ x: 4, y: 3 }, { x: 4, y: 4 }, { x: 3, y: 4 }] }];
     state.uw.hz = { p: 0, n: 2 };
 
     const wireJson = JSON.stringify(state);
-    assert(wireJson.includes('"ch":1'), 'u.ch im Wire-JSON vorhanden');
+    assert(wireJson.includes('"dy"'), 'uw.dy im Wire-JSON vorhanden');
     assert(wireJson.includes('"hz":{"p":0,"n":2}') || (wireJson.includes('"hz"') && wireJson.includes('"n":2')), 'uw.hz im Wire-JSON vorhanden');
 
     const restored = JSON.parse(wireJson);
-    assert(restored.uw.u.find(u => u.t === 18).ch === 1, 'u.ch verlustfrei nach Roundtrip');
+    assert(restored.uw.dy.length === 1 && restored.uw.dy[0].p === 0 && restored.uw.dy[0].hexes.length === 3, 'uw.dy verlustfrei nach Roundtrip (Besitzer + volles Dreieck)');
     assert(restored.uw.hz.p === 0 && restored.uw.hz.n === 2, 'uw.hz verlustfrei nach Roundtrip');
 
-    // Regressionstest für den in diesem Milestone gefundenen Bug: state.uw darf
-    // NICHT gelöscht werden, wenn uw.hz der einzige nicht-leere Teil ist (die
-    // "alles leer -> delete gameState.uw"-Bedingung muss hz mit einschließen).
+    // Regressionstest (Muster aus M12 übernommen): state.uw darf NICHT gelöscht
+    // werden, wenn uw.dy oder uw.hz der einzige nicht-leere Teil ist.
     const state2 = freshState(6, 7, 2);
-    state2.uw = { d: [], u: [], n: [], a: {}, f: {}, w: {}, c: [], hz: { p: 0, n: 1 } };
-    const uw = state2.uw;
-    const shouldDelete = !uw.d.length && (!uw.u || uw.u.length === 0) && !(uw.n && uw.n.length) && !(uw.a && Object.keys(uw.a).length) && !(uw.f && Object.keys(uw.f).length) && !(uw.w && Object.keys(uw.w).length) && !(uw.c && uw.c.length) && !uw.wd && !uw.hz;
-    assert(shouldDelete === false, 'uw.hz als einziges gesetztes Feld verhindert das Löschen von state.uw (Bugfix verifiziert)');
+    state2.uw = { d: [], u: [], n: [], a: {}, f: {}, w: {}, dr: {}, c: [], dy: [{ p: 0, hexes: [] }] };
+    const uw2 = state2.uw;
+    const shouldDelete2 = !uw2.d.length && (!uw2.u || uw2.u.length === 0) && !(uw2.n && uw2.n.length) && !(uw2.a && Object.keys(uw2.a).length) && !(uw2.f && Object.keys(uw2.f).length) && !(uw2.w && Object.keys(uw2.w).length) && !(uw2.dr && Object.keys(uw2.dr).length) && !(uw2.c && uw2.c.length) && !uw2.wd && !uw2.hz && !(uw2.dy && uw2.dy.length);
+    assert(shouldDelete2 === false, 'uw.dy als einziges gesetztes Feld verhindert das Löschen von state.uw');
+
+    const state3 = freshState(6, 7, 2);
+    state3.uw = { d: [], u: [], n: [], a: {}, f: {}, w: {}, dr: {}, c: [], hz: { p: 0, n: 1 } };
+    const uw3 = state3.uw;
+    const shouldDelete3 = !uw3.d.length && (!uw3.u || uw3.u.length === 0) && !(uw3.n && uw3.n.length) && !(uw3.a && Object.keys(uw3.a).length) && !(uw3.f && Object.keys(uw3.f).length) && !(uw3.w && Object.keys(uw3.w).length) && !(uw3.dr && Object.keys(uw3.dr).length) && !(uw3.c && uw3.c.length) && !uw3.wd && !uw3.hz && !(uw3.dy && uw3.dy.length);
+    assert(shouldDelete3 === false, 'uw.hz als einziges gesetztes Feld verhindert das Löschen von state.uw (Bugfix verifiziert)');
 }
 
 console.log(`\n=== Zusammenfassung: ${failures === 0 ? 'ALLE CHECKS BESTANDEN' : failures + ' FEHLGESCHLAGEN'} ===`);

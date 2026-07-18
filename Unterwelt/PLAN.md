@@ -16,7 +16,7 @@ Die Unterseite der Karte ist eine zweite Spielebene aus **massivem Fels** — de
 | Flankenmanöver, offene Schlachten | **Engstellen-Kampf** in 1-Hex-Gängen — der Vorderste blockt |
 | Neutralität ist passiv (leere Dörfer) | **PvE**: Höhlentiere reagieren auf Lärm |
 
-**Einziger Unterwelt-Siegweg:** die **Herzkaverne** unter dem zentralen Wachturm erobern (Wächter: der Alte Wurm) und **4 Runden erschließen** → Sieg über die gesamte Partie. Unterminierung ist bewusst KEIN Siegweg, sondern taktisches Werkzeug — und nur erlaubt gegen **Tunnel, Mauern, Türme und Startdörfer** (nie gegen normale Dörfer).
+**Einziger Unterwelt-Siegweg:** die **Herzkaverne** unter dem zentralen Wachturm erobern (Wächter: der Alte Wurm) und **4 Runden erschließen** → Sieg über die gesamte Partie. **Grundprinzip (Korrektur Juli 2026):** Tiefeneinheiten haben **keinerlei Auswirkung auf das Spiel oben** — es gibt keine Kammer/Unterminierung mehr, die von unten Oberflächen-Strukturen beschädigt. Der Sprengmeister hat stattdessen **Dynamit** (s. Abschn. 6), das rein innerhalb der Unterwelt wirkt.
 
 ## 2. Weltaufbau (seed-deterministisch)
 
@@ -40,7 +40,7 @@ Verteilung fairness-gebändert wie `SPAWN_BUDGETS` oben (gleiche Kristall-/Ruine
 
 **Sicht („Nur Stollen sichtbar"):** Ein Spieler sieht dauerhaft die **Geometrie** seines Netzes: alles selbst Gegrabene + jedes offene Hex, das eine eigene Einheit je betreten hat (persistiert wie Fog, `compressFog`-Muster). Keinerlei Umgebungssicht in den Fels hinein. **Bewegliches** (fremde Einheiten, Kreaturen) ist nur im **Umkreis 2 um eigene Einheiten** sichtbar — bekannte Gänge können also jederzeit Hinterhalte enthalten.
 
-**Gehör:** Graben, Abbau und Unterminierungs-Arbeiten erzeugen **Lärm**. Fremder Lärm im Umkreis 3 einer eigenen Einheit erzeugt eine ungefähre **Richtungsmarkierung** (Sektor, kein exaktes Hex) — die einzige Fernaufklärung der Tiefe. Der Horcher (Spionage) macht daraus exakte Ortung.
+**Gehör:** Graben, Abbau und Dynamit-Arbeiten erzeugen **Lärm**. Fremder Lärm im Umkreis 3 einer eigenen Einheit erzeugt eine ungefähre **Richtungsmarkierung** (Sektor, kein exaktes Hex) — die einzige Fernaufklärung der Tiefe. Der Horcher (Spionage) macht daraus exakte Ortung.
 
 **Engstellen-Kampf:** In Gängen gibt es kein Vorbeikommen — wer vorn steht, blockt. **Engstelle** = offenes Hex mit ≤ 2 offenen Nachbarn; die Grubenwache nimmt dort −1 Schaden. Flankieren heißt unten: sich eine Flanke *graben*.
 
@@ -48,7 +48,7 @@ Verteilung fairness-gebändert wie `SPAWN_BUDGETS` oben (gleiche Kristall-/Ruine
 
 **Ebenen-Wechsel:** **Nur der Arbeiter** wechselt zwischen den Ebenen — **kein eigener Tunnelgräber-Einheitstyp** (zweite Korrektur Juli 2026: Jonathan wollte nicht zwei verschiedene "Tunnelgräber" im Dorf-Menü sehen — Arbeiter UND Tunnelgräber wirkten wie Dopplung). Der ganz normale, im Dorf rekrutierte Arbeiter (kein Fraktions-Lock) läuft zu seinem eigenen Tunnel-Startpunkt; steht er dort, bietet ihm das Menü zusätzlich zum normalen Tunnelgang die Option **„Abtauchen"** an — er behält dabei seinen Typ und seine Oberflächen-Werte, es findet **keine Typumwandlung** statt (kein separater Unterwelt-Stat-Block). Am Stollenkopf unten kann er wieder **„Aufsteigen"**. Es gibt **keinen Kauf eines Tunnelgräbers am Stollenkopf** — der einzige Weg nach unten ist, den eigenen Arbeiter runterzuschicken.
 
-**Stollenkopf-Regel (Korrektur Juli 2026):** Ein Tunnel hat zwei Enden — den **Startpunkt** (die Bewegungsreichweite der bauenden Einheit, also physisch nahe eigenem Territorium) und den frei wählbaren **Zielpunkt** (jedes bereits entdeckte Feld, ggf. weit weg). Der Stollenkopf entsteht **ausschließlich unter dem Startpunkt** — sonst könnten Spieler ihren Tunnel-Zielpunkt direkt in die Herzkaverne legen und hätten ungegraben freien Zugang zum Wurm und zum Siegweg. Der Zielpunkt bleibt für alles andere unverändert (Oberflächen-Teleport, Unterminierungs-Ziel) — nur das Unterwelt-HUB hängt am Startpunkt.
+**Stollenkopf-Regel (Korrektur Juli 2026):** Ein Tunnel hat zwei Enden — den **Startpunkt** (die Bewegungsreichweite der bauenden Einheit, also physisch nahe eigenem Territorium) und den frei wählbaren **Zielpunkt** (jedes bereits entdeckte Feld, ggf. weit weg). Der Stollenkopf entsteht **ausschließlich unter dem Startpunkt** — sonst könnten Spieler ihren Tunnel-Zielpunkt direkt in die Herzkaverne legen und hätten ungegraben freien Zugang zum Wurm und zum Siegweg. Der Zielpunkt bleibt für alles andere unverändert (Oberflächen-Teleport) — nur das Unterwelt-HUB hängt am Startpunkt.
 
 ## 4. Das Roster (Typ-IDs 17–22 + der Arbeiter als Ebenen-Brücke)
 
@@ -65,7 +65,7 @@ Alle Kosten/Werte sind **Balance-Erstentwurf** (Playtest-Vorbehalt wie bei den L
 | HP | 14 | 8 |
 | Bewegung | 2 | 2 |
 | Angriff | 4 DMG, RW 1 | 3 DMG, RW 1 |
-| Fähigkeiten | **Schildstellung**: −1 erlittener Schaden in Engstellen | **Unterminierung** (s. Abschn. 6) · **Stollenbruch**: eigenes offenes Nachbar-Hex wieder verfüllen (Verfolger aussperren, Gegenstollen kappen) |
+| Fähigkeiten | **Schildstellung**: −1 erlittener Schaden in Engstellen | **Dynamit** (s. Abschn. 6) · **Stollenbruch**: eigenes offenes Nachbar-Hex wieder verfüllen (Verfolger aussperren, Gegenstollen kappen) |
 
 | | ⚔ Grubenritter | 🪙 Beutegräber | 👂 Horcher | ⚙ Bohrwagen |
 |---|---|---|---|---|
@@ -90,15 +90,17 @@ Kein Bergvolk mehr am Leben, keine Geister — nur Tiere und Ruinen. Kreaturen h
 | 🪨 **Steinpanzer** | 28 | 2 | träger Panzerbrocken, sitzt auf den reichsten Kristalladern — lebendes Risk/Reward-Schloss, verfolgt nie |
 | 🐛 **Der Alte Wurm** | 30 | 8 (trifft alle Angreifer in RW 1) | **Wächter der Herzkaverne**, verlässt sie nie. Seine uralten Wühlgänge sind die natürlichen Kavernen der Karte. Muss besiegt werden, bevor die Erschließung beginnen kann — stirbt einmal, bleibt tot (globale Meldung: „Ein Beben läuft durch das Land — der Alte Wurm ist gefallen") |
 
-Lärm-Logik: jede Grab-/Abbau-/Unterminierungs-Aktion hinterlässt einen Lärm-Marker (Hex + Runde, transient). Kreaturen im Radius ziehen am Zugende darauf zu. Kämpfe erzeugen ebenfalls Lärm — ein PvP-Gefecht kann Wühler anlocken, die *beide* Seiten anfallen.
+Lärm-Logik: jede Grab-/Abbau-/Dynamit-Aktion hinterlässt einen Lärm-Marker (Hex + Runde, transient). Kreaturen im Radius ziehen am Zugende darauf zu. Kämpfe erzeugen ebenfalls Lärm — ein PvP-Gefecht kann Wühler anlocken, die *beide* Seiten anfallen.
 
-## 6. Unterminierung (taktisches Werkzeug, kein Siegweg)
+## 6. Dynamit (taktisches Werkzeug, kein Siegweg, ersetzt Unterminierung — Korrektur Juli 2026)
 
-Historisches Sappieren: Kammer unter die Befestigung, Stützbalken, Brandsatz.
+**Grundprinzip:** Tiefeneinheiten haben KEINERLEI Auswirkung auf das Spiel oben. Die frühere Unterminierung (Kammer/Zünden gegen Oberflächen-Strukturen) ist komplett gestrichen — Dynamit wirkt ausschließlich innerhalb der Unterwelt.
 
-- **Nur gegen:** Tunnel-Endpunkte, Mauern, Türme, **Startdörfer**. Normale Dörfer sind tabu.
-- Der **Sprengmeister** steht auf dem Unterwelt-Hex direkt unter dem Ziel: Aktion **„Kammer anlegen"** (kostet 3 Holz, 1 Zug, laut!) → Folgezug **„Zünden"**: **6 Schaden** auf die Oberflächen-Struktur, Beben-Anzeige oben für alle Sichtbaren.
-- Gegenspiel: Der Lärm der Kammer-Arbeiten ist oben als schwaches Beben auf dem Hex sichtbar (Vorwarnung), unten hörbar; Gegenstollen können die Kammer vor der Zündung stürmen.
+- **Ziel:** ein angrenzendes, noch massives **Fels-Hex** ("im Gebirge platzieren") — kein Oberflächen-Ziel mehr, keine Priorität Startdorf/Turm/Mauer/Tunnel.
+- Der **Sprengmeister** wählt sein Fels-Ziel: Aktion **„Dynamit legen"** (kostet **1 Holz**, 1 Zug, laut). Die Ladung liegt lose in der Unterwelt (nicht am Gerät selbst) und explodiert automatisch, **sobald der platzierende Spieler seinen nächsten Zug startet** — unabhängig davon, wohin sich der Sprengmeister danach noch bewegt.
+- **Wirkung:** ein **Dreieck aus 3 Hexes** (das Ziel-Hex + die beiden Hexes, die zusammen mit Platzierer und Ziel die anliegende Dreiecksfläche bilden — geometrisch eindeutig, keine weitere Zielwahl nötig). Jedes der 3 Hexes: **6 Schaden** auf eine dort stehende Tiefeneinheit/Kreatur (AoE, auch eigene Truppen — Friendly Fire wie beim Feuersturm der Bombenballon oben), und jedes noch geschlossene Hex (Fels oder unangebrochene Ader) wird dauerhaft offen — **"das Gebirge wegsprengen, um den Weg freizumachen"**. Eine erwischte Ader wird dabei zerstört statt sauber abgebaut.
+- Rührt **nie** an `tu[]`/`wa[]`/`tw[]`/`p[].sh` — auch wenn ein Ziel-Hex zufällig unter einem Stollenkopf liegt, bleibt die Tunnel-HP unangetastet.
+- Keine Oberflächen-Anzeige (kein Beben-Indiz oben) — die Ladung ist nur innerhalb der Unterwelt sichtbar (🧨-Icon auf den 3 Ziel-Hexes, gemäß der normalen Netz-Sichtregeln).
 - Krater/Einsturz-Löcher, die die Ebenen physisch verbinden: **bewusst verschoben** (Phase 4-Idee), kollidiert vorerst mit „nur der Arbeiter wechselt die Ebene".
 
 ## 7. Ökonomie: Kristalle & Reliquien
@@ -124,9 +126,9 @@ Historisches Sappieren: Kammer unter die Befestigung, Stützbalken, Brandsatz.
 
 - **Kamerafokus-Zyklus** (fertig): Standard → Luftansicht → Unterwelt. Im Unterwelt-Fokus ist die Oberfläche komplett aus (nicht sichtbar, nicht anwählbar) — Spiegelbild der strikten Ebenen-Trennung der Luftansicht.
 - **Unterseiten-Rendering:** Fels = geschlossene dunkle Tile-Unterseiten; offene Hexes „ausgehöhlt" (vertieft, wärmeres Material); Kristalladern glitzern; Herzkaverne mit eigenem Großmodell (`voxelModels`). Einheiten stehen als Voxel-Billboards in den Gängen, von unten betrachtet. 2D-Fallback (`?r2d=1`): abgedunkelte Karte mit Gang-Overlays.
-- **Klick-Flow:** `handleUnderworldClick` (existiert) wächst zum vollen Pendant von `handleCanvasClick`: Auswahl → Grab-/Bewegungs-/Angriffs-Vorschau → Aktionsmenü (`mkBtn`-Muster: „⛏ Graben", „💎 Abbau starten"/„🛑 Abbau stoppen" (Toggle, Korrektur Juli 2026), „💥 Kammer anlegen", „🧨 Zünden", „🕳 Aufsteigen").
+- **Klick-Flow:** `handleUnderworldClick` (existiert) wächst zum vollen Pendant von `handleCanvasClick`: Auswahl → Grab-/Bewegungs-/Angriffs-Vorschau → Aktionsmenü (`mkBtn`-Muster: „⛏ Graben", „💎 Abbau starten"/„🛑 Abbau stoppen" (Toggle, Korrektur Juli 2026), „🧨 Dynamit legen" (Korrektur Juli 2026, ersetzt Kammer/Zünden), „🕳 Aufsteigen").
 - **Gehör-Anzeige:** Richtungs-Pings als pulsierende Sektor-Markierung am Rand des eigenen Netzes; Horcher-Ortung als exaktes Hex-Icon.
-- **Countdown & Beben:** Erschließungs-Fortschritt im HUD aller Spieler; Beben-Partikel am Wachturm; Unterminierungs-Vorwarnung als leichtes Zittern des Oberflächen-Hexes.
+- **Countdown & Beben:** Erschließungs-Fortschritt im HUD aller Spieler; Beben-Partikel am Wachturm. Dynamit (Korrektur Juli 2026) hat bewusst KEINE Oberflächen-Anzeige mehr — nur ein 🧨-Icon unten auf den 3 Ziel-Hexes.
 - Rekrutierung am Stollenkopf über das bestehende Kauf-Menü-Muster (`buyUnit` ebenenbewusst, wie bei Luft).
 
 ## 10. Technische Umsetzung (Skizze)
@@ -135,7 +137,8 @@ Historisches Sappieren: Kammer unter die Befestigung, Stützbalken, Brandsatz.
 - `p[].k` — Kristalle
 - `p[].ue` — Unterwelt-Erkundung (Netz-Geometrie, `compressFog`-Muster)
 - `uw.d` — global gegrabene Hexes (kompakter String, gleiche Kompression)
-- `uw.u[]` — Tiefeneinheiten (gleiche Feldnamen wie `u[]`: `p,t,x,y,h,a,vet,k` + `cr` Kristalle uncapped, `mi` Abbau-Toggle-Ziel `{x,y}` wie beim Arbeiter oben, `ch` Kammer angelegt)
+- `uw.u[]` — Tiefeneinheiten (gleiche Feldnamen wie `u[]`: `p,t,x,y,h,a,vet,k` + `cr` Kristalle uncapped, `mi` Abbau-Toggle-Ziel `{x,y}` wie beim Arbeiter oben)
+- `uw.dy` — platzierte Dynamit-Ladungen (Korrektur Juli 2026, ersetzt `u.ch`): `[{p: Besitzer, hexes: [{x,y}, {x,y}, {x,y}]}]`, detoniert automatisch am nächsten Zugstart des Besitzers
 - `uw.dr` — herrenlose Kristallhaufen `{"x,y": Menge}` (Korrektur Juli 2026: fällt beim Tod eines Trägers, wird von trage-fähigen Einheiten beim Betreten automatisch eingesammelt)
 - `uw.c[]` — Kreaturen `{t, x, y, h}`; Wurm tot = Eintrag fehlt + Flag `uw.wd = 1`
 - `uw.n[]` — Lärm-Marker der letzten Runde `{x, y}` (transient, wird pro Runde ersetzt)
@@ -156,7 +159,7 @@ Historisches Sappieren: Kammer unter die Befestigung, Stützbalken, Brandsatz.
 | **M9b** | Ebenen-Brücke: Arbeiter (kein eigener Tunnelgräber-Typ, zweite Korrektur Juli 2026) taucht am Tunnel-Startpunkt ab/auf, Graben, Netz-Sicht + Persistenz, Gehör-Pings | Tunnel bauen → Arbeiter hinschicken → abtauchen → graben → Kristall abbauen → aufsteigen/abliefern; Sicht zeigt nur eigenes Netz; URL-Roundtrip mit `uw.*` |
 | **M10** | Kampfeinheiten 17–22, Engstellen-Regel, Kristall-Tragen/Stehlen, Reliquien-Shop | Engstellen-Bonus greift; Beutegräber-Diebstahl; jede Fraktion rekrutiert ihre Tiefeneinheit; Reliquie kauf- und ausrüstbar |
 | **M11** | PvE: Spinne/Wühler/Steinpanzer + Lärm-System + Alter Wurm | Wühler gräbt nachweislich auf Lärm zu (deterministisch reproduzierbar per Seed); Wurm verteidigt Herz, bleibt nach Tod tot |
-| **M12** | Unterminierung + Moral-Kollaps + Erschließung + Sieg + Events/Countdown oben | Kammer→Zünden = exakt 6 DMG nur auf erlaubte Ziele; letzter Tunnel weg → −1 HP/Zug; Erschließung unterbricht/resettet korrekt; Sieg feuert Win-Check inkl. Team-Logik |
+| **M12** | Dynamit (ersetzt Unterminierung, Korrektur Juli 2026) + Moral-Kollaps + Erschließung + Sieg + Events/Countdown oben | Dynamit-Dreieck = exakt 6 DMG pro Hex, wirkt NIE auf tu/wa/tw/p[].sh; letzter Tunnel weg → −1 HP/Zug; Erschließung unterbricht/resettet korrekt; Sieg feuert Win-Check inkl. Team-Logik |
 | **M13** | Integrations-Pass: Recap, Diplomatie, Serialisierung/Blob-Größe, Guide (`darkages_guide.html`), 3-Spieler-Partie | Recap zeigt Tiefen-Aktionen; Verbündeten-Regeln in der Kaverne; Blob-Längen-Check; **Playtest mit Christian & Vincent** |
 
 ## 12. Balance-Flags & offene Fragen (nach Playtest / vor M-Start klären)

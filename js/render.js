@@ -397,7 +397,18 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
     if (uwValidMoves.some(m => m.x === x && m.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(100, 255, 100, 0.35)"; ctx.fill(); }
     if (uwValidDigs.some(d => d.x === x && d.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(161, 102, 47, 0.55)"; ctx.fill(); }
     if (uwValidCollapse.some(c => c.x === x && c.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(255, 152, 0, 0.5)"; ctx.fill(); }
+    if (uwValidDynamite.some(d => d.x === x && d.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(216, 67, 21, 0.55)"; ctx.fill(); }
     if (uwValidAttacks.some(a => a.x === x && a.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
+
+    // Ausstehende Dynamit-Ladung (Korrektur Juli 2026, ersetzt Unterminierung):
+    // 🧨-Icon auf jedem der 3 Ziel-Hexes, solange die Ladung noch nicht detoniert
+    // ist — rein unterirdisch, keine Anzeige an der Oberfläche.
+    (gameState.uw && gameState.uw.dy || []).forEach(charge => {
+        if (charge.hexes.some(h => h.x === x && h.y === y)) {
+            ctx.fillStyle = '#ff6e40'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+            ctx.fillText('🧨', center.px, center.py - 6);
+        }
+    });
 
     // Tiefeneinheiten: eigene immer, fremde nur im Umkreis 2 eigener Einheiten
     // (isUWUnitVisible, js/logic.js). Icon pro Typ statt fixem ⛏ (M9b-Rest).
@@ -598,17 +609,10 @@ function drawScene(state) {
         }
     });
 
-    // Unterminierungs-Vorwarnung + Erschließungs-Beben (M12, minimal): einfache
-    // Text-Icons direkt auf dem Canvas, nur in der Oberflächen-Ansicht.
+    // Erschließungs-Beben (M12, minimal): einfaches Text-Icon direkt auf dem
+    // Canvas, nur in der Oberflächen-Ansicht. Dynamit (Korrektur Juli 2026) hat
+    // bewusst KEINE Oberflächen-Anzeige mehr — es wirkt ausschließlich unten.
     if (window.cameraFocus !== 2) {
-        (state.uw && state.uw.u || []).forEach(u => {
-            if (u.ch !== 1) return;
-            if (!vis.has(`${u.x},${u.y}`)) return;
-            const c = getHexCenter(u.x, u.y);
-            ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
-            ctx.fillStyle = '#ffb300';
-            ctx.fillText('💣', c.px, c.py - 16);
-        });
         if (state.uw && state.uw.hz && state.ct) {
             const c = getHexCenter(state.ct.x, state.ct.y);
             ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center';
