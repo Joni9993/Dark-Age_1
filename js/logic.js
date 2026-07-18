@@ -426,11 +426,14 @@ function calculateStollenbruchTargetsUW(unit) {
     return targets;
 }
 
-// Verfüllt ein gegrabenes Hex wieder zu massivem Fels (Stollenbruch, M12).
-function collapseUWHex(state, x, y) {
+// Verfüllt ein gegrabenes Hex wieder zu massivem Fels (Stollenbruch, M12) —
+// Fähigkeit wie Dynamit (placeUWDynamite): aus a=0 ODER a=2 nutzbar, verbraucht
+// die Aktion vollständig (a=1, Oberflächen-Parität, Korrektur Juli 2026).
+function collapseUWHex(state, unit, x, y) {
     if (!state.uw || !state.uw.d) return;
     const idx = y * state.bw + x;
     state.uw.d = state.uw.d.filter(i => i !== idx);
+    unit.a = 1;
 }
 
 // === DYNAMIT (Sprengmeister 18, ersetzt Unterminierung — Korrektur Juli 2026) ===
@@ -571,11 +574,16 @@ function getExpectedDamageUW(attackerUnit, targetUnit) {
 // die übernimmt der Aufrufer (executeUWAttack, js/input.js) für den optischen
 // Konterschlag; hier nur die reine Regel (Schaden, Kill, Beutegräber-Diebstahl,
 // Nahkampf-Nachrücken), damit sie DOM-frei testbar ist (M10-Verifikation).
+// Angriff ist eine FÄHIGKEIT wie Graben/Dynamit/Stollenbruch: aus a=0 ODER
+// (nach vorheriger Bewegung) a=2 nutzbar, verbraucht die Aktion vollständig
+// (a=1, Oberflächen-Parität, Korrektur Juli 2026) — der Angreifer selbst setzt
+// das hier, statt es dem DOM-Wrapper zu überlassen.
 // Gibt { finalDmg, killed, stolenCrystals, retDmg } zurück — retDmg > 0 heißt
 // "Ziel darf kontern" (überlebt UND Angreifer bleibt in seiner Reichweite).
 function resolveUWAttack(state, attacker, target) {
     const finalDmg = getExpectedDamageUW(attacker, target);
     target.h -= finalDmg;
+    attacker.a = 1;
     const result = { finalDmg, killed: false, stolenCrystals: 0, retDmg: 0 };
 
     if (target.h > 0) {
@@ -614,6 +622,8 @@ function resolveUWAttack(state, attacker, target) {
 // SOFORT 8 DMG zurück" — auch bei einem tödlichen Treffer). Kreaturen-Kills
 // zählen für Veteranenstatus UND geben dem Beutegräber (20) zusätzlich +1 Gold
 // (Roster-Passiv "Kopfgeld-Upgrade greift auf Kreaturen", PLAN Abschn. 4).
+// Wie resolveUWAttack: aus a=0 ODER a=2 nutzbar, verbraucht die Aktion (a=1,
+// Oberflächen-Parität, Korrektur Juli 2026).
 function resolveUWAttackOnCreature(state, attacker, creature) {
     const cStats = uwCreatureStats[creature.t];
     // getExpectedDamageUW liest vom "Ziel" nur targetUnit.t/x/y (Engstellen-Check
@@ -621,6 +631,7 @@ function resolveUWAttackOnCreature(state, attacker, creature) {
     // ist also gefahrlos auch gegen Kreaturen wiederverwendbar.
     const finalDmg = getExpectedDamageUW(attacker, creature);
     creature.h -= finalDmg;
+    attacker.a = 1;
     const result = { finalDmg, killed: false, retDmg: 0, bonusGold: 0, wormDied: false };
 
     const isWurm = creature.t === UWC_WURM;
@@ -1055,14 +1066,46 @@ function updateUWExploration() {
 // hier nur der Kern der jeweiligen Regel, damit er unabhängig vom DOM getestet
 // werden kann (siehe maptest-Verifikation M9b).
 
-// Öffnet das Ziel-Hex dauerhaft und rückt die Einheit nach ("durchfressen").
+// Bewegung: reine Ortsänderung + a=2 (Bewegungs-Zwischenzustand — "hat sich
+// bewegt, darf noch GENAU eine weitere Aktion (Graben/Angreifen/Fähigkeit),
+// aber NICHT nochmal bewegen", exaktes Pendant zu executeMoveTo/showTileUI an
+// der Oberfläche, js/input.js — Korrektur Juli 2026). Web-Verbrauch, Fundkammer-
+// Loot und automatisches Aufsammeln eines herrenlosen Kristallhaufens laufen als
+// Nebenwirkung mit — reine Zustandsmutation, damit der ganze Bewegungsschritt
+// DOM-frei testbar bleibt (executeUWMoveTo in js/input.js bleibt ein dünner
+// Wrapper: saveUndoState/turnActions/Toasts/Re-Öffnen des Aktionsmenüs).
+// Gibt { loot, picked } für die Toast-Texte des Aufrufers zurück.
+function moveUWUnit(state, unit, x, y) {
+    unit.x = x; unit.y = y;
+    unit.a = 2;
+    const webKey = `${x},${y}`;
+    if (state.uw && state.uw.w && state.uw.w[webKey]) delete state.uw.w[webKey];
+    let loot = null;
+    if (isFundkammerHex(state, x, y)) {
+        loot = lootFundkammer(state, unit.p, unit, x, y);
+    }
+    const picked = pickupUWCrystalDrop(state, unit);
+    return { loot, picked };
+}
+
+// Öffnet das Ziel-Hex dauerhaft und rückt die Einheit nach ("durchfressen") —
+// eine FÄHIGKEIT, keine Bewegung: aus a=0 ODER (nach vorheriger Bewegung) a=2
+// verbraucht sie die Aktion vollständig (a=1). EINZIGE Ausnahme: der Bohrwagen
+// (22, digMove=2, PLAN.md Abschn. 3/4) darf 2x/Zug graben — NUR seine ERSTE
+// Grabung dieser Runde (unit.a war noch 0, also die allererste Aktion des
+// Zuges) hinterlässt a=2 statt a=1, derselbe Zwischenzustand wie nach einer
+// Bewegung ("noch GENAU eine weitere Aktion möglich" — Oberflächen-Parität,
+// Korrektur Juli 2026). Grub der Bohrwagen bereits einmal ODER kam er über
+// eine Bewegung auf a=2, verbraucht seine nächste Grabung die Aktion wie bei
+// jeder anderen Einheit vollständig.
 function digUWHex(state, unit, x, y) {
     if (!state.uw) state.uw = { d: [], u: [], n: [], a: {} };
     if (!state.uw.d) state.uw.d = [];
     const idx = y * state.bw + x;
     if (!state.uw.d.includes(idx)) state.uw.d.push(idx);
+    const bohrwagenFirstDig = (unitStats[unit.t].digMove || 1) > 1 && unit.a === 0;
     unit.x = x; unit.y = y;
-    unit.a = 1;
+    unit.a = bohrwagenFirstDig ? 2 : 1;
 }
 
 // Ein Abbau-Tick: Beutegräber (20) nimmt bis zu 2 statt 1 (nie mehr als der

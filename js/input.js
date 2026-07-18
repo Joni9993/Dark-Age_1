@@ -646,12 +646,17 @@ function showUnderworldTileUI(clickedX, clickedY) {
 
     // Eigene, agierbare Tiefeneinheit auf dem Feld -> auswählen, Bewegen/Graben/
     // Angreifen (Klick auf Highlight) + Abbauen/Abliefern/Aufsteigen (Buttons).
-    // Bohrwagen (22) darf nach dem ERSTEN Graben nochmal wählen (a=2-Zwischenzustand,
-    // gleiches Muster wie "bewegt, kann noch angreifen" an der Oberfläche).
-    const selectable = unit && unit.p === gameState.cp && (unit.a === 0 || (unit.t === 22 && unit.a === 2));
+    // Bewegen+Agieren im selben Zug (Oberflächen-Parität, Korrektur Juli 2026,
+    // exaktes Pendant zu showTileUI oben): a=2 heißt "hat schon eine Aktion
+    // gemacht (Bewegung ODER Bohrwagen-Erstgrabung), darf noch GENAU eine
+    // weitere (Angriff/Graben/Fähigkeit), aber NICHT nochmal bewegen" — daher
+    // bleibt die Einheit bei a=2 auswählbar, uwValidMoves aber unten leer.
+    const selectable = unit && unit.p === gameState.cp && (unit.a === 0 || unit.a === 2);
     if (selectable) {
         selectedUWUnit = unit;
-        uwValidMoves = calculateMovesUW(unit);
+        // Nur bei a===0 darf noch bewegt werden (keine zweite Bewegung nach a=2,
+        // gleiches Gate wie validMoves bei showTileUI/js/input.js oben).
+        uwValidMoves = (unit.a === 0) ? calculateMovesUW(unit) : [];
         uwValidDigs = calculateDigsUW(unit);
         uwValidAttacks = calculateAttacksUW(unit);
         // Abbau (Korrektur Juli 2026): Toggle wie beim Steinabbau des Arbeiters oben
@@ -684,7 +689,8 @@ function showUnderworldTileUI(clickedX, clickedY) {
                 menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4e342e;" onclick="window.startUWCollapse()">💥 Stollenbruch</button>`;
             }
         }
-        const hint = unit.t === 22 && unit.a === 0 ? ' (2. Grabung möglich)' : '';
+        const hint = unit.t === 22 && unit.a === 0 ? ' (2 Grabungen möglich)'
+            : unit.a === 2 ? ' (bereits agiert — noch 1 Aktion möglich)' : '';
         infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Einheit ausgewählt${hint}. Ziel wählen oder Aktion.</div>`;
     }
 
@@ -723,66 +729,70 @@ function showUnderworldTileUI(clickedX, clickedY) {
 // Führt die Bewegung von `selectedUWUnit` nach (x,y) aus — reine Bewegung ohne
 // Graben, Ziel muss bereits offen sein (uwValidMoves, BFS über isUnderworldOpen).
 // Läuft die Einheit dabei erstmals in eine Fundkammer, wird sie sofort geplündert
-// (M10, lootFundkammer) — Toast + Recap-Eintrag.
+// (M10, lootFundkammer) — Toast + Recap-Eintrag. Die eigentliche Zustandsmutation
+// (Ortswechsel, a=2, Web/Fundkammer/Aufsammeln) sitzt in moveUWUnit (js/logic.js,
+// DOM-frei testbar) — hier nur der dünne Wrapper (Undo/turnActions/Toasts/Re-Öffnen).
 function executeUWMoveTo(clickedX, clickedY) {
     saveUndoState();
     const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
     const unit = selectedUWUnit;
-    unit.x = clickedX; unit.y = clickedY;
-    unit.a = 1;
+    const { loot, picked } = moveUWUnit(gameState, unit, clickedX, clickedY);
     // uw:true (M13): Recap-Sichtbarkeit läuft über das Unterwelt-Netz (getVisibleUWHexes),
     // nicht über die Oberflächen-Sicht — sonst würden fremde Stollen-Bewegungen an
     // Spieler durchsickern, die zufällig die Oberfläche über dem Hex sehen können.
     turnActions.push({ x: clickedX, y: clickedY, t: 'mv', fx: fromX, fy: fromY, uw: true });
     infoPanel.innerHTML = 'Bewegt.';
 
-    // Spinnennetz (M11): wird beim tatsächlichen Betreten verbraucht (die
-    // Bewegungsstopp-Wirkung selbst kommt schon aus calculateMovesUW — hier nur
-    // das "danach verschwindet es").
-    const webKey = `${clickedX},${clickedY}`;
-    if (gameState.uw.w && gameState.uw.w[webKey]) delete gameState.uw.w[webKey];
-
-    if (isFundkammerHex(gameState, clickedX, clickedY)) {
-        const loot = lootFundkammer(gameState, gameState.cp, unit, clickedX, clickedY);
-        if (loot) {
-            if (loot.type === 'crystal') {
-                showToast(`🏺 Fundkammer: +${loot.amount} 💎 Kristalle!`, 'gold');
-            } else {
-                showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} gefunden!`, 'gold');
-            }
-            turnActions.push({ x: clickedX, y: clickedY, t: 'loot', uw: true });
-            updateUI();
+    if (loot) {
+        if (loot.type === 'crystal') {
+            showToast(`🏺 Fundkammer: +${loot.amount} 💎 Kristalle!`, 'gold');
+        } else {
+            showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} gefunden!`, 'gold');
         }
+        turnActions.push({ x: clickedX, y: clickedY, t: 'loot', uw: true });
+        updateUI();
     }
 
     // Herrenloser Kristallhaufen (Korrektur Juli 2026): nur trage-fähige Typen
     // (Arbeiter 7, Beutegräber 20) sammeln automatisch ein, sobald sie das Hex
     // betreten (pickupUWCrystalDrop prüft den Typ selbst).
-    const picked = pickupUWCrystalDrop(gameState, unit);
     if (picked > 0) {
         showToast(`💎 ${picked} herrenlose Kristalle eingesammelt!`, 'gold');
         turnActions.push({ x: clickedX, y: clickedY, t: 'pickup', uw: true });
     }
 
-    clearUWSelection();
+    // Bewegen+Agieren im selben Zug (Oberflächen-Parität, Korrektur Juli 2026):
+    // moveUWUnit hat a=2 gesetzt — die Einheit bleibt ausgewählt, das Aktionsmenü
+    // öffnet sich mit frisch von der NEUEN Position berechneten Angriffs-/Grab-/
+    // Fähigkeits-Optionen erneut (Muster: executeMoveTo -> showTileUI oben). Eine
+    // zweite Bewegung wird NICHT mehr angeboten (uwValidMoves-Gate a===0 s.o.).
+    showUnderworldTileUI(clickedX, clickedY);
     renderBoard(gameState); updateUI();
 }
 
 // Graben: Ziel-Hex (angrenzender FELS) dauerhaft öffnen und die Einheit
-// nachrücken lassen ("sich durchfressen", siehe Auftrag) — erzeugt Lärm.
-// Bohrwagen (22) darf 2x/Zug graben: die ERSTE Grabung setzt a=2 (Zwischenzustand,
-// "kann noch agieren") statt a=1, digUWHex() selbst kennt diese Sonderregel nicht.
+// nachrücken lassen ("sich durchfressen", siehe Auftrag) — erzeugt Lärm. Eine
+// FÄHIGKEIT wie Angreifen/Dynamit/Stollenbruch (aus a=0 ODER a=2 nutzbar,
+// Oberflächen-Parität, Korrektur Juli 2026) — digUWHex() selbst entscheidet die
+// resultierende a (inkl. der Bohrwagen-2x-Grabung-Ausnahme, s. dort).
 function executeUWDig(clickedX, clickedY) {
     saveUndoState();
     const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
     const unit = selectedUWUnit;
-    const isBohrwagenFirstDig = unit.t === 22 && unit.a === 0;
+    const wasFreshTurn = unit.a === 0;
     digUWHex(gameState, unit, clickedX, clickedY);
-    if (isBohrwagenFirstDig) unit.a = 2;
+    const isBohrwagenFirstDig = wasFreshTurn && unit.a === 2;
     addUWNoise(clickedX, clickedY);
     turnActions.push({ x: clickedX, y: clickedY, t: 'dig', fx: fromX, fy: fromY, uw: true });
-    infoPanel.innerHTML = isBohrwagenFirstDig ? '⛏ Erste Grabung! (nochmal wählen für die 2.)' : '⛏ Hex durchgegraben!';
-    clearUWSelection();
+    infoPanel.innerHTML = isBohrwagenFirstDig ? '⛏ Erste Grabung! Noch eine Grabung oder ein Angriff möglich.' : '⛏ Hex durchgegraben!';
+    if (unit.a === 2) {
+        // Bohrwagen-Zwischenzustand nach der ERSTEN Grabung: gleiches Re-Öffnen-
+        // Muster wie nach Bewegung (executeUWMoveTo) — Menü zeigt sofort die
+        // verbleibende 2. Grabung bzw. einen möglichen Angriff an.
+        showUnderworldTileUI(clickedX, clickedY);
+    } else {
+        clearUWSelection();
+    }
     renderBoard(gameState); updateUI();
 }
 
@@ -864,11 +874,10 @@ window.startUWCollapse = function () {
 function executeUWCollapse(clickedX, clickedY) {
     saveUndoState();
     const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
-    collapseUWHex(gameState, clickedX, clickedY);
+    collapseUWHex(gameState, selectedUWUnit, clickedX, clickedY); // setzt a=1 selbst
     addUWNoise(clickedX, clickedY);
     turnActions.push({ x: clickedX, y: clickedY, t: 'collapse', fx: fromX, fy: fromY, uw: true });
     infoPanel.innerHTML = '💥 Stollenbruch! Hex wieder massiver Fels.';
-    selectedUWUnit.a = 1;
     window.uwSpecialActive = null; uwValidCollapse = [];
     clearUWSelection();
     renderBoard(gameState); updateUI();
@@ -917,8 +926,10 @@ function executeUWAttack(clickedX, clickedY, targetAttack) {
     }
     infoPanel.innerHTML = msg;
 
+    // attackerUnit.a = 1 setzt bereits resolveUWAttack(OnCreature) selbst (js/logic.js) —
+    // Angriff ist eine Fähigkeit wie Graben/Dynamit (aus a=0 ODER a=2, verbraucht
+    // die Aktion vollständig, Oberflächen-Parität, Korrektur Juli 2026).
     turnActions.push({ x: clickedX, y: clickedY, t: 'atk', fx: attackerUnit.x, fy: attackerUnit.y, uw: true });
-    attackerUnit.a = 1;
     clearUWSelection();
     renderBoard(gameState); updateUI();
 }

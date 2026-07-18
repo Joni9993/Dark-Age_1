@@ -209,11 +209,14 @@ console.log('\n=== (c) Stollenbruch nur auf gegrabene, unbesetzte Hexes, uw.d ko
     const nonSprengmeister = { i: 3, p: 0, t: 7, x: sprengmeister.x, y: sprengmeister.y, h: 8 };
     assert(M.calculateStollenbruchTargetsUW(nonSprengmeister).length === 0, 'nur der Sprengmeister (18) darf Stollenbruch — andere Typen liefern 0 Ziele');
 
-    // collapseUWHex reduziert uw.d korrekt
+    // collapseUWHex reduziert uw.d korrekt UND verbraucht die Aktion (a=1,
+    // Oberflächen-Parität, Korrektur Juli 2026 — collapseUWHex nimmt jetzt die
+    // agierende Einheit als Parameter, wie placeUWDynamite).
     assert(state.uw.d.includes(dugIdx), 'Index ist vor dem Stollenbruch in uw.d');
-    M.collapseUWHex(state, dugHex.x, dugHex.y);
+    M.collapseUWHex(state, sprengmeister, dugHex.x, dugHex.y);
     assert(!state.uw.d.includes(dugIdx), 'Index ist nach dem Stollenbruch aus uw.d entfernt');
     assert(M.isUnderworldOpen(state, dugHex.x, dugHex.y) === false, 'Hex ist nach dem Stollenbruch wieder massiver Fels (nicht mehr offen)');
+    assert(sprengmeister.a === 1, 'Stollenbruch verbraucht die Aktion (a=1)');
 }
 
 // ─────────────────────────────────────────────────────────────────────────

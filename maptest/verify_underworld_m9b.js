@@ -27,8 +27,8 @@ function loadGameCode() {
             getUnderworldType, isUnderworldOpen, getUWVeinRemaining, getUWVeinMaxAmount, getStollenkopfOwner,
             getUnderworldTunnelHeads, isUnderworldTunnelHead,
             UW_FELS, UW_KAVERNE, UW_ADER, UW_RUINE, UW_HERZ,
-            calculateMovesUW, calculateDigsUW, calculateMineTargetsUW, uwUnitAt,
-            digUWHex, mineUWVein, deliverUWCrystals, ascendUWUnit, descendUWUnit, buyUWUnitAt,
+            calculateMovesUW, calculateDigsUW, calculateMineTargetsUW, calculateAttacksUW, uwUnitAt,
+            digUWHex, moveUWUnit, resolveUWAttack, mineUWVein, deliverUWCrystals, ascendUWUnit, descendUWUnit, buyUWUnitAt,
             processAutoMiningUW, processUWCrystalAutoDeliver, dropUWCrystalsOnDeath, pickupUWCrystalDrop,
             getUnitMaxHp, getUnitCost, getUnitMove, unitStats
         };
@@ -413,6 +413,139 @@ console.log('\n=== (f) Tunnelgräber als einzige Brücke: Rekrutierung oben -> A
     // (siehe getUnderworldTunnelHeads-Kommentar, js/hex.js); hier nur die
     // Stollenkopf-Grundlage dafür gegengeprüft.
     assert(!M.isUnderworldTunnelHead(state, zielX, zielY), 'Tunnel-Zielpunkt bietet keinen Stollenkopf zum Abtauchen');
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Scannt die ganze Karte nach einem OFFENEN Hex mit mindestens einem noch
+// massiven FELS-Nachbarn — ein garantierter Startpunkt zum Graben, unabhängig
+// vom Zufalls-Seed (Fels ist laut PLAN.md Abschn. 2 der Standard-Terrain-Typ,
+// so ein Hex existiert praktisch immer; SKIP-Fallback falls doch nicht).
+function findDigStart(state) {
+    for (let y = 0; y < state.bh; y++) {
+        for (let x = 0; x < state.bw; x++) {
+            if (!M.isInsideMap(state, x, y) || !M.isUnderworldOpen(state, x, y)) continue;
+            const felsN = M.getNeighbors(x, y).find(n =>
+                M.isInsideMap(state, n.x, n.y) && M.getUnderworldType(state, n.x, n.y) === M.UW_FELS && !M.isUnderworldOpen(state, n.x, n.y));
+            if (felsN) return { x, y };
+        }
+    }
+    return null;
+}
+
+console.log('\n=== (g) Bewegen+Agieren im selben Zug (Oberflächen-Parität, Korrektur Juli 2026) ===');
+{
+    // --- (g-a) Bewegung setzt a=2, danach ist von der NEUEN Position aus noch
+    // Graben ODER Angreifen möglich (a=1) — 1:1 wie an der Oberfläche
+    // (executeMoveTo setzt a=2, showTileUI öffnet mit frischen Optionen erneut). ---
+    const stateA = freshState(101, 7, 2);
+    const cxA = stateA.rad, cyA = stateA.rad;
+    stateA.uw.c = []; // Wurm blockiert das Zentrum nicht -> reiner a-Zustands-Test
+    const startA = M.getNeighbors(cxA, cyA)[0];
+    const unitA = { i: 1, p: 0, t: 7, x: startA.x, y: startA.y, h: 8, a: 0 };
+    stateA.uw.u.push(unitA);
+
+    const movesA = M.calculateMovesUW(unitA);
+    assert(movesA.length > 0, 'Testaufbau: mindestens ein Bewegungsziel vorhanden');
+    if (movesA.length > 0) {
+        const { loot, picked } = M.moveUWUnit(stateA, unitA, movesA[0].x, movesA[0].y);
+        assert(typeof picked === 'number' && (loot === null || typeof loot === 'object'), 'moveUWUnit gibt { loot, picked } zurück');
+        assert(unitA.x === movesA[0].x && unitA.y === movesA[0].y, 'Einheit steht nach der Bewegung auf dem Zielhex');
+        assert(unitA.a === 2, 'Bewegung setzt a=2 (Bewegungs-Zwischenzustand — NICHT mehr a=1 wie vor der Korrektur Juli 2026)');
+
+        // Von der neuen Position aus: Grabziele werden für a=2 weiterhin berechnet
+        // (uwValidDigs-Gate ist unabhängig von a, s. showUnderworldTileUI) und
+        // Graben aus a=2 verbraucht die Aktion vollständig.
+        const digTargetsAfterMove = M.calculateDigsUW(unitA);
+        if (digTargetsAfterMove.length > 0) {
+            M.digUWHex(stateA, unitA, digTargetsAfterMove[0].x, digTargetsAfterMove[0].y);
+            assert(unitA.a === 1, 'Graben aus a=2 (nach vorheriger Bewegung) verbraucht die Aktion vollständig (a=1)');
+        } else {
+            console.log('SKIP (g-a Graben): keine Grabziele an der neuen Position (Seed-Zufall)');
+        }
+    }
+
+    // Angriffs-Gegenprobe (unabhängig von obigem Zustand, eigene Objekte): sowohl
+    // aus a=0 als auch aus a=2 ist ein Angriff möglich, resolveUWAttack setzt in
+    // BEIDEN Fällen a=1 (js/logic.js, DOM-frei) — exakt die Oberflächen-Parität.
+    const atkNeighbor = M.getNeighbors(cxA, cyA)[1];
+    const attackerMoved = { i: 2, p: 0, t: 17, x: cxA, y: cyA, h: 14, a: 2 }; // simuliert: schon bewegt
+    const defender1 = { i: 3, p: 1, t: 17, x: atkNeighbor.x, y: atkNeighbor.y, h: 14, a: 0 };
+    M.resolveUWAttack(stateA, attackerMoved, defender1);
+    assert(attackerMoved.a === 1, 'Angriff aus a=2 (nach Bewegung) verbraucht die Aktion (a=1)');
+
+    // --- (g-b) zwei Bewegungen hintereinander sind NICHT möglich. Das reale Gate
+    // sitzt in showUnderworldTileUI (js/input.js, DOM-gebunden: uwValidMoves wird
+    // nur bei a===0 berechnet) — hier 1:1 derselbe Einzeiler gegen eine bereits
+    // bewegte Einheit (a=2) nachgebaut. ---
+    const unitB = { i: 4, p: 0, t: 7, x: startA.x, y: startA.y, h: 8, a: 2 };
+    const movesAfterMove = (unitB.a === 0) ? M.calculateMovesUW(unitB) : [];
+    assert(movesAfterMove.length === 0, 'bei a=2 werden KEINE weiteren Bewegungsziele angeboten (Gate wie showUnderworldTileUI)');
+
+    // --- (g-c) Fähigkeit aus a=0 (frischer Zug, keine Bewegung) setzt DIREKT
+    // a=1 — kein Zwischenzustand für normale Einheiten (nur der Bohrwagen ist
+    // die dokumentierte Ausnahme, s. (g-d)). ---
+    const digStartC = findDigStart(stateA);
+    assert(!!digStartC, 'Testaufbau: offenes Hex mit Fels-Nachbarn gefunden (g-c)');
+    if (digStartC) {
+        const unitC = { i: 5, p: 0, t: 7, x: digStartC.x, y: digStartC.y, h: 8, a: 0 };
+        const digTargetsC = M.calculateDigsUW(unitC);
+        assert(digTargetsC.length > 0, 'Testaufbau: Grabziel für (g-c) vorhanden');
+        if (digTargetsC.length > 0) {
+            M.digUWHex(stateA, unitC, digTargetsC[0].x, digTargetsC[0].y);
+            assert(unitC.a === 1, 'Graben aus a=0 (frischer Zug) setzt DIREKT a=1 — kein Zwischenzustand für normale Einheiten');
+        }
+    }
+    const attackerFresh = { i: 6, p: 0, t: 17, x: cxA, y: cyA, h: 14, a: 0 };
+    const defender2 = { i: 7, p: 1, t: 17, x: atkNeighbor.x, y: atkNeighbor.y, h: 14, a: 0 };
+    M.resolveUWAttack(stateA, attackerFresh, defender2);
+    assert(attackerFresh.a === 1, 'Angriff aus a=0 (frischer Zug) setzt ebenfalls DIREKT a=1');
+
+    // --- (g-d) Bohrwagen (22, digMove=2): 1. Grabung dieser Runde hinterlässt
+    // a=2 (Sonderregel), 2. Grabung verbraucht a=1. Nach einer Bewegung (a=2)
+    // ist dagegen nur noch GENAU 1 weitere Grabung möglich (a=1) — die
+    // Doppel-Grabung gilt NUR bei der allerersten Aktion des Zuges. ---
+    const stateD = freshState(202, 7, 2);
+    const digStartD1 = findDigStart(stateD);
+    assert(!!digStartD1, 'Testaufbau: offenes Hex mit Fels-Nachbarn gefunden (g-d, Doppel-Grabung)');
+    if (digStartD1) {
+        const bohrwagen = { i: 8, p: 0, t: 22, x: digStartD1.x, y: digStartD1.y, h: 14, a: 0 };
+        const digTargets1 = M.calculateDigsUW(bohrwagen);
+        assert(digTargets1.length > 0, 'Testaufbau: 1. Grabziel für Bohrwagen vorhanden');
+        if (digTargets1.length > 0) {
+            M.digUWHex(stateD, bohrwagen, digTargets1[0].x, digTargets1[0].y);
+            assert(bohrwagen.a === 2, 'Bohrwagen: 1. Grabung dieser Runde hinterlässt a=2 (Sonderregel — darf noch GENAU 1x agieren)');
+
+            const digTargets2 = M.calculateDigsUW(bohrwagen);
+            if (digTargets2.length > 0) {
+                M.digUWHex(stateD, bohrwagen, digTargets2[0].x, digTargets2[0].y);
+                assert(bohrwagen.a === 1, 'Bohrwagen: 2. Grabung verbraucht die Aktion vollständig (a=1)');
+            } else {
+                console.log('SKIP (g-d 2. Grabung): kein zweites Grabziel gefunden (Seed-Zufall)');
+            }
+        }
+    }
+
+    const stateD2 = freshState(305, 7, 2);
+    const digStartD2 = findDigStart(stateD2);
+    assert(!!digStartD2, 'Testaufbau: offenes Hex mit Fels-Nachbarn gefunden (g-d, nach Bewegung)');
+    if (digStartD2) {
+        const bohrwagenMoved = { i: 9, p: 0, t: 22, x: digStartD2.x, y: digStartD2.y, h: 14, a: 0 };
+        stateD2.uw.u.push(bohrwagenMoved);
+        const movesD2 = M.calculateMovesUW(bohrwagenMoved);
+        if (movesD2.length > 0) {
+            M.moveUWUnit(stateD2, bohrwagenMoved, movesD2[0].x, movesD2[0].y);
+            assert(bohrwagenMoved.a === 2, 'Testaufbau: Bohrwagen hat sich bewegt (a=2)');
+            const digTargetsAfterMoveD = M.calculateDigsUW(bohrwagenMoved);
+            if (digTargetsAfterMoveD.length > 0) {
+                M.digUWHex(stateD2, bohrwagenMoved, digTargetsAfterMoveD[0].x, digTargetsAfterMoveD[0].y);
+                assert(bohrwagenMoved.a === 1, 'Bohrwagen NACH Bewegung (a=2): die Grabung verbraucht die Aktion vollständig (a=1) — die Doppel-Grabungs-Ausnahme gilt NUR bei der allerersten Aktion des Zuges (a=0), nicht mehr nach einer Bewegung');
+            } else {
+                console.log('SKIP (g-d nach Bewegung): kein Grabziel an der neuen Position gefunden (Seed-Zufall)');
+            }
+        } else {
+            console.log('SKIP (g-d nach Bewegung): kein Bewegungsziel gefunden (Seed-Zufall)');
+        }
+    }
 }
 
 console.log(`\n=== Zusammenfassung: ${failures === 0 ? 'ALLE CHECKS BESTANDEN' : failures + ' FEHLGESCHLAGEN'} ===`);
