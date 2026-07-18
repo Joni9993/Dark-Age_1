@@ -227,6 +227,20 @@ function debugSetupErschliessung() {
     showToast('Wurm tot + eigene Einheit im Herzkaverne-Zentrum gesetzt (nächster Zugende zählt).');
 }
 
+// Kreaturen-Runden-Phase sofort auslösen (Korrektur Juli 2026, "Runden-Phase +
+// Telegraph"): reines Testwerkzeug, läuft unabhängig vom tatsächlichen
+// Rundenwechsel (gameState.rn wird NICHT verändert) — löst bestehende
+// Telegraphen auf, bewegt die Kreaturen und setzt neue Telegraphen, exakt wie
+// uwCreatureRoundPhase() das normalerweise einmal pro Runde in doEndTurn tut.
+function debugRunCreaturePhase() {
+    if (!gameState.uw || !gameState.uw.c || gameState.uw.c.length === 0) { showToast('Keine Kreaturen im aktuellen Zustand.'); return; }
+    const phase = uwCreatureRoundPhase();
+    gameState.la = (gameState.la || []).concat(phase.events.filter(e => e.type === 'creatureAtk').map(e => ({ x: e.x, y: e.y, t: 'creatureAtk', uw: true })));
+    renderBoard(gameState);
+    updateUI();
+    showToast(`🐾 Kreaturen-Phase ausgeführt: ${phase.events.length} Treffer, ${gameState.uw.c.length} Kreaturen übrig.`);
+}
+
 // Dynamit sofort platzieren (Korrektur Juli 2026, ersetzt debugArmChamber):
 // findet den ersten eigenen Sprengmeister in der Unterwelt und platziert eine
 // Ladung auf seinem ersten gültigen Fels-Nachbarn, unabhängig vom Holzvorrat —
@@ -402,6 +416,7 @@ function buildDebugPanel() {
             <button onclick="debugKillWorm()" title="Alten Wurm sofort besiegen (uw.wd=1)">🐛 Wurm töten</button>
             <button onclick="debugSetupErschliessung()" title="Wurm tot + eigene Einheit ins Herzkaverne-Zentrum">🌍 Erschließungs-Setup</button>
         </div>
+        <button onclick="debugRunCreaturePhase()" title="uwCreatureRoundPhase() sofort ausführen (Testwerkzeug, unabhängig vom Rundenwechsel) + neu rendern">🐾 Kreaturen-Phase jetzt</button>
         <button onclick="debugPlaceDynamite()" title="Dynamit-Ladung auf einem Fels-Nachbarn des ersten eigenen Sprengmeisters, ohne Holzkosten">🧨 Dynamit sofort platzieren</button>
 
         <h4>Klick-Werkzeug</h4>
@@ -517,6 +532,17 @@ window.dbg = {
         creatures.forEach(c => { counts[c.t] = (counts[c.t] || 0) + 1; });
         const line = Object.keys(uwCreatureStats).map(t => `${uwCreatureStats[t].name} ${counts[t] || 0}`).join(' · ');
         console.log(`Kreaturen: ${line} · Wurm tot: ${gameState.uw && gameState.uw.wd ? 'ja' : 'nein'} · Netze: ${Object.keys((gameState.uw && gameState.uw.w) || {}).length}`);
+        // Telegraphen (Korrektur Juli 2026, "Runden-Phase + Telegraph"): welche
+        // Kreatur mit welchem Muster/welcher Richtung welche Felder markiert hat.
+        const telegraphed = creatures.filter(c => c.h > 0 && c.ap);
+        if (telegraphed.length > 0) {
+            telegraphed.forEach(c => {
+                const hexes = getCreatureAttackHexes(gameState, c).map(h => `${h.x},${h.y}`).join(' ');
+                console.log(`  🎯 ${uwCreatureStats[c.t].name} @${c.x},${c.y} (p${c.ap.p}/d${c.ap.d}): ${hexes}`);
+            });
+        } else {
+            console.log('  🎯 keine aktiven Telegraphen');
+        }
         // Erschließung (M12): Fortschritt + ausstehende Dynamit-Ladungen.
         const hz = gameState.uw && gameState.uw.hz;
         console.log(`Erschließung: ${hz ? `${gameState.p[hz.p].n} (${hz.n}/4)` : 'keine'}`);

@@ -631,6 +631,17 @@ function showUnderworldTileUI(clickedX, clickedY) {
         infoPanel.innerHTML = `${UW_TYPE_NAMES[uType]}${open ? '' : ' (massiv)'}${extra}`;
     }
 
+    // Telegraph-Warnung (Korrektur Juli 2026, "Runden-Phase + Telegraph"):
+    // unabhängig davon, was gerade auf dem Hex steht (Einheit/Kreatur/leer) —
+    // "jeder hat genau einen Zug zum Ausweichen" ist die wichtigste Info hier,
+    // gilt für ALLE Spieler-Einheiten auf dem Feld, egal welchem Besitzer.
+    (gameState.uw && gameState.uw.c || []).forEach(c => {
+        if (c.h <= 0 || !c.ap) return;
+        if (!getCreatureAttackHexes(gameState, c).some(h => h.x === clickedX && h.y === clickedY)) return;
+        const cStats = uwCreatureStats[c.t];
+        infoPanel.innerHTML += `<div class="info-detail" style="color:#ff5252;">🎯 ${cStats.name} greift dieses Feld am Rundenende an (${cStats.dmg} DMG)</div>`;
+    });
+
     let menuHtml = '';
 
     // Eigene, agierbare Tiefeneinheit auf dem Feld -> auswählen, Bewegen/Graben/
@@ -1762,12 +1773,26 @@ function confirmSurrender() {
     gameState.la = turnActions;
     turnActions = [];
 
+    let oldRn = gameState.rn;
     let loopGuard = 0;
     do {
         gameState.cp++;
         if (gameState.cp >= gameState.p.length) { gameState.cp = 0; gameState.rn++; }
         loopGuard++;
     } while (gameState.p[gameState.cp].dead === 1 && loopGuard < gameState.p.length);
+
+    // Unterwelt-Kreaturen: gleiche Runden-Phase-Verdrahtung wie doEndTurn (s.
+    // dort für die ausführliche Begründung) — auch ein Aufgeben kann einen
+    // Rundenwechsel auslösen (letzter Spieler der Runde gibt auf), dann muss
+    // die Kreaturen-Runden-Phase genauso laufen wie bei einem regulären Zugende.
+    gameState.uwbd = [];
+    if (gameState.rn > oldRn) {
+        const phase = uwCreatureRoundPhase();
+        gameState.uwbd = phase.floats;
+        phase.events.filter(e => e.type === 'creatureAtk').forEach(e => {
+            gameState.la.push({ x: e.x, y: e.y, t: 'creatureAtk', uw: true });
+        });
+    }
 
     const alivePlayers = gameState.p.filter(p => p.dead !== 1);
     const teamWinners = checkTeamWin(alivePlayers);
@@ -1807,6 +1832,11 @@ function confirmSurrender() {
     // nichts von der Unterwelt je berührt wurde (spart Blob-Bytes in den meisten
     // Spielen). uw.f/uw.w folgen demselben Muster wie uw.a; uw.c-Einträge bleiben
     // kompakt ({t,x,y,h}, kein a/i — Kreaturen haben kein Aktions-/ID-Konzept);
+    // c.ap ({p,d}, Korrektur Juli 2026 — Telegraph-Muster/-Richtung, kleine Ints)
+    // wird automatisch mit serialisiert, braucht kein eigenes Default-Cleanup und
+    // wird NIE als eigenständige Hex-Liste gespeichert — Telegraph-Ziel-Hexes
+    // werden immer aus (Position, ap) über getCreatureAttackHexes abgeleitet, da
+    // Kreaturen sich während einer Runde nicht bewegen (js/logic.js).
     // uw.wd (Wurm dauerhaft tot) ist ein einfaches Flag, kein Default-Cleanup nötig
     // (bleibt einfach unter dem Schlüssel weg, bis der Wurm stirbt).
     if (gameState.uw) {
@@ -2063,29 +2093,6 @@ function doEndTurn() {
     }
     window.uwNoiseScratch = [];
 
-    // Unterwelt-Kreaturen (M11): ziehen NACH dem Lärm-Commit oben, damit der
-    // Blindwühler auf den Marker-Stand des GERADE beendeten Zugs reagiert
-    // (Muster: Brand-Ticks — deterministisch bei jedem doEndTurn, nicht nur
-    // einmal pro Runde, siehe processUWCreatureTurn/js/logic.js). Die Events
-    // (Treffer) betreffen potenziell andere Spieler als den, der gerade seinen
-    // Zug beendet — kein lokaler Toast dafür (kein Broadcast-Kanal an andere
-    // Clients außer dem Recap-System, das aktuell global deaktiviert ist, siehe
-    // Kommentar bei showRecap weiter unten in bootGame). Der Wurm-Tod ist davon
-    // ausgenommen: er stirbt nur durch einen Spielerangriff (executeUWAttack),
-    // nicht durch den Kreaturen-Zug selbst, und wird dort direkt gemeldet.
-    if (gameState.uw && gameState.uw.c && gameState.uw.c.length > 0) {
-        const creatureEvents = processUWCreatureTurn();
-        // uw:true (M13): Kreaturen-Angriffe sind Unterwelt-Ereignisse und im Recap
-        // nur für Spieler mit Netz-Sicht auf das betroffene Hex sichtbar (gleiche
-        // Fog-Regel wie alle anderen UW-Aktionen). Direkt an gameState.la gehängt
-        // statt an turnActions (das zwei Zeilen oben bereits geleert/umgehängt
-        // wurde) — die Events gehören noch zum GERADE beendeten Zug, nicht zum
-        // nächsten (turnActions würde sie sonst um eine ganze Zugrunde verspäten).
-        creatureEvents.filter(e => e.type === 'creatureAtk').forEach(e => {
-            gameState.la.push({ x: e.x, y: e.y, t: 'creatureAtk', uw: true });
-        });
-    }
-
     processAutoMining(gameState.cp);
     // Unterwelt-Pendant (Korrektur Juli 2026, Toggle-Abbau + Auto-Ablieferung wie
     // beim Steinabbau oben): Reihenfolge bewusst Abbau -> Ablieferung, damit frisch
@@ -2139,6 +2146,31 @@ function doEndTurn() {
         loopGuard++;
     } while (gameState.p[gameState.cp].dead === 1 && loopGuard < gameState.p.length);
 
+    // Unterwelt-Kreaturen: die Runden-Phase (Korrektur Juli 2026, "Runden-Phase +
+    // Telegraph", ersetzt das alte Pro-Zug-Modell processUWCreatureTurn) läuft
+    // GENAU EINMAL pro Rundenwechsel — erkennbar an gameState.rn > oldRn, nicht
+    // an jedem einzelnen Spielerwechsel (Muster: Brand-Ticks, aber rundenweise
+    // statt zugweise). Design-Grund: bei 6 Spielern wurde eine Einheit im alten
+    // Modell bis zu 6x angegriffen, bevor ihr Besitzer überhaupt reagieren
+    // konnte. uwCreatureRoundPhase() selbst (js/logic.js) löst zuerst die
+    // Telegraphen der VORRUNDE auf (Schaden, besitzerunabhängig), bewegt dann
+    // die Kreaturen und setzt abschließend neue Telegraphen. Die Floats müssen
+    // VOR der uwbd-Zuweisung unten anfallen, damit sie mit den Moral-Kollaps-/
+    // Dynamit-Floats derselben Runde zusammen im UI landen.
+    let uwCreatureFloats = [];
+    if (gameState.rn > oldRn) {
+        const phase = uwCreatureRoundPhase();
+        uwCreatureFloats = phase.floats;
+        // uw:true (M13): Kreaturen-Angriffe sind Unterwelt-Ereignisse und im Recap
+        // nur für Spieler mit Netz-Sicht auf das betroffene Hex sichtbar (gleiche
+        // Fog-Regel wie alle anderen UW-Aktionen). Direkt an gameState.la gehängt
+        // statt an turnActions (das oben bereits geleert/umgehängt wurde) — die
+        // Events gehören noch zur GERADE beendeten Runde.
+        phase.events.filter(e => e.type === 'creatureAtk').forEach(e => {
+            gameState.la.push({ x: e.x, y: e.y, t: 'creatureAtk', uw: true });
+        });
+    }
+
     if (gameState.tw) gameState.tw.filter(tw => tw.o === gameState.cp).forEach(tw => tw.a = 0);
 
     // Moral-Kollaps (M12, PLAN.md Abschn. 3): zu Beginn des eigenen Zuges (NEUER
@@ -2154,7 +2186,7 @@ function doEndTurn() {
     // Detonations, js/logic.js). Wirkt ausschließlich innerhalb der Unterwelt.
     const uwDynamiteFloats = processUWDynamiteDetonations(gameState.cp);
     if (uwDynamiteFloats.length > 0) showToast('🧨 Dynamit detoniert!', 'gold');
-    gameState.uwbd = uwCollapseFloats.concat(uwDynamiteFloats);
+    gameState.uwbd = uwCreatureFloats.concat(uwCollapseFloats, uwDynamiteFloats);
 
     // === BRAND-TICKS (Ballon: Anzünden & Feuersturm, einheitlich über bn/bo) ===
     // Ein Brand-Tag (bn = ausstehender Folgeschaden, bo = verursachender Spieler) tickt genau
@@ -2262,6 +2294,11 @@ function doEndTurn() {
     // nichts von der Unterwelt je berührt wurde (spart Blob-Bytes in den meisten
     // Spielen). uw.f/uw.w folgen demselben Muster wie uw.a; uw.c-Einträge bleiben
     // kompakt ({t,x,y,h}, kein a/i — Kreaturen haben kein Aktions-/ID-Konzept);
+    // c.ap ({p,d}, Korrektur Juli 2026 — Telegraph-Muster/-Richtung, kleine Ints)
+    // wird automatisch mit serialisiert, braucht kein eigenes Default-Cleanup und
+    // wird NIE als eigenständige Hex-Liste gespeichert — Telegraph-Ziel-Hexes
+    // werden immer aus (Position, ap) über getCreatureAttackHexes abgeleitet, da
+    // Kreaturen sich während einer Runde nicht bewegen (js/logic.js).
     // uw.wd (Wurm dauerhaft tot) ist ein einfaches Flag, kein Default-Cleanup nötig
     // (bleibt einfach unter dem Schlüssel weg, bis der Wurm stirbt).
     if (gameState.uw) {

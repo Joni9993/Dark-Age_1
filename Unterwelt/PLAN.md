@@ -81,16 +81,58 @@ Fraktions-Passiva und Veteranen-System (2 Kills → +1 DMG) gelten wie oben; Kre
 
 ## 5. PvE — die Tierwelt der Tiefe
 
-Kein Bergvolk mehr am Leben, keine Geister — nur Tiere und Ruinen. Kreaturen handeln **deterministisch** (seed-basiert, ausgeführt in `doEndTurn` wie die Brand-Ticks der Lufteinheiten — dein Async-Modell hat keinen Server-Takt):
+Kein Bergvolk mehr am Leben, keine Geister — nur Tiere und Ruinen.
 
-| Kreatur | HP | DMG | Verhalten |
-|---|---|---|---|
-| 🕷 **Höhlenspinne** | 6 | 3 | nistet in Kavernen; Netze machen ein Gang-Hex zur Engstelle mit Bewegungsstopp; jagt im Umkreis 2 des Nests |
-| 🦡 **Blindwühler** | 12 | 5 | Riesenwühler — gräbt selbst (1 Hex/Zug) **auf die letzte Lärmquelle im Umkreis 4 zu** und nutzt dabei auch fremde Stollen. Wer viel gräbt, gräbt sich seine Feinde herbei |
-| 🪨 **Steinpanzer** | 28 | 2 | träger Panzerbrocken, sitzt auf den reichsten Kristalladern — lebendes Risk/Reward-Schloss, verfolgt nie |
-| 🐛 **Der Alte Wurm** | 30 | 8 (trifft alle Angreifer in RW 1) | **Wächter der Herzkaverne**, verlässt sie nie. Seine uralten Wühlgänge sind die natürlichen Kavernen der Karte. Muss besiegt werden, bevor die Erschließung beginnen kann — stirbt einmal, bleibt tot (globale Meldung: „Ein Beben läuft durch das Land — der Alte Wurm ist gefallen") |
+**Korrektur Juli 2026 — "Runden-Phase + Telegraph" (civ-artige Barbaren-Phase × Into-the-Breach-Telegraph):**
+im ursprünglichen Entwurf zogen Kreaturen bei **jedem** `doEndTurn` (jedem Spielerzug-Ende) — bei 6 Spielern wurde
+eine Einheit so bis zu 6x angegriffen, bevor ihr Besitzer je reagieren konnte. Neues Modell: Kreaturen agieren
+**genau 1x pro Runde**, beim Rundenwechsel (`uwCreatureRoundPhase()`, `js/logic.js`, aufgerufen aus `doEndTurn`/
+`confirmSurrender` sobald `gameState.rn` hochzählt). Jeder bevorstehende Treffer wird dabei eine volle Runde
+**vorher** als Ziel-Hex markiert (Telegraph, `c.ap = {p: patternIdx, d: dirIdx}`) — **jeder Spieler hat also
+mindestens einen vollen Zug Zeit zum Ausweichen**, unabhängig von Spieleranzahl/-reihenfolge. Grundprinzip: **wer
+auf einem markierten Feld stehen bleibt, wird getroffen — egal wessen Einheit es ist**, auch eine, die erst nach
+der Markierung dorthin gezogen ist. Kreaturen schaden Kreaturen nie.
 
-Lärm-Logik: jede Grab-/Abbau-/Dynamit-Aktion hinterlässt einen Lärm-Marker (Hex + Runde, transient). Kreaturen im Radius ziehen am Zugende darauf zu. Kämpfe erzeugen ebenfalls Lärm — ein PvP-Gefecht kann Wühler anlocken, die *beide* Seiten anfallen.
+Ablauf eines Aufrufs von `uwCreatureRoundPhase()`:
+1. **Auflösung:** die in der Vorrunde gesetzten Telegraphen lösen aus — jede Spieler-Einheit auf einem der über
+   `getCreatureAttackHexes(state, creature)` (rein, aus Position + `c.ap` abgeleitet) berechneten Ziel-Hexes nimmt
+   Schaden.
+2. **Bewegung:** danach zieht jede Kreatur — **Jagd** (Ziel via `uwNearestPlayerUnit` im Aggro-Radius vorhanden):
+   bis zu `huntMove` Schritte, jeder Schritt verringert die Distanz zum Ziel strikt, stoppt bei Distanz 1 (nie AUF
+   die Einheit); der Blindwühler darf dabei massiven Fels aufgraben (Adern mit Restbestand umgeht er weiterhin).
+   Ohne Ziel: **Patrouille**, genau 1 Schritt, kreaturspezifisch (s. Tabelle).
+3. **Neue Telegraphen:** erneuter Ziel-Scan nach der Bewegung — nur mit Ziel bekommt die Kreatur eine neue Markierung
+   (`p`: kleine Kreaturen `rn % 2`, Wurm `rn % 4`; `d`: die Achsenrichtung, deren Distanz-1-Hex dem Ziel am
+   nächsten liegt), sonst wird eine bestehende Markierung gelöscht.
+
+Telegraph-Ziel-Hexes werden **nie gespeichert** — Kreaturen bewegen sich innerhalb einer Runde nicht, daher lassen
+sie sich jederzeit verlustfrei aus (Position, `c.ap`) neu ableiten.
+
+| Kreatur | HP | DMG | Aggro | Jagd/Runde | Patrouille/Runde | Verhalten |
+|---|---|---|---|---|---|---|
+| 🕷 **Höhlenspinne** | 6 | 4 | 3 | 2 | 1 | nistet in Kavernen; Netze machen ein Gang-Hex zur Engstelle mit Bewegungsstopp (legt nach jeder Bewegung eins auf ihrem Hex ab); patrouilliert im Umkreis 2 ihres Nests |
+| 🦡 **Blindwühler** | 12 | 5 | 5 (hört am weitesten) | 2 | 1 | gräbt sich selbst durch massiven Fels — auf der Jagd wie auf Patrouille (zieht ohne Ziel auf die letzte Lärmquelle im Umkreis 4 zu, nutzt dabei auch fremde Stollen). Wer viel gräbt, gräbt sich seine Feinde herbei |
+| 🪨 **Steinpanzer** | 28 | 6 | 3 | 1 (bewusst langsam — große AoE) | 1 | sitzt auf den reichsten Kristalladern; Patrouille-Schritte nur, wenn danach weiterhin eine Ader mit Restbestand angrenzt (Wachposten-Regel), sonst steht er |
+| 🐛 **Der Alte Wurm** | 30 | 8 | 3 | 2 (Leine: nie weiter als 3 Hexes vom Herzkaverne-Zentrum) | 1 | **Wächter der Herzkaverne**. Ohne Ziel: außerhalb Distanz 1 vom Zentrum 1 Schritt zurück, sonst 1 Schritt im Ring 1 (Patrouille ums Herz). Muss besiegt werden, bevor die Erschließung beginnen kann — stirbt einmal, bleibt tot (globale Meldung: „Ein Beben läuft durch das Land — der Alte Wurm ist gefallen") |
+
+**Angriffsmuster** (`getCreatureAttackHexes`, geometrisch exakt über `uwHexInDirection`/`hexRingAround`/die
+Dynamit-Dreiecks-Geometrie `getDynamiteTriangle`/den Keil-Helper `getWedgeHexes`, alle `js/hex.js`+`js/logic.js`):
+
+| Kreatur | Muster p0 | Muster p1 | Muster p2 | Muster p3 |
+|---|---|---|---|---|
+| Spinne | „Sprungbiss": Linie 2 in Richtung `d` | „Umklammern": Distanz-1-Hex in `d` + dessen 2 gemeinsame Nachbarn | — | — |
+| Blindwühler | „Grabstoß": Linie 3 in Richtung `d` | „Beben": Ring 1 (6 Hexes) | — | — |
+| Steinpanzer | „Felsschlag": Ring 1 (6 Hexes) | „Erdrutsch": 120°-Keil bis Distanz 2 in Richtung `d` (6 Hexes) | — | — |
+| Alter Wurm | Ring 1 (6 Hexes) | **nur** Ring 2 (12 Hexes, Ring 1 bleibt sicher!) | 6 Strahlen à 3 Felder, alle Achsen (18 Hexes) | „Wirbel": zwei gegenüberliegende Erdrutsch-Keile in `d` und `d+3` (12 Hexes) |
+
+Lärm-Logik: jede Grab-/Abbau-/Dynamit-Aktion hinterlässt einen Lärm-Marker (Hex + Runde, transient, `uw.n`). Der
+Blindwühler zieht am Rundenende darauf zu, solange kein Spieler-Ziel in Aggro-Reichweite ist. Kämpfe erzeugen
+ebenfalls Lärm — ein PvP-Gefecht kann ihn anlocken, der dann *beide* Seiten anfällt.
+
+**UI:** rote Markierungen mit 🎯-Symbol zeigen Telegraph-Hexes an — sichtbar, sobald das Hex im eigenen Stollen-Netz
+liegt (`uwVis`), unabhängig von der sonstigen Umkreis-2-Sichtregel für bewegliche Kreaturen (die Markierung selbst
+ist der Fairness-Kern des Systems, die Kreatur dahinter darf verborgen bleiben). Das Info-Panel eines angeklickten
+Hex zeigt zusätzlich „🎯 [Kreaturname] greift dieses Feld am Rundenende an (X DMG)".
 
 ## 6. Dynamit (taktisches Werkzeug, kein Siegweg, ersetzt Unterminierung — Korrektur Juli 2026)
 
@@ -158,13 +200,14 @@ Lärm-Logik: jede Grab-/Abbau-/Dynamit-Aktion hinterlässt einen Lärm-Marker (H
 | **M9a** | Unterwelt-Terrain-Generierung + Unterseiten-Rendering (Fels/Kaverne/Ader/Ruine/Herz) + Debug-Tools (Aufdecken, Spawnen) | gleiche Karte bei gleichem Seed; Fairness-Kurzanalyse; Kamera-Roundtrip ohne Render-Artefakte |
 | **M9b** | Ebenen-Brücke: Arbeiter (kein eigener Tunnelgräber-Typ, zweite Korrektur Juli 2026) taucht am Tunnel-Startpunkt ab/auf, Graben, Netz-Sicht + Persistenz, Gehör-Pings | Tunnel bauen → Arbeiter hinschicken → abtauchen → graben → Kristall abbauen → aufsteigen/abliefern; Sicht zeigt nur eigenes Netz; URL-Roundtrip mit `uw.*` |
 | **M10** | Kampfeinheiten 17–22, Engstellen-Regel, Kristall-Tragen/Stehlen, Reliquien-Shop | Engstellen-Bonus greift; Beutegräber-Diebstahl; jede Fraktion rekrutiert ihre Tiefeneinheit; Reliquie kauf- und ausrüstbar |
-| **M11** | PvE: Spinne/Wühler/Steinpanzer + Lärm-System + Alter Wurm | Wühler gräbt nachweislich auf Lärm zu (deterministisch reproduzierbar per Seed); Wurm verteidigt Herz, bleibt nach Tod tot |
+| **M11** | PvE: Spinne/Wühler/Steinpanzer + Lärm-System + Alter Wurm; **Korrektur Juli 2026**: Runden-Phase + Telegraph (ersetzt das Pro-Zug-Modell) | Determinismus über mehrere Runden-Phasen; Telegraph→Ausweichen (kein Schaden) vs. Stehenbleiben (exakter Schaden), besitzerunabhängig; Wurm-Leine hält über viele Phasen; Jagd-/Patrouille-Reichweiten korrekt; Muster-Geometrien exakt (Ring 2 ohne Ring-1-Überlappung, 18-Hex-Strahlen, 6-Hex-Keile); kein Telegraph ohne Ziel; Wurm verteidigt Herz, bleibt nach Tod tot |
 | **M12** | Dynamit (ersetzt Unterminierung, Korrektur Juli 2026) + Moral-Kollaps + Erschließung + Sieg + Events/Countdown oben | Dynamit-Dreieck = exakt 6 DMG pro Hex, wirkt NIE auf tu/wa/tw/p[].sh; letzter Tunnel weg → −1 HP/Zug; Erschließung unterbricht/resettet korrekt; Sieg feuert Win-Check inkl. Team-Logik |
 | **M13** | Integrations-Pass: Recap, Diplomatie, Serialisierung/Blob-Größe, Guide (`darkages_guide.html`), 3-Spieler-Partie | Recap zeigt Tiefen-Aktionen; Verbündeten-Regeln in der Kaverne; Blob-Längen-Check; **Playtest mit Christian & Vincent** |
 
 ## 12. Balance-Flags & offene Fragen (nach Playtest / vor M-Start klären)
 
-- Wurm 30 HP / 8 DMG AoE: mit 4–5 Einheiten schaffbar? Soll er zwischen Kämpfen regenerieren?
+- Wurm 30 HP / 8 DMG AoE (unbedingter Konter beim Angreifen, `resolveUWAttackOnCreature`): mit 4–5 Einheiten schaffbar? Soll er zwischen Kämpfen regenerieren?
+- Runden-Phase + Telegraph (Korrektur Juli 2026): neue DMG-Werte (Spinne 4, Wühler 5, Steinpanzer 6, Wurm 8) + Aggro-/Bewegungswerte reiner Erstentwurf — fühlt sich "genau ein Zug zum Ausweichen" fair an, oder ist das bei mehreren gleichzeitig telegraphierenden Kreaturen (z. B. Spinne + Wühler auf überlappenden Feldern) zu viel Druck pro Runde? Steinpanzer-Erdrutsch/Wurm-Wirbel-Muster (6/12 Hexes) ggf. zu großflächig für die Kartenradien 5/7.
 - Erschließung 4 Runden + Zähler-Reset auf 0: zu hart? Alternative: Reset nur um −1 pro Unterbrechungsrunde.
 - Expeditionsgröße: aktuell nur durch Gold begrenzt — braucht es ein hartes Limit (z. B. max. 6 Einheiten unten)?
 - Moral-Kollaps −1 HP: reicht das als Druck, oder zusätzlich „kein Heilen/Kein Kauf" ohne Tunnel?

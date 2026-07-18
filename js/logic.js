@@ -648,12 +648,14 @@ function resolveUWAttackOnCreature(state, attacker, creature) {
     return result;
 }
 
-// Schwächste angrenzende Spieler-Einheit einer Kreatur — deterministischer
-// Tiebreak (niedrigste HP, dann Position), kein Zufall nötig.
-function findWeakestAdjacentPlayerUnit(x, y) {
-    const candidates = getNeighbors(x, y).map(n => uwUnitAt(n.x, n.y)).filter(Boolean);
+// Nächste Spieler-Einheit einer Kreatur im Radius — deterministischer Tiebreak
+// (Distanz, dann HP, dann Position), kein Zufall nötig.
+function uwNearestPlayerUnit(x, y, radius) {
+    const candidates = ((gameState.uw && gameState.uw.u) || []).filter(u =>
+        hexDistance({ x, y }, { x: u.x, y: u.y }) <= radius);
     if (candidates.length === 0) return null;
-    candidates.sort((a, b) => (a.h - b.h) || (a.x - b.x) || (a.y - b.y));
+    candidates.sort((a, b) =>
+        (hexDistance({ x, y }, a) - hexDistance({ x, y }, b)) || (a.h - b.h) || (a.x - b.x) || (a.y - b.y));
     return candidates[0];
 }
 
@@ -671,119 +673,290 @@ function creatureHitUnit(target, dmg) {
     return false;
 }
 
-// Kreaturen-Zug (M11): deterministisch in doEndTurn (Muster: Brand-Ticks), PRNG
-// aus sd+rn+cp NUR für echte Gleichstands-Tiebreaks (Angriffs-/Bewegungsziel
-// selbst sind bereits vollständig deterministisch über HP/Position/Distanz
-// sortiert — die PRNG kommt nur bei mehreren exakt gleich guten Optionen zum
-// Zug, z. B. mehrere gleich weit entfernte Lärmquellen).
-// Gibt Events zurück (für Recap/Toast in doEndTurn, z. B. Wurm-Tod).
-function processUWCreatureTurn() {
-    if (!gameState.uw || !gameState.uw.c || gameState.uw.c.length === 0) return [];
-    const rng = createPRNG((gameState.sd ^ (gameState.rn * 7919) ^ (gameState.cp * 104729)) | 0);
+// === UNTERWELT-KREATUREN: RUNDEN-PHASE (Korrektur Juli 2026, "Runden-Phase +
+// Telegraph", ersetzt das alte Pro-Zug-Modell) ===
+// Grund: im alten Modell zog jede Kreatur bei JEDEM doEndTurn — bei 6 Spielern
+// wurde eine Einheit so bis zu 6x angegriffen, bevor ihr Besitzer je reagieren
+// konnte. Neues Modell (civ-artige Barbaren-Phase × Into-the-Breach-Telegraph):
+// Kreaturen agieren GENAU 1x pro Runde (beim Rundenwechsel), und jeder
+// bevorstehende Treffer wird eine volle Runde VORHER als Ziel-Hex markiert
+// (c.ap = {p: patternIdx, d: dirIdx}) — jeder Spieler hat also mindestens
+// einen vollen Zug Zeit zum Ausweichen, unabhängig von Spieleranzahl/-reihenfolge.
+//
+// Ablauf pro Aufruf (einmal pro Rundenwechsel, siehe doEndTurn/confirmSurrender):
+//   (a) AUFLÖSUNG: die in der VORRUNDE gesetzten Telegraphen (c.ap) lösen aus —
+//       JEDE Spieler-Einheit auf einem Ziel-Hex nimmt Schaden, unabhängig vom
+//       Besitzer (Kreaturen sind neutral, kein "Verursacher"-Bezug — auch eine
+//       Einheit, die erst NACH dem Telegraph dorthin gezogen ist, wird
+//       getroffen). Kreaturen schaden Kreaturen nicht.
+//   (b) BEWEGUNG: danach ziehen die Kreaturen (Jagd bei vorhandenem Ziel,
+//       sonst Patrouille).
+//   (c) NEUE TELEGRAPHEN: erneuter Ziel-Scan NACH der Bewegung — nur mit Ziel
+//       bekommt die Kreatur ein neues c.ap, sonst wird ihr altes gelöscht
+//       (keine Markierung ohne erkanntes Ziel).
+// PRNG aus sd+rn+festem Salt NUR für echte Gleichstands-Tiebreaks (Bewegungs-
+// ziele sind bereits deterministisch über Distanz/Position sortiert).
+// Gibt { floats, events } zurück (Muster: Brand-Ticks/Moral-Kollaps).
+function uwCreatureRoundPhase() {
+    if (!gameState.uw || !gameState.uw.c || gameState.uw.c.length === 0) return { floats: [], events: [] };
+    const rng = createPRNG((gameState.sd ^ (gameState.rn * 7919) ^ 0x5EED) | 0);
+    const floats = [];
     const events = [];
 
+    // (a) AUFLÖSUNG — jedes Ziel-Hex jeder noch lebenden Kreatur mit Telegraph
+    // trifft JEDE dort stehende Spieler-Einheit (kein Besitzer-Filter).
+    gameState.uw.c.forEach(creature => {
+        if (creature.h <= 0 || !creature.ap) return;
+        const stats = uwCreatureStats[creature.t];
+        getCreatureAttackHexes(gameState, creature).forEach(h => {
+            const target = uwUnitAt(h.x, h.y);
+            if (!target) return; // Kreaturen schaden Kreaturen nicht
+            const killed = creatureHitUnit(target, stats.dmg);
+            floats.push({ x: h.x, y: h.y, val: stats.dmg });
+            events.push({ type: 'creatureAtk', x: h.x, y: h.y, dmg: stats.dmg, killed });
+        });
+    });
+
+    // (b) BEWEGUNG — erst NACH der Auflösung, damit eine Kreatur ihr eigenes,
+    // gerade getroffenes Opfer nicht binnen desselben Aufrufs weiterjagt.
+    gameState.uw.c.forEach(creature => {
+        if (creature.h <= 0) return;
+        moveCreatureForRound(creature, rng);
+    });
+
+    // (c) NEUE TELEGRAPHEN — Ziel-Scan NACH der Bewegung; ohne Ziel keine Marke.
     gameState.uw.c.forEach(creature => {
         if (creature.h <= 0) return;
         const stats = uwCreatureStats[creature.t];
-
-        if (creature.t === UWC_STEINPANZER) {
-            // Bewegt sich NIE, greift nur an, wenn eine Einheit angrenzt.
-            const target = findWeakestAdjacentPlayerUnit(creature.x, creature.y);
-            if (target) {
-                const killed = creatureHitUnit(target, stats.dmg);
-                events.push({ type: 'creatureAtk', x: target.x, y: target.y, dmg: stats.dmg, killed });
-            }
-            return;
-        }
-
-        if (creature.t === UWC_WURM) {
-            // Verlässt die Herzkaverne nie; AoE trifft ALLE angrenzenden Einheiten.
-            getNeighbors(creature.x, creature.y).forEach(n => {
-                const t = uwUnitAt(n.x, n.y);
-                if (!t) return;
-                const killed = creatureHitUnit(t, stats.dmg);
-                events.push({ type: 'creatureAtk', x: t.x, y: t.y, dmg: stats.dmg, killed });
-            });
-            return;
-        }
-
-        if (creature.t === UWC_SPINNE) {
-            const target = findWeakestAdjacentPlayerUnit(creature.x, creature.y);
-            let attacked = false;
-            if (target) {
-                const killed = creatureHitUnit(target, stats.dmg);
-                events.push({ type: 'creatureAtk', x: target.x, y: target.y, dmg: stats.dmg, killed });
-                attacked = true;
-            }
-            // Legt auf ihrem AKTUELLEN Hex ein Netz ab (max. 1 pro Hex — ein
-            // erneutes Ablegen auf demselben Hex ist ein No-Op).
-            if (!gameState.uw.w) gameState.uw.w = {};
-            gameState.uw.w[`${creature.x},${creature.y}`] = 1;
-            // Bewegt sich nur, wenn sie nicht gerade verteidigt hat — bleibt im
-            // Nest-Umkreis 2 (Nest wird aus der aktuellen Position abgeleitet,
-            // nicht gespeichert, siehe getNearestSpiderNest). Meidet Stollenköpfe
-            // wie jede Kreatur.
-            if (!attacked) {
-                const nest = getNearestSpiderNest(gameState, creature.x, creature.y);
-                const options = getNeighbors(creature.x, creature.y).filter(n =>
-                    isUnderworldOpen(gameState, n.x, n.y) &&
-                    !uwUnitAt(n.x, n.y) && !uwCreatureAt(n.x, n.y) &&
-                    !isUnderworldTunnelHead(gameState, n.x, n.y) &&
-                    (!nest || hexDistance({ x: n.x, y: n.y }, nest) <= 2)
-                );
-                if (options.length > 0) {
-                    const pick = options[Math.floor(rng() * options.length)];
-                    creature.x = pick.x; creature.y = pick.y;
-                }
-            }
-            return;
-        }
-
-        if (creature.t === UWC_WUEHLER) {
-            const target = findWeakestAdjacentPlayerUnit(creature.x, creature.y);
-            if (target) {
-                const killed = creatureHitUnit(target, stats.dmg);
-                events.push({ type: 'creatureAtk', x: target.x, y: target.y, dmg: stats.dmg, killed });
-            }
-            // Zieht 1 Hex/Zug auf die nächstgelegene Lärmquelle im Umkreis 4 zu
-            // (uw.n der LETZTEN Runde — von doEndTurn bereits "scharf" geschaltet,
-            // BEVOR die Kreaturen ziehen, siehe Aufrufreihenfolge in input.js).
-            // Ohne Lärm in Reichweite bleibt er stehen.
-            const markers = (gameState.uw.n || []).filter(m => hexDistance({ x: creature.x, y: creature.y }, m) <= 4);
-            if (markers.length > 0) {
-                let bestDist = Infinity, bestMarkers = [];
-                markers.forEach(m => {
-                    const d = hexDistance({ x: creature.x, y: creature.y }, m);
-                    if (d < bestDist) { bestDist = d; bestMarkers = [m]; }
-                    else if (d === bestDist) bestMarkers.push(m);
-                });
-                const chosenMarker = bestMarkers[Math.floor(rng() * bestMarkers.length)];
-                // Gräbt sich selbst durch Fels (uw.d, dauerhaft offen) und nutzt
-                // dabei auch fremde, bereits offene Stollen — Kristalladern umgeht
-                // er (KEINE Zerstörung), Stollenköpfe meidet er wie jede Kreatur.
-                let best = null, bestNeighborD = hexDistance({ x: creature.x, y: creature.y }, chosenMarker);
-                getNeighbors(creature.x, creature.y).forEach(n => {
-                    if (uwUnitAt(n.x, n.y) || uwCreatureAt(n.x, n.y)) return;
-                    if (isUnderworldTunnelHead(gameState, n.x, n.y)) return;
-                    const nType = getUnderworldType(gameState, n.x, n.y);
-                    if (nType === UW_ADER && !isUnderworldOpen(gameState, n.x, n.y)) return; // Adern umgeht er
-                    const d = hexDistance(n, chosenMarker);
-                    if (d < bestNeighborD) { bestNeighborD = d; best = n; }
-                });
-                if (best) {
-                    if (!isUnderworldOpen(gameState, best.x, best.y)) {
-                        if (!gameState.uw.d) gameState.uw.d = [];
-                        const idx = best.y * gameState.bw + best.x;
-                        if (!gameState.uw.d.includes(idx)) gameState.uw.d.push(idx);
-                    }
-                    creature.x = best.x; creature.y = best.y;
-                }
-            }
-        }
+        const target = uwNearestPlayerUnit(creature.x, creature.y, stats.aggro);
+        if (!target) { delete creature.ap; return; }
+        const patternCount = creature.t === UWC_WURM ? 4 : 2;
+        creature.ap = { p: gameState.rn % patternCount, d: bestDirTowards(creature.x, creature.y, target.x, target.y) };
     });
 
     gameState.uw.c = gameState.uw.c.filter(c => c.h > 0);
-    return events;
+    return { floats, events };
+}
+
+// Deterministischer Tiebreak für die Telegraph-Richtung: die Achsenrichtung
+// (0-5, UW_HEX_DIRS-Index), deren Distanz-1-Hex dem Ziel am nächsten liegt;
+// bei Gleichstand gewinnt der kleinste Index (Schleife läuft aufsteigend,
+// strikte < -Prüfung überschreibt frühere Treffer nie).
+function bestDirTowards(x, y, tx, ty) {
+    let bestIdx = 0, bestDist = Infinity;
+    for (let i = 0; i < 6; i++) {
+        const d = hexDistance(uwHexInDirection(x, y, i, 1), { x: tx, y: ty });
+        if (d < bestDist) { bestDist = d; bestIdx = i; }
+    }
+    return bestIdx;
+}
+
+// Öffnet ein Fels-Hex dauerhaft (Muster wie digUWHex, aber ohne Einheiten-
+// Bewegung/Lärm — Kreaturen graben lautlos "im Vorbeigehen").
+function openUWHexPermanently(x, y) {
+    if (!gameState.uw.d) gameState.uw.d = [];
+    const idx = y * gameState.bw + x;
+    if (!gameState.uw.d.includes(idx)) gameState.uw.d.push(idx);
+}
+
+// Ein Bewegungsschritt Richtung `target`: erster Nachbar (nach getNeighbors-
+// Reihenfolge), der die Distanz STRIKT verringert und begehbar ist. Der
+// Wühler (101) darf dabei massiven Fels aufgraben (needsDig=true — der Aufrufer
+// öffnet ihn erst NACH einem erfolgreichen Schritt), Adern mit Restbestand
+// umgeht auch er weiterhin. Der Wurm (103) bricht zusätzlich JEDEN Kandidaten
+// weg, der weiter als sein leash-Wert vom Herzkaverne-Zentrum entfernt läge
+// ("WURM-LEINE" — Jagd-Schritte, die das verletzen würden, entfallen).
+function pickHuntStep(creature, target) {
+    const curDist = hexDistance({ x: creature.x, y: creature.y }, target);
+    const isWurm = creature.t === UWC_WURM;
+    const heartCenter = isWurm ? getHeartCavernHexes(gameState)[0] : null;
+    const leash = isWurm ? uwCreatureStats[UWC_WURM].leash : null;
+    let best = null, bestDist = curDist;
+    getNeighbors(creature.x, creature.y).forEach(n => {
+        if (uwUnitAt(n.x, n.y) || uwCreatureAt(n.x, n.y)) return;
+        if (isUnderworldTunnelHead(gameState, n.x, n.y)) return;
+        if (heartCenter && hexDistance(n, heartCenter) > leash) return;
+        let passable = isUnderworldOpen(gameState, n.x, n.y);
+        let needsDig = false;
+        if (!passable && creature.t === UWC_WUEHLER) {
+            if (getUnderworldType(gameState, n.x, n.y) === UW_ADER) return; // Ader mit Restbestand: umgehen
+            passable = true; needsDig = true;
+        }
+        if (!passable) return;
+        const d = hexDistance(n, target);
+        if (d < bestDist) { bestDist = d; best = { x: n.x, y: n.y, dig: needsDig }; }
+    });
+    return best;
+}
+
+// Ein Patrouille-Schritt (genau 1, kein vorhandenes Ziel) — Verhalten je Typ
+// laut PLAN.md Abschn. 5. Spinne: bleibt im Nest-Umkreis 2. Wühler: zieht auf
+// die nächste Lärmquelle (uw.n, Umkreis 4) zu, gräbt dabei wie im Jagd-Fall.
+// Steinpanzer: nur Schritte, nach denen weiterhin eine Ader mit Restbestand
+// angrenzt (bewacht seinen Posten, sonst steht er). Wurm: außerhalb Distanz 1
+// vom Herzkaverne-Zentrum -> 1 Schritt zurück; sonst 1 Schritt auf das nächste
+// freie Ring-1-Hex in der festen (deterministischen) Reihenfolge von
+// hexRingAround ("im Uhrzeigersinn").
+function movePatrolStep(creature, rng) {
+    if (creature.t === UWC_SPINNE) {
+        const nest = getNearestSpiderNest(gameState, creature.x, creature.y);
+        const options = getNeighbors(creature.x, creature.y).filter(n =>
+            isUnderworldOpen(gameState, n.x, n.y) &&
+            !uwUnitAt(n.x, n.y) && !uwCreatureAt(n.x, n.y) &&
+            !isUnderworldTunnelHead(gameState, n.x, n.y) &&
+            (!nest || hexDistance({ x: n.x, y: n.y }, nest) <= 2)
+        );
+        if (options.length > 0) {
+            const pick = options[Math.floor(rng() * options.length)];
+            creature.x = pick.x; creature.y = pick.y;
+        }
+        return;
+    }
+
+    if (creature.t === UWC_WUEHLER) {
+        const markers = (gameState.uw.n || []).filter(m => hexDistance({ x: creature.x, y: creature.y }, m) <= 4);
+        if (markers.length === 0) return;
+        let bestDist = Infinity, bestMarkers = [];
+        markers.forEach(m => {
+            const d = hexDistance({ x: creature.x, y: creature.y }, m);
+            if (d < bestDist) { bestDist = d; bestMarkers = [m]; }
+            else if (d === bestDist) bestMarkers.push(m);
+        });
+        const chosenMarker = bestMarkers[Math.floor(rng() * bestMarkers.length)];
+        let best = null, bestNeighborD = hexDistance({ x: creature.x, y: creature.y }, chosenMarker);
+        getNeighbors(creature.x, creature.y).forEach(n => {
+            if (uwUnitAt(n.x, n.y) || uwCreatureAt(n.x, n.y)) return;
+            if (isUnderworldTunnelHead(gameState, n.x, n.y)) return;
+            if (getUnderworldType(gameState, n.x, n.y) === UW_ADER && !isUnderworldOpen(gameState, n.x, n.y)) return;
+            const d = hexDistance(n, chosenMarker);
+            if (d < bestNeighborD) { bestNeighborD = d; best = n; }
+        });
+        if (best) {
+            openUWHexPermanently(best.x, best.y);
+            creature.x = best.x; creature.y = best.y;
+        }
+        return;
+    }
+
+    if (creature.t === UWC_STEINPANZER) {
+        const options = getNeighbors(creature.x, creature.y).filter(n =>
+            isUnderworldOpen(gameState, n.x, n.y) && !uwUnitAt(n.x, n.y) && !uwCreatureAt(n.x, n.y) &&
+            !isUnderworldTunnelHead(gameState, n.x, n.y) &&
+            getNeighbors(n.x, n.y).some(nn => getUWVeinRemaining(gameState, nn.x, nn.y) > 0));
+        if (options.length > 0) {
+            const pick = options[Math.floor(rng() * options.length)];
+            creature.x = pick.x; creature.y = pick.y;
+        }
+        return;
+    }
+
+    if (creature.t === UWC_WURM) {
+        const center = getHeartCavernHexes(gameState)[0];
+        const distToCenter = hexDistance({ x: creature.x, y: creature.y }, center);
+        if (distToCenter > 1) {
+            let best = null, bestD = distToCenter;
+            getNeighbors(creature.x, creature.y).forEach(n => {
+                if (!isUnderworldOpen(gameState, n.x, n.y) || uwUnitAt(n.x, n.y) || uwCreatureAt(n.x, n.y)) return;
+                const d = hexDistance(n, center);
+                if (d < bestD) { bestD = d; best = n; }
+            });
+            if (best) { creature.x = best.x; creature.y = best.y; }
+        } else {
+            const ring = hexRingAround(center, 1);
+            const curIdx = ring.findIndex(h => h.x === creature.x && h.y === creature.y);
+            for (let step = 1; step <= ring.length; step++) {
+                const cand = ring[(curIdx + step + ring.length) % ring.length];
+                if (!isUnderworldOpen(gameState, cand.x, cand.y)) continue;
+                if (uwUnitAt(cand.x, cand.y) || uwCreatureAt(cand.x, cand.y)) continue;
+                creature.x = cand.x; creature.y = cand.y;
+                break;
+            }
+        }
+    }
+}
+
+// Bewegung EINER Kreatur für die aktuelle Runde: Jagd (Ziel vorhanden, bis zu
+// huntMove Schritte, stoppt bei Distanz 1 — nie AUF die Zieleinheit) oder
+// Patrouille (kein Ziel, genau 1 Schritt, patrolMove ist für alle Kreaturen
+// aktuell 1). Die Spinne legt danach IMMER (Jagd wie Patrouille) ein Netz auf
+// ihrem aktuellen Hex ab (max. 1x pro Hex — erneutes Ablegen ist ein No-Op).
+function moveCreatureForRound(creature, rng) {
+    const stats = uwCreatureStats[creature.t];
+    const target = uwNearestPlayerUnit(creature.x, creature.y, stats.aggro);
+
+    if (target) {
+        for (let step = 0; step < stats.huntMove; step++) {
+            if (hexDistance({ x: creature.x, y: creature.y }, target) <= 1) break;
+            const next = pickHuntStep(creature, target);
+            if (!next) break;
+            if (next.dig) openUWHexPermanently(next.x, next.y);
+            creature.x = next.x; creature.y = next.y;
+        }
+    } else {
+        movePatrolStep(creature, rng);
+    }
+
+    if (creature.t === UWC_SPINNE) {
+        if (!gameState.uw.w) gameState.uw.w = {};
+        gameState.uw.w[`${creature.x},${creature.y}`] = 1;
+    }
+}
+
+// === UNTERWELT-KREATUREN: ANGRIFFSMUSTER-GEOMETRIE (rein, keine State-Mutation) ===
+// Leitet die aktuellen Ziel-Hexes EINER Kreatur aus ihrem Telegraph (c.ap) ab —
+// Telegraph-Hexes werden nie gespeichert (s. State-Kommentar in js/input.js),
+// sondern immer aus (Position, ap) neu berechnet; Kreaturen bewegen sich
+// während einer Runde nicht, daher driftet nichts. Ohne c.ap: leeres Array.
+// Alle Ergebnisse werden auf isInsideMap gefiltert (Kartenrand).
+function getCreatureAttackHexes(state, creature) {
+    if (!creature.ap) return [];
+    const { p, d } = creature.ap;
+    const cx = creature.x, cy = creature.y;
+    let hexes = [];
+
+    if (creature.t === UWC_SPINNE) {
+        if (p === 0) {
+            // "Sprungbiss": Linie 2 in Richtung d.
+            hexes = [uwHexInDirection(cx, cy, d, 1), uwHexInDirection(cx, cy, d, 2)];
+        } else {
+            // "Umklammern": Distanz-1-Hex in d + dessen 2 gemeinsame Nachbarn mit der Spinne.
+            const t = uwHexInDirection(cx, cy, d, 1);
+            hexes = getDynamiteTriangle(cx, cy, t.x, t.y);
+        }
+    } else if (creature.t === UWC_WUEHLER) {
+        if (p === 0) {
+            // "Grabstoß": Linie 3 in Richtung d.
+            hexes = [1, 2, 3].map(dist => uwHexInDirection(cx, cy, d, dist));
+        } else {
+            // "Beben": Ring 1 (alle 6 Nachbarn).
+            hexes = hexRingAround({ x: cx, y: cy }, 1);
+        }
+    } else if (creature.t === UWC_STEINPANZER) {
+        if (p === 0) {
+            // "Felsschlag": Ring 1.
+            hexes = hexRingAround({ x: cx, y: cy }, 1);
+        } else {
+            // "Erdrutsch": 120°-Keil bis Distanz 2 in Richtung d.
+            hexes = getWedgeHexes(cx, cy, d);
+        }
+    } else if (creature.t === UWC_WURM) {
+        if (p === 0) {
+            hexes = hexRingAround({ x: cx, y: cy }, 1);
+        } else if (p === 1) {
+            // NUR Ring 2 — Ring 1 bleibt sicher.
+            hexes = hexRingAround({ x: cx, y: cy }, 2);
+        } else if (p === 2) {
+            // 6 Strahlen à 3 Felder (alle 6 Achsen, Distanz 1-3).
+            for (let dirIdx = 0; dirIdx < 6; dirIdx++) {
+                for (let dist = 1; dist <= 3; dist++) hexes.push(uwHexInDirection(cx, cy, dirIdx, dist));
+            }
+        } else {
+            // "Wirbel": zwei gegenüberliegende Erdrutsch-Keile in d und (d+3)%6.
+            hexes = getWedgeHexes(cx, cy, d).concat(getWedgeHexes(cx, cy, (d + 3) % 6));
+        }
+    }
+
+    return hexes.filter(h => isInsideMap(state, h.x, h.y));
 }
 
 // === UNTERWELT-SICHT & -GEHÖR (M9b) ===

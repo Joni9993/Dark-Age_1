@@ -99,11 +99,20 @@ const RELICS = {
 // gejagt würde. Kreaturen gehören keinem Spieler (uw.c[] = {t, x, y, h}, kein p/a).
 // Reichweite ist für alle fix 1 (reiner Nahkampf), daher kein range-Feld nötig.
 const UWC_SPINNE = 100, UWC_WUEHLER = 101, UWC_STEINPANZER = 102, UWC_WURM = 103;
+// Balance-Erstentwurf (Playtest-Vorbehalt, PLAN.md Abschn. 5/12 — "Runden-Phase +
+// Telegraph", Korrektur Juli 2026): aggro = Radius, in dem uwNearestPlayerUnit
+// ein Ziel findet ("hört Erschütterungen"); huntMove = Schritte/Runde MIT Ziel
+// (Jagd, uwCreatureRoundPhase); patrolMove = Schritte/Runde OHNE Ziel
+// (Patrouille, aktuell einheitlich 1 für alle Kreaturen); leash (nur Wurm) =
+// maximale Distanz zum Herzkaverne-Zentrum, die die Jagd nie überschreitet.
 const uwCreatureStats = {
-    [UWC_SPINNE]: { name: "Höhlenspinne", hp: 6, dmg: 3, sprite: 'uw_spinne' },
-    [UWC_WUEHLER]: { name: "Blindwühler", hp: 12, dmg: 5, sprite: 'uw_wuehler' },
-    [UWC_STEINPANZER]: { name: "Steinpanzer", hp: 28, dmg: 2, sprite: 'uw_steinpanzer' },
+    [UWC_SPINNE]: { name: "Höhlenspinne", hp: 6, dmg: 4, sprite: 'uw_spinne', aggro: 3, huntMove: 2, patrolMove: 1 },
+    [UWC_WUEHLER]: { name: "Blindwühler", hp: 12, dmg: 5, sprite: 'uw_wuehler', aggro: 5, huntMove: 2, patrolMove: 1 },
+    // Steinpanzer ist mit seiner großen AoE ("Erdrutsch") bewusst langsam (huntMove 1).
+    [UWC_STEINPANZER]: { name: "Steinpanzer", hp: 28, dmg: 6, sprite: 'uw_steinpanzer', aggro: 3, huntMove: 1, patrolMove: 1 },
     // Der Alte Wurm: AoE (trifft ALLE Angreifer in RW 1) + unbedingter Konter,
-    // siehe processUWCreatureTurn/resolveUWAttackOnCreature (js/logic.js).
-    [UWC_WURM]: { name: "Der Alte Wurm", hp: 30, dmg: 8, sprite: 'uw_wurm' }
+    // siehe resolveUWAttackOnCreature (js/logic.js); Telegraph-Muster/Bewegung
+    // in uwCreatureRoundPhase. leash: verlässt die Umgebung der Herzkaverne nie
+    // weiter als 3 Hexes, auch nicht auf der Jagd.
+    [UWC_WURM]: { name: "Der Alte Wurm", hp: 30, dmg: 8, sprite: 'uw_wurm', aggro: 3, huntMove: 2, patrolMove: 1, leash: 3 }
 };

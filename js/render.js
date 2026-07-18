@@ -454,6 +454,22 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
         ctx.fillText(ping.exact ? '🎯' : '👂', center.px, center.py - 14);
     }
 
+    // Telegraphierte Kreaturen-Angriffe (Korrektur Juli 2026, "Runden-Phase +
+    // Telegraph"): sichtbar sobald das Hex im eigenen Netz liegt (uwVis, s.o.),
+    // UNABHÄNGIG von der Umkreis-2-Kreaturen-Sichtregel — die Markierung IST der
+    // Fairness-Kern des Systems ("jeder hat genau einen Zug zum Ausweichen"),
+    // die Kreatur dahinter darf verborgen bleiben (gruselig ist gewollt). Eigene
+    // Farbe/Icon-Kombi (dunkles Rot-Overlay + 🎯), nicht mit den grün/braun/
+    // orange/hellrot-halbtransparenten uwValid*-Auswahl-Highlights verwechselbar.
+    const telegraph = (gameState.uw && gameState.uw.c || []).find(c =>
+        c.h > 0 && c.ap && getCreatureAttackHexes(gameState, c).some(h => h.x === x && h.y === y));
+    if (telegraph) {
+        drawHexPath(center.px, center.py);
+        ctx.fillStyle = "rgba(183, 28, 28, 0.5)"; ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('🎯', center.px, center.py + 4);
+    }
+
     if (window.selectedUnderworldHex && window.selectedUnderworldHex.x === x && window.selectedUnderworldHex.y === y) {
         drawHexPath(center.px, center.py);
         ctx.fillStyle = "rgba(192, 132, 252, 0.35)"; ctx.fill();

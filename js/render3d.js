@@ -1404,6 +1404,24 @@
             // Gehör (Minimal-Implementierung, PLAN.md Abschn. 3+9): Horcher-Ortung
             // (exact=true) heller/größer als die Richtungs-Näherung am Netzrand.
             getUWNoisePings(state.cp).forEach(p => addOverlay(p.x, p.y, p.exact ? 0xff5252 : 0xffb300, p.exact ? 0.65 : 0.5, state, true));
+
+            // Telegraphierte Kreaturen-Angriffe (Korrektur Juli 2026, "Runden-Phase +
+            // Telegraph"): sichtbar sobald das Hex im eigenen Netz liegt (uwVis),
+            // UNABHÄNGIG von der Umkreis-2-Kreaturen-Sichtregel (isUWCreatureVisible)
+            // — die Markierung selbst ist der Fairness-Kern des Systems ("jeder hat
+            // genau einen Zug zum Ausweichen"), die Kreatur dahinter darf verborgen
+            // bleiben (gruselig ist gewollt). Eigene Farbe (dunkles Rot, underside-
+            // Overlay) + 🎯-Icon, nicht mit den grünen/roten uwValid*-Auswahl-
+            // Overlays (validMoves/validAttacks o.ä.) verwechselbar.
+            (state.uw && state.uw.c || []).forEach(c => {
+                if (c.h <= 0 || !c.ap) return;
+                getCreatureAttackHexes(state, c).forEach(h => {
+                    if (!uwVis.has(`${h.x},${h.y}`)) return;
+                    addOverlay(h.x, h.y, 0xb71c1c, 0.5, state, true);
+                    const { wx: twx, wz: twz } = worldPos(h.x, h.y);
+                    addIcon('🎯', '#ffffff', twx, twz, -underworldDepth(uwVisualType(state, h.x, h.y)) - 8, 12);
+                });
+            });
         } // surfaceVisible
 
         // Nicht genutzte Instanzen "parken"

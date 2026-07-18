@@ -132,6 +132,37 @@ function hexRingAround(center, radius) {
     return out;
 }
 
+// Einzelnes Hex in einer der 6 Kubik-Achsenrichtungen, exakte Distanz `dist`
+// (Korrektur Juli 2026, "Runden-Phase + Telegraph" — PLAN.md Abschn. 5):
+// Basis-Baustein für die Kreaturen-Angriffsmuster (getCreatureAttackHexes,
+// js/logic.js), die Linien/Strahlen entlang einer festen Achse brauchen.
+function uwHexInDirection(x, y, dirIdx, dist) {
+    const c = oddRToCube(x, y);
+    const d = UW_HEX_DIRS[dirIdx];
+    return cubeToOddR({ x: c.x + d.x * dist, y: c.y + d.y * dist, z: c.z + d.z * dist });
+}
+
+// 120°-Keil bis Distanz 2 um `dirIdx` (6 Hexes): die drei Distanz-1-Hexes der
+// Richtungen d-1/d/d+1 (mod 6) + das Distanz-2-Hex geradeaus in d + die beiden
+// "diagonalen" Distanz-2-Hexes, die die Kubik-Summe aus d@1 und (d±1)@1 bilden
+// (die zwei äußeren Ecken des Keils). Verwendet vom Steinpanzer-Muster
+// "Erdrutsch" und dem Wurm-Muster "Wirbel" (zwei gegenüberliegende Keile),
+// siehe getCreatureAttackHexes in js/logic.js.
+function getWedgeHexes(cx, cy, dirIdx) {
+    const dMinus = (dirIdx + 5) % 6, dPlus = (dirIdx + 1) % 6;
+    const hexes = [
+        uwHexInDirection(cx, cy, dMinus, 1),
+        uwHexInDirection(cx, cy, dirIdx, 1),
+        uwHexInDirection(cx, cy, dPlus, 1),
+        uwHexInDirection(cx, cy, dirIdx, 2),
+    ];
+    const c = oddRToCube(cx, cy);
+    const dD = UW_HEX_DIRS[dirIdx], dP = UW_HEX_DIRS[dPlus], dM = UW_HEX_DIRS[dMinus];
+    hexes.push(cubeToOddR({ x: c.x + dD.x + dP.x, y: c.y + dD.y + dP.y, z: c.z + dD.z + dP.z }));
+    hexes.push(cubeToOddR({ x: c.x + dD.x + dM.x, y: c.y + dD.y + dM.y, z: c.z + dD.z + dM.z }));
+    return hexes;
+}
+
 // Herzkaverne: fix unter dem Kartenzentrum — dasselbe Hex wie `ct` in
 // js/mapgen.js ({x: radius, y: radius}). Größe an die Kartengröße angepasst:
 // Radius 5 → Zentrum + Ring 1 (7 Hexes); größere Karten zusätzlich einzelne
@@ -322,7 +353,7 @@ function getSteinpanzerPocketSet(state) {
 // Herzkaverne — die gehört dem Wurm). Korrektur Juli 2026: früher spawnte er
 // mitten im massiven Fels und schien dadurch "auf dem Gebirge" zu stehen; er
 // gräbt sich von seiner offenen Tasche aus ohnehin selbst weiter
-// (processUWCreatureTurn, js/logic.js).
+// (uwCreatureRoundPhase, js/logic.js).
 const _wuehlerCache = {};
 function getWuehlerSpawnHexes(state) {
     const key = `${state.sd}|${state.bw}|${state.bh}|${state.rad}`;
