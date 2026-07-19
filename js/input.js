@@ -1770,7 +1770,7 @@ function confirmSurrender() {
     if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(u => u.p !== surrenderingId);
 
     Object.keys(gameState.v).forEach(k => {
-        if (gameState.v[k] === surrenderingId) delete gameState.v[k];
+        if (gameState.v[k] === surrenderingId) gameState.v[k] = -1;
     });
 
     // Siehe doEndTurn: uw.n wird durch die Marker des gerade beendeten (hier:
