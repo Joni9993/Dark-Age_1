@@ -1286,7 +1286,7 @@ function confirmSurrender() {
     gameState.u = gameState.u.filter(u => u.p !== surrenderingId);
 
     Object.keys(gameState.v).forEach(k => {
-        if (gameState.v[k] === surrenderingId) delete gameState.v[k];
+        if (gameState.v[k] === surrenderingId) gameState.v[k] = -1;
     });
 
     gameState.la = turnActions;
