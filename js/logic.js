@@ -379,6 +379,40 @@ function calculateMovesUW(unit) {
     return moves;
 }
 
+// Horcher-Sprung (21, Spionage — Korrektur Juli 2026, ersetzt die permanente
+// Tarnung, die zu stark war): exakt 2 Hex weit, komplett unabhängig vom BFS-
+// Pfad/Fels/Weg dazwischen (hexRingAround, js/hex.js) — der Witz der Fähigkeit
+// ist gerade, dass sie massiven Fels/unbekannte Lücken ÜBERSPRINGT, statt sich
+// durchzugraben. Das Ziel-Hex selbst muss trotzdem bereits offen und frei sein
+// (keine Einheit/Kreatur darauf) — kein Sprung in massiven Fels oder auf ein
+// besetztes Hex.
+function calculateHorcherJumpTargetsUW(unit) {
+    if (unit.t !== 21) return [];
+    return hexRingAround({ x: unit.x, y: unit.y }, 2).filter(n =>
+        isInsideMap(gameState, n.x, n.y) &&
+        isUnderworldOpen(gameState, n.x, n.y) &&
+        !uwUnitAt(n.x, n.y) && !uwCreatureAt(n.x, n.y)
+    );
+}
+
+// Führt den Sprung aus — gleiche Nebeneffekte wie eine normale Bewegung
+// (Spinnennetz am Ziel verbraucht sich, Fundkammer wird geplündert, herrenlose
+// Kristalle werden aufgesammelt, siehe moveUWUnit), aber als vollständige
+// Fähigkeit (a=1, kein Bewegen+Agieren-Zwischenzustand wie bei a=2) — Muster
+// wie placeUWDynamite/collapseUWHex.
+function jumpUWUnit(state, unit, x, y) {
+    unit.x = x; unit.y = y;
+    unit.a = 1;
+    const webKey = `${x},${y}`;
+    if (state.uw && state.uw.w && state.uw.w[webKey]) delete state.uw.w[webKey];
+    let loot = null;
+    if (isFundkammerHex(state, x, y)) {
+        loot = lootFundkammer(state, unit.p, unit, x, y);
+    }
+    const picked = pickupUWCrystalDrop(state, unit);
+    return { loot, picked };
+}
+
 // Angrenzende FELS-Hexes, die noch nicht offen sind — ein Klick darauf gräbt UND
 // rückt die Einheit nach (siehe executeUWDig in input.js). Kaverne/Ruine/Herz
 // sind schon offen (keine Grab-Ziele), Kristalladern laufen über calculateMineTargetsUW.
@@ -441,12 +475,15 @@ function collapseUWHex(state, unit, x, y) {
 // Dynamit wirkt daher ausschließlich innerhalb der Unterwelt (Fels/Einheiten/
 // Kreaturen), nie auf Oberflächen-Strukturen (Tunnel/Mauern/Türme/Startdörfer).
 //
-// Ziel-Hexes: angrenzendes, noch massives FELS-Hex (identisches Muster wie
-// calculateDigsUW) — "im Gebirge platzieren".
+// Ziel-Hexes: JEDES angrenzende Hex, unabhängig von Typ/Offen-Zustand (Korrektur
+// Juli 2026, Jonathan — vorher nur angrenzendes massives Fels-Hex): der
+// Sprengmeister kann Dynamit also auch in bereits offenen Gängen/Kavernen legen,
+// um dort stehende Einheiten/Kreaturen zu treffen, ohne dass Fels im Weg sein
+// muss. Das Öffnen von massivem Fels bleibt ein Nebeneffekt für Fels-Hexes im
+// Dreieck (processUWDynamiteDetonations), Kristaladern bleiben davon ausgenommen.
 function calculateDynamiteTargetsUW(unit) {
     if (unit.t !== 18) return [];
-    return getNeighbors(unit.x, unit.y).filter(n =>
-        getUnderworldType(gameState, n.x, n.y) === UW_FELS && !isUnderworldOpen(gameState, n.x, n.y));
+    return getNeighbors(unit.x, unit.y);
 }
 
 // Das Dreieck aus 3 Hexes einer Dynamit-Platzierung: das Ziel-Hex selbst + seine
@@ -489,13 +526,15 @@ function processUWDynamiteDetonations(pId) {
             if (victimUnit) { victimUnit.h -= 6; floats.push({ x: h.x, y: h.y, val: 6 }); }
             const victimCreature = uwCreatureAt(h.x, h.y);
             if (victimCreature) { victimCreature.h -= 6; floats.push({ x: h.x, y: h.y, val: 6 }); }
-            // Jedes noch geschlossene Hex im Dreieck wird dauerhaft offen — Fels
-            // ("Gebirge wegsprengen") ebenso wie eine noch unangebrochene Ader, die
-            // dabei zerstört statt sauber abgebaut wird (uw.a-Eintrag verfällt).
-            if (!isUnderworldOpen(gameState, h.x, h.y)) {
+            // Jedes noch geschlossene FELS-Hex im Dreieck wird dauerhaft offen
+            // ("Gebirge wegsprengen") — Kristaladern sind davon ausgenommen (Korrektur
+            // Juli 2026, Jonathan): Dynamit darf keine Ader öffnen/zerstören, die
+            // verschwindet ausschließlich durch vollständigen Abbau (Restbestand auf
+            // 0). Eine Ader im Dreieck nimmt weiterhin AoE-Schaden auf eine dort
+            // stehende Einheit/Kreatur, bleibt aber massiv und unangetastet.
+            if (getUnderworldType(gameState, h.x, h.y) !== UW_ADER && !isUnderworldOpen(gameState, h.x, h.y)) {
                 const idx = h.y * gameState.bw + h.x;
                 if (!gameState.uw.d.includes(idx)) gameState.uw.d.push(idx);
-                if (gameState.uw.a) delete gameState.uw.a[`${h.x},${h.y}`];
             }
         });
     });
@@ -550,8 +589,7 @@ function calculateAttacksUW(unit) {
 }
 
 // Unterwelt-Pendant zu getExpectedDamage: Plünderer-Nahkampf-Passiv, Veteranen-
-// Bonus, Reliquie (Klinge), HP-Skalierung wie oben — zusätzlich die Engstellen-
-// Schildstellung (Grubenwache 17 / Grubenritter 19 erleiden dort -1, min. 1).
+// Bonus, Reliquie (Klinge), HP-Skalierung wie oben.
 function getExpectedDamageUW(attackerUnit, targetUnit) {
     const pState = gameState.p[attackerUnit.p];
     const stats = unitStats[attackerUnit.t];
@@ -562,12 +600,20 @@ function getExpectedDamageUW(attackerUnit, targetUnit) {
     dmg += getVeteranBonus(attackerUnit);
 
     const maxHp = getUnitMaxHp(pState, attackerUnit.t, attackerUnit);
-    let scaled = Math.max(1, Math.round(dmg * (attackerUnit.h / maxHp)));
+    return Math.max(1, Math.round(dmg * (attackerUnit.h / maxHp)));
+}
 
-    if ((targetUnit.t === 17 || targetUnit.t === 19) && isChokepoint(gameState, targetUnit.x, targetUnit.y)) {
-        scaled = Math.max(1, scaled - 1);
+// Grubenritter (19): Sturmangriff — nach einem Kill (Einheit ODER Kreatur) darf
+// er sich noch einmal frisch bewegen + angreifen (a zurück auf 0, wie ein neuer
+// Zug), aber nur einmal pro eigenem Zug — attacker.sm sperrt danach jede weitere
+// Auslösung, auch wenn der Bonus-Angriff selbst wieder tötet (keine Kill-Ketten).
+// sm ist rein transient (wie br/ld bei Oberflächen-Einheiten) und wird beim
+// nächsten a-Reset in doEndTurn mitgelöscht.
+function maybeTriggerSturmangriff(attacker) {
+    if (attacker.t === 19 && !attacker.sm) {
+        attacker.a = 0;
+        attacker.sm = 1;
     }
-    return scaled;
 }
 
 // Führt einen einzelnen Unterwelt-Angriff INSTANT aus — keine 600ms-Verzögerung,
@@ -612,20 +658,22 @@ function resolveUWAttack(state, attacker, target) {
         const picked = pickupUWCrystalDrop(state, attacker);
         if (picked > 0) result.stolenCrystals = (result.stolenCrystals || 0) + picked;
     }
+    maybeTriggerSturmangriff(attacker);
     return result;
 }
 
 // === UNTERWELT-KREATUREN: KAMPF (M11, PLAN.md Abschn. 5) ===
 // Unterwelt-Pendant zu resolveUWAttack, aber gegen ein uw.c[]-Ziel statt eine
-// Spieler-Einheit: Kreaturen kontern normal (nur wenn sie den Treffer über-
-// leben), der Alte Wurm IMMER (unbedingter Konter, "wer ihn angreift, erleidet
-// SOFORT 8 DMG zurück" — auch bei einem tödlichen Treffer). Kreaturen-Kills
-// zählen für Veteranenstatus UND geben dem Beutegräber (20) zusätzlich +1 Gold
-// (Roster-Passiv "Kopfgeld-Upgrade greift auf Kreaturen", PLAN Abschn. 4).
-// Wie resolveUWAttack: aus a=0 ODER a=2 nutzbar, verbraucht die Aktion (a=1,
-// Oberflächen-Parität, Korrektur Juli 2026).
+// Spieler-Einheit: Kreaturen kontern NIE, wenn der Spieler sie im eigenen Zug
+// angreift (retDmg bleibt immer 0) — auch der Alte Wurm nicht mehr. Ihre festen
+// Angriffsmuster (creatureHitUnit, uwCreatureRoundPhase) bleiben unverändert;
+// nur der reaktive Gegenschlag auf einen Spieler-Angriff ist deaktiviert
+// (Korrektur Juli 2026). Kreaturen-Kills zählen für Veteranenstatus UND geben
+// dem Beutegräber (20) zusätzlich +1 Gold (Roster-Passiv "Kopfgeld-Upgrade
+// greift auf Kreaturen", PLAN Abschn. 4). Wie resolveUWAttack: aus a=0 ODER
+// a=2 nutzbar, verbraucht die Aktion (a=1, Oberflächen-Parität, Korrektur
+// Juli 2026).
 function resolveUWAttackOnCreature(state, attacker, creature) {
-    const cStats = uwCreatureStats[creature.t];
     // getExpectedDamageUW liest vom "Ziel" nur targetUnit.t/x/y (Engstellen-Check
     // für 17/19) — Kreaturen-Typ-IDs (100+) treffen diesen Zweig nie, die Funktion
     // ist also gefahrlos auch gegen Kreaturen wiederverwendbar.
@@ -635,7 +683,6 @@ function resolveUWAttackOnCreature(state, attacker, creature) {
     const result = { finalDmg, killed: false, retDmg: 0, bonusGold: 0, wormDied: false };
 
     const isWurm = creature.t === UWC_WURM;
-    if (isWurm || creature.h > 0) result.retDmg = cStats.dmg;
 
     if (creature.h <= 0) {
         result.killed = true;
@@ -655,6 +702,7 @@ function resolveUWAttackOnCreature(state, attacker, creature) {
             attacker.x = creature.x; attacker.y = creature.y;
             pickupUWCrystalDrop(state, attacker); // falls dort zufällig ein Kristallhaufen liegt
         }
+        maybeTriggerSturmangriff(attacker);
     }
     return result;
 }
@@ -715,11 +763,15 @@ function uwCreatureRoundPhase() {
     const events = [];
 
     // (a) AUFLÖSUNG — jedes Ziel-Hex jeder noch lebenden Kreatur mit Telegraph
-    // trifft JEDE dort stehende Spieler-Einheit (kein Besitzer-Filter).
+    // trifft JEDE dort stehende Spieler-Einheit (kein Besitzer-Filter). Jeder
+    // Treffer-Hex macht Lärm (addUWNoise), unabhängig davon, ob dort gerade
+    // wirklich eine Einheit stand — die Kreatur schlägt hörbar zu (Gehör,
+    // Korrektur Juli 2026, gleiche Regel wie Dynamit/Stollenbruch oben).
     gameState.uw.c.forEach(creature => {
         if (creature.h <= 0 || !creature.ap) return;
         const stats = uwCreatureStats[creature.t];
-        getCreatureAttackHexes(gameState, creature).forEach(h => {
+        getOpenCreatureAttackHexes(gameState, creature).forEach(h => {
+            addUWNoise(h.x, h.y, 'creature_attack');
             const target = uwUnitAt(h.x, h.y);
             if (!target) return; // Kreaturen schaden Kreaturen nicht
             const killed = creatureHitUnit(target, stats.dmg);
@@ -729,10 +781,16 @@ function uwCreatureRoundPhase() {
     });
 
     // (b) BEWEGUNG — erst NACH der Auflösung, damit eine Kreatur ihr eigenes,
-    // gerade getroffenes Opfer nicht binnen desselben Aufrufs weiterjagt.
+    // gerade getroffenes Opfer nicht binnen desselben Aufrufs weiterjagt. Jeder
+    // tatsächliche Ortswechsel macht ebenfalls Lärm (herumlaufende Kreaturen
+    // sind hörbar, Gehör-Ausbau Korrektur Juli 2026) — kein Ping, wenn die
+    // Kreatur diese Runde gar nicht von der Stelle kam (z.B. Steinpanzer ohne
+    // gültigen Schritt).
     gameState.uw.c.forEach(creature => {
         if (creature.h <= 0) return;
+        const fromX = creature.x, fromY = creature.y;
         moveCreatureForRound(creature, rng);
+        if (creature.x !== fromX || creature.y !== fromY) addUWNoise(creature.x, creature.y, 'creature_move');
     });
 
     // (c) NEUE TELEGRAPHEN — Ziel-Scan NACH der Bewegung; ohne Ziel keine Marke.
@@ -970,6 +1028,17 @@ function getCreatureAttackHexes(state, creature) {
     return hexes.filter(h => isInsideMap(state, h.x, h.y));
 }
 
+// Wie getCreatureAttackHexes, aber auf tatsächlich OFFENE Hexes eingeschränkt
+// (Korrektur Juli 2026, Jonathan): ein noch ungegrabenes Fels-Hex kann ohnehin
+// nie eine Einheit tragen, darf also nie Teil des tatsächlichen Treffer-/
+// Anzeige-Musters sein — sonst wirkte es, als schlage die Kreatur durch die
+// Wand hindurch auf eine dahinterliegende offene Tasche. Getrennt von der
+// reinen Geometrie-Funktion oben, damit deren Muster-Form weiterhin isoliert
+// vom Terrain testbar bleibt (maptest M11, Abschnitt "Pattern-Geometrien").
+function getOpenCreatureAttackHexes(state, creature) {
+    return getCreatureAttackHexes(state, creature).filter(h => isUnderworldOpen(state, h.x, h.y));
+}
+
 // === UNTERWELT-SICHT & -GEHÖR (M9b) ===
 // Netz-Geometrie persistent in p[].ue (compressFog-Muster wie p[].e), analog
 // getVisibleHexes/updateExploration oben — plus SICHTWEITE 1 (Korrektur Juli
@@ -1031,9 +1100,11 @@ function uwOwnUnits(playerId) {
 // Bewegliches (fremde Einheiten) ist nur im Umkreis 2 eigener (oder verbündeter,
 // M13 — Bündnisse teilen wie an der Oberfläche die volle Sicht) Tiefeneinheiten
 // sichtbar, unabhängig von der persistenten Netz-Geometrie — bekannte Gänge
-// können jederzeit Hinterhalte enthalten (PLAN.md Abschn. 3). Horcher (21,
-// M10): passiv unsichtbar (iv=1, siehe doEndTurn/executeUWAttack) — wie die
-// Assassine oben gilt das UNABHÄNGIG vom Umkreis, nur der eigene Besitzer sieht ihn.
+// können jederzeit Hinterhalte enthalten (PLAN.md Abschn. 3). `iv` (aktive,
+// zeitlich befristete Tarnung wie bei der Assassine oben) macht eine Einheit
+// UNABHÄNGIG vom Umkreis unsichtbar, nur der eigene Besitzer sieht sie — der
+// Horcher (21) hat seit Korrektur Juli 2026 KEINE permanente Tarnung mehr
+// (war zu stark), stattdessen die aktive Sprung-Fähigkeit (s. calculateHorcherJumpTargetsUW).
 // Verbündete Einheiten selbst sind immer sichtbar (keine Umkreis-Beschränkung
 // unter Bündnispartnern, exakt wie Oberflächen-Verbündete stets sichtbar sind).
 function isUWUnitVisible(playerId, unit) {
@@ -1116,6 +1187,10 @@ function updateUWExploration() {
 function moveUWUnit(state, unit, x, y) {
     unit.x = x; unit.y = y;
     unit.a = 2;
+    // mv = "hat sich diesen Zug bewegt" (transient, wie sm/br) — die Grubenwache
+    // (17) heilt am Rundenende nur, wenn sie NICHT bewegt wurde; Angreifen allein
+    // ist erlaubt (PLAN.md Abschn. 4, Korrektur Juli 2026).
+    unit.mv = 1;
     const webKey = `${x},${y}`;
     if (state.uw && state.uw.w && state.uw.w[webKey]) delete state.uw.w[webKey];
     let loot = null;
@@ -1191,7 +1266,7 @@ function processAutoMiningUW(pId) {
         const stillInRange = remaining > 0 && hexDistance({ x: w.x, y: w.y }, { x: tx, y: ty }) <= 1;
         if (stillInRange) {
             mineUWVein(gameState, w, tx, ty);
-            addUWNoise(tx, ty);
+            addUWNoise(tx, ty, 'mine');
             if (getUWVeinRemaining(gameState, tx, ty) === 0) {
                 // Ader erschöpft: Toggle für ALLE Einheiten lösen, die noch
                 // darauf zeigten (Muster: processAutoMining/Steinabbau oben).
@@ -1262,7 +1337,7 @@ function pickupUWCrystalDrop(state, unit) {
 function ascendUWUnit(state, unit) {
     state.uw.u = state.uw.u.filter(u => u !== unit);
     const nextId = Math.max(0, ...state.u.map(u => u.i || 0)) + 1;
-    const surfaceUnit = { i: nextId, p: unit.p, t: unit.t, x: unit.x, y: unit.y, h: unit.h, a: 1 };
+    const surfaceUnit = { i: nextId, p: unit.p, t: unit.t, x: unit.x, y: unit.y, h: unit.h, a: 0 };
     if (unit.vet) surfaceUnit.vet = 1;
     if (unit.k) surfaceUnit.k = unit.k;
     if (unit.cr) surfaceUnit.cr = unit.cr;
@@ -1274,7 +1349,7 @@ function descendUWUnit(state, unit) {
     state.u = state.u.filter(u => u !== unit);
     if (!state.uw) state.uw = { d: [], u: [], n: [], a: {} };
     const nextId = Math.max(0, ...state.uw.u.map(u => u.i || 0)) + 1;
-    const uwUnit = { i: nextId, p: unit.p, t: unit.t, x: unit.x, y: unit.y, h: unit.h, a: 1 };
+    const uwUnit = { i: nextId, p: unit.p, t: unit.t, x: unit.x, y: unit.y, h: unit.h, a: 0 };
     if (unit.vet) uwUnit.vet = 1;
     if (unit.k) uwUnit.k = unit.k;
     if (unit.cr) uwUnit.cr = unit.cr;
@@ -1299,18 +1374,27 @@ function buyUWUnitAt(state, playerId, x, y, type) {
     const unitObj = { i: nextId, p: playerId, t: type, x, y, fb: fb, a: 1 };
     if (pState.u.includes(1)) unitObj.vet = 1; // Waffenmeister-Upgrade: startet als Veteran
     unitObj.h = getUnitMaxHp(pState, type, unitObj);
-    // Horcher (21): passiv unsichtbar ab Aufstellung (siehe isUWUnitVisible/doEndTurn)
-    if (type === 21) unitObj.iv = 1;
     state.uw.u.push(unitObj);
     return unitObj;
 }
 
-// Graben/Abbau/Unterminierung erzeugen Lärm — sammelt im laufenden Zug (siehe
-// window.uwNoiseScratch, js/globals.js), wird erst in doEndTurn "scharf"
-// (in gameState.uw.n übernommen, damit nur GEGNER ihn hören, siehe getUWNoisePings).
-function addUWNoise(x, y) {
+// Lesbare Namen je Lärm-Ursache (Korrektur Juli 2026, Tooltip-Ausbau) — geteilt
+// zwischen getUWNoisePings-Konsumenten (js/input.js Tooltip) und ggf. Debug-UI.
+// Unterminierung gibt es nicht mehr (durch Dynamit ersetzt), taucht hier bewusst
+// nicht auf.
+const UW_NOISE_TYPE_NAMES = {
+    dig: 'Graben', mine: 'Abbau', combat: 'Kämpfe', dynamite: 'Dynamit',
+    collapse: 'Stollenbruch', creature_move: 'Kreatur (Bewegung)', creature_attack: 'Kreatur (Angriff)'
+};
+
+// Graben/Abbau/Dynamit/Stollenbruch/Kämpfe erzeugen Lärm — sammelt im laufenden
+// Zug (siehe window.uwNoiseScratch, js/globals.js), wird erst in doEndTurn
+// "scharf" (in gameState.uw.n übernommen, damit nur GEGNER ihn hören, siehe
+// getUWNoisePings). `type` (Schlüssel aus UW_NOISE_TYPE_NAMES) macht den
+// Lärm-Ping später per Tooltip lesbar (welche Art Geräusch war das).
+function addUWNoise(x, y, type) {
     if (!window.uwNoiseScratch) window.uwNoiseScratch = [];
-    window.uwNoiseScratch.push({ x, y });
+    window.uwNoiseScratch.push({ x, y, type });
 }
 
 // Horcher (21, M10): Lärm im Umkreis 5 einer eigenen Horcher-Einheit wird als
@@ -1324,7 +1408,7 @@ function getUWNoisePings(playerId) {
     const pings = [];
     markers.forEach(m => {
         const horcher = own.find(o => o.t === 21 && hexDistance({ x: o.x, y: o.y }, { x: m.x, y: m.y }) <= 5);
-        if (horcher) { pings.push({ x: m.x, y: m.y, exact: true }); return; }
+        if (horcher) { pings.push({ x: m.x, y: m.y, exact: true, type: m.type }); return; }
 
         const heard = own.some(o => hexDistance({ x: o.x, y: o.y }, { x: m.x, y: m.y }) <= 3);
         if (!heard) return;
@@ -1334,7 +1418,7 @@ function getUWNoisePings(playerId) {
             const d = hexDistance({ x, y }, { x: m.x, y: m.y });
             if (d < bestDist) { bestDist = d; best = { x, y }; }
         });
-        if (best) pings.push({ x: best.x, y: best.y, exact: false });
+        if (best) pings.push({ x: best.x, y: best.y, exact: false, type: m.type });
     });
     return pings;
 }
@@ -1432,6 +1516,11 @@ function applyMoralCollapse(state, playerId) {
 }
 
 // === DER HERZ-SIEG: ERSCHLIESSUNG (M12, PLAN.md Abschn. 8) ===
+// Anzahl der eigenen Zugenden, die die Bedingung ununterbrochen halten muss
+// (Korrektur Juli 2026: 4 -> 5, einzige Stelle, die diese Zahl definiert —
+// js/input.js/js/ui.js/js/debug.js lesen sie von hier statt sie zu duplizieren).
+const ERSCHLIESSUNG_TARGET = 5;
+
 // Bedingung an EINEM Zugende: Wurm tot, eigene Einheit exakt im Herzkaverne-
 // ZENTRUM, keine nicht-verbündete fremde Tiefeneinheit irgendwo in der ganzen
 // Herzkaverne (getHeartCavernHexes, js/hex.js). Verbündete unterbrechen NICHT
@@ -1449,16 +1538,26 @@ function checkErschliessungProgress(state, playerId) {
 }
 
 // Aktualisiert uw.hz um EINEN Zugenden-Schritt für `playerId` (den gerade
-// endenden Spieler) — neu gestartet, fortgesetzt (n bis max. 4) oder komplett
-// zurückgesetzt (Unterbrechung, "Reset auf 0" statt Abbau um 1). Gibt ein
-// Ereignis-Objekt für Toast/Recap zurück (oder null bei "nichts passiert").
+// endenden Spieler) — neu gestartet, fortgesetzt (n bis max. ERSCHLIESSUNG_TARGET)
+// oder komplett zurückgesetzt (Unterbrechung, "Reset auf 0" statt Abbau um 1).
+// Gibt ein Ereignis-Objekt für Toast/Recap zurück (oder null bei "nichts passiert").
+//
+// Bugfix (Juli 2026): wird für JEDES Zugende aufgerufen, nicht nur für den
+// aktuellen Halter (der Aufrufer in input.js kennt playerId nur als "der
+// gerade beendende Spieler", zyklisch über alle Spieler). Gehört der laufende
+// Zähler einem ANDEREN Spieler, hat das Zugende von playerId keinerlei
+// Aussagekraft über dessen Fortschritt (playerId kann per Definition nicht
+// gleichzeitig im Zentrum stehen) — ohne diese Sperre hat jeder einzelne
+// Zugwechsel eines unbeteiligten Spielers den Zähler des echten Halters auf 0
+// zurückgeworfen, sodass er bei 2+ Spielern nie über 1/ERSCHLIESSUNG_TARGET hinauskam.
 function advanceErschliessung(state, playerId) {
+    if (state.uw.hz && state.uw.hz.p !== playerId) return null;
     const held = checkErschliessungProgress(state, playerId);
     if (held) {
         if (!state.uw.hz || state.uw.hz.p !== playerId) {
             state.uw.hz = { p: playerId, n: 1 };
         } else {
-            state.uw.hz.n = Math.min(4, state.uw.hz.n + 1);
+            state.uw.hz.n = Math.min(ERSCHLIESSUNG_TARGET, state.uw.hz.n + 1);
         }
         return { type: state.uw.hz.n === 1 ? 'start' : 'progress', p: playerId, n: state.uw.hz.n };
     }
@@ -1470,11 +1569,11 @@ function advanceErschliessung(state, playerId) {
     return null;
 }
 
-// Sieg durch Erschließung: n==4 -> Erschließer + seine (noch lebenden)
-// Verbündeten gewinnen — exakt wie ein regulärer Team-Sieg (checkTeamWin),
-// nur unabhängig davon, ob noch andere Spieler leben.
+// Sieg durch Erschließung: n==ERSCHLIESSUNG_TARGET -> Erschließer + seine
+// (noch lebenden) Verbündeten gewinnen — exakt wie ein regulärer Team-Sieg
+// (checkTeamWin), nur unabhängig davon, ob noch andere Spieler leben.
 function checkErschliessungWin(state) {
-    if (!state.uw || !state.uw.hz || state.uw.hz.n < 4) return null;
+    if (!state.uw || !state.uw.hz || state.uw.hz.n < ERSCHLIESSUNG_TARGET) return null;
     const p = state.uw.hz.p;
     if (!state.p[p] || state.p[p].dead === 1) return null;
     const allies = (state.p[p].al || []).filter(id => state.p[id] && state.p[id].dead !== 1);

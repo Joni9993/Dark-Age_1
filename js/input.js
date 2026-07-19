@@ -559,6 +559,15 @@ function handleUnderworldClick(clientX, clientY) {
         return;
     }
 
+    if (window.uwSpecialActive === 'jump_select') {
+        const target = uwValidJump.find(j => j.x === clickedX && j.y === clickedY);
+        if (target) { executeUWJump(target.x, target.y); return; }
+        window.uwSpecialActive = null; uwValidJump = [];
+        showUnderworldTileUI(clickedX, clickedY);
+        renderBoard(gameState);
+        return;
+    }
+
     if (selectedUWUnit && uwValidAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
         const targetAttack = uwValidAttacks.find(a => a.x === clickedX && a.y === clickedY);
         executeUWAttack(clickedX, clickedY, targetAttack);
@@ -579,7 +588,7 @@ function handleUnderworldClick(clientX, clientY) {
 
 function clearUWSelection() {
     window.selectedUnderworldHex = null;
-    selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidAttacks = []; uwValidCollapse = []; uwValidDynamite = [];
+    selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidAttacks = []; uwValidCollapse = []; uwValidDynamite = []; uwValidJump = [];
     window.uwSpecialActive = null;
     hideActionMenu();
 }
@@ -597,8 +606,63 @@ function showUnderworldTileUI(clickedX, clickedY) {
     const creature = (rawCreature && isUWCreatureVisible(gameState.cp, rawCreature)) ? rawCreature : null;
 
     window.selectedUnderworldHex = { x: clickedX, y: clickedY };
+    // Vorherige Auswahl VOR dem Reset sichern (Korrektur Juli 2026, Tooltip-Ausbau,
+    // exaktes Pendant zum Verhalten von showTileUI/selectedUnit oben, das gar nicht
+    // zurücksetzt): der Angriffsschaden-Vorschau-Check unten braucht die Auswahl aus
+    // dem VORHERIGEN Klick ("ich habe meine Einheit ausgewählt, jetzt klicke ich ein
+    // Ziel an") — wurde hier bisher VOR dem Check auf null/[] gesetzt, wodurch die
+    // Vorschau nie auslösen konnte (toter Code, kein Spieler bekam je eine Schaden-
+    // Kalkulation vor dem eigentlichen Angriff zu sehen).
+    const prevSelectedUnit = selectedUWUnit;
+    const prevValidAttacks = uwValidAttacks;
     selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidAttacks = [];
     window.uwSpecialActive = null;
+
+    // Entity-/Terrain-Zusatzinfos (Korrektur Juli 2026, Tooltip-Ausbau): jetzt IMMER
+    // berechnet und an alle drei Zweige (Einheit/Kreatur/leeres Feld) angehängt —
+    // vorher nur im "leeres Feld"-Zweig, wodurch z.B. der eigene Stollenkopf oder
+    // eine tickende Dynamit-Ladung unsichtbar wurden, sobald irgendeine Einheit
+    // oder Kreatur auf demselben Hex stand.
+    let extra = '';
+    if (stollenOwner !== -1) {
+        extra += `<br><span style="color:${getEntityColor(stollenOwner)}">${formatOwnerName(stollenOwner, gameState.cp)} Stollenkopf</span><div class="info-detail">Rekrutierungspunkt für Tiefeneinheiten (Tunnel-Startpunkt).</div>`;
+    }
+    const rem = getUWVeinRemaining(gameState, clickedX, clickedY);
+    if (rem > 0) extra += `<br><span style="color:#7fe3ff">💎 Ader: ${rem}/${getUWVeinMaxAmount(gameState, clickedX, clickedY)}</span><div class="info-detail">Abbau per Toggle (Arbeiter/Beutegräber in Reichweite) — danach dauerhaft offener Gang.</div>`;
+    if (isFundkammerHex(gameState, clickedX, clickedY)) {
+        const looted = gameState.uw && gameState.uw.f && gameState.uw.f[`${clickedX},${clickedY}`];
+        extra += `<br><span style="color:#c9a24b">🏺 Fundkammer${looted ? ' (geplündert)' : ''}</span>` + (looted ? '' : `<div class="info-detail">Wird beim Betreten automatisch geplündert — Kristalle oder eine Reliquie.</div>`);
+    }
+    if (gameState.uw && gameState.uw.w && gameState.uw.w[`${clickedX},${clickedY}`]) {
+        extra += `<br><span style="color:#dddddd">🕸 Spinnennetz</span><div class="info-detail">Stoppt jede Bewegung, die hier endet (Rest der Reichweite verfällt) — verbraucht sich beim Betreten, egal wer betritt.</div>`;
+    }
+    const dropHere = gameState.uw && gameState.uw.dr && gameState.uw.dr[`${clickedX},${clickedY}`];
+    if (dropHere) extra += `<br><span style="color:#7fe3ff">💎 Herrenloser Kristallhaufen: ${dropHere}</span><div class="info-detail">Wird von Arbeiter/Beutegräber beim Betreten automatisch aufgesammelt.</div>`;
+    const dynCharge = gameState.uw && gameState.uw.dy && gameState.uw.dy.find(dy => dy.hexes.some(h => h.x === clickedX && h.y === clickedY));
+    if (dynCharge) {
+        const isMine = dynCharge.p === gameState.cp;
+        const ownerLabel = isMine ? 'Deine' : `${formatOwnerName(dynCharge.p, gameState.cp)}`;
+        extra += `<br><span style="color:#ff6e40">🧨 ${ownerLabel} Dynamit-Ladung</span><div class="info-detail">Explodiert zu Beginn ${isMine ? 'deines' : 'seines'} nächsten Zuges — 6 DMG auf jedes der 3 Ziel-Hexes (auch eigene Truppen), sprengt massiven Fels dauerhaft frei (Kristalladern bleiben unangetastet).</div>`;
+    }
+    if (uType === UW_HERZ) {
+        const wormAlive = !(gameState.uw && gameState.uw.wd === 1);
+        extra += `<div class="info-detail" style="color:#c9a24b;">🌍 Herz der Tiefe — Sieg-Ziel unter dem zentralen Wachturm.${wormAlive ? ' Bewacht vom Alten Wurm; muss zuerst besiegt werden, bevor die Erschließung starten kann.' : ' Wurm besiegt — eigene Einheit hier postieren, um die Erschließung zu starten.'}</div>`;
+        const hz = gameState.uw && gameState.uw.hz;
+        if (hz) {
+            extra += `<div class="info-detail" style="color:${getEntityColor(hz.p)};">${formatOwnerName(hz.p, gameState.cp)} erschließt: ${hz.n}/${ERSCHLIESSUNG_TARGET} Zugenden gehalten</div>`;
+        }
+    }
+
+    // Lärm-Ping-Tooltip (Gehör-Ausbau, Korrektur Juli 2026): welche Art Geräusch
+    // wurde hier gehört (Graben/Abbau/Kämpfe/Dynamit/Stollenbruch/Kreatur) —
+    // vorher zeigte das markierte Feld nur eine Farbe, ohne Erklärung. Ein Hex
+    // kann mehrere Pings tragen (mehrere Geräuschquellen bilden zufällig auf
+    // dasselbe Netz-Hex ab), daher eine Zeile pro Ping.
+    getUWNoisePings(gameState.cp).filter(p => p.x === clickedX && p.y === clickedY).forEach(p => {
+        const label = UW_NOISE_TYPE_NAMES[p.type] || 'Unbekanntes Geräusch';
+        const precision = p.exact ? 'Genaue Ortung (Horcher in Reichweite)' : 'Ungefähre Richtung (nächstgelegenes eigenes Netz-Hex)';
+        extra += `<br><span style="color:${p.exact ? '#ff5252' : '#ffb300'}">👂 Lärm gehört: ${label}</span><div class="info-detail">${precision}</div>`;
+    });
 
     if (unit) {
         const maxHp = getUnitMaxHp(gameState.p[unit.p], unit.t, unit);
@@ -606,41 +670,56 @@ function showUnderworldTileUI(clickedX, clickedY) {
         const ownerColor = getEntityColor(unit.p);
         const crText = unit.cr ? ` | 💎 trägt ${unit.cr}/3` : '';
         const artText = unit.art ? ` | ${RELICS[unit.art].icon} ${RELICS[unit.art].name}` : '';
+        const vetText = unit.vet ? ' | ★ Veteran (+1 DMG)' : '';
         let expectedDmgText = '';
-        if (selectedUWUnit && selectedUWUnit.p === gameState.cp && unit.p !== gameState.cp && uwValidAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
-            expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${getExpectedDamageUW(selectedUWUnit, unit)} DMG</span>`;
+        if (prevSelectedUnit && prevSelectedUnit.p === gameState.cp && unit.p !== gameState.cp && prevValidAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
+            expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${getExpectedDamageUW(prevSelectedUnit, unit)} DMG</span>`;
         }
-        infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} ${unitStats[unit.t].name} (${unit.h}/${maxHp} HP)</span><div class="info-detail">Bewegung: ${getUnitMove(gameState.p[unit.p], unit.t, unit)}${crText}${artText}</div>${expectedDmgText}`;
+        infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} ${unitStats[unit.t].name} (${unit.h}/${maxHp} HP)</span><div class="info-detail">Bewegung: ${getUnitMove(gameState.p[unit.p], unit.t, unit)} | Angriff: ${unitStats[unit.t].dmg}${vetText}${crText}${artText}</div>${expectedDmgText}` + extra;
     } else if (creature) {
         const cStats = uwCreatureStats[creature.t];
-        infoPanel.innerHTML = `<span style="color:#e57373">${cStats.name} (${creature.h}/${cStats.hp} HP)</span><div class="info-detail">Kreatur, neutral · ⚔️${cStats.dmg} DMG</div>`;
+        let expectedDmgText = '';
+        if (prevSelectedUnit && prevSelectedUnit.p === gameState.cp && prevValidAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
+            expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${getExpectedDamageUW(prevSelectedUnit, creature)} DMG</span>`;
+        }
+        // Eigenes Angriffsmuster (Korrektur Juli 2026, Tooltip-Ausbau): vorher nur
+        // sichtbar, wenn man das ZIEL-Hex anklickte (Block unten) — ein Klick auf
+        // die Kreatur selbst zeigte nichts über ihr bevorstehendes Angriffsmuster,
+        // obwohl genau das die Ausweich-Entscheidung braucht.
+        let telegraphSelfText = '';
+        if (creature.ap) {
+            const atkHexes = getCreatureAttackHexes(gameState, creature);
+            if (atkHexes.length > 0) {
+                telegraphSelfText = `<div class="info-detail" style="color:#ff5252;">🎯 Bereitet Angriff vor — trifft ${atkHexes.length} Feld${atkHexes.length === 1 ? '' : 'er'} am Rundenende (${cStats.dmg} DMG je Treffer). Markierte Felder rechtzeitig verlassen!</div>`;
+            }
+        }
+        infoPanel.innerHTML = `<span style="color:#e57373">${cStats.name} (${creature.h}/${cStats.hp} HP)</span><div class="info-detail">Kreatur, neutral · ⚔️${cStats.dmg} DMG</div>${telegraphSelfText}${expectedDmgText}` + extra;
     } else {
-        let extra = '';
-        if (stollenOwner !== -1) extra += `<br><span style="color:${getEntityColor(stollenOwner)}">${formatOwnerName(stollenOwner, gameState.cp)} Stollenkopf</span>`;
-        const rem = getUWVeinRemaining(gameState, clickedX, clickedY);
-        if (rem > 0) extra += `<br><span style="color:#7fe3ff">💎 Ader: ${rem}/${getUWVeinMaxAmount(gameState, clickedX, clickedY)}</span>`;
-        if (isFundkammerHex(gameState, clickedX, clickedY)) {
-            const looted = gameState.uw && gameState.uw.f && gameState.uw.f[`${clickedX},${clickedY}`];
-            extra += `<br><span style="color:#c9a24b">🏺 Fundkammer${looted ? ' (geplündert)' : ''}</span>`;
+        let tileDesc = '';
+        if (!open) {
+            tileDesc = uType === UW_ADER
+                ? `<div class="info-detail">Blockiert Bewegung, bis die Kristalle vollständig abgebaut sind.</div>`
+                : `<div class="info-detail">Blockiert Bewegung und Sicht. Nur Arbeiter oder Bohrwagen können hier graben (1 Hex/Zug, Bohrwagen 2).</div>`;
         }
-        if (gameState.uw && gameState.uw.w && gameState.uw.w[`${clickedX},${clickedY}`]) {
-            extra += `<br><span style="color:#dddddd">🕸 Spinnennetz (stoppt Bewegung)</span>`;
-        }
-        const dropHere = gameState.uw && gameState.uw.dr && gameState.uw.dr[`${clickedX},${clickedY}`];
-        if (dropHere) extra += `<br><span style="color:#7fe3ff">💎 Herrenloser Kristallhaufen: ${dropHere}</span>`;
-        infoPanel.innerHTML = `${UW_TYPE_NAMES[uType]}${open ? '' : ' (massiv)'}${extra}`;
+        infoPanel.innerHTML = `${UW_TYPE_NAMES[uType]}${open ? '' : ' (massiv)'}${tileDesc}` + extra;
     }
 
     // Telegraph-Warnung (Korrektur Juli 2026, "Runden-Phase + Telegraph"):
     // unabhängig davon, was gerade auf dem Hex steht (Einheit/Kreatur/leer) —
     // "jeder hat genau einen Zug zum Ausweichen" ist die wichtigste Info hier,
-    // gilt für ALLE Spieler-Einheiten auf dem Feld, egal welchem Besitzer.
-    (gameState.uw && gameState.uw.c || []).forEach(c => {
-        if (c.h <= 0 || !c.ap) return;
-        if (!getCreatureAttackHexes(gameState, c).some(h => h.x === clickedX && h.y === clickedY)) return;
-        const cStats = uwCreatureStats[c.t];
-        infoPanel.innerHTML += `<div class="info-detail" style="color:#ff5252;">🎯 ${cStats.name} greift dieses Feld am Rundenende an (${cStats.dmg} DMG)</div>`;
-    });
+    // gilt für ALLE Spieler-Einheiten auf dem Feld, egal welchem Besitzer. NUR
+    // sichtbar mit eigener/verbündeter Einheit im Umkreis 2 (uwHexNearOwnUnits,
+    // gleiche Regel wie das Karten-Overlay in render.js/render3d.js, Korrektur
+    // Juli 2026) — sonst könnte man durch Abklicken bekannter Gänge Telegraphen
+    // ausspähen, obwohl gerade keine eigene Einheit dort steht, die sie sähe.
+    if (uwHexNearOwnUnits(gameState.cp, clickedX, clickedY)) {
+        (gameState.uw && gameState.uw.c || []).forEach(c => {
+            if (c.h <= 0 || !c.ap) return;
+            if (!getOpenCreatureAttackHexes(gameState, c).some(h => h.x === clickedX && h.y === clickedY)) return;
+            const cStats = uwCreatureStats[c.t];
+            infoPanel.innerHTML += `<div class="info-detail" style="color:#ff5252;">🎯 ${cStats.name} greift dieses Feld am Rundenende an (${cStats.dmg} DMG)</div>`;
+        });
+    }
 
     let menuHtml = '';
 
@@ -689,9 +768,30 @@ function showUnderworldTileUI(clickedX, clickedY) {
                 menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4e342e;" onclick="window.startUWCollapse()">💥 Stollenbruch</button>`;
             }
         }
+        // Sprung (Horcher 21 exklusiv, Korrektur Juli 2026, ersetzt die permanente
+        // Tarnung — war zu stark). Springt 2 Hex weit unabhängig von Fels/Weg
+        // dazwischen, Ziel muss bereits offen & frei sein (calculateHorcherJumpTargetsUW).
+        if (unit.t === 21) {
+            const jumpTargets = calculateHorcherJumpTargetsUW(unit);
+            if (jumpTargets.length > 0) {
+                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #5e35b1;" onclick="window.startUWJump()">🦘 Sprung (2 Felder)</button>`;
+            }
+        }
         const hint = unit.t === 22 && unit.a === 0 ? ' (2 Grabungen möglich)'
             : unit.a === 2 ? ' (bereits agiert — noch 1 Aktion möglich)' : '';
         infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Einheit ausgewählt${hint}. Ziel wählen oder Aktion.</div>`;
+
+        // Fähigkeits-Beschreibung je Roster-Typ (Korrektur Juli 2026, Tooltip-Ausbau) —
+        // exaktes Pendant zum `specInfo`-Block von showTileUI oben (js/input.js), der
+        // für die Oberflächen-Einheiten dieselbe Rolle spielt. PLAN.md Abschn. 4.
+        let uwSpecInfo = '';
+        if (unit.t === 17) uwSpecInfo = 'Spezial: 🕯️ Wache – heilt +2 HP am Rundenende, wenn sie diesen Zug nicht bewegt wurde (Angreifen ist erlaubt, kein Überheilen über Max-HP).';
+        if (unit.t === 18) uwSpecInfo = 'Spezial: 🧨 Dynamit (1🪵) – detoniert zu Beginn deines nächsten Zuges, 6 DMG auf 3 Hexes (auch eigene Truppen!), sprengt massiven Fels dauerhaft frei (Kristalladern bleiben unangetastet, verschwinden nur durch vollständigen Abbau). 💥 Stollenbruch – eigenes offenes Nachbar-Hex wieder verfüllen (Verfolger aussperren).';
+        if (unit.t === 19) uwSpecInfo = 'Spezial: ⚔️ Sturmangriff – nach einem Kill darf sie sich noch einmal frisch bewegen und angreifen (einmal pro Zug).';
+        if (unit.t === 20) uwSpecInfo = 'Spezial: 🪙 Plündert Fundkammern/Adern doppelt so schnell, stiehlt getragene Kristalle bei einem Kill, Kopfgeld-Upgrade wirkt auch auf Kreaturen.';
+        if (unit.t === 21) uwSpecInfo = `Spezial: 👂 Lauschen – Lärm-Pings im Umkreis 5 als exaktes Hex statt nur Richtung. 🦘 Sprung – springt 2 Hex weit, unabhängig von Fels/Weg dazwischen (Ziel muss bereits offen & frei sein).`;
+        if (unit.t === 22) uwSpecInfo = 'Spezial: ⚙️ Gräbt 2 Hex/Zug (statt 1) – nur die allererste Grabung des Zuges belässt noch eine zweite Aktion.';
+        if (uwSpecInfo) infoPanel.innerHTML += `<div class="info-detail" style="color: #4fc3f7;">${uwSpecInfo}</div>`;
     }
 
     // Eigener freier Stollenkopf -> Rekrutieren: 17-18 immer verfügbar, 19-22 nur
@@ -782,7 +882,7 @@ function executeUWDig(clickedX, clickedY) {
     const wasFreshTurn = unit.a === 0;
     digUWHex(gameState, unit, clickedX, clickedY);
     const isBohrwagenFirstDig = wasFreshTurn && unit.a === 2;
-    addUWNoise(clickedX, clickedY);
+    addUWNoise(clickedX, clickedY, 'dig');
     turnActions.push({ x: clickedX, y: clickedY, t: 'dig', fx: fromX, fy: fromY, uw: true });
     infoPanel.innerHTML = isBohrwagenFirstDig ? '⛏ Erste Grabung! Noch eine Grabung oder ein Angriff möglich.' : '⛏ Hex durchgegraben!';
     if (unit.a === 2) {
@@ -835,7 +935,7 @@ window.startUWDynamite = function () {
     uwValidDynamite = targets;
     window.uwSpecialActive = 'dynamite_select';
     hideActionMenu();
-    infoPanel.innerHTML = `🧨 Dynamit legen<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes Fels-Hex.</div>`;
+    infoPanel.innerHTML = `🧨 Dynamit legen<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes Nachbar-Hex.</div>`;
     renderBoard(gameState);
 };
 
@@ -848,7 +948,7 @@ function executeUWDynamitePlace(clickedX, clickedY) {
     const pState = gameState.p[gameState.cp];
     pState.m -= 1;
     placeUWDynamite(gameState, selectedUWUnit, clickedX, clickedY);
-    addUWNoise(clickedX, clickedY);
+    addUWNoise(clickedX, clickedY, 'dynamite');
     turnActions.push({ x: clickedX, y: clickedY, t: 'dynamite', uw: true });
     infoPanel.innerHTML = '🧨 Dynamit platziert! Explodiert zu Beginn deines nächsten Zuges.';
     window.uwSpecialActive = null; uwValidDynamite = [];
@@ -875,10 +975,53 @@ function executeUWCollapse(clickedX, clickedY) {
     saveUndoState();
     const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
     collapseUWHex(gameState, selectedUWUnit, clickedX, clickedY); // setzt a=1 selbst
-    addUWNoise(clickedX, clickedY);
+    addUWNoise(clickedX, clickedY, 'collapse');
     turnActions.push({ x: clickedX, y: clickedY, t: 'collapse', fx: fromX, fy: fromY, uw: true });
     infoPanel.innerHTML = '💥 Stollenbruch! Hex wieder massiver Fels.';
     window.uwSpecialActive = null; uwValidCollapse = [];
+    clearUWSelection();
+    renderBoard(gameState); updateUI();
+}
+
+// === SPRUNG (M10, Horcher 21 exklusiv — Korrektur Juli 2026, ersetzt die
+// permanente Tarnung) ===
+// Ziel-Auswahl wie Stollenbruch/Dynamit (mehrstufig, window.uwSpecialActive) —
+// mehrere Hexes im Ring-Abstand 2 können gleichzeitig in Frage kommen.
+window.startUWJump = function () {
+    if (!selectedUWUnit || selectedUWUnit.t !== 21) return;
+    const targets = calculateHorcherJumpTargetsUW(selectedUWUnit);
+    if (targets.length === 0) return;
+    uwValidMoves = []; uwValidDigs = []; uwValidAttacks = [];
+    uwValidJump = targets;
+    window.uwSpecialActive = 'jump_select';
+    hideActionMenu();
+    infoPanel.innerHTML = `🦘 Sprung<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes Feld (2 Hex entfernt, unabhängig vom Weg dazwischen).</div>`;
+    renderBoard(gameState);
+};
+
+function executeUWJump(clickedX, clickedY) {
+    saveUndoState();
+    const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
+    const unit = selectedUWUnit;
+    const { loot, picked } = jumpUWUnit(gameState, unit, clickedX, clickedY);
+    turnActions.push({ x: clickedX, y: clickedY, t: 'jump', fx: fromX, fy: fromY, uw: true });
+    infoPanel.innerHTML = '🦘 Gesprungen!';
+
+    if (loot) {
+        if (loot.type === 'crystal') {
+            showToast(`🏺 Fundkammer: +${loot.amount} 💎 Kristalle!`, 'gold');
+        } else {
+            showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} gefunden!`, 'gold');
+        }
+        turnActions.push({ x: clickedX, y: clickedY, t: 'loot', uw: true });
+        updateUI();
+    }
+    if (picked > 0) {
+        showToast(`💎 ${picked} herrenlose Kristalle eingesammelt!`, 'gold');
+        turnActions.push({ x: clickedX, y: clickedY, t: 'pickup', uw: true });
+    }
+
+    window.uwSpecialActive = null; uwValidJump = [];
     clearUWSelection();
     renderBoard(gameState); updateUI();
 }
@@ -892,13 +1035,12 @@ function executeUWAttack(clickedX, clickedY, targetAttack) {
     saveUndoState();
     const attackerUnit = selectedUWUnit;
     const target = targetAttack.target;
-    if (attackerUnit.iv === 1) delete attackerUnit.iv; // Horcher: Angriff bricht die Tarnung
 
     const result = targetAttack.isCreature
         ? resolveUWAttackOnCreature(gameState, attackerUnit, target)
         : resolveUWAttack(gameState, attackerUnit, target);
     spawnFloatingText(target.x, target.y, `-${result.finalDmg}`, "#ff5252");
-    addUWNoise(clickedX, clickedY); // Kämpfe erzeugen ebenfalls Lärm (PLAN.md Abschn. 5)
+    addUWNoise(clickedX, clickedY, 'combat'); // Kämpfe erzeugen ebenfalls Lärm (PLAN.md Abschn. 5)
 
     if (result.retDmg > 0) {
         const retDmg = result.retDmg;
@@ -924,13 +1066,24 @@ function executeUWAttack(clickedX, clickedY, targetAttack) {
         // fog-unabhängig (jeder erfährt davon), anders als die übrigen UW-Aktionen.
         turnActions.push({ x: clickedX, y: clickedY, t: 'wormdeath', global: true });
     }
-    infoPanel.innerHTML = msg;
 
     // attackerUnit.a = 1 setzt bereits resolveUWAttack(OnCreature) selbst (js/logic.js) —
     // Angriff ist eine Fähigkeit wie Graben/Dynamit (aus a=0 ODER a=2, verbraucht
     // die Aktion vollständig, Oberflächen-Parität, Korrektur Juli 2026).
     turnActions.push({ x: clickedX, y: clickedY, t: 'atk', fx: attackerUnit.x, fy: attackerUnit.y, uw: true });
-    clearUWSelection();
+
+    // Grubenritter-Sturmangriff (Korrektur Juli 2026, maybeTriggerSturmangriff/
+    // js/logic.js): bei einem Kill setzt resolveUWAttack(OnCreature) attacker.a
+    // zurück auf 0 statt 1 (einmal pro Zug) — Einheit bleibt ausgewählt, Menü öffnet
+    // sich mit frisch berechneten Bewegungs-/Angriffsoptionen erneut (Muster:
+    // executeUWMoveTo/executeUWDig).
+    if (attackerUnit.a === 0) {
+        showUnderworldTileUI(attackerUnit.x, attackerUnit.y);
+        infoPanel.innerHTML += '<div class="info-detail" style="color: #4fc3f7;">⚔️ Sturmangriff! Noch eine Bewegung + Aktion möglich.</div>';
+    } else {
+        infoPanel.innerHTML = msg;
+        clearUWSelection();
+    }
     renderBoard(gameState); updateUI();
 }
 
@@ -2123,25 +2276,41 @@ function doEndTurn() {
         u.a = 0;
         delete u.br;
     });
+    // Grubenwache (17): "Wache" — heilt +2 HP, wenn sie im gerade beendeten Zug
+    // NICHT bewegt wurde (u.mv, von moveUWUnit gesetzt); Angreifen allein steht
+    // der Heilung nicht im Weg. Gecappt auf Max-HP. Muss VOR dem mv/a-Reset
+    // direkt darunter laufen, sonst wäre das Flag bereits wieder weg.
+    ((gameState.uw && gameState.uw.u) || []).forEach(u => {
+        if (u.t === 17 && u.p === gameState.cp && !u.mv) {
+            const maxHp = getUnitMaxHp(gameState.p[u.p], u.t, u);
+            u.h = Math.min(maxHp, u.h + 2);
+        }
+    });
     // Unterwelt-Einheiten (M9b/M10): a-Reset wie oben, unfiltriert für alle Spieler
-    // (gleiches Muster). Horcher (21) wird dabei automatisch wieder unsichtbar —
-    // seine Tarnung bricht nur für den REST des Zugs, in dem er angreift.
+    // (gleiches Muster).
     ((gameState.uw && gameState.uw.u) || []).forEach(u => {
         u.a = 0;
-        if (u.t === 21) u.iv = 1;
+        delete u.sm; // Sturmangriff-Sperre (Grubenritter 19) ist nur je Zug gültig
+        delete u.mv; // Bewegt-Flag (Grubenwache-Heilung) ist nur je Zug gültig
     });
     if (gameState.p[gameState.cp].tc) gameState.p[gameState.cp].tc = [];
 
     // Erschließung (M12, PLAN.md Abschn. 8): Bedingung am EIGENEN Zugende prüfen —
     // also für den Spieler, der gerade seinen Zug beendet (gameState.cp VOR dem
-    // Wechsel unten). "Volle Information": Start UND jeder Fortschritt gehen als
-    // Toast (lokal an den gerade aktiven Client) + Recap-Eintrag (global, sobald
-    // das Recap-System wieder aktiv ist, siehe Kommentar oben) an alle.
+    // Wechsel unten). Dieser Toast feuert nur EINMAL, synchron im Browser-Tab
+    // dieses (erschließenden) Spielers selbst — bei 3+ Spielern erreicht das
+    // niemals alle direkt. Die eigentliche "alle erfahren es"-Garantie sitzt daher
+    // NICHT hier, sondern als eigener Reminder-Toast in bootGame() (js/main.js),
+    // der bei JEDEM Zugstart JEDES Spielers feuert, solange uw.hz aktiv ist
+    // (Korrektur Juli 2026, Bugfix — vorher bekamen nur der erschließende Spieler
+    // selbst plus zufällig der direkt nachfolgende Spieler überhaupt je etwas zu
+    // sehen). Der Recap-Eintrag unten bleibt zusätzlich als globales, fog-freies
+    // Event-Icon auf der Karte erhalten.
     if (gameState.uw) {
         const erschlEvent = advanceErschliessung(gameState, gameState.cp);
         if (erschlEvent && erschlEvent.type !== 'reset') {
             const name = gameState.p[erschlEvent.p].n;
-            showToast(`🌍 Die Erde bebt — ${name} erschließt das Herz der Tiefe (${erschlEvent.n}/4)`, 'gold');
+            showToast(`🌍 Die Erde bebt — ${name} erschließt das Herz der Tiefe (${erschlEvent.n}/${ERSCHLIESSUNG_TARGET})`, 'gold');
             const cxHz = Math.floor(gameState.bw / 2), cyHz = Math.floor(gameState.bh / 2);
             // global:true (M13): PLAN.md Abschn. 8 — "erfahren es ALLE über das
             // Event-System", explizit fog-unabhängig wie der Wurm-Tod.
@@ -2251,7 +2420,28 @@ function doEndTurn() {
     const teamWinners2 = checkTeamWin(alivePlayers);
     // Erschließung (M12): Sieg über die normale Win-Check-Logik, unabhängig davon,
     // ob noch andere Spieler leben — "Sieger = Erschließer + Verbündete".
-    const erschlWinners = checkErschliessungWin(gameState);
+    //
+    // Bugfix (Juli 2026): n erreicht bereits am eigenen letzten Zugende des
+    // Erschließers ERSCHLIESSUNG_TARGET/ERSCHLIESSUNG_TARGET (advanceErschliessung
+    // oben) — das ist aber, sofern der Erschließer nicht der LETZTE Spieler in der
+    // Zugreihenfolge ist, VOR dem Zugende der nach ihm kommenden Spieler in
+    // derselben Runde. Ohne diese Sperre gewann er einen Zug zu früh, bevor alle
+    // anderen Spieler ihren eigenen Zug in dieser letzten Runde überhaupt spielen
+    // konnten. Der Sieg wird daher erst final geprüft, wenn die Runde tatsächlich
+    // vollständig durchlaufen ist (gameState.rn > oldRn, d.h. der gerade endende
+    // Spieler war der letzte der Runde) — und zu diesem Zeitpunkt wird die
+    // Haltebedingung NOCHMAL frisch geprüft: hat ein nachfolgender Spieler in
+    // seinem eigenen Zug dieser Runde noch eine Einheit in die Kaverne gebracht,
+    // bricht das die Erschließung genauso ab wie jede andere Unterbrechung (Zähler
+    // komplett auf 0, kein Sieg).
+    let erschlWinners = null;
+    if (gameState.rn > oldRn && gameState.uw && gameState.uw.hz && gameState.uw.hz.n >= ERSCHLIESSUNG_TARGET) {
+        if (!checkErschliessungProgress(gameState, gameState.uw.hz.p)) {
+            delete gameState.uw.hz;
+        } else {
+            erschlWinners = checkErschliessungWin(gameState);
+        }
+    }
     const isWin = teamWinners2 || alivePlayers.length === 1 || !!erschlWinners;
 
     const pId = gameState.cp; const pState = gameState.p[pId];

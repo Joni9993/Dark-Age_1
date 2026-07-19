@@ -106,11 +106,18 @@ function updateUI() {
     // solange uw.hz existiert — "volle Information, kein heimlicher Sieg".
     if (gameState.uw && gameState.uw.hz) {
         const hzName = gameState.p[gameState.uw.hz.p] ? gameState.p[gameState.uw.hz.p].n : '?';
-        resourceHud.innerHTML += ` | 🌍 Erschließung: ${hzName} (${gameState.uw.hz.n}/4)`;
+        resourceHud.innerHTML += ` | 🌍 Erschließung: ${hzName} (${gameState.uw.hz.n}/${ERSCHLIESSUNG_TARGET})`;
     }
 
     infoPanel.style.color = playerColors[pId];
-    if (!selectedUnit && !selectedHex && window.specialActive !== 'tribok') {
+    // Unterwelt-Auswahl (Korrektur Juli 2026, Tooltip-Fix): diese Bedingung kannte
+    // bisher nur die Oberflächen-Selektion (selectedUnit/selectedHex) — jeder
+    // renderBoard()-Aufruf ruft am Ende der 3D-render()-Funktion (js/render3d.js)
+    // updateUI() auf, das dann JEDES Unterwelt-Info-Panel (showUnderworldTileUI,
+    // js/input.js) sofort wieder mit der generischen Rundenzeile überschrieben hat
+    // — der eigentliche Grund, warum in der Unterwelt praktisch nie ein Tooltip zu
+    // sehen war, unabhängig davon, wie viel showUnderworldTileUI selbst anzeigt.
+    if (!selectedUnit && !selectedHex && !selectedUWUnit && !window.selectedUnderworldHex && window.specialActive !== 'tribok') {
         const actualTurnId = (currentTurnSlot !== null && currentTurnSlot !== undefined) ? currentTurnSlot : gameState.cp;
         const actualTurnName = gameState.p[actualTurnId]?.n ?? pState.n;
         infoPanel.innerHTML = `Runde ${gameState.rn} | ${actualTurnName} ist am Zug.<div class="info-detail">Tippe auf Einheiten oder Dörfer für Details.</div>`;

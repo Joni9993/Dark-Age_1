@@ -492,8 +492,9 @@ window.useTunnel = function () {
 // Nur der Arbeiter (7) wechselt die Ebene — kein eigener Tunnelgräber-Typ mehr,
 // der Arbeiter behält Typ 7 und seine Oberflächen-Werte auch unten. Aktion am
 // Stollenkopf bzw. Tunnel-Startpunkt oben (siehe PLAN.md Abschn. 3). Beide
-// Richtungen verbrauchen die Aktion (a=1), verlieren aber weder Veteranenstatus
-// noch getragene Kristalle — nur das Trägerobjekt wandert zwischen u[] und uw.u.
+// Richtungen behalten volle Bewegung + Aktion (a=0, Korrektur Juli 2026 —
+// vorher a=1/Zug verbraucht), verlieren aber weder Veteranenstatus noch
+// getragene Kristalle — nur das Trägerobjekt wandert zwischen u[] und uw.u.
 window.uwAscend = function () {
     if (!selectedUWUnit || selectedUWUnit.t !== 7) return;
     const { x, y } = selectedUWUnit;

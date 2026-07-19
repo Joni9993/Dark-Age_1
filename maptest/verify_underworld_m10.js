@@ -27,7 +27,7 @@ function loadGameCode() {
             getUnderworldType, isUnderworldOpen, getUWVeinRemaining, getStollenkopfOwner,
             getFundkammerHexes, isFundkammerHex, getRuinClusters,
             UW_FELS, UW_KAVERNE, UW_ADER, UW_RUINE, UW_HERZ,
-            calculateMovesUW, calculateDigsUW, calculateMineTargetsUW, uwUnitAt,
+            calculateMovesUW, calculateDigsUW, calculateMineTargetsUW, uwUnitAt, moveUWUnit,
             digUWHex, mineUWVein, deliverUWCrystals, ascendUWUnit, descendUWUnit, buyUWUnitAt,
             isChokepoint, calculateAttacksUW, getExpectedDamageUW, resolveUWAttack,
             lootFundkammer, applyRelicToUnit, applyRelicToBuilding, applyMapRelic, RELIC_KEYS,
@@ -73,7 +73,7 @@ function findOpenHexWithNeighborCount(state, wantExact, maxCount) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('=== (a) Engstellen-Reduktion: nur auf Engstellen-Hex, nur für 17/19 ===');
+console.log('=== (a) isChokepoint-Erkennung (Schildstellungs-Passiv von 17/19 entfernt, Juli 2026) ===');
 {
     const state = freshState(5, 12, 2);
     const chokeHex = findOpenHexWithNeighborCount(state, true, 2);
@@ -85,22 +85,16 @@ console.log('=== (a) Engstellen-Reduktion: nur auf Engstellen-Hex, nur für 17/1
         assert(M.isChokepoint(state, chokeHex.x, chokeHex.y) === true, 'isChokepoint erkennt das Engstellen-Hex korrekt');
         assert(M.isChokepoint(state, openHex.x, openHex.y) === false, 'isChokepoint verneint das offene Hex korrekt');
 
-        const attacker = { i: 1, p: 0, t: 18, x: 0, y: 0, h: 8 }; // Sprengmeister, kein Chokepoint-Bonus als Ziel relevant
+        // Grubenwache/Grubenritter erleiden auf Engstellen KEINEN Bonus mehr —
+        // getExpectedDamageUW ist unabhängig vom Ziel-Hex.
+        const attacker = { i: 1, p: 0, t: 18, x: 0, y: 0, h: 8 };
         const wache = { i: 2, p: 1, t: 17, x: chokeHex.x, y: chokeHex.y, h: 14 };
         const wacheOpen = { i: 3, p: 1, t: 17, x: openHex.x, y: openHex.y, h: 14 };
-        const nichtWache = { i: 4, p: 1, t: 20, x: chokeHex.x, y: chokeHex.y, h: 10 }; // Beutegräber auf Engstelle: KEIN Bonus
-
-        const dmgOnChoke = M.getExpectedDamageUW(attacker, wache);
-        const dmgOnOpen = M.getExpectedDamageUW(attacker, wacheOpen);
-        const dmgOnNonEligible = M.getExpectedDamageUW(attacker, nichtWache);
-        assert(dmgOnChoke === Math.max(1, dmgOnOpen - 1), `Grubenwache auf Engstelle nimmt genau -1 (${dmgOnChoke} vs. ${dmgOnOpen} offen)`);
-        assert(dmgOnNonEligible === dmgOnOpen, `Beutegräber (kein 17/19) auf derselben Engstelle bekommt KEINEN Bonus (${dmgOnNonEligible} === ${dmgOnOpen})`);
+        assert(M.getExpectedDamageUW(attacker, wache) === M.getExpectedDamageUW(attacker, wacheOpen), 'Grubenwache bekommt auf Engstelle keinen Schadensbonus mehr (Passiv entfernt)');
 
         const ritterChoke = { i: 5, p: 1, t: 19, x: chokeHex.x, y: chokeHex.y, h: 16 };
         const ritterOpen = { i: 6, p: 1, t: 19, x: openHex.x, y: openHex.y, h: 16 };
-        const dmgRitterChoke = M.getExpectedDamageUW(attacker, ritterChoke);
-        const dmgRitterOpen = M.getExpectedDamageUW(attacker, ritterOpen);
-        assert(dmgRitterChoke === Math.max(1, dmgRitterOpen - 1), `Grubenritter auf Engstelle nimmt ebenfalls genau -1 (${dmgRitterChoke} vs. ${dmgRitterOpen})`);
+        assert(M.getExpectedDamageUW(attacker, ritterChoke) === M.getExpectedDamageUW(attacker, ritterOpen), 'Grubenritter bekommt auf Engstelle keinen Schadensbonus mehr (Passiv entfernt)');
     }
 }
 
@@ -136,6 +130,52 @@ console.log('\n=== (b) Konter + Nachrücken im UW-Kampf ===');
         assert(attacker.x === n2.x && attacker.y === n2.y, 'Angreifer ist auf das freigewordene Ziel-Hex nachgerückt');
         assert(!state2.uw.u.includes(target), 'totes Ziel aus uw.u entfernt');
     }
+
+    // Fall 3: Grubenritter-Sturmangriff (Korrektur Juli 2026) — nach einem Kill
+    // einmalig frisches a=0 statt 1; ein zweiter Kill im SELBEN Zug löst den
+    // Bonus NICHT nochmal aus (sm-Sperre, keine Kill-Ketten).
+    {
+        const state3 = freshState(8, 5, 2);
+        const cx3 = state3.rad, cy3 = state3.rad;
+        const n3a = M.getNeighbors(cx3, cy3)[0];
+        const n3b = M.getNeighbors(n3a.x, n3a.y).find(n => !(n.x === cx3 && n.y === cy3));
+
+        const ritter = { i: 1, p: 0, t: 19, x: cx3, y: cy3, h: 16 };
+        const target1 = { i: 2, p: 1, t: 18, x: n3a.x, y: n3a.y, h: 1 };
+        const target2 = { i: 3, p: 1, t: 18, x: n3b.x, y: n3b.y, h: 1 };
+        state3.uw.u.push(ritter, target1, target2);
+
+        const r1 = M.resolveUWAttack(state3, ritter, target1);
+        assert(r1.killed === true, 'Sturmangriff-Test: erster Kill gelingt');
+        assert(ritter.a === 0, 'nach dem ersten Kill: a zurückgesetzt auf 0 (Sturmangriff ausgelöst)');
+        assert(ritter.sm === 1, 'nach dem ersten Kill: sm-Sperre gesetzt');
+        assert(ritter.x === n3a.x && ritter.y === n3a.y, 'Ritter auf das erste Ziel-Hex nachgerückt');
+
+        const r2 = M.resolveUWAttack(state3, ritter, target2);
+        assert(r2.killed === true, 'Sturmangriff-Test: zweiter Kill im selben Zug gelingt ebenfalls');
+        assert(ritter.a === 1, 'nach dem zweiten Kill im selben Zug: KEIN erneuter Sturmangriff (sm-Sperre greift, a bleibt 1)');
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n=== (b2) Grubenwache "Wache": mv-Flag unterscheidet Bewegen von reinem Angreifen ===');
+{
+    const state = freshState(23, 5, 2);
+    const cx = state.rad, cy = state.rad;
+    const n1 = M.getNeighbors(cx, cy)[0];
+
+    // Bewegen setzt mv=1 (heal-Bedingung "!u.mv" in doEndTurn greift NICHT mehr)
+    const wache1 = { i: 1, p: 0, t: 17, x: cx, y: cy, h: 10 };
+    M.moveUWUnit(state, wache1, n1.x, n1.y);
+    assert(wache1.mv === 1, 'Grubenwache nach Bewegung: mv-Flag gesetzt (keine Heilung am Rundenende)');
+
+    // Reines Angreifen (ohne vorherige Bewegung) setzt mv NICHT — die Heilung
+    // bleibt möglich, auch wenn die Grubenwache diesen Zug zugeschlagen hat.
+    const wache2 = { i: 2, p: 0, t: 17, x: cx, y: cy, h: 10 };
+    const target = { i: 3, p: 1, t: 18, x: n1.x, y: n1.y, h: 8 };
+    state.uw.u.push(wache2, target);
+    M.resolveUWAttack(state, wache2, target);
+    assert(!wache2.mv, 'Grubenwache nach reinem Angriff (keine Bewegung): mv-Flag NICHT gesetzt (Heilung bleibt möglich)');
 }
 
 // ─────────────────────────────────────────────────────────────────────────

@@ -38,11 +38,11 @@ Verteilung fairness-gebändert wie `SPAWN_BUDGETS` oben (gleiche Kristall-/Ruine
 
 **Graben:** Nur der Arbeiter (die Ebenen-Brücke, s. u.) und der Bohrwagen können Fels entfernen — 1 Hex pro Zug (Bohrwagen 2). Gegrabene Hexes sind dauerhaft offen und für alle Tiefeneinheiten begehbar (auch gegnerische — angeschnittene Netze verbinden sich).
 
-**Bewegen + Angreifen/Fähigkeit im selben Zug (Korrektur Juli 2026):** Tiefeneinheiten agieren jetzt exakt wie Oberflächen-Einheiten — Bewegung hinterlässt den Zwischenzustand `a=2` ("hat sich bewegt, darf noch GENAU eine weitere Aktion"), das Aktionsmenü öffnet danach automatisch mit den von der neuen Position frisch berechneten Angriffs-/Grab-/Fähigkeits-Optionen erneut, eine zweite Bewegung im selben Zug bleibt aber ausgeschlossen. Angriff/Graben/Dynamit/Stollenbruch/Ab- und Aufsteigen sind daher aus `a=0` ODER `a=2` nutzbar und verbrauchen die Aktion vollständig (`a=1`). Einzige Ausnahme: der Bohrwagen darf 2x/Zug graben — nur seine allererste Grabung des Zuges (aus `a=0`) hinterlässt ebenfalls `a=2`, jede weitere Aktion danach (2. Grabung oder Angriff, auch nach vorheriger Bewegung) verbraucht sie endgültig.
+**Bewegen + Angreifen/Fähigkeit im selben Zug (Korrektur Juli 2026):** Tiefeneinheiten agieren jetzt exakt wie Oberflächen-Einheiten — Bewegung hinterlässt den Zwischenzustand `a=2` ("hat sich bewegt, darf noch GENAU eine weitere Aktion"), das Aktionsmenü öffnet danach automatisch mit den von der neuen Position frisch berechneten Angriffs-/Grab-/Fähigkeits-Optionen erneut, eine zweite Bewegung im selben Zug bleibt aber ausgeschlossen. Angriff/Graben/Dynamit/Stollenbruch sind daher aus `a=0` ODER `a=2` nutzbar und verbrauchen die Aktion vollständig (`a=1`). Einzige Ausnahme: der Bohrwagen darf 2x/Zug graben — nur seine allererste Grabung des Zuges (aus `a=0`) hinterlässt ebenfalls `a=2`, jede weitere Aktion danach (2. Grabung oder Angriff, auch nach vorheriger Bewegung) verbraucht sie endgültig. **Ab-/Aufsteigen (uwDescend/uwAscend) verbraucht seit einer weiteren Korrektur (Juli 2026) den Zug NICHT mehr** — der Arbeiter landet auf der neuen Ebene mit `a=0` (voller Bewegung + Aktion), damit der Ebenenwechsel nicht wie ein verlorener Zug wirkt.
 
 **Sicht („Nur Stollen sichtbar" + Sichtweite 1, Korrektur Juli 2026):** Ein Spieler sieht dauerhaft die **Geometrie** seines Netzes: alles selbst Gegrabene + jedes offene Hex, das eine eigene Einheit je betreten hat, **plus die 6 Nachbarhexes jeder eigenen Einheit und jedes eigenen Stollenkopfs** (Sichtweite 1 — sonst wären Felsbrocken, Kristalladern und Fundkammern direkt neben dem Gang unauffindbar). Alles davon persistiert wie Fog (`compressFog`-Muster). Tiefer in den Fels hinein sieht man weiterhin nichts (kein Radius-2+-Sichtfeld wie oben). **Bewegliches** (fremde Einheiten, Kreaturen) ist nur im **Umkreis 2 um eigene Einheiten** sichtbar — unabhängig von der Netz-Geometrie; bekannte Gänge können also jederzeit Hinterhalte enthalten.
 
-**Gehör:** Graben, Abbau und Dynamit-Arbeiten erzeugen **Lärm**. Fremder Lärm im Umkreis 3 einer eigenen Einheit erzeugt eine ungefähre **Richtungsmarkierung** (Sektor, kein exaktes Hex) — die einzige Fernaufklärung der Tiefe. Der Horcher (Spionage) macht daraus exakte Ortung.
+**Gehör:** Graben, Abbau, Kämpfe, Dynamit, Stollenbruch UND herumlaufende/angreifende Kreaturen erzeugen **Lärm** (`addUWNoise(x, y, type)`, `type` ∈ dig/mine/combat/dynamite/collapse/creature_move/creature_attack — Unterminierung gibt es nicht mehr, durch Dynamit ersetzt). Fremder Lärm im Umkreis 3 einer eigenen Einheit erzeugt eine ungefähre **Richtungsmarkierung** (auf das nächstgelegene eigene Netz-Hex approximiert, kein exaktes Hex) — die einzige Fernaufklärung der Tiefe. Der Horcher (Spionage) macht daraus im Umkreis 5 exakte Ortung. Ein Klick auf ein markiertes Feld zeigt per Tooltip, welche Art Geräusch dort gehört wurde (`UW_NOISE_TYPE_NAMES`, js/logic.js).
 
 **Engstellen-Kampf:** In Gängen gibt es kein Vorbeikommen — wer vorn steht, blockt. **Engstelle** = offenes Hex mit ≤ 2 offenen Nachbarn; die Grubenwache nimmt dort −1 Schaden. Flankieren heißt unten: sich eine Flanke *graben*.
 
@@ -67,7 +67,7 @@ Alle Kosten/Werte sind **Balance-Erstentwurf** (Playtest-Vorbehalt wie bei den L
 | HP | 14 | 8 |
 | Bewegung | 2 | 2 |
 | Angriff | 4 DMG, RW 1 | 3 DMG, RW 1 |
-| Fähigkeiten | **Schildstellung**: −1 erlittener Schaden in Engstellen | **Dynamit** (s. Abschn. 6) · **Stollenbruch**: eigenes offenes Nachbar-Hex wieder verfüllen (Verfolger aussperren, Gegenstollen kappen) |
+| Fähigkeiten | **Wache** (Passiv, Korrektur Juli 2026 — ersetzt Schildstellung, war unverständlich): heilt +2 HP am Rundenende, wenn sie den Zug über NICHT bewegt wurde (Angreifen ist erlaubt, kein Überheilen über Max-HP) | **Dynamit** (s. Abschn. 6) · **Stollenbruch**: eigenes offenes Nachbar-Hex wieder verfüllen (Verfolger aussperren, Gegenstollen kappen) |
 
 | | ⚔ Grubenritter | 🪙 Beutegräber | 👂 Horcher | ⚙ Bohrwagen |
 |---|---|---|---|---|
@@ -76,8 +76,8 @@ Alle Kosten/Werte sind **Balance-Erstentwurf** (Playtest-Vorbehalt wie bei den L
 | Kosten | 7 G | 5 G | 4 G | 9 G |
 | HP | 16 (+`fb`-Bonus) | 10 | 8 | 14 |
 | Bewegung | 2 | 3 | 2 | 1 |
-| Angriff | 5 DMG, RW 1 | 4 DMG (+1 Plünderer-Passiv), RW 1 | 3 DMG, RW 1 | 4 DMG Rammbohrer, RW 1 |
-| Fähigkeit | Elite-Gangkämpfer — hält Engstellen quasi allein (Schildstellungs-Bonus wie 17) | plündert Fundkammern/Adern doppelt so schnell · stiehlt getragene Kristalle beim Kill · Kopfgeld-Upgrade greift auf Kreaturen | **Lauschen**: Lärm-Pings im Umkreis 5 als exaktes Hex statt Richtung · unsichtbar (`iv`) in offenen Gängen | **gräbt 2 Hex/Zug** — die Gilden untergraben schneller als alle anderen |
+| Angriff | 6 DMG, RW 1 (Korrektur Juli 2026, war 5 — teure Elite-Einheit) | 4 DMG (+1 Plünderer-Passiv), RW 1 | 3 DMG, RW 1 | 4 DMG Rammbohrer, RW 1 |
+| Fähigkeit | **Sturmangriff** (Korrektur Juli 2026, ersetzt Schildstellung): nach einem Kill (Einheit oder Kreatur) darf sie sich noch einmal frisch bewegen + angreifen — einmal pro eigenem Zug, keine Kill-Ketten | plündert Fundkammern/Adern doppelt so schnell · stiehlt getragene Kristalle beim Kill · Kopfgeld-Upgrade greift auf Kreaturen | **Lauschen**: Lärm-Pings im Umkreis 5 als exaktes Hex statt Richtung · **Sprung**: 2 Hex weit, unabhängig von Fels/Weg dazwischen, Ziel muss offen & frei sein (Korrektur Juli 2026, ersetzt die permanente Tarnung — war zu stark) | **gräbt 2 Hex/Zug** — die Gilden untergraben schneller als alle anderen |
 
 Fraktions-Passiva und Veteranen-System (2 Kills → +1 DMG) gelten wie oben; Kreaturen-Kills zählen für Veteranenstatus. `factionUnitMap`-Erweiterung: `{0:[…,19], 1:[…,20], 2:[…,21], 3:[…,22]}`.
 
@@ -113,8 +113,8 @@ sie sich jederzeit verlustfrei aus (Position, `c.ap`) neu ableiten.
 | Kreatur | HP | DMG | Aggro | Jagd/Runde | Patrouille/Runde | Verhalten |
 |---|---|---|---|---|---|---|
 | 🕷 **Höhlenspinne** | 6 | 4 | 3 | 2 | 1 | nistet in Kavernen; Netze machen ein Gang-Hex zur Engstelle mit Bewegungsstopp (legt nach jeder Bewegung eins auf ihrem Hex ab); patrouilliert im Umkreis 2 ihres Nests |
-| 🦡 **Blindwühler** | 12 | 5 | 5 (hört am weitesten) | 2 | 1 | gräbt sich selbst durch massiven Fels — auf der Jagd wie auf Patrouille (zieht ohne Ziel auf die letzte Lärmquelle im Umkreis 4 zu, nutzt dabei auch fremde Stollen). Wer viel gräbt, gräbt sich seine Feinde herbei |
-| 🪨 **Steinpanzer** | 28 | 6 | 3 | 1 (bewusst langsam — große AoE) | 1 | sitzt auf den reichsten Kristalladern; Patrouille-Schritte nur, wenn danach weiterhin eine Ader mit Restbestand angrenzt (Wachposten-Regel), sonst steht er |
+| 🦡 **Blindwühler** | 12 | 5 | 4 (hört am weitesten) | 2 | 1 | gräbt sich selbst durch massiven Fels — auf der Jagd wie auf Patrouille (zieht ohne Ziel auf die letzte Lärmquelle im Umkreis 4 zu, nutzt dabei auch fremde Stollen). Wer viel gräbt, gräbt sich seine Feinde herbei |
+| 🪨 **Steinpanzer** | 18 | 6 | 3 | 1 (bewusst langsam — große AoE) | 1 | sitzt auf den reichsten Kristalladern; Patrouille-Schritte nur, wenn danach weiterhin eine Ader mit Restbestand angrenzt (Wachposten-Regel), sonst steht er |
 | 🐛 **Der Alte Wurm** | 30 | 8 | 3 | 2 (Leine: nie weiter als 3 Hexes vom Herzkaverne-Zentrum) | 1 | **Wächter der Herzkaverne**. Ohne Ziel: außerhalb Distanz 1 vom Zentrum 1 Schritt zurück, sonst 1 Schritt im Ring 1 (Patrouille ums Herz). Muss besiegt werden, bevor die Erschließung beginnen kann — stirbt einmal, bleibt tot (globale Meldung: „Ein Beben läuft durch das Land — der Alte Wurm ist gefallen") |
 
 **Angriffsmuster** (`getCreatureAttackHexes`, geometrisch exakt über `uwHexInDirection`/`hexRingAround`/die
@@ -131,18 +131,21 @@ Lärm-Logik: jede Grab-/Abbau-/Dynamit-Aktion hinterlässt einen Lärm-Marker (H
 Blindwühler zieht am Rundenende darauf zu, solange kein Spieler-Ziel in Aggro-Reichweite ist. Kämpfe erzeugen
 ebenfalls Lärm — ein PvP-Gefecht kann ihn anlocken, der dann *beide* Seiten anfällt.
 
-**UI:** rote Markierungen mit 🎯-Symbol zeigen Telegraph-Hexes an — sichtbar, sobald das Hex im eigenen Stollen-Netz
-liegt (`uwVis`), unabhängig von der sonstigen Umkreis-2-Sichtregel für bewegliche Kreaturen (die Markierung selbst
-ist der Fairness-Kern des Systems, die Kreatur dahinter darf verborgen bleiben). Das Info-Panel eines angeklickten
-Hex zeigt zusätzlich „🎯 [Kreaturname] greift dieses Feld am Rundenende an (X DMG)".
+**UI:** rote Markierungen mit 🎯-Symbol zeigen Telegraph-Hexes an — NUR sichtbar, wenn aktuell eine eigene (oder
+verbündete) Einheit im Umkreis 2 steht (`uwHexNearOwnUnits`, Korrektur Juli 2026 — vorher reichte die bloße
+Netz-Geometrie/`uwVis` aus dem Gedächtnis, wodurch die Warnung stehen blieb, obwohl längst keine eigene Einheit mehr
+dort war, um sie zu sehen). Das Info-Panel eines angeklickten Hex zeigt zusätzlich „🎯 [Kreaturname] greift dieses
+Feld am Rundenende an (X DMG)" — unter derselben Sichtbarkeits-Bedingung. Massiver, noch ungegrabener Fels ist nie
+Teil eines Angriffsmusters (`getCreatureAttackHexes` filtert auf `isUnderworldOpen`, Korrektur Juli 2026) — eine
+Kreatur schlägt nie durch die Wand auf eine dahinterliegende offene Tasche.
 
 ## 6. Dynamit (taktisches Werkzeug, kein Siegweg, ersetzt Unterminierung — Korrektur Juli 2026)
 
 **Grundprinzip:** Tiefeneinheiten haben KEINERLEI Auswirkung auf das Spiel oben. Die frühere Unterminierung (Kammer/Zünden gegen Oberflächen-Strukturen) ist komplett gestrichen — Dynamit wirkt ausschließlich innerhalb der Unterwelt.
 
-- **Ziel:** ein angrenzendes, noch massives **Fels-Hex** ("im Gebirge platzieren") — kein Oberflächen-Ziel mehr, keine Priorität Startdorf/Turm/Mauer/Tunnel.
-- Der **Sprengmeister** wählt sein Fels-Ziel: Aktion **„Dynamit legen"** (kostet **1 Holz**, 1 Zug, laut). Die Ladung liegt lose in der Unterwelt (nicht am Gerät selbst) und explodiert automatisch, **sobald der platzierende Spieler seinen nächsten Zug startet** — unabhängig davon, wohin sich der Sprengmeister danach noch bewegt.
-- **Wirkung:** ein **Dreieck aus 3 Hexes** (das Ziel-Hex + die beiden Hexes, die zusammen mit Platzierer und Ziel die anliegende Dreiecksfläche bilden — geometrisch eindeutig, keine weitere Zielwahl nötig). Jedes der 3 Hexes: **6 Schaden** auf eine dort stehende Tiefeneinheit/Kreatur (AoE, auch eigene Truppen — Friendly Fire wie beim Feuersturm der Bombenballon oben), und jedes noch geschlossene Hex (Fels oder unangebrochene Ader) wird dauerhaft offen — **"das Gebirge wegsprengen, um den Weg freizumachen"**. Eine erwischte Ader wird dabei zerstört statt sauber abgebaut.
+- **Ziel:** **jedes angrenzende Hex** — unabhängig davon, ob dort massiver Fels liegt oder es bereits offen ist (Korrektur Juli 2026, Jonathan: vorher nur ein noch massives Fels-Hex) — kein Oberflächen-Ziel mehr, keine Priorität Startdorf/Turm/Mauer/Tunnel.
+- Der **Sprengmeister** wählt sein Ziel-Hex: Aktion **„Dynamit legen"** (kostet **1 Holz**, 1 Zug, laut). Die Ladung liegt lose in der Unterwelt (nicht am Gerät selbst) und explodiert automatisch, **sobald der platzierende Spieler seinen nächsten Zug startet** — unabhängig davon, wohin sich der Sprengmeister danach noch bewegt.
+- **Wirkung:** ein **Dreieck aus 3 Hexes** (das Ziel-Hex + die beiden Hexes, die zusammen mit Platzierer und Ziel die anliegende Dreiecksfläche bilden — geometrisch eindeutig, keine weitere Zielwahl nötig). Jedes der 3 Hexes: **6 Schaden** auf eine dort stehende Tiefeneinheit/Kreatur (AoE, auch eigene Truppen — Friendly Fire wie beim Feuersturm der Bombenballon oben), und jedes noch geschlossene **Fels**-Hex wird dauerhaft offen — **"das Gebirge wegsprengen, um den Weg freizumachen"**. **Korrektur Juli 2026 (Jonathan):** Kristaladern im Dreieck bleiben davon ausgenommen — sie nehmen weiterhin AoE-Schaden auf eine dort stehende Einheit, öffnen/zerstören aber nie durch Dynamit; eine Ader verschwindet ausschließlich durch vollständigen Abbau (Restbestand auf 0).
 - Rührt **nie** an `tu[]`/`wa[]`/`tw[]`/`p[].sh` — auch wenn ein Ziel-Hex zufällig unter einem Stollenkopf liegt, bleibt die Tunnel-HP unangetastet.
 - Keine Oberflächen-Anzeige (kein Beben-Indiz oben) — die Ladung ist nur innerhalb der Unterwelt sichtbar (🧨-Icon auf den 3 Ziel-Hexes, gemäß der normalen Netz-Sichtregeln).
 - Krater/Einsturz-Löcher, die die Ebenen physisch verbinden: **bewusst verschoben** (Phase 4-Idee), kollidiert vorerst mit „nur der Arbeiter wechselt die Ebene".
@@ -160,9 +163,9 @@ Hex zeigt zusätzlich „🎯 [Kreaturname] greift dieses Feld am Rundenende an 
 
 1. **Wurm besiegen** (Abschn. 5) — stärkste PvE-Hürde des Spiels, verhindert Früh-Rushes.
 2. **Erschließung starten:** eigene Einheit im Zentrum der Herzkaverne, keine gegnerische Einheit in der Kaverne (7 Hexes). Zähler `hz = {p, n}`.
-3. **4 eigene Zugenden halten.** Wird die Bedingung unterbrochen (Zentrum verloren oder Gegner in der Kaverne), **fällt der Zähler auf 0 zurück**.
+3. **5 eigene Zugenden halten.** Wird die Bedingung unterbrochen (Zentrum verloren oder Gegner in der Kaverne), **fällt der Zähler auf 0 zurück**.
 4. Ab Start der Erschließung erfahren es **alle** über das Event-System: „Die Erde bebt — {Spieler} erschließt das Herz der Tiefe" + sichtbarer Countdown im HUD + Beben-Effekt am zentralen Wachturm. Volle Information, kein heimlicher Sieg.
-5. Nach Runde 4: Sieg über die Gesamtpartie („Wer das Fundament des Landes hält, dem beugt sich die Oberfläche") — läuft durch die normale Win-Check-/Team-Logik (Diplomatie: verbündete Einheiten in der Kaverne unterbrechen nicht).
+5. Nach Runde 5: Sieg über die Gesamtpartie („Wer das Fundament des Landes hält, dem beugt sich die Oberfläche") — läuft durch die normale Win-Check-/Team-Logik (Diplomatie: verbündete Einheiten in der Kaverne unterbrechen nicht). Wird erst final geprüft, wenn die letzte Runde komplett durchlaufen ist (alle Spieler hatten ihren Zug), damit niemand einen Zug zu früh gewinnt (Korrektur Juli 2026).
 
 **Gegenspiel-Wege:** eigene Expedition in die Herzkaverne (1 Einheit in der Kaverne genügt zum Unterbrechen) · Tunnel des Erschließers oben zerstören/unterminieren → Moral-Kollaps seiner Expedition · Beutegräber/Horcher-Guerilla in seinen Stollen.
 
@@ -171,7 +174,7 @@ Hex zeigt zusätzlich „🎯 [Kreaturname] greift dieses Feld am Rundenende an 
 - **Kamerafokus-Zyklus** (fertig): Standard → Luftansicht → Unterwelt. Im Unterwelt-Fokus ist die Oberfläche komplett aus (nicht sichtbar, nicht anwählbar) — Spiegelbild der strikten Ebenen-Trennung der Luftansicht.
 - **Unterseiten-Rendering:** Fels = geschlossene dunkle Tile-Unterseiten; offene Hexes „ausgehöhlt" (vertieft, wärmeres Material); Kristalladern glitzern; Herzkaverne mit eigenem Großmodell (`voxelModels`). Einheiten stehen als Voxel-Billboards in den Gängen, von unten betrachtet. 2D-Fallback (`?r2d=1`): abgedunkelte Karte mit Gang-Overlays.
 - **Klick-Flow:** `handleUnderworldClick` (existiert) wächst zum vollen Pendant von `handleCanvasClick`: Auswahl → Grab-/Bewegungs-/Angriffs-Vorschau → Aktionsmenü (`mkBtn`-Muster: „⛏ Graben", „💎 Abbau starten"/„🛑 Abbau stoppen" (Toggle, Korrektur Juli 2026), „🧨 Dynamit legen" (Korrektur Juli 2026, ersetzt Kammer/Zünden), „🕳 Aufsteigen").
-- **Gehör-Anzeige:** Richtungs-Pings als pulsierende Sektor-Markierung am Rand des eigenen Netzes; Horcher-Ortung als exaktes Hex-Icon.
+- **Gehör-Anzeige:** Richtungs-Pings als orangenes Hex-Overlay (nächstgelegenes eigenes Netz-Hex); Horcher-Ortung als kräftigeres rotes Hex-Overlay. Klick auf ein markiertes Feld zeigt per Tooltip die Geräusch-Art (Graben/Abbau/Kämpfe/Dynamit/Stollenbruch/Kreatur-Bewegung/Kreatur-Angriff, `UW_NOISE_TYPE_NAMES`).
 - **Countdown & Beben:** Erschließungs-Fortschritt im HUD aller Spieler; Beben-Partikel am Wachturm. Dynamit (Korrektur Juli 2026) hat bewusst KEINE Oberflächen-Anzeige mehr — nur ein 🧨-Icon unten auf den 3 Ziel-Hexes.
 - Rekrutierung am Stollenkopf über das bestehende Kauf-Menü-Muster (`buyUnit` ebenenbewusst, wie bei Luft).
 

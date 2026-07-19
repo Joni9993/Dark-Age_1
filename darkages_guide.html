@@ -1519,8 +1519,7 @@
           <div class="build-icon">🚧</div>
           <div><strong>Engstellen-Kampf</strong><br>
             In Gängen gibt es kein Vorbeikommen – wer vorn steht, blockt den Weg. Eine <strong>Engstelle</strong> ist
-            ein offenes Hex mit höchstens 2 offenen Nachbarn; dort erleiden Grubenwache und Grubenritter
-            <strong>−1 Schaden</strong> (Schildstellung). Flankieren heißt unten: sich eine zweite Route graben.</div>
+            ein offenes Hex mit höchstens 2 offenen Nachbarn. Flankieren heißt unten: sich eine zweite Route graben.</div>
         </div>
       </div>
 
@@ -1569,7 +1568,7 @@
             <td>⚔️ Grubenritter</td>
             <td>7 G</td>
             <td>16 (+Feudal-Bonus)</td>
-            <td>5</td>
+            <td>6</td>
             <td>2</td>
             <td>🏰 Feudalismus</td>
           </tr>
@@ -1606,6 +1605,18 @@
       <p><strong>Besondere Fähigkeiten:</strong></p>
 
       <div class="build-row">
+        <div class="build-item">
+          <div class="build-icon">🛡️</div>
+          <div><strong>Grubenwache – Wache</strong><br>
+            Heilt am Rundenende <strong>+2 HP</strong>, wenn sie den Zug über nicht bewegt wurde (Angreifen ist
+            erlaubt, kein Überheilen über ihre Max-HP hinaus).</div>
+        </div>
+        <div class="build-item">
+          <div class="build-icon">⚔️</div>
+          <div><strong>Grubenritter – Sturmangriff</strong><br>
+            Tötet er ein Ziel (Einheit oder Kreatur), darf er sich noch einmal frisch bewegen und angreifen –
+            einmal pro eigenem Zug, keine Kill-Ketten.</div>
+        </div>
         <div class="build-item">
           <div class="build-icon">⛏️</div>
           <div><strong>Arbeiter – Graben, Abbau & Ebenen-Wechsel</strong><br>
@@ -1657,13 +1668,13 @@
         <div class="event-card">
           <div class="event-icon">🦡</div>
           <div><span class="event-name">Blindwühler</span><span class="event-desc">12 HP · 5 DMG. Hört am
-              weitesten (Umkreis 5), jagt bis 2 Felder/Runde und gräbt sich dabei selbst durch massiven Fels – auch
+              weitesten (Umkreis 4), jagt bis 2 Felder/Runde und gräbt sich dabei selbst durch massiven Fels – auch
               durch fremde Stollen. Ohne Ziel zieht er auf die letzte Lärmquelle (Umkreis 4) zu. Muster: „Grabstoß"
               (Linie, 3 Felder) oder „Beben" (Ring um sich selbst, 6 Felder).</span></div>
         </div>
         <div class="event-card">
           <div class="event-icon">🪨</div>
-          <div><span class="event-name">Steinpanzer</span><span class="event-desc">28 HP · 6 DMG. Träger
+          <div><span class="event-name">Steinpanzer</span><span class="event-desc">18 HP · 6 DMG. Träger
               Panzerbrocken, sitzt auf den reichsten Kristalladern – bewegt sich mit seiner großen Reichweite bewusst
               nur 1 Feld/Runde und bleibt als Wachposten immer neben einer Ader stehen. Muster: „Felsschlag" (Ring um
               sich selbst) oder „Erdrutsch" (120°-Keil bis 2 Felder Entfernung).</span>
@@ -1739,9 +1750,9 @@
         <li><strong>Erschließung starten:</strong> eigene Einheit im Zentrum der Herzkaverne, keine gegnerische
           Einheit irgendwo in der Kaverne (7 Hexes). Ab jetzt erfahren <strong>alle Spieler</strong> davon: „Die
           Erde bebt – {Spieler} erschließt das Herz der Tiefe" + Countdown im HUD.</li>
-        <li><strong>4 eigene Zugenden lang halten.</strong> Wird die Bedingung unterbrochen (Zentrum verloren oder
+        <li><strong>5 eigene Zugenden lang halten.</strong> Wird die Bedingung unterbrochen (Zentrum verloren oder
           ein Gegner betritt die Kaverne), fällt der Zähler auf 0 zurück.</li>
-        <li>Nach der 4. Runde: <strong>Sieg über die gesamte Partie</strong> – für den Erschließer und alle seine
+        <li>Nach der 5. Runde: <strong>Sieg über die gesamte Partie</strong> – für den Erschließer und alle seine
           lebenden Verbündeten, unabhängig davon, ob oben noch andere Spieler leben.</li>
       </ol>
 

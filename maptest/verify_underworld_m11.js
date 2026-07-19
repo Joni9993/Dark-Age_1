@@ -109,6 +109,14 @@ console.log('\n=== (b) Telegraph -> Ausweichen: wer stehen bleibt, wird getroffe
         const state = freshState(21, 12, 2);
         state.uw.c = [{ t: M.UWC_SPINNE, x: 6, y: 6, h: 6 }];
         const spider = state.uw.c[0];
+        // Angriffsmuster reichen bis Distanz 2 (Sprungbiss) — Korrektur Juli 2026:
+        // getCreatureAttackHexes filtert jetzt auf isUnderworldOpen (massiver Fels
+        // blockt den Angriff), ein Angriffs-Hex muss also offen sein, exakt wie ein
+        // Ziel-Hex im echten Spiel nur offen von einer Einheit betreten werden kann.
+        // Künstlich erzwungen statt vom Zufalls-Terrain abhängig zu sein.
+        forceOpen(state, spider.x, spider.y);
+        M.hexRingAround({ x: spider.x, y: spider.y }, 1).forEach(h => forceOpen(state, h.x, h.y));
+        M.hexRingAround({ x: spider.x, y: spider.y }, 2).forEach(h => forceOpen(state, h.x, h.y));
         const near = M.getNeighbors(spider.x, spider.y)[0];
         state.uw.u = [{ i: 1, p: 0, t: 7, x: near.x, y: near.y, h: 8, a: 0 }];
         M.uwCreatureRoundPhase(); // Runde 1: noch kein bestehender Telegraph -> setzt nur einen neuen
@@ -202,11 +210,12 @@ console.log('\n=== (c) Wurm-Leine: nie weiter als 3 Hexes vom Herzkaverne-Zentru
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n=== (d) Bewegungsreichweiten: Jagd bis huntMove Schritte (Steinpanzer nur 1), Patrouille genau 1 ===');
+console.log('\n=== (d) Bewegungsreichweiten: Jagd bis huntMove Schritte (alle Kreaturen 1), Patrouille genau 1 ===');
 {
     // Künstlicher, garantiert offener Korridor (unabhängig vom Zufalls-Terrain):
-    // Spinne (huntMove 2) verfolgt ein Ziel 3 Hexes entfernt entlang Achse 0 und
-    // legt dabei GENAU 2 Felder zurück (stoppt bei Distanz 1).
+    // Spinne (huntMove 1) verfolgt ein Ziel 3 Hexes entfernt entlang Achse 0 und
+    // legt dabei GENAU 1 Feld zurück (stoppt bei Distanz 1 wäre erst nach 2 Schritten
+    // erreicht, aber huntMove begrenzt auf 1 Schritt/Runde).
     {
         const state = freshState(5, 12, 2);
         const spider = findCreature(state, M.UWC_SPINNE);
@@ -221,15 +230,15 @@ console.log('\n=== (d) Bewegungsreichweiten: Jagd bis huntMove Schritte (Steinpa
                 const pos0 = { x: spider.x, y: spider.y };
                 M.uwCreatureRoundPhase();
                 const moved = M.hexDistance(pos0, spider);
-                assert(moved === 2, `Spinne legt bei einem 3 Hexes entfernten Ziel genau huntMove=2 Felder zurück (gemessen: ${moved})`);
-                assert(spider.x === h2.x && spider.y === h2.y, 'Spinne steht exakt auf dem berechneten 2.-Schritt-Hex (deterministischer Korridor)');
+                assert(moved === 1, `Spinne legt bei einem 3 Hexes entfernten Ziel genau huntMove=1 Feld zurück (gemessen: ${moved})`);
+                assert(spider.x === h1.x && spider.y === h1.y, 'Spinne steht exakt auf dem berechneten 1.-Schritt-Hex (deterministischer Korridor)');
             } else {
                 console.log('SKIP: Korridor-Testhex außerhalb der Karte (Seed-Zufall) — Spinnen-Jagdreichweitentest übersprungen');
             }
         }
     }
 
-    // Steinpanzer (huntMove 1): gleicher Korridor-Aufbau, aber nur 1 Feld.
+    // Steinpanzer (huntMove 1): gleicher Korridor-Aufbau, ebenfalls nur 1 Feld.
     {
         const state = freshState(7, 12, 2);
         const panzer = findCreature(state, M.UWC_STEINPANZER);

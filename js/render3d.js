@@ -48,6 +48,13 @@
     };
     // Akzentfarben (Kristall-/Fund-/Herz-Glitzern) für Typen mit `accentPositions`
     const UW_ACCENT_COLORS = { [UW_ADER]: '#7fe3ff', [UW_RUINE]: '#c9a24b', [UW_HERZ]: '#ff6f61' };
+    // Diamantenes Kristallschimmern für das Kristallvorkommen-Voxelmodell (s.
+    // Kristalladern-Block in drawScene3d): tint-Mix in addVoxelModel (fixe 45%-
+    // Überblendung), bewusst heller/weißer als UW_ACCENT_COLORS[UW_ADER] (das
+    // reine Glitzern), damit der wiederverwendete Steinhaufen-Voxelkörper
+    // (voxelModels['stone'], sonst reines R/a-Grau) wie Kristall statt
+    // eingefärbtem Stein wirkt.
+    const UW_CRYSTAL_TINT = new THREE.Color('#79ddff');
 
     function worldPos(x, y) {
         return {
@@ -467,7 +474,12 @@
             if (uType === UW_ADER || uType === UW_RUINE || uType === UW_HERZ) {
                 accentPositions.push({ x: c.x, y: c.y, uType, wx, wz, depth });
             }
-            if (uType === UW_FELS || uType === UW_ADER) {
+            if (uType === UW_FELS) {
+                // Adern MIT Restbestand bekommen kein generisches Fels-Brocken-
+                // Modell mehr (Korrektur Juli 2026) — stattdessen das dedizierte
+                // Kristallvorkommen-Modell weiter unten (voxelModels['stone'],
+                // diamanten eingefärbt), das sie sichtbar von reinem Fels
+                // unterscheidet statt gleich auszusehen.
                 felsPositions.push({ x: c.x, y: c.y, wx, wz, depth });
             }
             // Stollenköpfe bekommen KEINEN Tile-Akzent mehr — dort wird stattdessen
@@ -1255,138 +1267,152 @@
         const entities = [];
         if (surfaceVisible) {
 
-        if (state.tu) state.tu.forEach(t => {
-            [[t.x1, t.y1], [t.x2, t.y2]].forEach(([ex, ey]) => {
-                if (vis.has(`${ex},${ey}`)) entities.push({ x: ex, y: ey, spriteKey: 'tunnel', ownerId: t.o, hp: t.h, maxHp: 13, dim: (t.r > state.rn) ? 0.4 : 1, flag: true, bn: t.bn });
+            if (state.tu) state.tu.forEach(t => {
+                [[t.x1, t.y1], [t.x2, t.y2]].forEach(([ex, ey]) => {
+                    if (vis.has(`${ex},${ey}`)) entities.push({ x: ex, y: ey, spriteKey: 'tunnel', ownerId: t.o, hp: t.h, maxHp: 13, dim: (t.r > state.rn) ? 0.4 : 1, flag: true, bn: t.bn });
+                });
             });
-        });
-        if (state.wa) {
-            const wallSet = new Set(state.wa.map(w => `${w.x},${w.y}`));
-            state.wa.forEach(w => {
-                if (vis.has(`${w.x},${w.y}`)) entities.push({ x: w.x, y: w.y, spriteKey: 'wall', ownerId: w.o, hp: w.h, maxHp: 10, bn: w.bn, rot: computeWallRotation(w.x, w.y, wallSet) });
+            if (state.wa) {
+                const wallSet = new Set(state.wa.map(w => `${w.x},${w.y}`));
+                state.wa.forEach(w => {
+                    if (vis.has(`${w.x},${w.y}`)) entities.push({ x: w.x, y: w.y, spriteKey: 'wall', ownerId: w.o, hp: w.h, maxHp: 10, bn: w.bn, rot: computeWallRotation(w.x, w.y, wallSet) });
+                });
+            }
+            if (state.st) state.st.forEach(s => {
+                if (s.h > 0 && vis.has(`${s.x},${s.y}`)) entities.push({ x: s.x, y: s.y, spriteKey: 'stone', color: '#9e9e9e', hp: s.h, maxHp: 40 });
             });
-        }
-        if (state.st) state.st.forEach(s => {
-            if (s.h > 0 && vis.has(`${s.x},${s.y}`)) entities.push({ x: s.x, y: s.y, spriteKey: 'stone', color: '#9e9e9e', hp: s.h, maxHp: 40 });
-        });
-        if (state.tw) state.tw.forEach(tw => {
-            if (tw.h > 0 && vis.has(`${tw.x},${tw.y}`)) entities.push({ x: tw.x, y: tw.y, spriteKey: 'tower', ownerId: tw.o, hp: tw.h, maxHp: 15, dim: tw.a === 1 ? 0.45 : 1, bn: tw.bn });
-        });
-        if (state.ct) {
-            entities.push({ x: state.ct.x, y: state.ct.y, spriteKey: 'watchtower', color: state.ct.ctrl === -1 ? '#888888' : getEntityColor(state.ct.ctrl) });
-        }
-        for (const [key, ownerId] of Object.entries(state.v)) {
-            const [vx, vy] = key.split(',').map(Number);
-            const idx = vy * state.bw + vx;
-            if (vis.has(key) || ownerId === state.cp || (ownerId === -1 && explored.includes(idx))) {
-                let hp, spriteKey = 'village', bn;
-                if (ownerId !== -1 && state.p[ownerId] && state.p[ownerId].sv === key) {
-                    hp = state.p[ownerId].sh; spriteKey = 'startVillage'; bn = state.p[ownerId].bn;
-                }
-                entities.push({ x: vx, y: vy, spriteKey, ownerId, hp, maxHp: 30, flag: true, bn });
+            if (state.tw) state.tw.forEach(tw => {
+                if (tw.h > 0 && vis.has(`${tw.x},${tw.y}`)) entities.push({ x: tw.x, y: tw.y, spriteKey: 'tower', ownerId: tw.o, hp: tw.h, maxHp: 15, dim: tw.a === 1 ? 0.45 : 1, bn: tw.bn });
+            });
+            if (state.ct) {
+                entities.push({ x: state.ct.x, y: state.ct.y, spriteKey: 'watchtower', color: state.ct.ctrl === -1 ? '#888888' : getEntityColor(state.ct.ctrl) });
             }
-        }
-        state.u.forEach(unit => {
-            if (!window.DEBUG_NO_FOG && unit.p !== state.cp && unit.iv === 1) return;
-            if (vis.has(`${unit.x},${unit.y}`) || unit.p === state.cp) {
-                entities.push({ unit });
-            }
-        });
-
-        const stealthTint = new THREE.Color('#64c8ff');
-        entities.forEach(e => {
-            if (e.unit) {
-                const u = e.unit;
-                const tType = getTerrainType(state, u.x, u.y);
-                let { wx, wz } = worldPos(u.x, u.y);
-                const gy = tileHeight(tType);
-                let spriteKey = u.t;
-                if (spriteKey === 11 && u.dp === 1) spriteKey = 'wagen_dp';
-                if (spriteKey === 14 && u.ld === 1) spriteKey = 'fallschirm_ld';
-                // Einheiten immer als 2D-Pixel-Billboard ("Pappaufsteller") rendern —
-                // die echten 3D-Voxelkörper für Einheiten sind zurückgestellt, nur
-                // Gebäude/Steine (separater Zweig unten) nutzen weiterhin voxelModels.
-                const hasVoxelBody = false;
-                // Steht die Einheit auf einem Hex mit echtem 3D-Voxelkörper (Gebäude im
-                // Redesign, Stein-Resource bereits live), zur Kamera vorziehen — sonst
-                // verschwindet der Sprite im Modell. Flache Billboards brauchen das nicht.
-                if (voxelBodyHexes.has(`${u.x},${u.y}`)) {
-                    const { fx, fz } = camGroundAxes();
-                    wx += fx * hexSize * 0.55;
-                    wz += fz * hexSize * 0.55;
-                }
-                const maxHp = getUnitMaxHp(state.p[u.p], u.t, u);
-                // Flieger schweben über der Bodenebene; ihr Schatten bleibt am Boden
-                const flying = isFlying(u);
-                const hover = flying ? hexSize * 1.4 : 0;
-                // Flieger-Voxel ins transparente Luft-Mesh; ihre Texte/Icons dämpfen mit
-                _voxelAir = flying;
-                const uiA = flying ? Math.max(airAlpha, 0.25) : 1;
-                const isStealth = u.iv === 1;
-                const dim = isStealth ? (u.a === 1 ? 0.35 : 0.8) : (u.a === 1 ? 0.45 : 1);
-                addShadow(wx, wz, gy);
-                const drawUnit = (dx, dz, tintColor, dimF) => {
-                    if (hasVoxelBody) addVoxelModel(spriteKey, wx + dx, wz + dz, gy + hover, playerColors[u.p], dimF, tintColor);
-                    // Einheiten nutzen wie Terrain/Gebäude den DEBUG_ART-geschalteten
-                    // Datensatz (pixelSprites/spritePixelColor als Default) — im Debug-Modus
-                    // also das NEW_*-Redesign, im Live-Spiel weiterhin CLASSIC_*.
-                    else addVoxelSprite(spriteKey, wx + dx, wz + dz, gy + hover, playerColors[u.p], dimF, tintColor);
-                };
-                if (isStealth && u.a !== 1) {
-                    // Geister-Doppelbild wie im 2D-Renderer (versetzte, stark gedimmte Kopien)
-                    drawUnit(-2, 0.6, stealthTint, 0.25);
-                    drawUnit(2, 0.6, stealthTint, 0.25);
-                }
-                drawUnit(0, 0, isStealth ? stealthTint : null, dim);
-                _voxelAir = false;
-                // Echte 3D-Körper haben unterschiedliche Höhen (Pferd > Assassine) —
-                // HP-Text/Icons sitzen relativ zur tatsächlichen Modellhöhe statt am
-                // festen 30px-Versatz der alten Billboard-Sprites.
-                const topY = hasVoxelBody ? gy + hover + modelTopHeight(spriteKey) + 4 : gy + hover + 30;
-                addHpText(u.h, wx, wz, topY, -1, u.h / maxHp < 0.15, uiA);
-                if (u.vet) addIcon('★', '#e8b84a', wx, wz, topY + 4, 9, uiA);
-                if (u.mi) addIcon('⛏', '#fff176', wx, wz, topY - 2, 11, uiA, 1);
-                if (u.bn) addIcon('🔥', '#ff6e40', wx, wz, topY, 11, uiA, 1);
-                if (u.cg) addIcon('📦', '#ffcc80', wx, wz, topY - 10, 10, uiA, 1);
-                // Aufgestiegener Arbeiter mit Kristallfracht: auch oben sichtbar machen
-                if (u.cr) addIcon(`💎${u.cr}`, '#7fe3ff', wx, wz, topY + 12, 11, uiA, 1);
-            } else {
-                const tType = getTerrainType(state, e.x, e.y);
-                const { wx, wz } = worldPos(e.x, e.y);
-                const gy = tileHeight(tType);
-                const color = e.color || getEntityColor(e.ownerId);
-                if (voxelModels[e.spriteKey]) {
-                    // Echtes 3D-Modell — steht bündig auf dem Boden, kein Blob-Schatten
-                    addVoxelModel(e.spriteKey, wx, wz, gy, color, e.dim || 1, null, e.rot || 0);
-                } else {
-                    addShadow(wx, wz, gy);
-                    addVoxelSprite(e.spriteKey, wx, wz, gy, color, e.dim || 1, null);
-                }
-                if (e.flag) addFlag(wx, wz, gy, color);
-                if (e.hp !== undefined && e.maxHp !== undefined) {
-                    if (e.spriteKey === 'stone') {
-                        // Stein-Restmenge mittig, immer weiß — dicht über dem Stein
-                        addHpText(e.hp, wx, wz, gy + 16, 0, false);
-                    } else {
-                        addHpText(e.hp, wx, wz, gy + 30, 1, e.hp / e.maxHp < 0.15);
+            for (const [key, ownerId] of Object.entries(state.v)) {
+                const [vx, vy] = key.split(',').map(Number);
+                const idx = vy * state.bw + vx;
+                if (vis.has(key) || ownerId === state.cp || (ownerId === -1 && explored.includes(idx))) {
+                    let hp, spriteKey = 'village', bn;
+                    if (ownerId !== -1 && state.p[ownerId] && state.p[ownerId].sv === key) {
+                        hp = state.p[ownerId].sh; spriteKey = 'startVillage'; bn = state.p[ownerId].bn;
                     }
+                    entities.push({ x: vx, y: vy, spriteKey, ownerId, hp, maxHp: 30, flag: true, bn });
                 }
-                if (e.bn) addIcon('🔥', '#ff6e40', wx, wz, gy + 30, 11, 1, -1);
             }
-        });
+            state.u.forEach(unit => {
+                if (!window.DEBUG_NO_FOG && unit.p !== state.cp && unit.iv === 1) return;
+                if (vis.has(`${unit.x},${unit.y}`) || unit.p === state.cp) {
+                    entities.push({ unit });
+                }
+            });
 
-        // Dynamit (Korrektur Juli 2026) hat bewusst KEINE Oberflächen-Anzeige mehr
-        // (ersetzt die alte Unterminierungs-Vorwarnung) — es wirkt ausschließlich
-        // unten, siehe den Dynamit-Marker im Unterwelt-Zweig weiter unten.
+            const stealthTint = new THREE.Color('#64c8ff');
+            entities.forEach(e => {
+                if (e.unit) {
+                    const u = e.unit;
+                    const tType = getTerrainType(state, u.x, u.y);
+                    let { wx, wz } = worldPos(u.x, u.y);
+                    const gy = tileHeight(tType);
+                    let spriteKey = u.t;
+                    if (spriteKey === 11 && u.dp === 1) spriteKey = 'wagen_dp';
+                    if (spriteKey === 14 && u.ld === 1) spriteKey = 'fallschirm_ld';
+                    // Einheiten immer als 2D-Pixel-Billboard ("Pappaufsteller") rendern —
+                    // die echten 3D-Voxelkörper für Einheiten sind zurückgestellt, nur
+                    // Gebäude/Steine (separater Zweig unten) nutzen weiterhin voxelModels.
+                    const hasVoxelBody = false;
+                    // Steht die Einheit auf einem Hex mit echtem 3D-Voxelkörper (Gebäude im
+                    // Redesign, Stein-Resource bereits live), zur Kamera vorziehen — sonst
+                    // verschwindet der Sprite im Modell. Flache Billboards brauchen das nicht.
+                    if (voxelBodyHexes.has(`${u.x},${u.y}`)) {
+                        const { fx, fz } = camGroundAxes();
+                        wx += fx * hexSize * 0.55;
+                        wz += fz * hexSize * 0.55;
+                    }
+                    const maxHp = getUnitMaxHp(state.p[u.p], u.t, u);
+                    // Flieger schweben über der Bodenebene; ihr Schatten bleibt am Boden
+                    const flying = isFlying(u);
+                    const hover = flying ? hexSize * 1.4 : 0;
+                    // Flieger-Voxel ins transparente Luft-Mesh; ihre Texte/Icons dämpfen mit
+                    _voxelAir = flying;
+                    const uiA = flying ? Math.max(airAlpha, 0.25) : 1;
+                    const isStealth = u.iv === 1;
+                    const dim = isStealth ? (u.a === 1 ? 0.35 : 0.8) : (u.a === 1 ? 0.45 : 1);
+                    addShadow(wx, wz, gy);
+                    const drawUnit = (dx, dz, tintColor, dimF) => {
+                        if (hasVoxelBody) addVoxelModel(spriteKey, wx + dx, wz + dz, gy + hover, playerColors[u.p], dimF, tintColor);
+                        // Einheiten nutzen wie Terrain/Gebäude den DEBUG_ART-geschalteten
+                        // Datensatz (pixelSprites/spritePixelColor als Default) — im Debug-Modus
+                        // also das NEW_*-Redesign, im Live-Spiel weiterhin CLASSIC_*.
+                        else addVoxelSprite(spriteKey, wx + dx, wz + dz, gy + hover, playerColors[u.p], dimF, tintColor);
+                    };
+                    if (isStealth && u.a !== 1) {
+                        // Geister-Doppelbild wie im 2D-Renderer (versetzte, stark gedimmte Kopien)
+                        drawUnit(-2, 0.6, stealthTint, 0.25);
+                        drawUnit(2, 0.6, stealthTint, 0.25);
+                    }
+                    drawUnit(0, 0, isStealth ? stealthTint : null, dim);
+                    _voxelAir = false;
+                    // Echte 3D-Körper haben unterschiedliche Höhen (Pferd > Assassine) —
+                    // HP-Text/Icons sitzen relativ zur tatsächlichen Modellhöhe statt am
+                    // festen 30px-Versatz der alten Billboard-Sprites.
+                    const topY = hasVoxelBody ? gy + hover + modelTopHeight(spriteKey) + 4 : gy + hover + 30;
+                    addHpText(u.h, wx, wz, topY, -1, u.h / maxHp < 0.15, uiA);
+                    if (u.vet) addIcon('★', '#e8b84a', wx, wz, topY + 4, 9, uiA);
+                    if (u.mi) addIcon('⛏', '#fff176', wx, wz, topY - 2, 11, uiA, 1);
+                    if (u.bn) addIcon('🔥', '#ff6e40', wx, wz, topY, 11, uiA, 1);
+                    if (u.cg) addIcon('📦', '#ffcc80', wx, wz, topY - 10, 10, uiA, 1);
+                    // Aufgestiegener Arbeiter mit Kristallfracht: auch oben sichtbar machen
+                    if (u.cr) addIcon(`💎${u.cr}`, '#7fe3ff', wx, wz, topY + 12, 11, uiA, 1);
+                } else {
+                    const tType = getTerrainType(state, e.x, e.y);
+                    const { wx, wz } = worldPos(e.x, e.y);
+                    const gy = tileHeight(tType);
+                    const color = e.color || getEntityColor(e.ownerId);
+                    if (voxelModels[e.spriteKey]) {
+                        // Echtes 3D-Modell — steht bündig auf dem Boden, kein Blob-Schatten
+                        addVoxelModel(e.spriteKey, wx, wz, gy, color, e.dim || 1, null, e.rot || 0);
+                    } else {
+                        addShadow(wx, wz, gy);
+                        addVoxelSprite(e.spriteKey, wx, wz, gy, color, e.dim || 1, null);
+                    }
+                    if (e.flag) addFlag(wx, wz, gy, color);
+                    if (e.hp !== undefined && e.maxHp !== undefined) {
+                        if (e.spriteKey === 'stone') {
+                            // Stein-Restmenge mittig, immer weiß — dicht über dem Stein
+                            addHpText(e.hp, wx, wz, gy + 16, 0, false);
+                        } else {
+                            addHpText(e.hp, wx, wz, gy + 30, 1, e.hp / e.maxHp < 0.15);
+                        }
+                    }
+                    if (e.bn) addIcon('🔥', '#ff6e40', wx, wz, gy + 30, 11, 1, -1);
+                }
+            });
 
-        // Erschließung (M12, PLAN.md Abschn. 8): dauerhaftes Beben-Indiz am
-        // zentralen Wachturm, solange eine Erschließung läuft — unconditional wie
-        // der ct-Entity selbst (volle Information, kein heimlicher Fortschritt).
-        if (state.uw && state.uw.hz && state.ct) {
-            const gyCt = tileHeight(getTerrainType(state, state.ct.x, state.ct.y));
-            const { wx, wz } = worldPos(state.ct.x, state.ct.y);
-            addIcon('🌍', '#8d6e63', wx, wz, gyCt + 42, 14);
-        }
+            // Dynamit (Korrektur Juli 2026) hat bewusst KEINE Oberflächen-Anzeige mehr
+            // (ersetzt die alte Unterminierungs-Vorwarnung) — es wirkt ausschließlich
+            // unten, siehe den Dynamit-Marker im Unterwelt-Zweig weiter unten.
+
+            // Herz der Tiefe (Korrektur Juli 2026, zweiter Fix): steht eine Einheit/
+            // Kreatur im Zentrum der Herzkaverne, verschwindet das Herzkaverne-Modell
+            // unten (s. Unterwelt-Zweig) nicht einfach, sondern "rutscht" — analog zu
+            // den über der Bodenebene schwebenden Flieger-Einheiten (gleicher
+            // `hover`-Versatz) — an die Oberfläche direkt über dem zentralen
+            // Wachturm hoch, sichtbar solange das Zentrum belegt bleibt; verlässt die
+            // Einheit das Feld, sinkt es wieder auf seinen Platz in der Kaverne.
+            if (state.ct && voxelModels['herzkaverne']) {
+                const hcx = Math.floor(state.bw / 2), hcy = Math.floor(state.bh / 2);
+                const occupyingUnit = ((state.uw && state.uw.u) || []).find(u => u.x === hcx && u.y === hcy);
+                const heartOccupied = !!occupyingUnit
+                    || ((state.uw && state.uw.c) || []).some(c => c.h > 0 && c.x === hcx && c.y === hcy);
+                if (heartOccupied) {
+                    const gyHeart = tileHeight(getTerrainType(state, state.ct.x, state.ct.y));
+                    const { wx, wz } = worldPos(state.ct.x, state.ct.y);
+                    // Rand-Akzent (P-Pixel des Modells) zeigt die Spielerfarbe der
+                    // erschließenden Einheit statt eines festen Platzhalter-Rots —
+                    // nur eine Kreatur (kein Spieler) im Zentrum behält den Platzhalter.
+                    const heartColor = occupyingUnit ? playerColors[occupyingUnit.p] : '#ff6f61';
+                    addVoxelModel('herzkaverne', wx, wz, gyHeart + hexSize * 1.4, heartColor, 1, null, 0, false);
+                }
+            }
 
         } else {
             // Tunnel-HUB (Korrektur Juli 2026): das Oberflächen-Tunnelgebäude wird
@@ -1416,7 +1442,13 @@
             const cx = Math.floor(state.bw / 2), cy = Math.floor(state.bh / 2);
             // Herzkaverne-Modell nur, solange NIEMAND auf dem Zentrums-Hex steht —
             // sonst thront der Wurm (oder eine Einheit) optisch "auf dem Gebirge"
-            // obenauf statt in der Kaverne (Korrektur Juli 2026).
+            // obenauf statt in der Kaverne (Korrektur Juli 2026). Bei Belegung
+            // "rutscht" das Herz stattdessen an die Oberfläche hoch (Korrektur Juli
+            // 2026, zweiter Fix, s. der `surfaceVisible`-Zweig oben bei `state.ct`) —
+            // der Unterwelt-Boden hier bleibt in diesem Fall bewusst leer, y≈0 ist
+            // hier die massive, blickdichte Tile-Unterseite (uwTileMesh reicht bis
+            // dorthin), ein reines Hochschieben innerhalb dieser Szene würde das
+            // Modell also hinter dem Fels verschwinden lassen statt sichtbar zu machen.
             const centerOccupied = ((state.uw && state.uw.u) || []).some(u => u.x === cx && u.y === cy)
                 || ((state.uw && state.uw.c) || []).some(c => c.h > 0 && c.x === cx && c.y === cy);
             if (voxelModels['herzkaverne'] && !centerOccupied && uwVis.has(`${cx},${cy}`)) {
@@ -1453,17 +1485,26 @@
                 if (u.art) addIcon(RELICS[u.art].icon, '#ba68c8', wx, wz, topY - 4, 9, 1, -1);
             });
 
-            // Kristalladern: Restbestand als Zahl direkt am Hex (Korrektur Juli
-            // 2026 — wie die HP-Zahlen der Steinhaufen oben; das Glitzern allein
-            // verriet nicht, wie viel noch drinsteckt). Fundkammern bekommen ein
-            // 🏺-Icon, solange sie ungeplündert sind.
+            // Kristalladern: dasselbe 3D-Voxelmodell wie der Oberflächen-Steinhaufen
+            // (voxelModels['stone']), per tint (UW_CRYSTAL_TINT) zu einem
+            // diamantenen Kristallschimmern eingefärbt statt reinem Stein-Grau —
+            // Restbestand wird genau wie am Steinhaufen oben angezeigt (weiße
+            // Zahl, mittig, dicht über dem Modell, addHpText align 0), statt des
+            // alten 💎-Icons (Korrektur Juli 2026). Fundkammern bekommen weiterhin
+            // ein 🏺-Icon, solange sie ungeplündert sind.
             uwTileIndex.forEach(c => {
                 if (!uwVis.has(`${c.x},${c.y}`)) return;
                 const rem = getUWVeinRemaining(state, c.x, c.y);
                 const { wx, wz } = worldPos(c.x, c.y);
                 if (rem > 0) {
                     const gyA = -underworldDepth(UW_ADER);
-                    addIcon(`💎${rem}`, '#7fe3ff', wx, wz, gyA - 8, 11);
+                    if (voxelModels['stone']) {
+                        const topH = modelTopHeight('stone');
+                        addVoxelModel('stone', wx, wz, gyA - topH, '#9e9e9e', 1, UW_CRYSTAL_TINT, 0, true);
+                        addHpText(rem, wx, wz, gyA - topH - 8, 0, false);
+                    } else {
+                        addIcon(`💎${rem}`, '#7fe3ff', wx, wz, gyA - 8, 11);
+                    }
                 } else if (isFundkammerHex(state, c.x, c.y) && !(state.uw && state.uw.f && state.uw.f[`${c.x},${c.y}`])) {
                     addIcon('🏺', '#c9a24b', wx, wz, -underworldDepth(UW_RUINE) - 8, 11);
                 }
@@ -1538,20 +1579,18 @@
             getUWNoisePings(state.cp).forEach(p => addOverlay(p.x, p.y, p.exact ? 0xff5252 : 0xffb300, p.exact ? 0.65 : 0.5, state, true));
 
             // Telegraphierte Kreaturen-Angriffe (Korrektur Juli 2026, "Runden-Phase +
-            // Telegraph"): sichtbar sobald das Hex im eigenen Netz liegt (uwVis),
-            // UNABHÄNGIG von der Umkreis-2-Kreaturen-Sichtregel (isUWCreatureVisible)
-            // — die Markierung selbst ist der Fairness-Kern des Systems ("jeder hat
-            // genau einen Zug zum Ausweichen"), die Kreatur dahinter darf verborgen
-            // bleiben (gruselig ist gewollt). Eigene Farbe (dunkles Rot, underside-
-            // Overlay) + 🎯-Icon, nicht mit den grünen/roten uwValid*-Auswahl-
-            // Overlays (validMoves/validAttacks o.ä.) verwechselbar.
+            // Telegraph"): NUR sichtbar, wenn eine eigene (oder verbündete) Einheit
+            // aktuell im Umkreis 2 steht und den Treffer damit tatsächlich SEHEN kann
+            // (uwHexNearOwnUnits, dieselbe Regel wie isUWCreatureVisible) — die bloße
+            // Netz-Geometrie (uwVis, "kenne ich von früher") reicht NICHT mehr aus
+            // (Korrektur Juli 2026, Jonathan: sonst blieb die Warnung stehen, obwohl
+            // gar keine eigene Einheit mehr dort war, um sie wahrzunehmen). Eigene
+            // Farbe (dunkles Rot, underside-Overlay) + 🎯-Icon, nicht mit den grünen/
+            // roten uwValid*-Auswahl-Overlays (validMoves/validAttacks o.ä.) verwechselbar.
             (state.uw && state.uw.c || []).forEach(c => {
                 if (c.h <= 0 || !c.ap) return;
-                getCreatureAttackHexes(state, c).forEach(h => {
-                    // Netz-Geometrie ODER Umkreis 2 eigener Einheiten (Korrektur Juli
-                    // 2026): eine Kreatur direkt neben dir zielt oft auf Hexes, die du
-                    // nie betreten hast — die Warnung muss trotzdem sichtbar sein.
-                    if (!uwVis.has(`${h.x},${h.y}`) && !uwHexNearOwnUnits(state.cp, h.x, h.y)) return;
+                getOpenCreatureAttackHexes(state, c).forEach(h => {
+                    if (!uwHexNearOwnUnits(state.cp, h.x, h.y)) return;
                     addOverlay(h.x, h.y, 0xb71c1c, 0.5, state, true);
                     const { wx: twx, wz: twz } = worldPos(h.x, h.y);
                     addIcon('🎯', '#ffffff', twx, twz, -underworldDepth(uwVisualType(state, h.x, h.y)) - 8, 12);
@@ -1585,15 +1624,16 @@
         }
         // Unterwelt-Ziel-Highlights: Bewegung grün wie oben, Graben bräunlich (eigene
         // Farbe, siehe M9b-Auftrag), Angreifen rot wie oben (M10), Stollenbruch orange
-        // (M12), Dynamit dunkelrot (Korrektur Juli 2026) — alle unterseitig
-        // (underside). Abbauen läuft seit der Toggle-Umstellung (Korrektur Juli
-        // 2026) ohne Ziel-Klick, kein Highlight mehr nötig.
+        // (M12), Dynamit dunkelrot, Horcher-Sprung cyan (beide Korrektur Juli 2026) —
+        // alle unterseitig (underside). Abbauen läuft seit der Toggle-Umstellung
+        // (Korrektur Juli 2026) ohne Ziel-Klick, kein Highlight mehr nötig.
         if (!surfaceVisible) {
             uwValidMoves.forEach(mv => addOverlay(mv.x, mv.y, 0x64ff64, 0.3, state, true));
             uwValidDigs.forEach(d => addOverlay(d.x, d.y, 0xa1662f, 0.45, state, true));
             uwValidAttacks.forEach(a => addOverlay(a.x, a.y, 0xff6464, 0.5, state, true));
             uwValidCollapse.forEach(c => addOverlay(c.x, c.y, 0xff9800, 0.5, state, true));
             uwValidDynamite.forEach(d => addOverlay(d.x, d.y, 0xd84315, 0.55, state, true));
+            uwValidJump.forEach(j => addOverlay(j.x, j.y, 0x00e5ff, 0.5, state, true));
         }
 
         applyCamera();

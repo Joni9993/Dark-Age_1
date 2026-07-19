@@ -62,14 +62,26 @@ const unitStats = {
     // auch unten (kein separater Unterwelt-Stat-Block, keine zweite Rekrutierungs-
     // option). Graben/Abbau-Fähigkeiten unten sind daher an Typ 7 gebunden
     // (calculateDigsUW/calculateMineTargetsUW, js/logic.js), nicht mehr an 16.
+    // Grubenwache (17): "Wache"-Passiv — heilt +2 HP am Rundenende, wenn sie den
+    // Zug über NICHT bewegt wurde (u.mv, gesetzt in moveUWUnit); Angreifen allein
+    // steht dem nicht im Weg. Gecappt auf Max-HP (siehe die Grubenwache-Heilschleife
+    // in doEndTurn, js/input.js).
     17: { dmg: 4, range: 1, move: 2, name: "Grubenwache", cost: 5, maxHp: 14, isMelee: true, light: true, isUW: true },
     18: { dmg: 3, range: 1, move: 2, name: "Sprengmeister", cost: 6, maxHp: 8, isMelee: true, light: true, isUW: true },
     // Grubenritter (19, Feudalismus): +fb-Bonus wie Ritter/Kamelreiter oben (getUnitMaxHp).
-    19: { dmg: 5, range: 1, move: 2, name: "Grubenritter", cost: 7, maxHp: 16, isMelee: true, light: true, isUW: true },
+    // Sturmangriff (Korrektur Juli 2026, maybeTriggerSturmangriff/js/logic.js):
+    // nach einem Kill (Einheit ODER Kreatur) noch einmal frisch bewegen+angreifen,
+    // einmal pro eigenem Zug — teure Elite-Einheit, daher 6 statt 5 Basis-DMG.
+    19: { dmg: 6, range: 1, move: 2, name: "Grubenritter", cost: 7, maxHp: 16, isMelee: true, light: true, isUW: true },
     // Beutegräber (20, Plünderer): +1 DMG via Plünderer-Passiv (wie alle Nahkämpfer,
     // hier schon in dmg eingepreist — getExpectedDamageUW addiert es zusätzlich analog
     // zu getExpectedDamage, NICHT doppelt: dmg hier ist der Basiswert ohne Passiv).
     20: { dmg: 4, range: 1, move: 3, name: "Beutegräber", cost: 5, maxHp: 10, isMelee: true, light: true, isUW: true },
+    // Horcher (21, Spionage): Lauschen (Lärm-Pings im Umkreis 5 als exaktes Hex,
+    // getUWNoisePings) + Sprung (calculateHorcherJumpTargetsUW/jumpUWUnit — 2 Hex
+    // weit, unabhängig von Fels/Weg dazwischen, Ziel muss offen & frei sein).
+    // Ersetzt seit Korrektur Juli 2026 die permanente Tarnung (iv=1 ab Aufstellung),
+    // die Jonathan zufolge zu stark war.
     21: { dmg: 3, range: 1, move: 2, name: "Horcher", cost: 4, maxHp: 8, isMelee: true, light: true, isUW: true },
     // Bohrwagen (22, Gilden): digMove = Grab-Aktionen pro Zug (2 statt 1, siehe
     // digUWHex/executeUWDig — a=2 als Zwischenzustand wie beim Bewegen+Angreifen-Muster).
@@ -106,13 +118,14 @@ const UWC_SPINNE = 100, UWC_WUEHLER = 101, UWC_STEINPANZER = 102, UWC_WURM = 103
 // (Patrouille, aktuell einheitlich 1 für alle Kreaturen); leash (nur Wurm) =
 // maximale Distanz zum Herzkaverne-Zentrum, die die Jagd nie überschreitet.
 const uwCreatureStats = {
-    [UWC_SPINNE]: { name: "Höhlenspinne", hp: 6, dmg: 4, sprite: 'uw_spinne', aggro: 3, huntMove: 2, patrolMove: 1 },
-    [UWC_WUEHLER]: { name: "Blindwühler", hp: 12, dmg: 5, sprite: 'uw_wuehler', aggro: 5, huntMove: 2, patrolMove: 1 },
-    // Steinpanzer ist mit seiner großen AoE ("Erdrutsch") bewusst langsam (huntMove 1).
-    [UWC_STEINPANZER]: { name: "Steinpanzer", hp: 28, dmg: 6, sprite: 'uw_steinpanzer', aggro: 3, huntMove: 1, patrolMove: 1 },
-    // Der Alte Wurm: AoE (trifft ALLE Angreifer in RW 1) + unbedingter Konter,
-    // siehe resolveUWAttackOnCreature (js/logic.js); Telegraph-Muster/Bewegung
-    // in uwCreatureRoundPhase. leash: verlässt die Umgebung der Herzkaverne nie
-    // weiter als 3 Hexes, auch nicht auf der Jagd.
-    [UWC_WURM]: { name: "Der Alte Wurm", hp: 30, dmg: 8, sprite: 'uw_wurm', aggro: 3, huntMove: 2, patrolMove: 1, leash: 3 }
+    [UWC_SPINNE]: { name: "Höhlenspinne", hp: 6, dmg: 4, sprite: 'uw_spinne', aggro: 3, huntMove: 1, patrolMove: 1 },
+    [UWC_WUEHLER]: { name: "Blindwühler", hp: 12, dmg: 5, sprite: 'uw_wuehler', aggro: 4, huntMove: 1, patrolMove: 1 },
+    [UWC_STEINPANZER]: { name: "Steinpanzer", hp: 18, dmg: 6, sprite: 'uw_steinpanzer', aggro: 3, huntMove: 1, patrolMove: 1 },
+    // Der Alte Wurm: eigener AoE-Telegraph (trifft alle Ziele im Muster, siehe
+    // getCreatureAttackHexes/uwCreatureRoundPhase) — kontert aber NICHT mehr,
+    // wenn ihn ein Spieler im eigenen Zug angreift (resolveUWAttackOnCreature,
+    // js/logic.js, Korrektur Juli 2026, wie alle anderen Kreaturen). leash:
+    // verlässt die Umgebung der Herzkaverne nie weiter als 3 Hexes, auch nicht
+    // auf der Jagd.
+    [UWC_WURM]: { name: "Der Alte Wurm", hp: 30, dmg: 8, sprite: 'uw_wurm', aggro: 3, huntMove: 1, patrolMove: 1, leash: 3 }
 };

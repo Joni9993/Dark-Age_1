@@ -404,6 +404,7 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
     if (uwValidDigs.some(d => d.x === x && d.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(161, 102, 47, 0.55)"; ctx.fill(); }
     if (uwValidCollapse.some(c => c.x === x && c.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(255, 152, 0, 0.5)"; ctx.fill(); }
     if (uwValidDynamite.some(d => d.x === x && d.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(216, 67, 21, 0.55)"; ctx.fill(); }
+    if (uwValidJump.some(j => j.x === x && j.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(0, 229, 255, 0.5)"; ctx.fill(); }
     if (uwValidAttacks.some(a => a.x === x && a.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
 
     // Ausstehende Dynamit-Ladung (Korrektur Juli 2026, ersetzt Unterminierung):
@@ -464,14 +465,16 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
     }
 
     // Telegraphierte Kreaturen-Angriffe (Korrektur Juli 2026, "Runden-Phase +
-    // Telegraph"): sichtbar sobald das Hex im eigenen Netz liegt (uwVis, s.o.),
-    // UNABHÄNGIG von der Umkreis-2-Kreaturen-Sichtregel — die Markierung IST der
-    // Fairness-Kern des Systems ("jeder hat genau einen Zug zum Ausweichen"),
-    // die Kreatur dahinter darf verborgen bleiben (gruselig ist gewollt). Eigene
+    // Telegraph"): NUR sichtbar, wenn eine eigene (oder verbündete) Einheit
+    // aktuell im Umkreis 2 steht und den Treffer damit tatsächlich SEHEN kann
+    // (uwHexNearOwnUnits, dieselbe Regel wie isUWCreatureVisible) — die bloße
+    // Netz-Geometrie (uwVis/explored, "kenne ich von früher") reicht NICHT mehr
+    // aus (Korrektur Juli 2026, Jonathan: sonst blieb die Warnung stehen, obwohl
+    // gar keine eigene Einheit mehr dort war, um sie wahrzunehmen). Eigene
     // Farbe/Icon-Kombi (dunkles Rot-Overlay + 🎯), nicht mit den grün/braun/
     // orange/hellrot-halbtransparenten uwValid*-Auswahl-Highlights verwechselbar.
-    const telegraph = (explored || uwHexNearOwnUnits(gameState.cp, x, y)) && (gameState.uw && gameState.uw.c || []).find(c =>
-        c.h > 0 && c.ap && getCreatureAttackHexes(gameState, c).some(h => h.x === x && h.y === y));
+    const telegraph = uwHexNearOwnUnits(gameState.cp, x, y) && (gameState.uw && gameState.uw.c || []).find(c =>
+        c.h > 0 && c.ap && getOpenCreatureAttackHexes(gameState, c).some(h => h.x === x && h.y === y));
     if (telegraph) {
         drawHexPath(center.px, center.py);
         ctx.fillStyle = "rgba(183, 28, 28, 0.5)"; ctx.fill();

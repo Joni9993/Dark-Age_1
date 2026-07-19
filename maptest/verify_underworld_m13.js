@@ -51,7 +51,7 @@ function loadGameCode() {
             calculateStollenbruchTargetsUW, collapseUWHex,
             calculateDynamiteTargetsUW, getDynamiteTriangle, placeUWDynamite, processUWDynamiteDetonations,
             hasUsableTunnel, applyMoralCollapse,
-            checkErschliessungProgress, advanceErschliessung, checkErschliessungWin,
+            checkErschliessungProgress, advanceErschliessung, checkErschliessungWin, ERSCHLIESSUNG_TARGET,
             lootFundkammer, applyRelicToUnit, applyRelicToBuilding, applyMapRelic,
             getUnitMaxHp, getUnitCost, getUnitMove, unitStats, RELICS,
             uwCreatureStats, UWC_SPINNE, UWC_WUEHLER, UWC_STEINPANZER, UWC_WURM,
@@ -341,7 +341,7 @@ let lateGameStateForUrlTest = null;
 // unterminiert Player 0s einzigen Tunnel (Moral-Kollaps), UND schickt zwischen-
 // zeitlich selbst eine Einheit in die Kaverne (echte Unterbrechung -> Reset).
 // Player 2 ist mit Player 0 verbündet, steht mit in der Kaverne und
-// unterbricht nicht. Nach dem Reset läuft es sauber bis n==4 -> Team-Sieg 1+3.
+// unterbricht nicht. Nach dem Reset läuft es sauber bis n==ERSCHLIESSUNG_TARGET -> Team-Sieg 1+3.
 // JEDER Zwischenschritt läuft durch einen vollständigen Serialisierungs-
 // Roundtrip (Bereinigung wie doEndTurn/confirmSurrender + Restore wie
 // bootGame, 1:1 aus js/input.js bzw. js/main.js nachgebaut).
@@ -519,20 +519,23 @@ function roundtrip(state, label) {
     const collapseFloats = M.applyMoralCollapse(state, 0);
     assert(collapseFloats.length === state.uw.u.filter(u => u.p === 0).length, 'Moral-Kollaps trifft alle Tiefeneinheiten von Player 0 (je -1 HP)');
     assert(M.checkErschliessungProgress(state, 0) === true, 'Erschließung hält TROTZ Moral-Kollaps (Einheit steht weiterhin im Zentrum, kein Gegner in der Kaverne — Moral-Kollaps ist orthogonal zur Erschließungs-Bedingung)');
-    evt = M.advanceErschliessung(state, 0);
-    assert(evt.type === 'progress' && state.uw.hz.n === 4, 'Erschließung erreicht n=4 trotz laufendem Moral-Kollaps der Expedition');
-    state = roundtrip(state, 'nach Unterminierung + Moral-Kollaps, n=4 erreicht');
+    while (state.uw.hz.n < M.ERSCHLIESSUNG_TARGET) {
+        evt = M.advanceErschliessung(state, 0);
+        assert(evt.type === 'progress', `Erschließung schreitet trotz laufendem Moral-Kollaps der Expedition weiter fort (n=${evt.n})`);
+    }
+    assert(state.uw.hz.n === M.ERSCHLIESSUNG_TARGET, `Erschließung erreicht n=${M.ERSCHLIESSUNG_TARGET} trotz laufendem Moral-Kollaps der Expedition`);
+    state = roundtrip(state, `nach Unterminierung + Moral-Kollaps, n=${M.ERSCHLIESSUNG_TARGET} erreicht`);
 
     // Team-Sieg über die Erschließung: Player 0 + sein lebender Verbündeter
     // Player 2 gewinnen gemeinsam ("1+3" in 1-basierter Zählung).
     const winners = M.checkErschliessungWin(state);
-    assert(!!winners, 'checkErschliessungWin liefert bei n>=4 ein Ergebnis');
+    assert(!!winners, `checkErschliessungWin liefert bei n>=${M.ERSCHLIESSUNG_TARGET} ein Ergebnis`);
     const winnerIds = winners.map(p => state.p.indexOf(p)).sort();
     assert(JSON.stringify(winnerIds) === JSON.stringify([0, 2]), `Sieger sind exakt Player 1+3 (0-indiziert 0,2) — gemessen: [${winnerIds}]`);
     assert(!winners.some(p => state.p.indexOf(p) === 1), 'Player 2 (der Unterminierer) gehört NICHT zu den Siegern');
 }
 
-console.log('\n=== (h2) Regression: eine ECHTE Unterbrechung (Gegner betritt die Kaverne) resettet n auf 0, danach sauberer Neuaufbau bis n==4 ===');
+console.log(`\n=== (h2) Regression: eine ECHTE Unterbrechung (Gegner betritt die Kaverne) resettet n auf 0, danach sauberer Neuaufbau bis n==${M.ERSCHLIESSUNG_TARGET} ===`);
 {
     let state = freshState(778, 7, 3);
     const heart = M.getHeartCavernHexes(state);
@@ -556,15 +559,15 @@ console.log('\n=== (h2) Regression: eine ECHTE Unterbrechung (Gegner betritt die
     assert(evt.type === 'reset' && !state.uw.hz, 'echte Unterbrechung resettet n auf 0 (uw.hz gelöscht) — Gegenprobe zu (h), wo NUR ein Verbündeter/Moral-Kollaps NICHT resettet');
     state = roundtrip(state, 'nach dem Reset');
 
-    // Der Eindringling zieht wieder ab -> sauberer Neuaufbau bis n==4.
+    // Der Eindringling zieht wieder ab -> sauberer Neuaufbau bis n==ERSCHLIESSUNG_TARGET.
     state.uw.u = state.uw.u.filter(u => u.p === 0);
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= M.ERSCHLIESSUNG_TARGET; i++) {
         evt = M.advanceErschliessung(state, 0);
-        assert(state.uw.hz.n === i, `Neuaufbau nach Reset: n erreicht ${i}/4`);
+        assert(state.uw.hz.n === i, `Neuaufbau nach Reset: n erreicht ${i}/${M.ERSCHLIESSUNG_TARGET}`);
     }
     const winners = M.checkErschliessungWin(state);
     assert(!!winners && winners.length === 1 && state.p.indexOf(winners[0]) === 0, 'nach dem Neuaufbau gewinnt Player 1 (ohne Verbündeten in diesem zweiten Durchlauf) sauber');
-    state = roundtrip(state, 'nach dem sauberen Neuaufbau bis n=4');
+    state = roundtrip(state, `nach dem sauberen Neuaufbau bis n=${M.ERSCHLIESSUNG_TARGET}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────

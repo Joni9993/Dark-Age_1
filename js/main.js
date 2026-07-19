@@ -60,6 +60,28 @@ function bootGame() {
     const teamWinnersB = checkTeamWin(alivePlayers);
     if (teamWinnersB) { showWin(`${teamWinnersB.map(p => p.n).join(' & ')} gewinnen gemeinsam!`); return; }
     if (alivePlayers.length <= 1) { showWin(`${alivePlayers[0].n} hat als Letzter überlebt!`); return; }
+    // Herz-Sieg (M12): muss auch beim Laden geprüft werden, nicht nur direkt nach
+    // doEndTurn — sonst sehen alle anderen Clients (die den bereits gewonnenen
+    // Blob erst beim Öffnen laden) nie den Sieg-Screen, obwohl uw.hz.n schon das Ziel erreicht hat.
+    const erschlWinnersB = checkErschliessungWin(gameState);
+    if (erschlWinnersB) { showWin(`${erschlWinnersB.map(p => p.n).join(' & ')} haben das Herz der Tiefe erschlossen — wer das Fundament des Landes hält, dem beugt sich die Oberfläche!`); return; }
+
+    // Erschließungs-Reminder (Korrektur Juli 2026, Bugfix — PLAN.md Abschn. 8
+    // verlangt "alle erfahren es"): der Toast in doEndTurn (js/input.js) feuert
+    // nur EINMAL, synchron im Tab des erschließenden Spielers selbst — in echten
+    // Server-Partien (jeder Spieler in eigener Session) sehen alle anderen
+    // Spieler diesen Toast nie, und selbst im geteilten Hotseat-Testmodus erreicht
+    // er nur den direkt danach folgenden Spieler. bootGame() läuft dagegen bei
+    // JEDEM Zugstart JEDES Spielers (Hotseat-Weiterschalten UND frisches Laden
+    // eines Server-/Legacy-URL-Zugs) — daher hier zusätzlich ein Reminder-Toast,
+    // solange eine Erschließung läuft, unabhängig davon, wer sie hält.
+    if (gameState.uw && gameState.uw.hz) {
+        const hzOwner = gameState.p[gameState.uw.hz.p];
+        if (hzOwner) {
+            const who = gameState.uw.hz.p === gameState.cp ? 'Du erschließt' : `${hzOwner.n} erschließt`;
+            showToast(`🌍 ${who} das Herz der Tiefe (${gameState.uw.hz.n}/${ERSCHLIESSUNG_TARGET})`, 'gold');
+        }
+    }
 
     canvasWrapper.style.display = 'block';
     uiContainer.style.display = 'flex';

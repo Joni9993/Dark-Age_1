@@ -93,7 +93,7 @@ const CLASSIC_PAL = {
     "22": "#eeebe8"
 };
 
-const CLASSIC_PIXEL_SPRITES = {"0":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3,0,9,0,0,0,0,0,2,2,2,0,9,0,0,0,3,0,19,19,19,0,9,0,0,0,3,2,9,9,9,2,7,0,0,0,3,0,18,18,18,0,7,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,1,0,1,1,0,0,0],"1":[0,0,0,0,0,0,0,0,0,0,0,0,0,19,19,0,0,0,0,0,0,0,9,9,9,9,0,14,0,0,0,0,0,2,2,0,0,20,14,0,0,0,0,17,17,0,0,20,14,0,0,0,2,17,17,2,2,4,4,9,0,0,0,7,7,0,0,20,14,0,0,0,1,1,1,1,0,20,14,0,0,0,1,0,0,1,0,14,0,0,0,10,10,0,0,10,10,0,0,0],"2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,0,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0,9,9,2,0,0,0,0,0,0,0,19,19,0,20,4,7,7,0,7,4,14,19,14,4,20,4,4,0,7,4,4,1,4,4,4,20,0,0,7,0,4,0,0,4,0,0,0,0,0,0,4,0,0,4,0,0,0],"3":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,9,0,0,0,0,0,0,3,3,0,9,0,0,0,0,0,0,2,2,0,9,0,0,0,0,0,0,3,3,3,2,22,14,0,0,0,0,14,14,19,19,22,22,22,0,22,19,19,1,19,19,9,9,0,0,22,19,19,19,19,19,19,0,0,0,22,0,22,0,0,22,0,0,0,0,0,0,20,0,0,20,0,0,0],"4":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,10,10,10,10,0,0,0,0,3,0,2,13,13,2,0,3,0,0,3,0,2,2,2,2,0,3,0,0,2,19,9,9,9,9,19,2,0,0,4,0,19,10,10,19,0,4,0,0,0,0,1,1,1,1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0],"5":[0,0,0,0,0,0,0,0,0,0,0,0,0,12,12,12,0,0,0,0,0,0,0,11,6,11,0,0,0,0,0,0,0,12,12,12,0,0,0,0,0,0,2,19,19,19,2,0,0,0,0,0,9,1,1,1,0,9,0,0,0,0,9,21,21,21,0,0,9,0,0,0,0,4,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"6":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,21,0,0,0,0,0,0,0,0,3,0,21,0,0,0,4,4,4,4,0,0,0,21,0,4,0,4,4,0,4,0,0,21,0,0,0,4,4,0,0,3,21,0,0,0,19,4,4,19,0,0,0,0,0,0,9,9,9,9,0,0,0,0,0,3,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0],"7":[0,0,0,0,0,0,0,0,0,0,0,0,10,10,10,10,0,0,0,0,0,0,2,2,2,2,0,3,0,0,0,0,9,9,9,9,3,3,3,0,0,2,2,9,9,2,2,10,0,0,0,0,0,19,19,0,0,10,0,0,0,0,1,1,1,1,0,10,0,0,0,0,1,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0],"8":[0,0,0,0,0,0,0,0,0,0,0,0,8,8,8,8,0,0,0,0,0,0,2,2,2,2,0,0,0,0,0,0,9,9,9,9,2,2,0,0,0,2,19,9,9,19,0,8,0,0,0,0,0,19,19,0,0,19,19,0,0,0,1,1,1,1,0,19,19,0,0,0,1,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0],"9":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,9,9,9,19,1,0,0,0,0,12,1,9,9,1,12,12,0,0,12,12,12,1,1,5,5,12,12,0,6,12,6,6,6,5,5,1,12,0,6,6,6,6,6,6,6,6,18,18,0,6,6,0,6,6,0,6,0,0,0,6,13,0,6,13,0,6,6,0,0,0,0,0,0,0,0,0,0,0],"10":[0,0,0,0,0,0,0,0,0,0,0,0,3,3,0,0,0,0,0,0,0,0,2,2,0,10,0,0,0,0,0,0,9,9,2,20,10,0,0,0,0,0,19,19,11,10,0,14,14,0,14,14,1,19,1,11,14,14,1,14,0,14,14,1,14,14,11,0,0,0,0,14,0,0,0,14,0,0,0,0,0,14,0,0,0,14,0,0,0,0,0,1,0,0,0,1,0,0,0,0],"11":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,9,19,0,0,0,0,0,0,11,11,11,11,0,0,0,0,0,11,11,11,11,11,11,0,0,0,4,4,4,4,4,4,4,4,0,0,4,3,4,4,4,4,3,4,0,0,4,4,4,4,4,4,4,4,0,0,0,0,9,9,9,9,0,0,0,0,0,3,3,0,0,3,3,0,0,0,0,0,0,0,0,0,0,0,0],"12":[0,0,0,0,0,0,0,0,0,0,0,0,22,4,22,22,4,22,0,0,0,22,4,20,22,4,20,4,22,0,0,0,0,0,4,4,0,0,0,0,0,0,0,0,4,4,0,0,0,0,0,0,0,0,4,4,0,0,0,0,0,0,0,19,9,9,19,0,0,0,0,0,19,9,9,9,9,19,0,0,0,0,19,9,18,18,9,19,0,0,0,0,0,19,19,19,19,0,0,0],"13":[0,0,0,0,0,0,0,0,0,0,0,19,0,0,0,0,0,0,19,0,0,4,19,19,0,0,19,19,4,0,0,0,4,9,19,19,9,4,0,0,0,0,0,4,9,9,4,0,0,0,0,0,0,0,4,4,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"14":[0,0,0,0,0,0,0,0,0,0,0,0,0,19,19,19,19,0,0,0,0,0,19,4,9,9,4,19,0,0,0,19,9,2,14,14,2,9,19,0,0,0,0,2,2,2,2,0,0,0,0,0,0,0,9,9,0,0,0,0,0,0,0,0,19,19,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"15":[0,0,0,0,0,0,0,0,0,0,0,0,9,9,8,9,19,0,0,0,0,9,9,9,8,9,9,19,0,0,0,9,9,9,8,9,9,19,0,0,0,9,9,9,9,9,9,19,0,0,0,0,9,9,9,9,19,0,0,0,0,0,0,0,9,0,0,0,0,0,0,0,0,0,8,0,0,0,0,0,0,0,4,10,10,10,4,0,0,0,0,0,0,4,4,4,0,0,0,0],"village":[0,0,0,1,1,1,1,0,0,0,0,0,1,4,4,4,4,1,0,0,0,1,4,4,4,4,4,4,1,0,1,1,1,1,1,1,1,1,1,1,0,1,9,9,9,9,9,9,1,0,0,1,9,9,1,1,9,9,1,0,0,1,9,9,1,1,9,9,1,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"startVillage":[0,1,0,1,0,1,0,1,0,0,1,3,1,3,1,3,1,3,1,0,1,3,3,3,3,3,3,3,1,0,1,1,1,1,1,1,1,1,1,0,1,9,9,9,9,9,9,9,1,0,1,9,9,1,1,1,9,9,1,0,1,9,9,1,0,1,9,9,1,0,1,9,9,1,0,1,9,9,1,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0],"tunnel":[0,0,1,1,1,1,1,0,0,0,0,1,4,4,4,4,4,1,0,0,1,4,1,9,9,9,1,4,1,0,1,4,1,1,1,1,1,4,1,0,1,4,1,1,1,1,1,4,1,0,1,4,1,1,1,1,1,4,1,0,1,4,1,1,1,1,1,4,1,0,1,4,1,1,1,1,1,4,1,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0],"wagen_dp":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,9,19,0,0,0,0,0,0,11,11,11,11,0,0,0,0,0,11,11,11,11,11,11,0,0,0,4,4,4,4,4,4,4,4,0,0,4,3,1,1,1,1,3,4,0,0,19,19,19,19,19,19,19,19,0,0,4,4,4,4,4,4,4,4,0,0,0,3,3,0,0,3,3,0,0,0,0,0,0,0,0,0,0,0,0],"wall":[0,0,4,0,0,4,0,0,4,0,0,4,4,4,4,4,4,4,4,0,4,4,5,4,4,5,4,4,5,4,4,9,9,9,9,9,9,9,9,4,4,4,5,4,4,5,4,4,5,4,4,4,4,4,4,4,4,4,4,0,0,4,0,0,4,0,0,4,0,0,4,4,4,4,4,4,4,4,4,4,4,5,4,4,5,4,4,5,4,4,4,4,4,4,4,4,4,4,4,4],"stone":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,5,5,0,0,0,0,0,0,5,5,5,5,5,0,0,0,0,5,5,5,5,5,5,5,0,0,5,5,5,5,5,5,5,5,0,0,5,5,5,5,5,5,5,5,0,0,0,0,0,0,0,0,0,0,0],"tower":[0,0,0,1,0,1,0,1,0,0,0,0,0,1,3,1,3,1,0,0,0,0,0,1,3,3,3,1,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,1,9,9,9,1,0,0,0,0,0,1,9,9,9,1,0,0,0,0,1,1,3,3,3,1,1,0,0,0,1,3,3,1,3,3,1,0,0,0,1,3,3,1,3,3,1,0,0,0,1,1,1,1,1,1,1,0],"watchtower":[0,0,1,0,7,7,0,1,0,0,0,0,1,7,7,7,7,1,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,3,3,3,3,1,0,0,0,1,1,3,7,7,3,1,1,0,0,1,3,3,7,7,3,3,1,0,0,1,3,3,3,3,3,3,1,0,0,1,3,3,3,3,3,3,1,0,0,1,3,3,3,3,3,3,1,0,7,7,7,7,7,7,7,7,7,7],"fallschirm_ld":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,14,14,14,14,0,0,0,0,0,0,2,2,2,2,0,0,14,0,0,0,0,2,2,0,0,14,0,0,0,2,2,9,9,2,2,0,0,0,0,2,0,9,9,0,0,0,0,0,0,0,1,19,19,1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0]};
+const CLASSIC_PIXEL_SPRITES = { "0": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 0, 9, 0, 0, 0, 0, 0, 2, 2, 2, 0, 9, 0, 0, 0, 3, 0, 19, 19, 19, 0, 9, 0, 0, 0, 3, 2, 9, 9, 9, 2, 7, 0, 0, 0, 3, 0, 18, 18, 18, 0, 7, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0], "1": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19, 19, 0, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9, 0, 14, 0, 0, 0, 0, 0, 2, 2, 0, 0, 20, 14, 0, 0, 0, 0, 17, 17, 0, 0, 20, 14, 0, 0, 0, 2, 17, 17, 2, 2, 4, 4, 9, 0, 0, 0, 7, 7, 0, 0, 20, 14, 0, 0, 0, 1, 1, 1, 1, 0, 20, 14, 0, 0, 0, 1, 0, 0, 1, 0, 14, 0, 0, 0, 10, 10, 0, 0, 10, 10, 0, 0, 0], "2": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 9, 9, 2, 0, 0, 0, 0, 0, 0, 0, 19, 19, 0, 20, 4, 7, 7, 0, 7, 4, 14, 19, 14, 4, 20, 4, 4, 0, 7, 4, 4, 1, 4, 4, 4, 20, 0, 0, 7, 0, 4, 0, 0, 4, 0, 0, 0, 0, 0, 0, 4, 0, 0, 4, 0, 0, 0], "3": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 3, 3, 0, 9, 0, 0, 0, 0, 0, 0, 2, 2, 0, 9, 0, 0, 0, 0, 0, 0, 3, 3, 3, 2, 22, 14, 0, 0, 0, 0, 14, 14, 19, 19, 22, 22, 22, 0, 22, 19, 19, 1, 19, 19, 9, 9, 0, 0, 22, 19, 19, 19, 19, 19, 19, 0, 0, 0, 22, 0, 22, 0, 0, 22, 0, 0, 0, 0, 0, 0, 20, 0, 0, 20, 0, 0, 0], "4": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 10, 10, 10, 0, 0, 0, 0, 3, 0, 2, 13, 13, 2, 0, 3, 0, 0, 3, 0, 2, 2, 2, 2, 0, 3, 0, 0, 2, 19, 9, 9, 9, 9, 19, 2, 0, 0, 4, 0, 19, 10, 10, 19, 0, 4, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0], "5": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 12, 12, 0, 0, 0, 0, 0, 0, 0, 11, 6, 11, 0, 0, 0, 0, 0, 0, 0, 12, 12, 12, 0, 0, 0, 0, 0, 0, 2, 19, 19, 19, 2, 0, 0, 0, 0, 0, 9, 1, 1, 1, 0, 9, 0, 0, 0, 0, 9, 21, 21, 21, 0, 0, 9, 0, 0, 0, 0, 4, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "6": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 21, 0, 0, 0, 4, 4, 4, 4, 0, 0, 0, 21, 0, 4, 0, 4, 4, 0, 4, 0, 0, 21, 0, 0, 0, 4, 4, 0, 0, 3, 21, 0, 0, 0, 19, 4, 4, 19, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "7": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 10, 10, 10, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 3, 0, 0, 0, 0, 9, 9, 9, 9, 3, 3, 3, 0, 0, 2, 2, 9, 9, 2, 2, 10, 0, 0, 0, 0, 0, 19, 19, 0, 0, 10, 0, 0, 0, 0, 1, 1, 1, 1, 0, 10, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "8": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9, 2, 2, 0, 0, 0, 2, 19, 9, 9, 19, 0, 8, 0, 0, 0, 0, 0, 19, 19, 0, 0, 19, 19, 0, 0, 0, 1, 1, 1, 1, 0, 19, 19, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "9": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 9, 9, 9, 19, 1, 0, 0, 0, 0, 12, 1, 9, 9, 1, 12, 12, 0, 0, 12, 12, 12, 1, 1, 5, 5, 12, 12, 0, 6, 12, 6, 6, 6, 5, 5, 1, 12, 0, 6, 6, 6, 6, 6, 6, 6, 6, 18, 18, 0, 6, 6, 0, 6, 6, 0, 6, 0, 0, 0, 6, 13, 0, 6, 13, 0, 6, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "10": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 10, 0, 0, 0, 0, 0, 0, 9, 9, 2, 20, 10, 0, 0, 0, 0, 0, 19, 19, 11, 10, 0, 14, 14, 0, 14, 14, 1, 19, 1, 11, 14, 14, 1, 14, 0, 14, 14, 1, 14, 14, 11, 0, 0, 0, 0, 14, 0, 0, 0, 14, 0, 0, 0, 0, 0, 14, 0, 0, 0, 14, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0], "11": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 19, 0, 0, 0, 0, 0, 0, 11, 11, 11, 11, 0, 0, 0, 0, 0, 11, 11, 11, 11, 11, 11, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 4, 3, 4, 4, 4, 4, 3, 4, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 9, 9, 9, 9, 0, 0, 0, 0, 0, 3, 3, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "12": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 22, 4, 22, 22, 4, 22, 0, 0, 0, 22, 4, 20, 22, 4, 20, 4, 22, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0, 19, 9, 9, 19, 0, 0, 0, 0, 0, 19, 9, 9, 9, 9, 19, 0, 0, 0, 0, 19, 9, 18, 18, 9, 19, 0, 0, 0, 0, 0, 19, 19, 19, 19, 0, 0, 0], "13": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 19, 0, 0, 4, 19, 19, 0, 0, 19, 19, 4, 0, 0, 0, 4, 9, 19, 19, 9, 4, 0, 0, 0, 0, 0, 4, 9, 9, 4, 0, 0, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "14": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19, 19, 19, 19, 0, 0, 0, 0, 0, 19, 4, 9, 9, 4, 19, 0, 0, 0, 19, 9, 2, 14, 14, 2, 9, 19, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 9, 9, 0, 0, 0, 0, 0, 0, 0, 0, 19, 19, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "15": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 9, 8, 9, 19, 0, 0, 0, 0, 9, 9, 9, 8, 9, 9, 19, 0, 0, 0, 9, 9, 9, 8, 9, 9, 19, 0, 0, 0, 9, 9, 9, 9, 9, 9, 19, 0, 0, 0, 0, 9, 9, 9, 9, 19, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 4, 10, 10, 10, 4, 0, 0, 0, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0], "village": [0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 1, 0, 0, 0, 1, 4, 4, 4, 4, 4, 4, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 9, 9, 9, 9, 9, 9, 1, 0, 0, 1, 9, 9, 1, 1, 9, 9, 1, 0, 0, 1, 9, 9, 1, 1, 9, 9, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "startVillage": [0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 3, 1, 3, 1, 3, 1, 3, 1, 0, 1, 3, 3, 3, 3, 3, 3, 3, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 9, 9, 9, 9, 9, 9, 9, 1, 0, 1, 9, 9, 1, 1, 1, 9, 9, 1, 0, 1, 9, 9, 1, 0, 1, 9, 9, 1, 0, 1, 9, 9, 1, 0, 1, 9, 9, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tunnel": [0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 4, 4, 4, 4, 4, 1, 0, 0, 1, 4, 1, 9, 9, 9, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "wagen_dp": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 19, 0, 0, 0, 0, 0, 0, 11, 11, 11, 11, 0, 0, 0, 0, 0, 11, 11, 11, 11, 11, 11, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 4, 3, 1, 1, 1, 1, 3, 4, 0, 0, 19, 19, 19, 19, 19, 19, 19, 19, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 3, 3, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "wall": [0, 0, 4, 0, 0, 4, 0, 0, 4, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 0, 4, 4, 5, 4, 4, 5, 4, 4, 5, 4, 4, 9, 9, 9, 9, 9, 9, 9, 9, 4, 4, 4, 5, 4, 4, 5, 4, 4, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 4, 0, 0, 4, 0, 0, 4, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 4, 4, 5, 4, 4, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4], "stone": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 5, 0, 0, 0, 0, 0, 0, 5, 5, 5, 5, 5, 0, 0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tower": [0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 3, 1, 3, 1, 0, 0, 0, 0, 0, 1, 3, 3, 3, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 9, 9, 9, 1, 0, 0, 0, 0, 0, 1, 9, 9, 9, 1, 0, 0, 0, 0, 1, 1, 3, 3, 3, 1, 1, 0, 0, 0, 1, 3, 3, 1, 3, 3, 1, 0, 0, 0, 1, 3, 3, 1, 3, 3, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0], "watchtower": [0, 0, 1, 0, 7, 7, 0, 1, 0, 0, 0, 0, 1, 7, 7, 7, 7, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 3, 3, 3, 3, 1, 0, 0, 0, 1, 1, 3, 7, 7, 3, 1, 1, 0, 0, 1, 3, 3, 7, 7, 3, 3, 1, 0, 0, 1, 3, 3, 3, 3, 3, 3, 1, 0, 0, 1, 3, 3, 3, 3, 3, 3, 1, 0, 0, 1, 3, 3, 3, 3, 3, 3, 1, 0, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7], "fallschirm_ld": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 14, 0, 0, 0, 0, 2, 2, 0, 0, 14, 0, 0, 0, 2, 2, 9, 9, 2, 2, 0, 0, 0, 0, 2, 0, 9, 9, 0, 0, 0, 0, 0, 0, 0, 1, 19, 19, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0] };
 
 const CLASSIC_TERRAIN_COLORS = {
     "grass": {
@@ -5266,18 +5266,19 @@ const NEW_PIXEL_SPRITES = {
         .XaaDDaaX.
         .XaaDDaaX.
         GGGGGGGGGG`),
-    // 🕷 Höhlenspinne
+    // 🕷 Höhlenspinne — dunkler Chitin-Rumpf, glühend rotes Augenpaar, getarnte
+    // Beine (H) mit grauen Gelenken (a), goldene Rückenmarkierung (G).
     "uw_spinne": SP(`
         ..........
-        ..X....X..
-        .X.X..X.X.
-        X..XIIX..X
-        ...XIIX...
-        ..XIIIIX..
-        ...XIIX...
-        X..XIIX..X
-        .X.X..X.X.
-        ..X....X..`),
+        .a......a.
+        ..H....H..
+        ..HWFFWH..
+        aHHWWWWHHa
+        aHHWWWWHHa
+        ..HWGGWH..
+        ..H....H..
+        .a......a.
+        ..........`),
     // 🦡 Blindwühler
     "uw_wuehler": SP(`
         ..........
@@ -5302,27 +5303,29 @@ const NEW_PIXEL_SPRITES = {
         .XX....XX.
         ..X....X..
         ..........`),
-    // 🐛 Der Alte Wurm
+    // 🐛 Der Alte Wurm (Unterwelt-Boss) — jagd geöffnetes Zähne-Maul (H/X im
+    // Wechsel) um einen glühenden Schlund (F/B/D), brauner Ringkörper (r/w).
     "uw_wurm": SP(`
-        ..............
-        ...RRRRRRRR...
-        ..rrrrrrrrrr..
-        .rrXXXXXXXXrr.
-        .rXXHHHHHHXXr.
-        .XHHCCCCCCHHX.
-        .HCCCCCCCCCCH.
-        .HCCCCCCCCCCH.
-        .XHHCCCCCCHHX.
-        .rXXHHHHHHXXr.
-        .rrXXXXXXXXrr.
-        ..rrrrrrrrrr..
-        ...RRRRRRRR...
-        ..............`),
+        .....wwrr.....
+        ...rrwHXrww...
+        ..rrHHHXXXwr..
+        .wwXXHCCXHHrr.
+        .wHXCCFFCCHXr.
+        rrHHCFFFBCXXww
+        rHHCBBDDBBCXXw
+        wXXCFFDDFFCHHr
+        wwXXCFBFFCHHrr
+        .rXHCCBFCCXHw.
+        .rrHHXCCHXXww.
+        ..rwXXXHHHrr..
+        ...wwrXHwrr...
+        .....rrww.....`),
 };
 
 const NEW_VOXEL_MODELS = {
-    "0": { s: 2.3, layers: [
-        L(`
+    "0": {
+        s: 2.3, layers: [
+            L(`
         ...XXX...
         ..XAAAX..
         ..XAAAX..
@@ -5335,7 +5338,7 @@ const NEW_VOXEL_MODELS = {
         ..XwXwX..
         ..XwXwX..
         ..XX.XX..`),
-        L(`
+            L(`
         ...XXX...
         ..XAAAX..
         ..XAAAX..
@@ -5348,7 +5351,7 @@ const NEW_VOXEL_MODELS = {
         ..XwXwX..
         ..XwXwX..
         ..XX.XX..`),
-        L(`
+            L(`
         ...XXX...
         ..XADAX..
         ..XAAAX..
@@ -5361,9 +5364,11 @@ const NEW_VOXEL_MODELS = {
         ..XwXwX..
         ..XwXwX..
         ..XX.XX..`)
-    ] },
-    "1": { s: 2.3, layers: [
-        L(`
+        ]
+    },
+    "1": {
+        s: 2.3, layers: [
+            L(`
         ...XXX...
         ..XPPPX..
         .XPDSDPX.
@@ -5376,7 +5381,7 @@ const NEW_VOXEL_MODELS = {
         ..XwXwX..
         ..XwXwX..
         ..XX.XX..`),
-        L(`
+            L(`
         ...XXX...
         ..XPPPX..
         .XPDSDPX.
@@ -5389,7 +5394,7 @@ const NEW_VOXEL_MODELS = {
         ..XwXwX..
         ..XwXwX..
         ..XX.XX..`),
-        L(`
+            L(`
         ...XXX...
         ..XPPPX.r
         .XPDSDPXr
@@ -5402,9 +5407,11 @@ const NEW_VOXEL_MODELS = {
         ..XwXwX..
         ..XwXwX..
         ..XX.XX..`)
-    ] },
-    "2": { s: 2.6, layers: [
-        L(`
+        ]
+    },
+    "2": {
+        s: 2.6, layers: [
+            L(`
         ....XXX...
         ...XwwwX..
         ...XwwwX..
@@ -5415,7 +5422,7 @@ const NEW_VOXEL_MODELS = {
         XwwwwwwwwX
         .XXX..XXX.
         .XX....XX.`),
-        L(`
+            L(`
         ....XXX...
         ...XwwwX..
         ...XwwwX..
@@ -5426,7 +5433,7 @@ const NEW_VOXEL_MODELS = {
         XwwwwwwwwX
         .XXX..XXX.
         .XX....XX.`),
-        L(`
+            L(`
         ....XXX...
         ...XwwwX..
         ...XwwwX..
@@ -5437,9 +5444,11 @@ const NEW_VOXEL_MODELS = {
         XwwwwwwwwX
         .XXX..XXX.
         .XX....XX.`)
-    ] },
-    "3": { s: 2.6, layers: [
-        L(`
+        ]
+    },
+    "3": {
+        s: 2.6, layers: [
+            L(`
         ....XXX...
         ...XrrrX..
         ...XrrrX..
@@ -5451,7 +5460,7 @@ const NEW_VOXEL_MODELS = {
         XrrrrrrrrX
         .XXX..XXX.
         .XX....XX.`),
-        L(`
+            L(`
         ....XXX...
         ...XrrrX..
         ...XrrrX..
@@ -5463,7 +5472,7 @@ const NEW_VOXEL_MODELS = {
         XrrrrrrrrX
         .XXX..XXX.
         .XX....XX.`),
-        L(`
+            L(`
         ....XXX...
         ...XrrrX..
         ...XrrrX..
@@ -5475,9 +5484,11 @@ const NEW_VOXEL_MODELS = {
         XrrrrrrrrX
         .XXX..XXX.
         .XX....XX.`)
-    ] },
-    "4": { s: 2.3, layers: [
-        L(`
+        ]
+    },
+    "4": {
+        s: 2.3, layers: [
+            L(`
         .........
         .........
         .........
@@ -5492,7 +5503,7 @@ const NEW_VOXEL_MODELS = {
         ..XSXSX..
         ..XSXSX..
         ..XX.XX..`),
-        L(`
+            L(`
         .........
         .........
         .........
@@ -5507,7 +5518,7 @@ const NEW_VOXEL_MODELS = {
         ..XSXSX..
         ..XSXSX..
         ..XX.XX..`),
-        L(`
+            L(`
         A.......A
         AA.....AA
         .w.....w.
@@ -5522,9 +5533,11 @@ const NEW_VOXEL_MODELS = {
         ..XSXSX..
         ..XSXSX..
         ..XX.XX..`)
-    ] },
-    "5": { s: 2.3, layers: [
-        L(`
+        ]
+    },
+    "5": {
+        s: 2.3, layers: [
+            L(`
         ...XXX...
         ..XIIIX..
         .XIDDDIX.
@@ -5537,7 +5550,7 @@ const NEW_VOXEL_MODELS = {
         ..XIXIX..
         ..XIXIX..
         ..XX.XX..`),
-        L(`
+            L(`
         ...XXX...
         ..XIIIX..
         .XIDDDIX.
@@ -5550,7 +5563,7 @@ const NEW_VOXEL_MODELS = {
         ..XIXIX..
         ..XIXIX..
         ..XX.XX..`),
-        L(`
+            L(`
         ...XXX...
         ..XIIIX..
         .XIFDFIX.
@@ -5563,9 +5576,11 @@ const NEW_VOXEL_MODELS = {
         ..XIXIX..
         ..XIXIX..
         ..XX.XX..`)
-    ] },
-    "6": { s: 2.5, layers: [
-        L(`
+        ]
+    },
+    "6": {
+        s: 2.5, layers: [
+            L(`
         ....RR....
         ....RR....
         ....ww....
@@ -5576,7 +5591,7 @@ const NEW_VOXEL_MODELS = {
         .W......W.
         WWWWWWWWWW
         W.W....W.W`),
-        L(`
+            L(`
         ....RR....
         ....RR....
         ....ww....
@@ -5587,7 +5602,7 @@ const NEW_VOXEL_MODELS = {
         .W......W.
         WWWWWWWWWW
         W.W....W.W`),
-        L(`
+            L(`
         ....RR....
         ....RR....
         ....ww....
@@ -5598,9 +5613,11 @@ const NEW_VOXEL_MODELS = {
         .W......W.
         WWWWWWWWWW
         W.W....W.W`)
-    ] },
-    "8": { s: 2.3, layers: [
-        L(`
+        ]
+    },
+    "8": {
+        s: 2.3, layers: [
+            L(`
         ...XXX...
         ..XPPPX..
         .XPDSDPX.
@@ -5613,7 +5630,7 @@ const NEW_VOXEL_MODELS = {
         ..XIXIX..
         ..XIXIX..
         ..XX.XX..`),
-        L(`
+            L(`
         ...XXX...
         ..XPPPX..
         .XPDSDPX.
@@ -5626,7 +5643,7 @@ const NEW_VOXEL_MODELS = {
         ..XIXIX..
         ..XIXIX..
         ..XX.XX..`),
-        L(`
+            L(`
         ...XXX...
         ..XPPPX..
         .XPDSDPX.
@@ -5639,9 +5656,11 @@ const NEW_VOXEL_MODELS = {
         ..XIXIX..
         ..XIXIX..
         ..XX.XX..`)
-    ] },
-    "10": { s: 2.7, layers: [
-        L(`
+        ]
+    },
+    "10": {
+        s: 2.7, layers: [
+            L(`
         ....XXX...
         ...XAAAX..
         ...XAAAX..
@@ -5652,7 +5671,7 @@ const NEW_VOXEL_MODELS = {
         XAAAAAAAAX
         .XXX..XXX.
         .XX....XX.`),
-        L(`
+            L(`
         ....XXX...
         ...XAAAX..
         ...XAAAX..
@@ -5663,7 +5682,7 @@ const NEW_VOXEL_MODELS = {
         XAAAAAAAAX
         .XXX..XXX.
         .XX....XX.`),
-        L(`
+            L(`
         ....XXX...
         ...XAAAX..
         ...XAAAX..
@@ -5674,9 +5693,11 @@ const NEW_VOXEL_MODELS = {
         XAPPPPpPAX
         .XXX..XXX.
         .XX....XX.`)
-    ] },
-    "11": { s: 2.5, layers: [
-        L(`
+        ]
+    },
+    "11": {
+        s: 2.5, layers: [
+            L(`
         ....XXXX..
         ....XPpX..
         ..XLLLLXX.
@@ -5687,7 +5708,7 @@ const NEW_VOXEL_MODELS = {
         .XX....XX.
         .XaaXXaaX.
         ..XX..XX..`),
-        L(`
+            L(`
         ....XXXX..
         ....XPpX..
         ..XLLLLXX.
@@ -5698,7 +5719,7 @@ const NEW_VOXEL_MODELS = {
         .XX....XX.
         .XaaXXaaX.
         ..XX..XX..`),
-        L(`
+            L(`
         ....XXXX..
         ....XPpX..
         ..XLLLLXX.
@@ -5709,9 +5730,11 @@ const NEW_VOXEL_MODELS = {
         .XX....XX.
         .XaaXXaaX.
         ..XX..XX..`)
-    ] },
-    "12": { s: 2.4, layers: [
-        L(`
+        ]
+    },
+    "12": {
+        s: 2.4, layers: [
+            L(`
         ..........
         ..........
         ..........
@@ -5722,7 +5745,7 @@ const NEW_VOXEL_MODELS = {
         ..XIIIIX..
         ...XXXX...
         ....XX....`),
-        L(`
+            L(`
         ..XXXXXX..
         .XrrrrrrX.
         ..XXXXXX..
@@ -5733,9 +5756,11 @@ const NEW_VOXEL_MODELS = {
         ..XPSSpX..
         ...XXXX...
         ....XX....`)
-    ] },
-    "13": { s: 2.4, layers: [
-        L(`
+        ]
+    },
+    "13": {
+        s: 2.4, layers: [
+            L(`
         ..XXXXXX..
         .XPPLLPPX.
         ..XPLLPX..
@@ -5746,7 +5771,7 @@ const NEW_VOXEL_MODELS = {
         ...X..X...
         ..........
         ..........`),
-        L(`
+            L(`
         ..XXXXXX..
         .XPPLLPPX.
         ..XPLLPX..
@@ -5757,9 +5782,11 @@ const NEW_VOXEL_MODELS = {
         ...X..X...
         ..........
         ..........`)
-    ] },
-    "village": { s: 2.6, layers: [
-        L(`
+        ]
+    },
+    "village": {
+        s: 2.6, layers: [
+            L(`
         ....p....
         ...pPp...
         ..pPPPp..
@@ -5767,7 +5794,7 @@ const NEW_VOXEL_MODELS = {
         .LWLLLWL.
         .LLLLLLL.
         .LWLLLWL.`),
-        L(`
+            L(`
         ....P....
         ...PPP...
         ..PPPPP..
@@ -5775,7 +5802,7 @@ const NEW_VOXEL_MODELS = {
         .LLLLLLL.
         .LLLLLLL.
         .LLLLLLL.`),
-        L(`
+            L(`
         ....P....
         ...PPP...
         ..PPPPP..
@@ -5783,7 +5810,7 @@ const NEW_VOXEL_MODELS = {
         .LLLLLLL.
         .LLLLLLL.
         .LLLLLLL.`),
-        L(`
+            L(`
         ....P....
         ...PPP...
         ..PPPPP..
@@ -5791,7 +5818,7 @@ const NEW_VOXEL_MODELS = {
         .LLLLLLL.
         .LLLLLLL.
         .LLLLLLL.`),
-        L(`
+            L(`
         ....P....
         ...PPP...
         ..PPPPP..
@@ -5799,7 +5826,7 @@ const NEW_VOXEL_MODELS = {
         .LLLLLLL.
         .LLLLLLL.
         .LLLLLLL.`),
-        L(`
+            L(`
         ....P....
         ...PPP...
         ..PPPPP..
@@ -5807,7 +5834,7 @@ const NEW_VOXEL_MODELS = {
         .LLLLLLL.
         .LLLLLLL.
         .LLLLLLL.`),
-        L(`
+            L(`
         ....p....
         ...pPp...
         ..pPPPp..
@@ -5815,9 +5842,11 @@ const NEW_VOXEL_MODELS = {
         .LWLLLWL.
         .LWLwwWL.
         .LWLwwWL.`)
-    ] },
-    "startVillage": { s: 2.6, layers: [
-        L(`
+        ]
+    },
+    "startVillage": {
+        s: 2.6, layers: [
+            L(`
         ...........
         ...........
         ...........
@@ -5830,7 +5859,7 @@ const NEW_VOXEL_MODELS = {
         aaaaaaaaaaa
         aaaaaaaaaaa
         aaaaaaaaaaa`),
-        L(`
+            L(`
         ...........
         ...........
         ...........
@@ -5843,7 +5872,7 @@ const NEW_VOXEL_MODELS = {
         aaaaaaaaaaa
         aaaaaaaaaaa
         aaaaaaaaaaa`),
-        L(`
+            L(`
         .....P.....
         ....PP.....
         ...a.a.a...
@@ -5856,7 +5885,7 @@ const NEW_VOXEL_MODELS = {
         aaaaaaaaaaa
         aaaaaaaaaaa
         aaaaaaaaaaa`),
-        L(`
+            L(`
         .....P.....
         ....PP.....
         ...a.a.a...
@@ -5869,7 +5898,7 @@ const NEW_VOXEL_MODELS = {
         aaaaaaaaaaa
         aaaaaaaaaaa
         aaaaaaaaaaa`),
-        L(`
+            L(`
         .....P.....
         ....PP.....
         ...a.a.a...
@@ -5882,7 +5911,7 @@ const NEW_VOXEL_MODELS = {
         aaaaaaaaaaa
         aaaaaaaaaaa
         aaaaaaaaaaa`),
-        L(`
+            L(`
         ...........
         ...........
         ...........
@@ -5895,7 +5924,7 @@ const NEW_VOXEL_MODELS = {
         aaaaaaaaaaa
         aaaaaaaaaaa
         aaaaaaaaaaa`),
-        L(`
+            L(`
         ...........
         ...........
         ...........
@@ -5908,9 +5937,11 @@ const NEW_VOXEL_MODELS = {
         aaaaDDDaaaa
         aaaaDDDaaaa
         aaaaDDDaaaa`)
-    ] },
-    "tower": { s: 2.5, layers: [
-        L(`
+        ]
+    },
+    "tower": {
+        s: 2.5, layers: [
+            L(`
         a.a.a.a
         aaaaaaa
         aaaaaaa
@@ -5923,7 +5954,7 @@ const NEW_VOXEL_MODELS = {
         .aaaaa.
         .aaaaa.
         .RaaaR.`),
-        L(`
+            L(`
         a.....a
         a.....a
         aaaaaaa
@@ -5936,7 +5967,7 @@ const NEW_VOXEL_MODELS = {
         .aaaaa.
         .aaaaa.
         .RaaaR.`),
-        L(`
+            L(`
         a.....a
         a.....a
         aaaaaaa
@@ -5949,7 +5980,7 @@ const NEW_VOXEL_MODELS = {
         .aaaaa.
         .aaaaa.
         .RaaaR.`),
-        L(`
+            L(`
         a.....a
         a.....a
         aaaaaaa
@@ -5962,7 +5993,7 @@ const NEW_VOXEL_MODELS = {
         .aaaaa.
         .aaaaa.
         .RaaaR.`),
-        L(`
+            L(`
         a.....a
         a.....a
         aaaaaaa
@@ -5975,7 +6006,7 @@ const NEW_VOXEL_MODELS = {
         .aaaaa.
         .aaaaa.
         .RaaaR.`),
-        L(`
+            L(`
         a.a.a.a
         aaaaaaa
         aaaaaaa
@@ -5988,9 +6019,11 @@ const NEW_VOXEL_MODELS = {
         .aaaaa.
         .aaaaa.
         .RaaaR.`)
-    ] },
-    "watchtower": { s: 2.6, layers: [
-        L(`
+        ]
+    },
+    "watchtower": {
+        s: 2.6, layers: [
+            L(`
         ....G....
         ...GGG...
         ..GGGGG..
@@ -6005,7 +6038,7 @@ const NEW_VOXEL_MODELS = {
         ..aaaaa..
         ..aaaaa..
         .RaaaaaR.`),
-        L(`
+            L(`
         ....G....
         ...GGG...
         ..GGGGG..
@@ -6020,7 +6053,7 @@ const NEW_VOXEL_MODELS = {
         ..aaaaa..
         ..aaaaa..
         .RaaaaaR.`),
-        L(`
+            L(`
         ....G....
         ...GGG...
         ..GGGGG..
@@ -6035,7 +6068,7 @@ const NEW_VOXEL_MODELS = {
         ..aaaaa..
         ..aaaaa..
         .RaaaaaR.`),
-        L(`
+            L(`
         ....G....
         ...GGG...
         ..GGGGG..
@@ -6050,7 +6083,7 @@ const NEW_VOXEL_MODELS = {
         ..aaaaa..
         ..aaaaa..
         .RaaaaaR.`),
-        L(`
+            L(`
         ....G....
         ...GGG...
         ..GGGGG..
@@ -6065,7 +6098,7 @@ const NEW_VOXEL_MODELS = {
         ..aaaaa..
         ..aaaaa..
         .RaaaaaR.`),
-        L(`
+            L(`
         ....G....
         ...GGG...
         ..GGGGG..
@@ -6080,7 +6113,7 @@ const NEW_VOXEL_MODELS = {
         ..aaaaa..
         ..aaaaa..
         .RaaaaaR.`),
-        L(`
+            L(`
         ....f....
         ...fGf...
         ..fGGGf..
@@ -6095,9 +6128,11 @@ const NEW_VOXEL_MODELS = {
         ..aaDaa..
         ..aaDaa..
         .RaaaaaR.`)
-    ] },
-    "wall": { s: 2.5, layers: [
-        L(`
+        ]
+    },
+    "wall": {
+        s: 2.5, layers: [
+            L(`
         a.a.a.a.a.a.a.a
         aaaaaaaaaaaaaaa
         aaaaaaaaaaaaaaa
@@ -6106,7 +6141,7 @@ const NEW_VOXEL_MODELS = {
         aaaaaaaaaaaaaaa
         aaaaaaaaaaaaaaa
         aaaaaaaaaaaaaaa`),
-        L(`
+            L(`
         a.a.a.a.a.a.a.a
         aaaaaaaaaaaaaaa
         aaaaaaaaaaaaaaa
@@ -6115,7 +6150,7 @@ const NEW_VOXEL_MODELS = {
         aaaaaaaaaaaaaaa
         aaaaaaaaaaaaaaa
         aaaaaaaaaaaaaaa`),
-        L(`
+            L(`
         a.a.a.a.a.a.a.a
         aaaaaaaaaaaaaaa
         aaaaaaaaaaaaaaa
@@ -6124,104 +6159,110 @@ const NEW_VOXEL_MODELS = {
         aaaaaaaPaaaaaaa
         aaaaaaaaaaaaaaa
         aaaaaaaaaaaaaaa`)
-    ] },
-    "tunnel": { s: 2.6, layers: [
-        L(`
+        ]
+    },
+    "tunnel": {
+        s: 2.6, layers: [
+            L(`
         ...VVV...
         ..wwwww..
         .wwwwwww.
         .wwwwwww.
         wwWwwwWww
         wwwwwwwww`),
-        L(`
+            L(`
         ...VVV...
         ..wwwww..
         .wwwwwww.
         .wwWwWww.
         wwwwwwwww
         wWwwwwwWw`),
-        L(`
+            L(`
         ...VVV...
         ..wwwww..
         .wwwwwww.
         .wwWwWww.
         wwwwwwwww
         wWwwwwwWw`),
-        L(`
+            L(`
         ...VVV...
         ..wwwww..
         .wwwwwww.
         .wwWwWww.
         wwwwwwwww
         wWwwwwwWw`),
-        L(`
+            L(`
         ...VVV...
         ..wwwww..
         .wwwwwww.
         .wwWwWww.
         wwwwwwwww
         wWwwwwwWw`),
-        L(`
+            L(`
         ...VVV...
         ..wwwww..
         .wwwwwww.
         .wwWwWww.
         wwwwwwwww
         wWwwwwwWw`),
-        L(`
+            L(`
         ...VVV...
         ..wwwww..
         .wwrPrww.
         .wwrDrww.
         wwwrDrwww
         wWwrDrwWw`)
-    ] },
-    "stone": { s: 2.4, layers: [
-        L(`
+        ]
+    },
+    "stone": {
+        s: 2.4, layers: [
+            L(`
         .........
         .........
         .........
         ...RR....
         ..RRRa...`),
-        L(`
+            L(`
         .........
         .........
         ...RRa...
         ..RRRaa..
         .RRRRRa..`),
-        L(`
+            L(`
         .........
         ....RR...
         ..RRRRa..
         .RRRRRaa.
         .RRRRRaa.`),
-        L(`
+            L(`
         ....RR...
         ..RRRRa..
         .RRaRRRa.
         .RRRRRaa.
         RRRRRRRa.`),
-        L(`
+            L(`
         .........
         ....RR...
         ..RRRRa..
         .RRRRRaa.
         .RRRRRaa.`),
-        L(`
+            L(`
         .........
         .........
         ...RRa...
         ..RRRaa..
         .RRRRRa..`),
-        L(`
+            L(`
         .........
         .........
         .........
         ...RR....
         ..RRRa...`)
-    ] },
-    "wagen_dp": { s: 2.5, layers: [
-        L(`
+        ]
+    },
+    "wagen_dp": {
+        s: 2.5, layers: [
+            L(`
         ....XXXX..
         ....XPpX..
         ..XLLLLXX.
@@ -6232,7 +6273,7 @@ const NEW_VOXEL_MODELS = {
         XWWWWWWWWX
         .XaaXXaaX.
         ..XX..XX..`),
-        L(`
+            L(`
         ....XXXX..
         ....XPpX..
         ..XLLLLXX.
@@ -6243,7 +6284,7 @@ const NEW_VOXEL_MODELS = {
         XWWWWWWWWX
         .XaaXXaaX.
         ..XX..XX..`),
-        L(`
+            L(`
         ....XXXX..
         ....XPpX..
         ..XLLLLXX.
@@ -6254,274 +6295,334 @@ const NEW_VOXEL_MODELS = {
         XWWWWWWWWX
         .XaaXXaaX.
         ..XX..XX..`)
-    ] },
-    "herzkaverne": { s: 3.4, layers: [
-        L(`
+        ]
+    },
+    // Herzkaverne (Unterwelt-Boss-Lager): Kristallkern (C) in Fels-Ummantelung
+    // (R/a/A wie stone/steinpanzer), von einem pulsierenden Kristallglühen (B/P,
+    // P rendert als fixe Korallfarbe statt Spielerfarbe, s. addVoxelModel-Aufruf
+    // in render3d.js) umgeben.
+    "herzkaverne": {
+        s: 2, layers: [
+            L(`
         ...........
-        ...BRRRB...
-        ..BRRRRRB..
-        .BRRGGGRRB.
-        .BRGGCGGRB.
-        .BRRGGGRRB.
-        ..BRRRRRB..
-        ...BRRRB...
+        ...PBBBP...
+        ..PBBXBBP..
+        .PBBXCXBBP.
+        PPBXCCCXBPP
+        .PBBXCXBBP.
+        ..PBBXBBP..
+        ...PBBBP...
         ...........`),
-        L(`
-        ....GCG....
+            L(`
+        ....BCB....
         ..RRRaRRR..
         .RRaaAaaRR.
         RRaaGGGaaRR
-        RaaGGCGGaaR
+        PaaGGCGGaaP
         RRaaGGGaaRR
         .RRaaAaaRR.
-        ..RRRaRRR..
-        ....G.G....`),
-        L(`
-        ....GCG....
-        ..RRRaRRR..
-        .RRaaAaaRR.
-        RRaaGGGaaRR
-        RaaGGCGGaaR
-        RRaaGGGaaRR
-        .RRaaAaaRR.
-        ..RRRaRRR..
-        ....G.G....`),
-        L(`
-        ....GCG....
+        ...RRRRR...
+        ....GCG....`),
+            L(`
+        ....CCC....
         ..RRRaRRR..
         .RRaaAaaRR.
         RRaaGGGaaRR
-        RaaGGCGGaaR
+        PaaGGCGGaaP
         RRaaGGGaaRR
         .RRaaAaaRR.
+        ...RRRRR...
+        ....CCC....`),
+            L(`
+        ....BCB....
         ..RRRaRRR..
-        ....G.G....`),
-        L(`
+        .RRaaAaaRR.
+        RRaaGCGaaRR
+        PaaGCCCGaaP
+        RRaaGCGaaRR
+        .RRaaAaaRR.
+        ...RRRRR...
+        ....GCG....`),
+            L(`
         ...........
-        ...BRRRB...
-        ..BRRRRRB..
-        .BRRGGGRRB.
-        .BRGGCGGRB.
-        .BRRGGGRRB.
-        ..BRRRRRB..
-        ...BRRRB...
+        ...PBBBP...
+        ..PBBXBBP..
+        .PBBXCXBBP.
+        PPBXCCCXBPP
+        .PBBXCXBBP.
+        ..PBBXBBP..
+        ...PBBBP...
         ...........`)
-    ] },
-    // 🕷 Höhlenspinne (Unterwelt-NPC) — Tiefen-Schichten aus dem 2D-Sprite
-    // extrudiert (Rand-Schicht erodiert -> kompakter Rumpf ohne Beine, die
-    // beiden Voll-Schichten zeigen Beine + Rumpf; kleine helle Augen (B) statt
-    // des dunklen 'I' im 2D-Sprite, damit sie im Modell als "kleine helle
-    // Augen" erkennbar bleiben — pixelSprites['uw_spinne'] bleibt unangetastet).
-    "uw_spinne": { s: 2.6, layers: [
-        L(`
-        ..........
-        ..........
-        ..........
-        ..........
-        ....II....
-        ...IIII...
-        ....II....
+        ]
+    },
+    // 🕷 Höhlenspinne (Unterwelt-NPC) — pixelSprites['uw_spinne'] als Draufsicht
+    // (Beine strahlen in der Boden-Ebene aus) über die Tiefen-Achse gestapelt,
+    // niedriges Höhenprofil (3 statt vormals 10 Zeilen) -> Körper liegt flach
+    // auf Bauch/Füßen statt aufrecht mit Beinen in der Luft zu stehen (Korrektur
+    // Juli 2026, Y/Z-Vertauschung — dieselbe Korrektur betrifft vermutlich auch
+    // uw_wuehler/uw_steinpanzer, dort aber noch nicht angewandt).
+    "uw_spinne": {
+        s: 2.0, layers: [
+            L(`
         ..........
         ..........
         ..........`),
-        L(`
+            L(`
         ..........
-        ..X....X..
-        .X.X..X.X.
-        X..XIIX..X
-        ...XIIX...
-        ..XBIIBX..
-        ...XIIX...
-        X..XIIX..X
-        .X.X..X.X.
-        ..X....X..`),
-        L(`
+        .a......a.
+        .a......a.`),
+            L(`
         ..........
-        ..X....X..
-        .X.X..X.X.
-        X..XIIX..X
-        ...XIIX...
-        ..XBIIBX..
-        ...XIIX...
-        X..XIIX..X
-        .X.X..X.X.
-        ..X....X..`)
-    ] },
+        ..H....H..
+        ..H....H..`),
+            L(`
+        ....WW....
+        ..HWFFWH..
+        ..HWFFWH..`),
+            L(`
+        ...WWWW...
+        aHHWWWWHHa
+        aHHWWWWHHa`),
+            L(`
+        ...WWWW...
+        aHHWWWWHHa
+        aHHWWWWHHa`),
+            L(`
+        ...WWWW...
+        ..HWGGWH..
+        ..HWGGWH..`),
+            L(`
+        ....WW....
+        ..H....H..
+        ..H....H..`),
+            L(`
+        ..........
+        .a......a.
+        .a......a.`),
+            L(`
+        ..........
+        ..........
+        ..........`)
+        ]
+    },
     // 🦡 Blindwühler (Unterwelt-NPC) — Riesenmaulwurf, gedrungener Körper,
-    // Grabklauen (S) an den Flanken, Schnauze (r) mittig; Rand-Schicht
-    // erodiert für einen gerundeten Rumpf-Übergang.
-    "uw_wuehler": { s: 2.6, layers: [
-        L(`
+    // Grabklauen (S) an den Flanken, Schnauze (r) mittig; letzte Schicht zeigt
+    // ein Augen-/Mauldetail (B/C/G) statt der blinden Schnauze der Frontschicht.
+    // 180°-Drehung um die vertikale Achse (Juli 2026, auf Wunsch): Kreatur stand
+    // seitenverkehrt zur Kamera.
+    "uw_wuehler": {
+        s: 2.2, layers: [
+            L(`
+        ..........
+        ..........
+        ...WWWW...
+        ..WBCCBW..
+        ..WCGGCW..
+        ..WWWWWW..
+        ..........
+        ..........
+        ..SS...SS.
+        ..........`),
+            L(`
+        ..........
+        ...WWWW...
+        ..WWWWWW..
+        .WWrrrrWW.
+        .WWrrrrWW.
+        .WWWWWWWW.
+        ..WWWWWW..
+        ...WW.WW..
+        ..SS...SS.
+        ..........`),
+            L(`
+        ..........
+        ...WWWW...
+        ..WWWWWW..
+        .WWrrrrWW.
+        rWWrrrrWWr
+        rWWWWWWWWr
+        ..WWWWWWW.
+        ...WW.WW..
+        ..SS...SS.
+        ..........`),
+            L(`
+        ..........
+        ...WWWW...
+        ..WWWWWW..
+        .WWrrrrWW.
+        rWWrrrrWWr
+        rWWWWWWWWr
+        ..WWWWWWW.
+        ...WW.WW..
+        ..SS...SS.
+        ..........`),
+            L(`
         ..........
         ..........
         ...WWWW...
         ..WrrrrW..
-        .WWrrrrWW.
-        .WWWWWWW..
-        ..WW.WW...
-        ..........
-        ..........
-        ..........`),
-        L(`
-        ..........
+        ..WrrrrW..
         ...WWWW...
-        ..WWWWWW..
-        .WWrrrrWW.
-        SWWrrrrWWS
-        SWWWWWWWWS
-        .WWWWWWW..
-        ..WW.WW...
-        .SS...SS..
-        ..........`),
-        L(`
         ..........
-        ...WWWW...
-        ..WWWWWW..
-        .WWrrrrWW.
-        SWWrrrrWWS
-        SWWWWWWWWS
-        .WWWWWWW..
-        ..WW.WW...
-        .SS...SS..
+        ..........
+        ..........
         ..........`)
-    ] },
+        ]
+    },
     // 🪨 Steinpanzer (Unterwelt-NPC) — kantiger Steinkäfer, Felsplatten-Rücken
     // (R/a, Grau-/Steintöne wie voxelModels['stone']), stämmige Beine (X) am
-    // Unterrand; Rand-Schicht erodiert.
-    "uw_steinpanzer": { s: 2.6, layers: [
-        L(`
+    // Unterrand; jagged Rand-Schicht (spitze Steinplatten) statt glattem Rund.
+    "uw_steinpanzer": {
+        s: 2.2, layers: [
+            L(`
+        GG......GG
+        .GG....GG.
+        ..GRaaRG..
+        ..RaGGaR..
+        .RaaGGaaR.
+        .RRaaaaRR.
+        GGRGGGGRGG
+        G........G
+        G........G
+        ..........`),
+            L(`
+        ..........
+        ...RRRR...
+        ..RRaaRR..
+        .RRaGGaRR.
+        RRaaGGaaRR
+        RRRaaaaRRR
+        .RRRRRRRR.
+        .XXX..XXX.
+        ..X....X..
+        ..X....X..`),
+            L(`
+        ..........
+        ...RRRR...
+        ..RRaaRR..
+        .RRaGGaRR.
+        RRaaGGaaRR
+        RRRaaaaRRR
+        .RRRRRRRR.
+        .XXX..XXX.
+        ..X....X..
+        ..X....X..`),
+            L(`
         ..........
         ..........
         ...RaaR...
         ..RaGGaR..
         .RaaGGaaR.
         .RRaaaaRR.
-        ..R....R..
+        ..RGGGGR..
         ..........
         ..........
-        ..........`),
-        L(`
-        ..........
-        ...RRRR...
-        ..RRaaRR..
-        .RRaGGaRR.
-        RRaaGGaaRR
-        RRRaaaaRRR
-        .RRRRRRRR.
-        .XX....XX.
-        ..X....X..
-        ..........`),
-        L(`
-        ..........
-        ...RRRR...
-        ..RRaaRR..
-        .RRaGGaRR.
-        RRaaGGaaRR
-        RRRaaaaRRR
-        .RRRRRRRR.
-        .XX....XX.
-        ..X....X..
         ..........`)
-    ] },
+        ]
+    },
     // 🐛 Der Alte Wurm (Unterwelt-Boss) — DEUTLICH größer als die anderen NPCs
-    // (s: 3.0 statt 2.6, 14 statt 10 Pixel breit -> ~1.6x Fußabdruck, ersetzt
-    // den früheren sizeMultiplier der Billboard-Darstellung, s. render3d.js).
-    // Die konzentrischen Ringe des 2D-Sprites (R/r/X/H/C) werden über 6
-    // Tiefen-Schichten gestuft erodiert -> ein segmentierter Wurmkörper, der
-    // sich zu einem aufgerichteten, weit geöffneten Maul-Ende (volle
-    // Schichten vorn) auftürmt.
-    "uw_wurm": { s: 3.0, layers: [
-        L(`
+    // (s: 3 statt 2.6, 14 statt 10 Pixel breit -> ~1.6x Fußabdruck). Wie eine
+    // Wand gebaut: Ring-Muster in der Breiten-Höhen-Ebene, nur 6 dünne
+    // Tiefen-Schichten -> ein flaches, der Kamera zugewandtes Maul statt platt
+    // auf dem Boden zu liegen. Gezackter Zahnring (H/X im Wechsel) statt
+    // glattem Band, glühender Schlund (F/B um einen dunklen Kern D) statt
+    // flachem Rot -> soll als Endboss klar herausstechen gegen die eher
+    // erdigen Töne der übrigen Kreaturen. 180°-Drehung um die vertikale Achse
+    // (Juli 2026, auf Wunsch): Auge stand seitenverkehrt zur Kamera.
+    "uw_wurm": {
+        s: 2.4, layers: [
+            L(`
+        .....rrww.....
+        ...wwrXHwrr...
+        ..rwXXXHHHrr..
+        .rrHHXCCHXXww.
+        .rXHCCFFCCXHw.
+        wwXXCBFFFCHHrr
+        wXXCBBDDBBCHHr
+        rHHCFFDDFFCXXw
+        rrHHCFFBFCXXww
+        .wHXCCFBCCHXr.
+        .wwXXHCCXHHrr.
+        ..rrHHHXXXwr..
+        ...rrwHXrww...
+        .....wwrr.....`),
+            L(`
+        ..............
+        ....wrrwwr....
+        ...wXXXHHHr...
+        ..rHHXXHHXXw..
+        .rXHHCCCCXXHw.
+        .wXXCBFFFCHHr.
+        .wXXCBDDBCHHr.
+        .rHHCFDDFCXXw.
+        .rHHCFFBFCXXw.
+        .wHXXCCCCHHXr.
+        ..wXXHHXXHHr..
+        ...rHHHXXXw...
+        ....rwwrrw....
+        ..............`),
+            L(`
+        ..............
+        ......rw......
+        ....wrXHwr....
+        ...rHXXHHXr...
+        ..rHHCCCCXXw..
+        ..wXCBFFFCHr..
+        .wXXCBDDBCHHr.
+        .rHHCFDDFCXXw.
+        ..rHCFFBFCXw..
+        ..wXXCCCCHHr..
+        ...rXHHXXHr...
+        ....rwHXrw....
+        ......wr......
+        ..............`),
+            L(`
+        ..............
+        ..............
+        .....rrww.....
+        ....wXXHHr....
+        ...rHHCCXXw...
+        ..wXHCFFCXHr..
+        ..wXCBDDBCHr..
+        ..rHCFDDFCXw..
+        ..rHXCFBCHXw..
+        ...wXXCCHHr...
+        ....rHHXXw....
+        .....wwrr.....
+        ..............
+        ..............`),
+            L(`
         ..............
         ..............
         ..............
-        ..............
-        ....HHHHHH....
-        ....CCCCCC....
-        ....CCCCCC....
-        ....CCCCCC....
-        ....CCCCCC....
-        ....HHHHHH....
-        ..............
+        .....wrwr.....
+        ....rHXHXr....
+        ...rHCFFCXw...
+        ...wXBDDBHr...
+        ...rHFDDFXw...
+        ...wXCFBCHr...
+        ....rXHXHr....
+        .....rwrw.....
         ..............
         ..............
         ..............`),
-        L(`
+            L(`
         ..............
         ..............
         ..............
-        ...XXXXXXXX...
-        ...XHHHHHHX...
-        ...HCCCCCCH...
-        ...CCCCCCCC...
-        ...CCCCCCCC...
-        ...HCCCCCCH...
-        ...XHHHHHHX...
-        ...XXXXXXXX...
         ..............
         ..............
-        ..............`),
-        L(`
+        .....rXHr.....
+        .....XwwH.....
+        .....HwwX.....
+        .....rHXr.....
         ..............
         ..............
         ..............
-        ...XXXXXXXX...
-        ...XHHHHHHX...
-        ...HCCCCCCH...
-        ...CCCCCCCC...
-        ...CCCCCCCC...
-        ...HCCCCCCH...
-        ...XHHHHHHX...
-        ...XXXXXXXX...
         ..............
-        ..............
-        ..............`),
-        L(`
-        ..............
-        ..............
-        ...rrrrrrrr...
-        ..rXXXXXXXXr..
-        ..XXHHHHHHXX..
-        ..HHCCCCCCHH..
-        ..CCCCCCCCCC..
-        ..CCCCCCCCCC..
-        ..HHCCCCCCHH..
-        ..XXHHHHHHXX..
-        ..rXXXXXXXXr..
-        ...rrrrrrrr...
-        ..............
-        ..............`),
-        L(`
-        ..............
-        ...RRRRRRRR...
-        ..rrrrrrrrrr..
-        .rrXXXXXXXXrr.
-        .rXXHHHHHHXXr.
-        .XHHCCCCCCHHX.
-        .HCCCCCCCCCCH.
-        .HCCCCCCCCCCH.
-        .XHHCCCCCCHHX.
-        .rXXHHHHHHXXr.
-        .rrXXXXXXXXrr.
-        ..rrrrrrrrrr..
-        ...RRRRRRRR...
-        ..............`),
-        L(`
-        ..............
-        ...RRRRRRRR...
-        ..rrrrrrrrrr..
-        .rrXXXXXXXXrr.
-        .rXXHHHHHHXXr.
-        .XHHCCCCCCHHX.
-        .HCCCCCCCCCCH.
-        .HCCCCCCCCCCH.
-        .XHHCCCCCCHHX.
-        .rXXHHHHHHXXr.
-        .rrXXXXXXXXrr.
-        ..rrrrrrrrrr..
-        ...RRRRRRRR...
         ..............`)
-    ] },
+        ]
+    },
     // Fels-Brocken-Varianten (Unterwelt-Gebirge, M-Auftrag "richtige Steine aus
     // Voxeln"): 3 unterschiedlich geformte, kompakte Brocken in Grau-/
     // Dunkeltönen (R/a wie voxelModels['stone']) — bewusst klein gehalten
@@ -6529,73 +6630,79 @@ const NEW_VOXEL_MODELS = {
     // da sie pro Fels-/Ader-Hex als eigenes InstancedMesh instanziiert werden
     // (js/render3d.js buildUnderworldTiles, nicht über das per-Frame-
     // voxelMesh) und auf großen Karten mehrere hundert Mal vorkommen.
-    "uw_fels_a": { s: 2.3, layers: [
-        L(`
+    "uw_fels_a": {
+        s: 4.5, layers: [
+            L(`
         ......
         .RR...
         RRaR..
         .R....`),
-        L(`
+            L(`
         .R....
         RRaR..
         RaaaR.
         .RRR..`),
-        L(`
+            L(`
         .R....
         RRaR..
         RaaaR.
         .RRR..`),
-        L(`
+            L(`
         ......
         ..RR..
         .RaR..
         ..R...`)
-    ] },
-    "uw_fels_b": { s: 2.2, layers: [
-        L(`
+        ]
+    },
+    "uw_fels_b": {
+        s: 4.5, layers: [
+            L(`
         .....
         .R...
         RaR..
         .R...`),
-        L(`
+            L(`
         .R...
         RaR..
         RaaR.
         .RR..`),
-        L(`
+            L(`
         .RR..
         RaaR.
         RaaR.
         .RR..`),
-        L(`
+            L(`
         .R...
         RaaR.
         .RaR.
         .R...`),
-        L(`
+            L(`
         .....
         ..R..
         .RaR.
         ..R..`)
-    ] },
-    "uw_fels_c": { s: 2.1, layers: [
-        L(`
+        ]
+    },
+    "uw_fels_c": {
+        s: 4.5, layers: [
+            L(`
         .......
         ..RRR..
         .RaaaR.`),
-        L(`
+            L(`
         ..RR...
         .RaaRR.
         RRaaaR.`),
-        L(`
+            L(`
         ..RR...
         .RaaRR.
         RRaaaR.`),
-        L(`
+            L(`
         .......
         ...RR..
         ..RaaR.`)
-    ] },
+        ]
+    },
 };
 
 const NEW_TERRAIN_COLORS = {
@@ -6613,4 +6720,4 @@ const pixelSprites = DEBUG_ART ? NEW_PIXEL_SPRITES : CLASSIC_PIXEL_SPRITES;
 const terrainColors = DEBUG_ART ? NEW_TERRAIN_COLORS : CLASSIC_TERRAIN_COLORS;
 const voxelModels = DEBUG_ART ? NEW_VOXEL_MODELS : CLASSIC_VOXEL_MODELS;
 
-const playerColors = ["#00e5ff","#ff1744","#00e676","#ffea00","#d500f9","#ff9100"];
+const playerColors = ["#00e5ff", "#ff1744", "#00e676", "#ffea00", "#d500f9", "#ff9100"];

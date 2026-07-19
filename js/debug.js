@@ -143,7 +143,6 @@ function debugApplyTool(hex) {
         const owner = parseInt(document.getElementById('dbg-spawn-owner').value);
         const nextId = gameState.uw.u.reduce((m, u) => Math.max(m, u.i || 0), 0) + 1;
         const unitObj = { i: nextId, p: owner, t, x, y, h: getUnitMaxHp(gameState.p[owner], t), a: 0 };
-        if (t === 21) unitObj.iv = 1; // Horcher: passiv unsichtbar
         gameState.uw.u.push(unitObj);
     } else if (tool === 'uwcreature') {
         // Kreatur (M11, Typ aus dbg-creature-type) auf ein offenes Unterwelt-Hex
@@ -545,7 +544,7 @@ window.dbg = {
         }
         // Erschließung (M12): Fortschritt + ausstehende Dynamit-Ladungen.
         const hz = gameState.uw && gameState.uw.hz;
-        console.log(`Erschließung: ${hz ? `${gameState.p[hz.p].n} (${hz.n}/4)` : 'keine'}`);
+        console.log(`Erschließung: ${hz ? `${gameState.p[hz.p].n} (${hz.n}/${ERSCHLIESSUNG_TARGET})` : 'keine'}`);
         const charges = (gameState.uw && gameState.uw.dy) || [];
         console.log(`Ausstehende Dynamit-Ladungen: ${charges.length} (${charges.map(c => `${gameState.p[c.p].n}: ${c.hexes.map(h => `${h.x},${h.y}`).join('+')}`).join(' · ')})`);
         return gameState.uw;

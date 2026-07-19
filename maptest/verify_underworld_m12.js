@@ -30,7 +30,7 @@ function loadGameCode() {
             calculateDynamiteTargetsUW, getDynamiteTriangle, placeUWDynamite, processUWDynamiteDetonations,
             resolveUWAttack, resolveUWAttackOnCreature,
             hasUsableTunnel, applyMoralCollapse,
-            checkErschliessungProgress, advanceErschliessung, checkErschliessungWin,
+            checkErschliessungProgress, advanceErschliessung, checkErschliessungWin, ERSCHLIESSUNG_TARGET,
             getUnitMaxHp, getUnitCost, unitStats, uwCreatureStats, UWC_WURM
         };
     `);
@@ -59,7 +59,7 @@ function freshState(seed, radius, playerCount = 2) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('=== (a) Dynamit-Platzierung: nur auf angrenzendem massivem Fels, Dreieck-Geometrie, 1 Zug verbraucht ===');
+console.log('=== (a) Dynamit-Platzierung: JEDES angrenzende Hex (Korrektur Juli 2026), Dreieck-Geometrie, 1 Zug verbraucht ===');
 {
     const state = freshState(1, 7, 2);
     // Ein offenes Hex mit einem massiven Fels-Nachbarn suchen (NICHT das Karten-
@@ -80,6 +80,15 @@ console.log('=== (a) Dynamit-Platzierung: nur auf angrenzendem massivem Fels, Dr
 
         const targets = M.calculateDynamiteTargetsUW(sprengmeister);
         assert(targets.some(t => t.x === felsTarget.x && t.y === felsTarget.y), 'massives Fels-Nachbarhex erscheint als Dynamit-Ziel');
+        // Korrektur Juli 2026 (Jonathan): Dynamit ist nicht mehr auf massives Fels
+        // beschränkt — JEDES Nachbar-Hex ist ein gültiges Ziel, unabhängig von Typ/
+        // Offen-Zustand (auch bereits offene Gänge/Kavernen/Adern).
+        const allNeighbors = M.getNeighbors(placerHex.x, placerHex.y);
+        assert(targets.length === allNeighbors.length, `alle ${allNeighbors.length} Nachbar-Hexes sind gültige Dynamit-Ziele, nicht nur massiver Fels (gemessen: ${targets.length})`);
+        const openNeighbor = allNeighbors.find(n => M.isUnderworldOpen(state, n.x, n.y));
+        if (openNeighbor) {
+            assert(targets.some(t => t.x === openNeighbor.x && t.y === openNeighbor.y), 'ein bereits OFFENES Nachbar-Hex ist ebenfalls ein gültiges Dynamit-Ziel');
+        }
 
         const nonSprengmeister = { t: 7, x: placerHex.x, y: placerHex.y };
         assert(M.calculateDynamiteTargetsUW(nonSprengmeister).length === 0, 'nur der Sprengmeister (18) darf Dynamit legen — andere Typen liefern 0 Ziele');
@@ -148,7 +157,10 @@ console.log('\n=== (b) Detonation: 6 Schaden pro Hex (AoE, auch eigene Einheiten
         assert(survivor && survivor.h === 8, `feindliche Einheit nimmt exakt 6 Schaden (14 -> ${survivor ? survivor.h : 'tot'})`);
         assert(!state.uw.c.some(c => c.x === triangle[2].x && c.y === triangle[2].y), 'Kreatur (Alter Wurm) im Dreieck stirbt (6 Schaden auf 6 HP) — geprüft an ihrer Position, da der ECHTE Wurm der Karte anderswo weiterlebt');
         assert(state.uw.wd === 1, 'Wurm-Tod durch Dynamit setzt uw.wd genau wie ein Kampf-Tod (Erschließung sonst für immer blockiert)');
+        // Ader-Hexes im Dreieck sind von der "wird offen"-Regel ausgenommen
+        // (Korrektur Juli 2026, s. Test b2) — hier nur für Nicht-Ader-Hexes prüfen.
         triangle.forEach((h, i) => {
+            if (M.getUnderworldType(state, h.x, h.y) === M.UW_ADER) return;
             if (!felsWasOpen[i]) assert(M.isUnderworldOpen(state, h.x, h.y) === true, `Fels-Hex ${i} ist nach der Detonation offen ("Gebirge wegsprengen")`);
         });
         assert(tunnelWall.h === 13, 'Tunnel-HP UNVERÄNDERT — Dynamit rührt nie an Oberflächen-Strukturen');
@@ -161,6 +173,45 @@ console.log('\n=== (b) Detonation: 6 Schaden pro Hex (AoE, auch eigene Einheiten
     state2.p[1].dead = 1;
     M.processUWDynamiteDetonations(0);
     assert(state2.uw.dy.length === 0, 'Ladung eines ausgeschiedenen Spielers verfällt, statt für immer im State zu hängen');
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n=== (b2) Detonation lässt Kristaladern im Dreieck unangetastet (Korrektur Juli 2026) ===');
+{
+    // Über mehrere Seeds suchen, bis ein Dynamit-Dreieck gefunden ist, dessen
+    // NICHT-Ziel-Hex (einer der beiden "geteilten Nachbarn") eine Ader ist —
+    // das Ziel-Hex selbst ist laut calculateDynamiteTargetsUW immer FELS.
+    let found = null;
+    for (let seed = 1; seed < 40 && !found; seed++) {
+        const state = freshState(seed, 7, 2);
+        outerB2:
+        for (let y = 0; y < state.bh; y++) for (let x = 0; x < state.bw; x++) {
+            if (!M.isInsideMap(state, x, y) || !M.isUnderworldOpen(state, x, y)) continue;
+            const felsTarget = M.getNeighbors(x, y).find(n => M.getUnderworldType(state, n.x, n.y) === M.UW_FELS && !M.isUnderworldOpen(state, n.x, n.y));
+            if (!felsTarget) continue;
+            const triangle = M.getDynamiteTriangle(x, y, felsTarget.x, felsTarget.y);
+            if (triangle.length !== 3) continue;
+            const aderHex = triangle.slice(1).find(h => M.getUnderworldType(state, h.x, h.y) === M.UW_ADER && !M.isUnderworldOpen(state, h.x, h.y));
+            if (aderHex) { found = { state, placerHex: { x, y }, felsTarget, triangle, aderHex }; break outerB2; }
+        }
+    }
+    assert(!!found, 'Testaufbau: Seed mit Ader im Dynamit-Dreieck gefunden');
+    if (found) {
+        const { state, placerHex, felsTarget, triangle, aderHex } = found;
+        const sprengmeister = { i: 1, p: 0, t: 18, x: placerHex.x, y: placerHex.y, h: 8, a: 0 };
+        state.uw.u.push(sprengmeister);
+        // Eine Einheit auf der Ader steht -> muss trotzdem AoE-Schaden nehmen.
+        const victimOnAder = { i: 2, p: 1, t: 7, x: aderHex.x, y: aderHex.y, h: 5 };
+        state.uw.u.push(victimOnAder);
+
+        M.placeUWDynamite(state, sprengmeister, felsTarget.x, felsTarget.y);
+        M.processUWDynamiteDetonations(0);
+
+        assert(M.isUnderworldOpen(state, aderHex.x, aderHex.y) === false, 'Ader-Hex im Dreieck bleibt NACH der Detonation massiv (wird nicht geöffnet)');
+        assert(!state.uw.a || state.uw.a[`${aderHex.x},${aderHex.y}`] === undefined || state.uw.a[`${aderHex.x},${aderHex.y}`] > 0, 'Ader-Restbestand wird durch Dynamit nicht zerstört/geleert');
+        assert(!state.uw.u.some(u => u.i === 2), 'Einheit auf der Ader nimmt trotzdem 6 AoE-Schaden (5 HP -> tot)');
+        assert(M.isUnderworldOpen(state, felsTarget.x, felsTarget.y) === true, 'das eigentliche Fels-Ziel-Hex wird weiterhin ganz normal geöffnet');
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -263,7 +314,7 @@ console.log('\n=== (d) Moral-Kollaps: nur bei 0 nutzbaren Tunneln, genau -1 HP p
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n=== (e) Erschließung: Bedingungen, Verbündete unterbrechen nicht, Reset, Sieg bei n==4 ===');
+console.log('\n=== (e) Erschließung: Bedingungen, Verbündete unterbrechen nicht, Reset, Sieg bei n==ERSCHLIESSUNG_TARGET ===');
 {
     const state = freshState(5, 5, 3);
     const cx = state.rad, cy = state.rad;
@@ -298,7 +349,7 @@ console.log('\n=== (e) Erschließung: Bedingungen, Verbündete unterbrechen nich
     state4.uw.u.push({ i: 2, p: 1, t: 17, x: otherHeartHex.x, y: otherHeartHex.y, h: 14 });
     assert(M.checkErschliessungProgress(state4, 0) === true, 'ein VERBÜNDETER in der Herzkaverne unterbricht NICHT');
 
-    // advanceErschliessung: Start -> Fortschritt -> ... -> 4, dann Reset bei Unterbrechung
+    // advanceErschliessung: Start -> Fortschritt -> ... -> ERSCHLIESSUNG_TARGET, dann Reset bei Unterbrechung
     const state5 = freshState(5, 5, 3);
     state5.uw.wd = 1;
     state5.uw.u.push({ i: 1, p: 0, t: 7, x: cx, y: cy, h: 8 });
@@ -306,10 +357,12 @@ console.log('\n=== (e) Erschließung: Bedingungen, Verbündete unterbrechen nich
     assert(e1 && e1.type === 'start' && e1.n === 1 && state5.uw.hz.n === 1, 'erster gehaltener Zugende startet uw.hz bei n=1');
     const e2 = M.advanceErschliessung(state5, 0);
     assert(e2.type === 'progress' && e2.n === 2, 'zweiter gehaltener Zugende erhöht auf n=2');
-    M.advanceErschliessung(state5, 0);
-    const e4 = M.advanceErschliessung(state5, 0);
-    assert(e4.n === 4, 'vierter gehaltener Zugende erreicht n=4');
-    assert(M.checkErschliessungWin(state5) !== null, 'bei n=4 meldet checkErschliessungWin einen Sieger');
+    let eLast;
+    for (let i = 2; i < M.ERSCHLIESSUNG_TARGET; i++) {
+        eLast = M.advanceErschliessung(state5, 0);
+    }
+    assert(eLast.n === M.ERSCHLIESSUNG_TARGET, `letzter gehaltener Zugende erreicht n=${M.ERSCHLIESSUNG_TARGET}`);
+    assert(M.checkErschliessungWin(state5) !== null, `bei n=${M.ERSCHLIESSUNG_TARGET} meldet checkErschliessungWin einen Sieger`);
 
     // Unterbrechung -> KOMPLETTER Reset (nicht Dekrement)
     state5.uw.u = []; // eigene Einheit verlässt das Zentrum
@@ -321,15 +374,15 @@ console.log('\n=== (e) Erschließung: Bedingungen, Verbündete unterbrechen nich
     const state6 = freshState(5, 5, 3);
     state6.p[0].al = [1];
     state6.p[1].al = [0];
-    state6.uw.hz = { p: 0, n: 4 };
+    state6.uw.hz = { p: 0, n: M.ERSCHLIESSUNG_TARGET };
     const winners = M.checkErschliessungWin(state6);
     assert(winners && winners.length === 2 && winners.some(p => p === state6.p[0]) && winners.some(p => p === state6.p[1]), 'Gewinnerliste = Erschließer + Verbündete, exakt 2 Spieler');
     assert(!winners.includes(state6.p[2]), 'nicht-verbündeter dritter Spieler ist NICHT unter den Gewinnern');
 
-    // n < 4: noch kein Sieg
+    // n < ERSCHLIESSUNG_TARGET: noch kein Sieg
     const state7 = freshState(5, 5, 2);
-    state7.uw.hz = { p: 0, n: 3 };
-    assert(M.checkErschliessungWin(state7) === null, 'n=3 löst noch keinen Sieg aus');
+    state7.uw.hz = { p: 0, n: M.ERSCHLIESSUNG_TARGET - 1 };
+    assert(M.checkErschliessungWin(state7) === null, `n=${M.ERSCHLIESSUNG_TARGET - 1} löst noch keinen Sieg aus`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────
