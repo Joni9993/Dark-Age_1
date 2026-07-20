@@ -702,7 +702,7 @@ function executeMoveTo(clickedX, clickedY) {
 
             const vOwner = gameState.v[`${targetX},${targetY}`];
             let isStartAtTarget = false;
-            for (let i = 0; i < gameState.p.length; i++) { if (gameState.p[i].sv === `${targetX},${targetY}`) isStartAtTarget = true; }
+            for (let i = 0; i < gameState.p.length; i++) { if (gameState.p[i].dead === 0 && gameState.p[i].sv === `${targetX},${targetY}`) isStartAtTarget = true; }
 
             const canCapture = (vOwner === -1)
                 ? (selectedUnit.a === 0 || selectedUnit.a === 2)
@@ -878,7 +878,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
     const pState = gameState.p[gameState.cp];
     const villageOwner = gameState.v[`${clickedX},${clickedY}`];
     let isStart = false; let svHp = 0; let svOwner = -1;
-    for (let i = 0; i < gameState.p.length; i++) { if (gameState.p[i].sv === `${clickedX},${clickedY}`) { isStart = true; svHp = gameState.p[i].sh; svOwner = i; } }
+    for (let i = 0; i < gameState.p.length; i++) { if (gameState.p[i].dead === 0 && gameState.p[i].sv === `${clickedX},${clickedY}`) { isStart = true; svHp = gameState.p[i].sh; svOwner = i; } }
 
     selectedHex = { x: clickedX, y: clickedY };
 
