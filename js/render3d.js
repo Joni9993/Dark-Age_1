@@ -1451,7 +1451,10 @@
                     // 2D-Sprite) — unter die Unterseiten-Ebene gehängt, gleiches
                     // Platzierungsmuster wie das Herzkaverne-Modell unten;
                     // mirrorY, damit es aus der Von-unten-Sicht richtig herum steht.
-                    addVoxelModel('tunnel', wx, wz, -(underworldDepth(uwVisualType(state, t.x1, t.y1)) + modelTopHeight('tunnel')), playerColors[t.o], dimT, null, 0, true);
+                    // rotY=PI: die Unterwelt-Kamerafahrt ist punktgespiegelt zur
+                    // Oberfläche (s. Kommentar weiter oben im File), das Modell schaut
+                    // ohne diese 180°-Drehung in die falsche Richtung (Jonathan).
+                    addVoxelModel('tunnel', wx, wz, -(underworldDepth(uwVisualType(state, t.x1, t.y1)) + modelTopHeight('tunnel')), playerColors[t.o], dimT, null, Math.PI, true);
                     addHpText(t.h, wx, wz, gyT - modelTopHeight('tunnel') - 8, -1, t.h / 13 < 0.3);
                 } else {
                     // Fallback ohne Modell (z. B. CLASSIC-Art ohne 3D-Datensatz)
