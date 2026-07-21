@@ -1493,7 +1493,19 @@
                 if (!isUWUnitVisible(state.cp, u)) return;
                 const uType = uwVisualType(state, u.x, u.y);
                 const groundY = -underworldDepth(uType);
-                const { wx, wz } = worldPos(u.x, u.y);
+                let { wx, wz } = worldPos(u.x, u.y);
+                // Wie an der Oberfläche (surfaceVisible-Zweig oben): steht die Einheit
+                // auf einem Hex mit echtem 3D-Voxelkörper (Tunnel-HUB-Eingang), zur
+                // Kamera vorziehen, sonst verschwindet der Sprite im Modell — dieselbe
+                // collectVoxelBodyHexes-Logik wie oben, aber mit VERTAUSCHTEM Vorzeichen:
+                // die Unterwelt-Kamerafahrt ist punktgespiegelt zur Oberfläche (s. Kommentar
+                // weiter oben im File), "zur Kamera hin" zeigt daher hier in die entgegen-
+                // gesetzte fx/fz-Richtung (sonst rutscht die Einheit hinter statt vor den Tunnel).
+                if (voxelBodyHexes.has(`${u.x},${u.y}`)) {
+                    const { fx, fz } = camGroundAxes();
+                    wx -= fx * hexSize * 0.55;
+                    wz -= fz * hexSize * 0.55;
+                }
                 const dim = u.a === 1 ? 0.55 : 1;
                 addUWVoxelSprite(u.t, wx, wz, groundY, playerColors[u.p], dim);
                 const topY = groundY - 34;
@@ -1505,6 +1517,29 @@
                 if (u.cr) addIcon(`💎${u.cr}`, '#7fe3ff', wx, wz, topY - 12, 11, 1, 1);
                 if (u.art) addIcon(RELICS[u.art].icon, '#ba68c8', wx, wz, topY - 4, 9, 1, -1);
             });
+
+            // Hex-Marker-Icons (🏺/💎-Drop/🧨/🎯) können auf DEMSELBEN Hex
+            // zusammentreffen (z.B. Dynamit auf dem Feld einer Kreatur mit
+            // telegraphiertem Angriff) — exakt mittig übereinander gerendert
+            // verdeckt das zuletzt gezeichnete Icon alle anderen (Korrektur
+            // Juli 2026, Jonathan: Dynamit unter dem 🎯 unsichtbar). Deshalb
+            // pro Hex ein Slot-Zähler: erstes Icon mittig, weitere abwechselnd
+            // rechts/links daneben (nutzt den align-Parameter von addIcon und
+            // damit dieselben kamera-parallelen Achsen wie ⛏/💎 an Einheiten).
+            // Steht auf dem Hex eine Einheit/Kreatur, beginnt die Verteilung
+            // direkt SEITLICH (Slot 1) statt mittig — ein mittiges Icon steckt
+            // sonst im Voxelmodell der Figur und ist genauso unsichtbar wie
+            // unter einem anderen Icon.
+            const uwIconSlots = {};
+            function addUWMarkerIcon(char, color, hx, hy, size) {
+                const key = `${hx},${hy}`;
+                let slot = uwIconSlots[key];
+                if (slot === undefined) slot = (uwUnitAt(hx, hy) || uwCreatureAt(hx, hy)) ? 1 : 0;
+                uwIconSlots[key] = slot + 1;
+                const align = slot === 0 ? 0 : (slot % 2 === 1 ? Math.ceil(slot / 2) : -(slot / 2));
+                const { wx, wz } = worldPos(hx, hy);
+                addIcon(char, color, wx, wz, -underworldDepth(uwVisualType(state, hx, hy)) - 8, size, 1, align);
+            }
 
             // Kristalladern: dasselbe 3D-Voxelmodell wie der Oberflächen-Steinhaufen
             // (voxelModels['stone']), per tint (UW_CRYSTAL_TINT) zu einem
@@ -1527,14 +1562,14 @@
                         addIcon(`💎${rem}`, '#7fe3ff', wx, wz, gyA - 8, 11);
                     }
                 } else if (isFundkammerHex(state, c.x, c.y) && !(state.uw && state.uw.f && state.uw.f[`${c.x},${c.y}`])) {
-                    addIcon('🏺', '#c9a24b', wx, wz, -underworldDepth(UW_RUINE) - 8, 11);
+                    addUWMarkerIcon('🏺', '#c9a24b', c.x, c.y, 11);
                 }
                 // Herrenloser Kristallhaufen (Korrektur Juli 2026): fällt beim Tod
                 // eines Trägers, wird von Arbeiter/Beutegräber beim Betreten
                 // automatisch eingesammelt (pickupUWCrystalDrop, js/logic.js).
                 const dropAmount = state.uw && state.uw.dr && state.uw.dr[`${c.x},${c.y}`];
                 if (dropAmount) {
-                    addIcon(`💎${dropAmount}`, '#7fe3ff', wx, wz, -underworldDepth(uwVisualType(state, c.x, c.y)) - 8, 11);
+                    addUWMarkerIcon(`💎${dropAmount}`, '#7fe3ff', c.x, c.y, 11);
                 }
             });
 
@@ -1544,8 +1579,7 @@
             (state.uw && state.uw.dy || []).forEach(charge => {
                 charge.hexes.forEach(h => {
                     if (!uwVis.has(`${h.x},${h.y}`)) return;
-                    const { wx: dwx, wz: dwz } = worldPos(h.x, h.y);
-                    addIcon('🧨', '#ff6e40', dwx, dwz, -underworldDepth(uwVisualType(state, h.x, h.y)) - 8, 12);
+                    addUWMarkerIcon('🧨', '#ff6e40', h.x, h.y, 12);
                 });
             });
 
@@ -1613,8 +1647,7 @@
                 getOpenCreatureAttackHexes(state, c).forEach(h => {
                     if (!uwHexNearOwnUnits(state.cp, h.x, h.y)) return;
                     addOverlay(h.x, h.y, 0xb71c1c, 0.5, state, true);
-                    const { wx: twx, wz: twz } = worldPos(h.x, h.y);
-                    addIcon('🎯', '#ffffff', twx, twz, -underworldDepth(uwVisualType(state, h.x, h.y)) - 8, 12);
+                    addUWMarkerIcon('🎯', '#ffffff', h.x, h.y, 12);
                 });
             });
         } // surfaceVisible

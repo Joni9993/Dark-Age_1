@@ -1698,6 +1698,25 @@ body {
     transform: scale(1);
 }
 
+/* Kaufbar (aktuell nur "Fraktion", wenn die nächste Kultur leistbar ist):
+   grüner Puls statt starrem Rand, damit der Kaufanreiz auffällt, ohne den
+   Gold-Highlight für das anvisierte Ziel (.active, unten) zu überdecken —
+   .active steht bewusst NACH dieser Regel und gewinnt bei gleicher
+   Spezifität, falls beide Klassen gleichzeitig anliegen. */
+@keyframes radialAffordablePulse {
+    0%, 100% {
+        border-color: rgba(90, 214, 130, 0.55);
+        box-shadow: 0 0 8px 1px rgba(90, 214, 130, 0.35);
+    }
+    50% {
+        border-color: rgba(120, 255, 160, 1);
+        box-shadow: 0 0 20px 6px rgba(90, 214, 130, 0.85);
+    }
+}
+.radial-circle.affordable {
+    animation: radialAffordablePulse 1.4s ease-in-out infinite;
+}
+
 /* Anvisiert: der Kreis, dessen Mittelpunkt dem Zeiger am nächsten liegt UND
    dessen Abstand zum Druckpunkt > ~40px ist (radialmenu.js) — darunter gilt
    die Mitte/Abbrechen-Zone, kein Kreis wird hervorgehoben. */

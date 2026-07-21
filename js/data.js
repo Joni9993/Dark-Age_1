@@ -5,10 +5,10 @@ const getEntityColor = (id) => id === -1 ? "#888888" : playerColors[id];
 
 // === FACTIONS ===
 const factions = {
-    0: { name: "🏰 Feudalismus", desc: "Passive: Neu rekrutierte Einheiten erhalten +1 Max-HP pro 2 Dörfer, die du beim Rekrutieren besitzt.\nSpezial: 🛡️ Ritter, 🏹 Kamelreiter & 🚁 Luftschraube", cost: 10, reqV: 2 },
-    1: { name: "🩸 Plünderer", desc: "Passive: +1 DMG für Nahkämpfer.\nSpezial: 🪓 Berserker, 💥 Saboteur & 🛩️ Gleiter", cost: 10, reqV: 2 },
-    2: { name: "👁️ Spionage", desc: "Passive: +1 Sichtweite.\nSpezial: 🗡️ Assassine, 🐘 Elefant & 🪂 Fallschirmspringer", cost: 10, reqV: 2 },
-    3: { name: "⚖️ Gilden", desc: "Passive: +1 Gold pro Dorf.\nSpezial: 🏗️ Tribok, 🚚 Wagenburg & 🎈 Bombenballon", cost: 10, reqV: 2 }
+    0: { name: "🏰 Feudalismus", desc: "Passive: Neu rekrutierte Einheiten erhalten +1 Max-HP pro 2 Dörfer, die du beim Rekrutieren besitzt.\nSpezial: 🛡️ Ritter, 🏹 Kamelreiter, 🚁 Luftschraube & ⚔ Grubenritter", cost: 10, reqV: 2 },
+    1: { name: "🩸 Plünderer", desc: "Passive: +1 DMG für Nahkämpfer.\nSpezial: 🪓 Berserker, 💥 Saboteur, 🛩️ Gleiter & 🪙 Beutegräber", cost: 10, reqV: 2 },
+    2: { name: "👁️ Spionage", desc: "Passive: +1 Sichtweite.\nSpezial: 🗡️ Assassine, 🐘 Elefant, 🪂 Fallschirmspringer & 👂 Horcher", cost: 10, reqV: 2 },
+    3: { name: "⚖️ Gilden", desc: "Passive: +1 Gold pro Dorf.\nSpezial: 🏗️ Tribok, 🚚 Wagenburg, 🎈 Bombenballon & ⚙ Bohrwagen", cost: 10, reqV: 2 }
 };
 
 // === UPGRADES ===
@@ -16,7 +16,7 @@ const upgrades = {
     0: { fac: 0, t: 1, name: "Plattenpanzer", desc: "Basis-Schwerter erhalten +5 Max HP.", g: 0, m: 7 },
     1: { fac: 0, t: 2, name: "Waffenmeister", desc: "Neu rekrutierte Einheiten starten bereits als Veteran (+1 DMG).", g: 0, m: 7 },
     2: { fac: 1, t: 1, name: "Kopfgeld", desc: "+2 Gold für jeden Kill.", g: 0, m: 7 },
-    3: { fac: 1, t: 2, name: "Brandschatzer", desc: "Berserker machen +3 DMG gegen Hauptgebäude.", g: 0, m: 7 },
+    3: { fac: 1, t: 2, name: "Brandschatzer", desc: "Berserker machen +3 DMG gegen Hauptgebäude & Tunnel.", g: 0, m: 7 },
     4: { fac: 2, t: 1, name: "Spähbogen", desc: "Bogenschützen erhalten +1 Schaden.", g: 0, m: 7 },
     5: { fac: 2, t: 2, name: "Schattenläufer", desc: "Assassinen erhalten +1 Bewegung und +1 Schaden.", g: 0, m: 7 },
     6: { fac: 3, t: 1, name: "Söldner-Verträge", desc: "Schwert, Bogen & Pferd kosten -1 Gold.", g: 0, m: 7 },

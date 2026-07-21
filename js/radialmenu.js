@@ -92,12 +92,18 @@ window.RadialMenu = (function () {
         overlay.appendChild(centerDot);
 
         const disabled = computeDisabled();
+        // "Fraktion" darf leuchten, sobald die nächste Kultur kaufbar ist (Jonathan:
+        // sichtbarer Kaufanreiz analog zum Gold-Pulse anderswo) — Zustand einmalig
+        // beim Öffnen berechnet, siehe Kommentar über computeDisabled().
+        const factionAffordable = typeof window.getKulturStatus === 'function' && window.getKulturStatus().canBuy;
         items = ITEMS.map((def, i) => {
             const angle = -Math.PI / 2 + i * (2 * Math.PI / ITEMS.length);
             const cx = centerX + Math.cos(angle) * RADIUS;
             const cy = centerY + Math.sin(angle) * RADIUS;
             const el = document.createElement('div');
-            el.className = 'radial-circle' + (disabled[def.key] ? ' disabled' : '');
+            el.className = 'radial-circle'
+                + (disabled[def.key] ? ' disabled' : '')
+                + (def.key === 'faction' && factionAffordable ? ' affordable' : '');
             el.style.left = cx + 'px';
             el.style.top = cy + 'px';
             el.innerHTML = `<span class="radial-icon">${def.icon}</span><span class="radial-label">${def.label}</span>`;
