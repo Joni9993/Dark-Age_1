@@ -157,7 +157,7 @@ Kreatur schlägt nie durch die Wand auf eine dahinterliegende offene Tasche.
   - **Damaszener Klinge** (4 💎): eine Einheit permanent +5 DMG
   - **Harnisch des Bergvolks** (4 💎): eine Einheit permanent +10 max-HP
   - **Meisterwerkzeug** (3 💎): ein Bauwerk (Mauer/Turm/Tunnel/Startdorf) sofort auf volle HP
-  - **Karte der Tiefe** (5 💎): deckt dauerhaft die gesammte MAP(oberfläche als auch unterwelt) auf
+  - **Karte der Tiefe** (7 💎, Preiskorrektur Juli 2026, vorher 5): permanente 100%-Sicht auf die gesammte MAP(oberfläche als auch unterwelt-netz) — nicht nur einmalig aufdecken (`p[].mr`-Flag, Fix Juli 2026)
 
 ## 8. Der Herz-Sieg: die Erschließung
 

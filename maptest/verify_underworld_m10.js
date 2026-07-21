@@ -30,8 +30,9 @@ function loadGameCode() {
             calculateMovesUW, calculateDigsUW, calculateMineTargetsUW, uwUnitAt, moveUWUnit,
             digUWHex, mineUWVein, deliverUWCrystals, ascendUWUnit, descendUWUnit, buyUWUnitAt,
             isChokepoint, calculateAttacksUW, getExpectedDamageUW, resolveUWAttack,
-            lootFundkammer, applyRelicToUnit, applyRelicToBuilding, applyMapRelic, RELIC_KEYS,
-            getUnitMaxHp, getUnitCost, getUnitMove, checkVeteran, unitStats, RELICS, uwFactionUnitMap
+            lootFundkammer, lootFundkammerAction, applyRelicToUnit, applyRelicToBuilding, applyMapRelic, RELIC_KEYS,
+            getUnitMaxHp, getUnitCost, getUnitMove, checkVeteran, unitStats, RELICS, uwFactionUnitMap,
+            getVisibleHexes
         };
     `);
     return fn();
@@ -229,6 +230,8 @@ console.log('\n=== (d) Fundkammer: nur einmal plünderbar, deterministisch gleic
 
         if (loot1.type === 'crystal') {
             assert(state.p[0].k === kBefore + loot1.amount, `Kristalle korrekt verbucht (+${loot1.amount})`);
+        } else if (loot1.relic === 'map') {
+            assert((state.p[0].rel || []).length === relBefore, '"map"-Fund landet NICHT im Inventar (wirkt sofort)');
         } else {
             assert((state.p[0].rel || []).length === relBefore + 1, 'Reliquie korrekt ins Inventar gelegt');
         }
@@ -255,6 +258,52 @@ console.log('\n=== (d) Fundkammer: nur einmal plünderbar, deterministisch gleic
             assert(lootC.type === 'crystal' && lootC.amount === 3, `Beutegräber bekommt +1 extra (3 statt 2), gemessen: ${lootC.amount}`);
         } else {
             console.log('SKIP: keine reine Kristall-Fundkammer für den Beutegräber-Passiv-Test gefunden (Seed-Zufall)');
+        }
+
+        // Button-Aktion statt Auto-Loot (Korrektur Juli 2026): Bewegung AUF ein
+        // Fundkammer-Hex plündert NICHT mehr — erst lootFundkammerAction (der
+        // Kern des "🏺 Fundkammer plündern"-Buttons) plündert und verbraucht
+        // dabei die restlichen Aktionen des Zuges (a=1, wie "Dorf einnehmen").
+        const stateD = freshState(9, 12, 2);
+        useState(stateD);
+        const unitD = { i: 3, p: 0, t: 7, x: fk.x, y: fk.y, h: 8, a: 0 };
+        stateD.uw.u.push(unitD);
+        const moveResult = M.moveUWUnit(stateD, unitD, fk.x, fk.y);
+        assert(moveResult.loot === undefined && !(stateD.uw.f && stateD.uw.f[`${fk.x},${fk.y}`]), 'Bewegung auf die Fundkammer plündert NICHT mehr automatisch');
+        const lootD = M.lootFundkammerAction(stateD, unitD);
+        assert(!!lootD && stateD.uw.f[`${fk.x},${fk.y}`] === 1, 'lootFundkammerAction plündert die Fundkammer unter der Einheit');
+        assert(unitD.a === 1, 'Plündern verbraucht die restlichen Aktionen der Einheit (a=1)');
+        const lootD2 = M.lootFundkammerAction(stateD, unitD);
+        assert(lootD2 === null, 'zweiter Button-Druck liefert nichts mehr (uw.f-Flag)');
+        const offHex = M.getNeighbors(fk.x, fk.y).find(n => !M.isFundkammerHex(stateD, n.x, n.y));
+        if (offHex) {
+            const unitOff = { i: 4, p: 0, t: 7, x: offHex.x, y: offHex.y, h: 8, a: 0 };
+            assert(M.lootFundkammerAction(stateD, unitOff) === null && unitOff.a === 0, 'lootFundkammerAction auf Nicht-Fundkammer-Hex tut nichts');
+        }
+
+        // "map"-Fund wirkt sofort (Fix Juli 2026): deckt beide Ebenen komplett
+        // auf statt nutzlos als Ausrüst-Item im Inventar zu landen. Passende
+        // Fundkammer per Seed-Suche (Beute ist seed-deterministisch).
+        let mapCase = null;
+        for (let seed = 1; seed <= 30 && !mapCase; seed++) {
+            const s = freshState(seed, 12, 2);
+            for (const h of M.getFundkammerHexes(s)) {
+                if (M.underworldHash(s, h.x, h.y, 2) >= 0.5) {
+                    const ri = Math.min(M.RELIC_KEYS.length - 1, Math.floor(M.underworldHash(s, h.x, h.y, 3) * M.RELIC_KEYS.length));
+                    if (M.RELIC_KEYS[ri] === 'map') { mapCase = { seed, h }; break; }
+                }
+            }
+        }
+        if (mapCase) {
+            const stateE = freshState(mapCase.seed, 12, 2);
+            const unitE = { i: 5, p: 0, t: 7, x: mapCase.h.x, y: mapCase.h.y, h: 8 };
+            const lootE = M.lootFundkammer(stateE, 0, unitE, mapCase.h.x, mapCase.h.y);
+            assert(!!lootE && lootE.relic === 'map' && lootE.instant === true, '"map"-Fund liefert instant-Flag');
+            assert((stateE.p[0].rel || []).length === 0, '"map"-Fund landet nicht im Inventar');
+            const total = stateE.bw * stateE.bh;
+            assert(stateE.p[0].e.length === total && stateE.p[0].ue.length === total, '"map"-Fund deckt Oberfläche + Unterwelt komplett auf');
+        } else {
+            console.log('SKIP: keine "map"-Fundkammer in Seeds 1-30 gefunden (Seed-Zufall)');
         }
     }
 }
@@ -307,6 +356,28 @@ console.log('\n=== (e) Reliquien-Effekte in getExpectedDamage(UW)/getUnitMaxHp =
     const total = stateMap.bw * stateMap.bh;
     assert(stateMap.p[0].e.length === total, `p[0].e vollständig aufgedeckt (${stateMap.p[0].e.length} === ${total})`);
     assert(stateMap.p[0].ue.length === total, `p[0].ue vollständig aufgedeckt (${stateMap.p[0].ue.length} === ${total})`);
+
+    // Fix Juli 2026: die Karte gibt permanente 100%-LIVE-Sicht (p.mr +
+    // getVisibleHexes), nicht nur einmalige Erkundung — vorher blieben Felder
+    // außerhalb der eigenen Sichtweite abgedunkelt.
+    assert(stateMap.p[0].mr === 1, 'p[0].mr-Flag gesetzt (permanente Sicht)');
+    const insideCount = (() => {
+        let n = 0;
+        for (let y = 0; y < stateMap.bh; y++)
+            for (let x = 0; x < stateMap.bw; x++)
+                if (M.isInsideMap(stateMap, x, y)) n++;
+        return n;
+    })();
+    const visWith = M.getVisibleHexes(0);
+    assert(visWith.size === insideCount, `getVisibleHexes liefert mit mr ALLE Karten-Hexes (${visWith.size} === ${insideCount})`);
+    const visWithout = M.getVisibleHexes(1);
+    assert(visWithout.size < insideCount, `Spieler ohne Karte sieht weiterhin nur seinen Ausschnitt (${visWithout.size} < ${insideCount})`);
+
+    // Verbündeten-Fall: Bündnisse teilen die volle Sicht der Karte mit.
+    stateMap.p[1].al = [0];
+    const visAlly = M.getVisibleHexes(1);
+    assert(visAlly.size === insideCount, `Verbündeter des Karten-Besitzers erbt die 100%-Sicht (${visAlly.size} === ${insideCount})`);
+    stateMap.p[1].al = [];
 }
 
 // ─────────────────────────────────────────────────────────────────────────

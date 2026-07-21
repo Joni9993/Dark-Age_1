@@ -96,12 +96,13 @@ const uwFactionUnitMap = { 0: 19, 1: 20, 2: 21, 3: 22 };
 // === RELIQUIEN (M10, PLAN.md Abschn. 7) ===
 // Fundstücke alter Handwerkskunst (nicht sakral!) — kaufbar für Kristalle im
 // Dorf-Menü, eine ausgerüstete Reliquie pro Einheit (u[].art / uw.u[].art).
-// "map" wirkt sofort beim Kauf und landet nie in p[].rel (siehe applyMapRelic).
+// "map" wirkt sofort (Kauf UND Fundkammer-Fund) und landet nie in p[].rel
+// (siehe applyMapRelic; startRelicEquip verbraucht Altbestände im Inventar).
 const RELICS = {
     blade: { name: "Damaszener Klinge", icon: "🗡️", cost: 4, desc: "Eine Einheit erhält permanent +5 DMG.", target: "unit" },
     armor: { name: "Harnisch des Bergvolks", icon: "🛡️", cost: 4, desc: "Eine Einheit erhält permanent +10 Max-HP (heilt beim Ausrüsten mit).", target: "unit" },
     tool: { name: "Meisterwerkzeug", icon: "🔧", cost: 3, desc: "Ein Bauwerk (Mauer/Turm/Tunnel/Startdorf) sofort auf volle HP.", target: "building" },
-    map: { name: "Karte der Tiefe", icon: "🗺️", cost: 5, desc: "Deckt dauerhaft die gesamte Karte auf (Oberfläche + Unterwelt).", target: "instant" }
+    map: { name: "Karte der Tiefe", icon: "🗺️", cost: 7, desc: "Permanente Sicht auf die gesamte Karte (Oberfläche + Unterwelt-Netz).", target: "instant" }
 };
 
 // === UNTERWELT-KREATUREN (M11, PLAN.md Abschn. 5) ===

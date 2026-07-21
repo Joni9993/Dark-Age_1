@@ -541,6 +541,22 @@ window.uwDescend = function () {
 window.startRelicEquip = function (key) {
     const def = RELICS[key];
     if (!def) return;
+    // "map" braucht kein Ziel — wirkt sofort. Landet seit dem Fundkammer-Fix
+    // (Juli 2026) zwar nicht mehr im Inventar, alte Spielstände können sie dort
+    // aber noch haben: hier verbrauchen statt sinnlos eine Einheit zu wählen.
+    if (def.target === 'instant') {
+        const pState = gameState.p[gameState.cp];
+        const idx = (pState.rel || []).indexOf(key);
+        if (idx === -1) return;
+        saveUndoState();
+        pState.rel.splice(idx, 1);
+        applyMapRelic(gameState, gameState.cp);
+        showToast(`${def.icon} ${def.name} wirkt — gesamte Karte aufgedeckt!`, 'gold');
+        const [svx, svy] = (pState.sv || '0,0').split(',').map(Number);
+        turnActions.push({ x: svx, y: svy, t: 'relicuse' });
+        hideActionMenu(); renderBoard(gameState); updateUI();
+        return;
+    }
     window.uwSpecialActive = 'relic_' + key;
     hideActionMenu();
     showToast(def.target === 'building' ? `Wähle ein eigenes Bauwerk für ${def.name}` : `Wähle eine eigene Einheit für ${def.name}`, 'info');

@@ -175,7 +175,7 @@ const GROUPS = [
         ["uw_steinpanzer", "🪨 Steinpanzer"], ["uw_wurm", "🐛 Der Alte Wurm"]
     ]],
     ["Unterwelt — 3D-Voxelmodelle", [
-        ["vox:herzkaverne", "Herzkaverne (3D)"],
+        ["vox:herzkaverne", "Herzkaverne (3D)"], ["vox:fundkammer", "🏺 Fundkammer (3D)"],
         ["vox:uw_spinne", "🕷 Höhlenspinne (3D)"], ["vox:uw_wuehler", "🦡 Blindwühler (3D)"],
         ["vox:uw_steinpanzer", "🪨 Steinpanzer (3D)"], ["vox:uw_wurm", "🐛 Der Alte Wurm (3D)"],
         ["vox:uw_fels_a", "Fels-Brocken A (3D)"], ["vox:uw_fels_b", "Fels-Brocken B (3D)"],
@@ -813,7 +813,11 @@ function charForIndex(idx, extraChars) {
     return extraChars.map[idx];
 }
 function generateArtJs() {
-    const ec = { map: {}, pool: CHAR_POOL.split(""), n: 0 };
+    // Pool-Zeichen, die SPRITE_CHARS schon belegt, aussortieren — sonst bekommt
+    // eine neue Palettenfarbe denselben Buchstaben wie eine bestehende und beide
+    // kollabieren beim Laden auf EINEN Wert (so wurden im Juli 2026 Weiß/Schwarz
+    // von Gelb/Rot verdrängt: B/C waren doppelt vergeben, B=20 wurde zu B=24).
+    const ec = { map: {}, pool: CHAR_POOL.split("").filter(c => !(c in SPRITE_CHARS)), n: 0 };
     const indent = "        ";
 
     const spriteBlock = Object.entries(work.sprites).map(([k, sp]) => {

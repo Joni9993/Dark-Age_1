@@ -1,1 +1,1 @@
-Voxel design für Fundkammer hinzufügen das spieler erkennen lässt das sie hier etwas einsammeln können
+Karte der Tiefe funktioniert nicht, muss auf eine einheit angewändet werden was keinen sinn macht, soll aktiviert werden wenn man sie kauft/aufsammelt und dann die komplette karte aufdecken, sowohl untergrund als auch oberfläche, 100% vision, kein fog of war  mehr.

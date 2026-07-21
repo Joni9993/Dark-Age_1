@@ -646,7 +646,7 @@ function showUnderworldTileUI(clickedX, clickedY) {
     if (rem > 0) extra += `<br><span style="color:#7fe3ff">💎 Ader: ${rem}/${getUWVeinMaxAmount(gameState, clickedX, clickedY)}</span><div class="info-detail">Abbau per Toggle (Arbeiter/Beutegräber in Reichweite) — danach dauerhaft offener Gang.</div>`;
     if (isFundkammerHex(gameState, clickedX, clickedY)) {
         const looted = gameState.uw && gameState.uw.f && gameState.uw.f[`${clickedX},${clickedY}`];
-        extra += `<br><span style="color:#c9a24b">🏺 Fundkammer${looted ? ' (geplündert)' : ''}</span>` + (looted ? '' : `<div class="info-detail">Wird beim Betreten automatisch geplündert — Kristalle oder eine Reliquie.</div>`);
+        extra += `<br><span style="color:#c9a24b">🏺 Fundkammer${looted ? ' (geplündert)' : ''}</span>` + (looted ? '' : `<div class="info-detail">Mit einer Einheit auf diesem Feld per Button plündern — Kristalle oder eine Reliquie. Verbraucht die restlichen Aktionen der Einheit.</div>`);
     }
     if (gameState.uw && gameState.uw.w && gameState.uw.w[`${clickedX},${clickedY}`]) {
         extra += `<br><span style="color:#dddddd">🕸 Spinnennetz</span><div class="info-detail">Stoppt jede Bewegung, die hier endet (Rest der Reichweite verfällt) — verbraucht sich beim Betreten, egal wer betritt.</div>`;
@@ -758,6 +758,13 @@ function showUnderworldTileUI(clickedX, clickedY) {
         // (processAutoMiningUW), verbraucht keine Aktion, kein Träger-Limit mehr.
         // Abliefern läuft ebenfalls automatisch (processUWCrystalAutoDeliver), sobald
         // die Einheit auf/neben ihrem Stollenkopf steht — kein manueller Button mehr.
+        // Fundkammer plündern (Korrektur Juli 2026, ersetzt das Auto-Plündern
+        // beim Betreten): Button wie "Dorf einnehmen" an der Oberfläche —
+        // Einheit steht AUF dem Fundkammer-Hex, Plündern verbraucht die
+        // restlichen Aktionen des Zuges (aus a=0 ODER a=2, `selectable` oben).
+        if (isFundkammerHex(gameState, clickedX, clickedY) && !(gameState.uw && gameState.uw.f && gameState.uw.f[`${clickedX},${clickedY}`])) {
+            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #8c6d2f;" onclick="window.startUWLootFundkammer()">🏺 Fundkammer plündern</button>`;
+        }
         const mineTargets = calculateMineTargetsUW(unit);
         if (!unit.mi && mineTargets.length > 0) {
             menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #00838f;" onclick="window.startUWMining()">💎 Abbau starten</button>`;
@@ -843,30 +850,22 @@ function showUnderworldTileUI(clickedX, clickedY) {
 
 // Führt die Bewegung von `selectedUWUnit` nach (x,y) aus — reine Bewegung ohne
 // Graben, Ziel muss bereits offen sein (uwValidMoves, BFS über isUnderworldOpen).
-// Läuft die Einheit dabei erstmals in eine Fundkammer, wird sie sofort geplündert
-// (M10, lootFundkammer) — Toast + Recap-Eintrag. Die eigentliche Zustandsmutation
-// (Ortswechsel, a=2, Web/Fundkammer/Aufsammeln) sitzt in moveUWUnit (js/logic.js,
-// DOM-frei testbar) — hier nur der dünne Wrapper (Undo/turnActions/Toasts/Re-Öffnen).
+// Eine Fundkammer am Ziel wird NICHT mehr automatisch geplündert (Korrektur Juli
+// 2026) — das Aktionsmenü, das sich nach der Bewegung erneut öffnet, bietet
+// dafür den Plündern-Button an (window.startUWLootFundkammer unten). Die
+// eigentliche Zustandsmutation (Ortswechsel, a=2, Web/Aufsammeln) sitzt in
+// moveUWUnit (js/logic.js, DOM-frei testbar) — hier nur der dünne Wrapper
+// (Undo/turnActions/Toasts/Re-Öffnen).
 function executeUWMoveTo(clickedX, clickedY) {
     saveUndoState();
     const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
     const unit = selectedUWUnit;
-    const { loot, picked } = moveUWUnit(gameState, unit, clickedX, clickedY);
+    const { picked } = moveUWUnit(gameState, unit, clickedX, clickedY);
     // uw:true (M13): Recap-Sichtbarkeit läuft über das Unterwelt-Netz (getVisibleUWHexes),
     // nicht über die Oberflächen-Sicht — sonst würden fremde Stollen-Bewegungen an
     // Spieler durchsickern, die zufällig die Oberfläche über dem Hex sehen können.
     turnActions.push({ x: clickedX, y: clickedY, t: 'mv', fx: fromX, fy: fromY, uw: true });
     infoPanel.innerHTML = 'Bewegt.';
-
-    if (loot) {
-        if (loot.type === 'crystal') {
-            showToast(`🏺 Fundkammer: +${loot.amount} 💎 Kristalle!`, 'gold');
-        } else {
-            showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} gefunden!`, 'gold');
-        }
-        turnActions.push({ x: clickedX, y: clickedY, t: 'loot', uw: true });
-        updateUI();
-    }
 
     // Herrenloser Kristallhaufen (Korrektur Juli 2026): nur trage-fähige Typen
     // (Arbeiter 7, Beutegräber 20) sammeln automatisch ein, sobald sie das Hex
@@ -998,6 +997,30 @@ function executeUWCollapse(clickedX, clickedY) {
     renderBoard(gameState); updateUI();
 }
 
+// === FUNDKAMMER PLÜNDERN (Korrektur Juli 2026, ersetzt das Auto-Plündern
+// beim Betreten) ===
+// Dünner Button-Wrapper um lootFundkammerAction (js/logic.js) — Muster wie
+// startCapture (js/ui.js): Undo sichern, Kern-Mutation (setzt a=1), Toast +
+// Recap-Eintrag, Auswahl aufräumen.
+window.startUWLootFundkammer = function () {
+    const unit = selectedUWUnit;
+    if (!unit || unit.p !== gameState.cp) return;
+    saveUndoState();
+    const loot = lootFundkammerAction(gameState, unit);
+    if (!loot) return; // schon geplündert/kein Fundkammer-Hex — Button hätte nicht sichtbar sein dürfen
+    if (loot.type === 'crystal') {
+        showToast(`🏺 Fundkammer: +${loot.amount} 💎 Kristalle!`, 'gold');
+    } else if (loot.instant) {
+        showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} — gesamte Karte aufgedeckt!`, 'gold');
+    } else {
+        showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} gefunden!`, 'gold');
+    }
+    turnActions.push({ x: unit.x, y: unit.y, t: 'loot', uw: true });
+    infoPanel.innerHTML = '🏺 Fundkammer geplündert!';
+    clearUWSelection();
+    renderBoard(gameState); updateUI();
+};
+
 // === SPRUNG (M10, Horcher 21 exklusiv — Korrektur Juli 2026, ersetzt die
 // permanente Tarnung) ===
 // Ziel-Auswahl wie Stollenbruch/Dynamit (mehrstufig, window.uwSpecialActive) —
@@ -1018,19 +1041,10 @@ function executeUWJump(clickedX, clickedY) {
     saveUndoState();
     const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
     const unit = selectedUWUnit;
-    const { loot, picked } = jumpUWUnit(gameState, unit, clickedX, clickedY);
+    const { picked } = jumpUWUnit(gameState, unit, clickedX, clickedY);
     turnActions.push({ x: clickedX, y: clickedY, t: 'jump', fx: fromX, fy: fromY, uw: true });
     infoPanel.innerHTML = '🦘 Gesprungen!';
 
-    if (loot) {
-        if (loot.type === 'crystal') {
-            showToast(`🏺 Fundkammer: +${loot.amount} 💎 Kristalle!`, 'gold');
-        } else {
-            showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} gefunden!`, 'gold');
-        }
-        turnActions.push({ x: clickedX, y: clickedY, t: 'loot', uw: true });
-        updateUI();
-    }
     if (picked > 0) {
         showToast(`💎 ${picked} herrenlose Kristalle eingesammelt!`, 'gold');
         turnActions.push({ x: clickedX, y: clickedY, t: 'pickup', uw: true });

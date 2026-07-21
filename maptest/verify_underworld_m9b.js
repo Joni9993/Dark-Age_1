@@ -447,8 +447,8 @@ console.log('\n=== (g) Bewegen+Agieren im selben Zug (Oberflächen-Parität, Kor
     const movesA = M.calculateMovesUW(unitA);
     assert(movesA.length > 0, 'Testaufbau: mindestens ein Bewegungsziel vorhanden');
     if (movesA.length > 0) {
-        const { loot, picked } = M.moveUWUnit(stateA, unitA, movesA[0].x, movesA[0].y);
-        assert(typeof picked === 'number' && (loot === null || typeof loot === 'object'), 'moveUWUnit gibt { loot, picked } zurück');
+        const { picked } = M.moveUWUnit(stateA, unitA, movesA[0].x, movesA[0].y);
+        assert(typeof picked === 'number', 'moveUWUnit gibt { picked } zurück (kein Auto-Loot mehr — Fundkammer-Plündern ist eine Button-Aktion)');
         assert(unitA.x === movesA[0].x && unitA.y === movesA[0].y, 'Einheit steht nach der Bewegung auf dem Zielhex');
         assert(unitA.a === 2, 'Bewegung setzt a=2 (Bewegungs-Zwischenzustand — NICHT mehr a=1 wie vor der Korrektur Juli 2026)');
 

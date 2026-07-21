@@ -1549,8 +1549,12 @@
             // diamantenen Kristallschimmern eingefärbt statt reinem Stein-Grau —
             // Restbestand wird genau wie am Steinhaufen oben angezeigt (weiße
             // Zahl, mittig, dicht über dem Modell, addHpText align 0), statt des
-            // alten 💎-Icons (Korrektur Juli 2026). Fundkammern bekommen weiterhin
-            // ein 🏺-Icon, solange sie ungeplündert sind.
+            // alten 💎-Icons (Korrektur Juli 2026). Fundkammern rendern als
+            // eigenes Ruinen-Voxelmodell (voxelModels['fundkammer'], mirrorY
+            // für die Von-unten-Sicht wie Herzkaverne/Kreaturen), solange sie
+            // ungeplündert sind — geplündert verschwindet die Struktur, genau
+            // wie vorher das 🏺-Icon (das nur noch als Fallback ohne Modell
+            // dient, z. B. CLASSIC-Art ohne 3D-Datensatz).
             uwTileIndex.forEach(c => {
                 if (!uwVis.has(`${c.x},${c.y}`)) return;
                 const rem = getUWVeinRemaining(state, c.x, c.y);
@@ -1565,7 +1569,13 @@
                         addIcon(`💎${rem}`, '#7fe3ff', wx, wz, gyA - 8, 11);
                     }
                 } else if (isFundkammerHex(state, c.x, c.y) && !(state.uw && state.uw.f && state.uw.f[`${c.x},${c.y}`])) {
-                    addUWMarkerIcon('🏺', '#c9a24b', c.x, c.y, 11);
+                    if (voxelModels['fundkammer']) {
+                        const gyF = -underworldDepth(uwVisualType(state, c.x, c.y));
+                        const topH = modelTopHeight('fundkammer');
+                        addVoxelModel('fundkammer', wx, wz, gyF - topH, '#9e9e9e', 1, null, 0, true);
+                    } else {
+                        addUWMarkerIcon('🏺', '#c9a24b', c.x, c.y, 11);
+                    }
                 }
                 // Herrenloser Kristallhaufen (Korrektur Juli 2026): fällt beim Tod
                 // eines Trägers, wird von Arbeiter/Beutegräber beim Betreten

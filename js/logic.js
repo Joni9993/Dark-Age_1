@@ -251,10 +251,19 @@ function processAutoMining(pId) {
     const myWorkers = gameState.u.filter(u => u.p === pId && u.t === 7 && u.mi);
     myWorkers.forEach(w => {
         if (!w.mi) return;
-        const target = gameState.st.find(s => s.x === w.mi.x && s.y === w.mi.y && s.h > 0);
-        const stillAdj = target && hexDistance({ x: w.x, y: w.y }, { x: target.x, y: target.y }) === 1;
-        if (stillAdj) {
+        let target = gameState.st.find(s => s.x === w.mi.x && s.y === w.mi.y && s.h > 0);
+        if (!target || hexDistance({ x: w.x, y: w.y }, { x: target.x, y: target.y }) !== 1) {
+            // Gespeichertes Ziel weg oder außer Reichweite (z.B. nach Bewegung durch
+            // einen Tunnel): auf einen anderen angrenzenden Steinhaufen umschwenken
+            // statt den Abbau-Modus zu beenden — der Toggle bleibt an, solange
+            // IRGENDEINE Quelle angrenzt (größter Vorrat zuerst, wie startMining).
+            const adj = gameState.st.filter(s => s.h > 0 && hexDistance({ x: w.x, y: w.y }, { x: s.x, y: s.y }) === 1);
+            adj.sort((a, b) => b.h - a.h);
+            target = adj[0] || null;
+        }
+        if (target) {
             const tx = target.x, ty = target.y;
+            w.mi = { x: tx, y: ty };
             target.h -= 1;
             pState.s += 1;
             if (target.h <= 0) {
@@ -289,6 +298,14 @@ function getVisibleHexes(playerId, includeAllies = true) {
 
     const addV = (pId) => {
         const pState = gameState.p[pId];
+        // Karte der Tiefe (p.mr): permanente 100%-Sicht — greift auch für
+        // Verbündete mit, da Bündnisse die Sicht ohnehin voll teilen.
+        if (pState.mr) {
+            for (let y = 0; y < gameState.bh; y++)
+                for (let x = 0; x < gameState.bw; x++)
+                    if (isInsideMap(gameState, x, y)) visible.add(`${x},${y}`);
+            return;
+        }
         const sightRange = pState.f && pState.f.includes(2) ? 3 : 2;
         const myUnits = gameState.u.filter(u => u.p === pId);
         const myVillages = Object.entries(gameState.v).filter(([k, v]) => v === pId).map(([k, v]) => k.split(',').map(Number));
@@ -396,21 +413,19 @@ function calculateHorcherJumpTargetsUW(unit) {
 }
 
 // Führt den Sprung aus — gleiche Nebeneffekte wie eine normale Bewegung
-// (Spinnennetz am Ziel verbraucht sich, Fundkammer wird geplündert, herrenlose
-// Kristalle werden aufgesammelt, siehe moveUWUnit), aber als vollständige
-// Fähigkeit (a=1, kein Bewegen+Agieren-Zwischenzustand wie bei a=2) — Muster
-// wie placeUWDynamite/collapseUWHex.
+// (Spinnennetz am Ziel verbraucht sich, herrenlose Kristalle werden
+// aufgesammelt, siehe moveUWUnit; eine Fundkammer am Ziel wird NICHT mehr
+// automatisch geplündert — Plündern ist seit Juli 2026 eine eigene Button-
+// Aktion, siehe lootFundkammerAction), aber als vollständige Fähigkeit
+// (a=1, kein Bewegen+Agieren-Zwischenzustand wie bei a=2) — Muster wie
+// placeUWDynamite/collapseUWHex.
 function jumpUWUnit(state, unit, x, y) {
     unit.x = x; unit.y = y;
     unit.a = 1;
     const webKey = `${x},${y}`;
     if (state.uw && state.uw.w && state.uw.w[webKey]) delete state.uw.w[webKey];
-    let loot = null;
-    if (isFundkammerHex(state, x, y)) {
-        loot = lootFundkammer(state, unit.p, unit, x, y);
-    }
     const picked = pickupUWCrystalDrop(state, unit);
-    return { loot, picked };
+    return { picked };
 }
 
 // Angrenzende FELS-Hexes, die noch nicht offen sind — ein Klick darauf gräbt UND
@@ -1178,12 +1193,15 @@ function updateUWExploration() {
 // Bewegung: reine Ortsänderung + a=2 (Bewegungs-Zwischenzustand — "hat sich
 // bewegt, darf noch GENAU eine weitere Aktion (Graben/Angreifen/Fähigkeit),
 // aber NICHT nochmal bewegen", exaktes Pendant zu executeMoveTo/showTileUI an
-// der Oberfläche, js/input.js — Korrektur Juli 2026). Web-Verbrauch, Fundkammer-
-// Loot und automatisches Aufsammeln eines herrenlosen Kristallhaufens laufen als
+// der Oberfläche, js/input.js — Korrektur Juli 2026). Web-Verbrauch und
+// automatisches Aufsammeln eines herrenlosen Kristallhaufens laufen als
 // Nebenwirkung mit — reine Zustandsmutation, damit der ganze Bewegungsschritt
 // DOM-frei testbar bleibt (executeUWMoveTo in js/input.js bleibt ein dünner
 // Wrapper: saveUndoState/turnActions/Toasts/Re-Öffnen des Aktionsmenüs).
-// Gibt { loot, picked } für die Toast-Texte des Aufrufers zurück.
+// Eine Fundkammer am Ziel wird NICHT mehr automatisch geplündert (Korrektur
+// Juli 2026) — Plündern ist jetzt eine eigene Button-Aktion wie "Dorf
+// einnehmen" an der Oberfläche, siehe lootFundkammerAction.
+// Gibt { picked } für die Toast-Texte des Aufrufers zurück.
 function moveUWUnit(state, unit, x, y) {
     unit.x = x; unit.y = y;
     unit.a = 2;
@@ -1193,12 +1211,8 @@ function moveUWUnit(state, unit, x, y) {
     unit.mv = 1;
     const webKey = `${x},${y}`;
     if (state.uw && state.uw.w && state.uw.w[webKey]) delete state.uw.w[webKey];
-    let loot = null;
-    if (isFundkammerHex(state, x, y)) {
-        loot = lootFundkammer(state, unit.p, unit, x, y);
-    }
     const picked = pickupUWCrystalDrop(state, unit);
-    return { loot, picked };
+    return { picked };
 }
 
 // Öffnet das Ziel-Hex dauerhaft und rückt die Einheit nach ("durchfressen") —
@@ -1261,10 +1275,15 @@ function processAutoMiningUW(pId) {
     const myWorkers = gameState.uw.u.filter(u => u.p === pId && u.mi);
     myWorkers.forEach(w => {
         if (!w.mi) return;
-        const tx = w.mi.x, ty = w.mi.y;
-        const remaining = getUWVeinRemaining(gameState, tx, ty);
-        const stillInRange = remaining > 0 && hexDistance({ x: w.x, y: w.y }, { x: tx, y: ty }) <= 1;
-        if (stillInRange) {
+        let tx = w.mi.x, ty = w.mi.y;
+        let inRange = getUWVeinRemaining(gameState, tx, ty) > 0 && hexDistance({ x: w.x, y: w.y }, { x: tx, y: ty }) <= 1;
+        if (!inRange) {
+            // Ziel weg/außer Reichweite: auf eine andere Ader in Reichweite
+            // umschwenken statt zu stoppen (Muster: processAutoMining oben).
+            const alt = calculateMineTargetsUW(w);
+            if (alt.length > 0) { tx = alt[0].x; ty = alt[0].y; w.mi = { x: tx, y: ty }; inRange = true; }
+        }
+        if (inRange) {
             mineUWVein(gameState, w, tx, ty);
             addUWNoise(tx, ty, 'mine');
             if (getUWVeinRemaining(gameState, tx, ty) === 0) {
@@ -1449,9 +1468,29 @@ function lootFundkammer(state, playerId, unit, x, y) {
     }
     const idx = Math.min(RELIC_KEYS.length - 1, Math.floor(underworldHash(state, x, y, 3) * RELIC_KEYS.length));
     const relic = RELIC_KEYS[idx];
+    // "map" wirkt sofort wie beim Kauf (buyRelic, js/ui.js) und landet nie im
+    // Inventar — über applyRelicToUnit ausgerüstet hätte sie keinen Effekt.
+    if (relic === 'map') {
+        applyMapRelic(state, playerId);
+        return { type: 'relic', relic, instant: true };
+    }
     if (!pState.rel) pState.rel = [];
     pState.rel.push(relic);
     return { type: 'relic', relic };
+}
+
+// Plündern als BUTTON-Aktion (Korrektur Juli 2026, ersetzt das Auto-Plündern
+// beim Betreten): die Einheit muss AUF dem Fundkammer-Hex stehen und plündert
+// per Aktionsmenü-Button — verbraucht wie "Dorf einnehmen" an der Oberfläche
+// (startCapture, js/ui.js) die restlichen Aktionen des Zuges (a=1, aus a=0
+// ODER a=2 nutzbar). Reine Zustandsmutation, DOM-frei testbar — der Button-
+// Wrapper (window.startUWLootFundkammer, js/input.js) macht Undo/Toast/Recap.
+// Gibt das Loot-Objekt zurück, null wenn hier nichts (mehr) zu plündern ist.
+function lootFundkammerAction(state, unit) {
+    if (!isFundkammerHex(state, unit.x, unit.y)) return null;
+    const loot = lootFundkammer(state, unit.p, unit, unit.x, unit.y);
+    if (loot) unit.a = 1;
+    return loot;
 }
 
 // Reliquie auf eine Einheit ausrüsten (Klinge/Harnisch) — eine Reliquie pro
@@ -1484,12 +1523,18 @@ function applyRelicToBuilding(state, playerId, target, maxHpFor) {
 
 // Karte der Tiefe: wirkt sofort beim Kauf, landet nie in p[].rel — deckt
 // Oberfläche (p[].e) UND Unterwelt-Netz (p[].ue) komplett und dauerhaft auf.
+// p[].mr gewährt zusätzlich permanente 100%-LIVE-Sicht an der Oberfläche
+// (getVisibleHexes) — nur p[].e zu setzen ließ die Felder außerhalb der
+// eigenen Sichtweite abgedunkelt (Jonathans Playtest Juli 2026). Unten bleibt
+// die Umkreis-2-Regel für Bewegliches bewusst bestehen (Hinterhalt-Design,
+// PLAN.md Abschn. 3) — die Netz-Geometrie ist über p[].ue ohnehin voll offen.
 function applyMapRelic(state, playerId) {
     const pState = state.p[playerId];
     const total = state.bw * state.bh;
     const all = Array.from({ length: total }, (_, i) => i);
     pState.e = all.slice();
     pState.ue = all.slice();
+    pState.mr = 1;
 }
 
 // === MORAL-KOLLAPS (M12, PLAN.md Abschn. 3) ===
