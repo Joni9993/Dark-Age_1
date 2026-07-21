@@ -520,6 +520,20 @@ function handleCanvasClick(clientX, clientY) {
             }
         }
         renderBoard(gameState);
+    } else {
+        // Klick NEBEN das Spielfeld (kein Hex getroffen): alles abwählen — sowohl
+        // die aktive Feld-/Einheiten-Auswahl als auch jeden laufenden Zielwahl-
+        // Modus (Tunnel-/Mauer-/Turm-Bau, Abriss, Turmschuss, Reliquie ausrüsten).
+        // Vereinigung aller Reset-Gruppen, die die einzelnen Abbruch-Zweige oben
+        // ohnehin schon nutzen — der Void-Klick ist der universelle "Abbrechen"-
+        // Geste-Ersatz. (Unterwelt-Pendant: handleUnderworldClick macht bei
+        // !closest bereits clearUWSelection().)
+        selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
+        window.specialActive = null; selectedTower = null;
+        window.tunnelStart = null; window.demolishTargets = [];
+        window.highlightedTunnelEnd = null;
+        window.uwSpecialActive = null;
+        renderBoard(gameState);
     }
 }
 
