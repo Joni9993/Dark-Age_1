@@ -844,3 +844,40 @@ window.setCameraFocusSlider = function (rawValue) {
     // alten Auswahl-Highlight.
     if (gameState) renderBoard(gameState);
 };
+
+// Slider-Wrap während des Ziehens auf der aktuellen Bildschirmposition
+// festnageln: der Wrap ankert per CSS an der Oberkante von #ui-container
+// (css/game.css), und genau dieses Ziehen kann die Leiste umbauen — beim
+// Überschreiten der Unterwelt-Schwelle wird z.B. die aktive Auswahl (Dorf-Menü,
+// Einheit) aufgehoben, die Leiste schrumpft, der Slider rutscht nach unten,
+// während der Daumen noch an der alten Stelle liegt → der Regler springt unterm
+// Finger auf einen völlig anderen Wert (plötzlich wieder Luftansicht). Deshalb:
+// bei pointerdown die aktuelle Viewport-Position einfrieren (position: fixed),
+// erst beim Loslassen wieder auf die CSS-Verankerung zurückfallen — der Wrap
+// passt seine Position also erst NACH dem Loslassen an die neue Leistenhöhe an.
+// (right: 10px gilt fixed wie absolute am selben x — #ui-container ist
+// viewport-breit, nur die vertikale Verankerung unterscheidet sich.)
+(function () {
+    const wrap = document.getElementById('camera-focus-slider-wrap');
+    const slider = document.getElementById('camera-focus-slider');
+    if (!wrap || !slider) return;
+    let pinned = false;
+    slider.addEventListener('pointerdown', () => {
+        const r = wrap.getBoundingClientRect();
+        wrap.style.position = 'fixed';
+        wrap.style.top = r.top + 'px';
+        wrap.style.bottom = 'auto';
+        pinned = true;
+    });
+    // pointerup/-cancel auf window statt auf dem Slider: der Finger kann
+    // außerhalb des Elements losgelassen werden.
+    function unpin() {
+        if (!pinned) return;
+        pinned = false;
+        wrap.style.position = '';
+        wrap.style.top = '';
+        wrap.style.bottom = '';
+    }
+    window.addEventListener('pointerup', unpin);
+    window.addEventListener('pointercancel', unpin);
+})();
