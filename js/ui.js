@@ -17,7 +17,15 @@ window.undoLastAction = function () {
     turnActions = snap.ta;
     selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
     window.highlightedTunnelEnd = null; window.specialActive = null; window.demolishTargets = [];
-    hideActionMenu();
+    // Unterwelt-Auswahl (selectedUWUnit, uwValidMoves/Digs/Attacks, ...) muss beim
+    // Undo ebenfalls verworfen werden — sonst bleibt sie auf der VOR dem Undo
+    // mutierten Live-Referenz stehen, die nach dem gameState-Austausch nicht mehr
+    // Teil von gameState.uw.u ist (verwaist). Ein Klick auf einen noch gecachten
+    // uwValidDigs/-Attacks-Eintrag (handleUnderworldClick prüft diese Arrays VOR
+    // einer Neuberechnung) würde dann z.B. eine Grabung/Abbau über die verwaiste
+    // Einheit auslösen, ohne dass die echte Einheit sich bewegt hat oder eine
+    // Aktion kostet — sichtbar u.a. als "Abbau trotz keiner Nachbarschaft mehr".
+    clearUWSelection();
     updateUndoButton();
     renderBoard(gameState);
     showToast('↩ Rückgängig', 'info');
@@ -98,15 +106,25 @@ function updateScoreboard() {
 function updateUI() {
     const pId = gameState.cp; const pState = gameState.p[pId];
     if (!pState.f) pState.f = []; if (!pState.of) pState.of = []; if (!pState.u) pState.u = [];
-    let myVillages = Object.values(gameState.v).filter(v => v === pId).length;
 
     const income = calculateIncome(pId);
     resourceHud.innerHTML = `💰 ${pState.g} <span class="income-text">(+${income.g})</span> | 🪵 ${pState.m} <span class="income-text">(+${income.m})</span> | 🪨 ${pState.s || 0}`;
+    // Kristalle (Unterwelt-Ressource, pState.k) nur einblenden, sobald der Spieler
+    // welche besitzt — vor dem ersten Abbau ist die Ressource für die meisten
+    // Spieler irrelevant und würde die HUD-Zeile nur unnötig verlängern.
+    if (pState.k > 0) {
+        resourceHud.innerHTML += ` | 💎 ${pState.k}`;
+    }
     // Erschließungs-Countdown (M12): dauerhaft im HUD ALLER Spieler sichtbar,
     // solange uw.hz existiert — "volle Information, kein heimlicher Sieg".
+    // Kurzform ohne Label/Klammern (Korrektur Juli 2026): der volle Fortschritt
+    // (n/TARGET) steht jetzt zusätzlich direkt über dem Herz auf der Karte
+    // (js/render3d.js, nur bei Oberflächen-Kamera sichtbar) — die HUD-Zeile bleibt
+    // als kompakter Fallback für die Unterwelt-Kamera-Ansicht, muss aber auf
+    // schmalen Smartphone-Breiten nicht mehr die volle Ressourcenzeile sprengen.
     if (gameState.uw && gameState.uw.hz) {
         const hzName = gameState.p[gameState.uw.hz.p] ? gameState.p[gameState.uw.hz.p].n : '?';
-        resourceHud.innerHTML += ` | 🌍 Erschließung: ${hzName} (${gameState.uw.hz.n}/${ERSCHLIESSUNG_TARGET})`;
+        resourceHud.innerHTML += ` | 🌍 ${hzName} ${gameState.uw.hz.n}/${ERSCHLIESSUNG_TARGET}`;
     }
 
     infoPanel.style.color = playerColors[pId];
@@ -123,25 +141,44 @@ function updateUI() {
         infoPanel.innerHTML = `Runde ${gameState.rn} | ${actualTurnName} ist am Zug.<div class="info-detail">Tippe auf Einheiten oder Dörfer für Details.</div>`;
     }
 
-    upgradeBtn.style.display = 'block'; researchBtn.style.display = pState.f.length > 0 ? 'block' : 'none';
-    document.getElementById('dip-btn').style.display = (gameState.at || gameState.dp) ? 'block' : 'none';
-    if (pState.f.length === 0) {
-        upgradeBtn.innerText = "✨ 1. Kultur (10 Holz)";
-        if (myVillages >= 2 && pState.m >= 10) { upgradeBtn.style.opacity = "1"; upgradeBtn.onclick = () => openDraft(10); }
-        else { upgradeBtn.style.opacity = "0.5"; upgradeBtn.onclick = () => { infoPanel.innerText = `Für 1. Kultur fehlt:\n🏘️ ${Math.max(0, 2 - myVillages)} weitere Dörfer\n🪵 ${Math.max(0, 10 - pState.m)} Holz`; }; }
-    } else if (pState.f.length === 1) {
-        upgradeBtn.innerText = "✨ 2. Kultur (15 Holz)";
-        if (myVillages >= 4 && pState.m >= 15) { upgradeBtn.style.opacity = "1"; upgradeBtn.onclick = () => openDraft(15); }
-        else { upgradeBtn.style.opacity = "0.5"; upgradeBtn.onclick = () => { infoPanel.innerText = `Für 2. Kultur fehlt:\n🏘️ ${Math.max(0, 4 - myVillages)} weitere Dörfer\n🪵 ${Math.max(0, 15 - pState.m)} Holz`; }; }
-    } else { upgradeBtn.style.display = 'none'; }
     updateScoreboard();
 }
+
+// === KULTUR-STATUS (extrahiert aus dem ehemaligen #upgrade-btn-Steuerblock) ===
+// Der Kultur-Button ist aus dem HUD entfernt (Teil B des HUD-Umbaus); die Kauf-
+// Bedingungen (Dörfer-/Holz-Schwellen für 1./2. Kultur) werden aber weiterhin
+// gebraucht — Konsument ist das künftige Fraktions-Fenster (window.openFactionOverview,
+// kommt in einem Folgeauftrag). stage: null bedeutet "beide Kulturen bereits gewählt",
+// also nichts mehr zu kaufen.
+window.getKulturStatus = function () {
+    const pState = gameState.p[gameState.cp];
+    const myVillages = Object.values(gameState.v).filter(v => v === gameState.cp).length;
+    let stage, cost, reqVillages;
+    if (pState.f.length === 0) { stage = 1; cost = 10; reqVillages = 2; }
+    else if (pState.f.length === 1) { stage = 2; cost = 15; reqVillages = 4; }
+    else { return { stage: null, cost: null, reqVillages: null, villages: myVillages, wood: pState.m, canBuy: false }; }
+    return {
+        stage, cost, reqVillages,
+        villages: myVillages,
+        wood: pState.m,
+        canBuy: myVillages >= reqVillages && pState.m >= cost,
+    };
+};
 
 // === ACTION MENU ===
 function hideActionMenu() { actionMenu.style.display = 'none'; actionMenu.innerHTML = ''; }
 function showActionMenu(html) {
     actionMenu.innerHTML = html;
     actionMenu.style.display = 'flex';
+    // Rekrutierungs-Leisten starten in der MITTE statt ganz links (Gegenstück
+    // zur Zentrierung per auto-Margins in css/game.css, .recruit-scroll):
+    // mit 2 Fraktionen läuft die Leiste über, und von der Mitte aus erreicht
+    // man beide Enden mit halb so weitem Scrollen statt immer nur nach rechts.
+    // scrollWidth/clientWidth erzwingen hier das Layout, deshalb NACH dem
+    // display='flex' — vorher wären beide 0.
+    actionMenu.querySelectorAll('.recruit-scroll').forEach(el => {
+        el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
+    });
     actionMenu.style.pointerEvents = 'none';
     actionMenu.style.opacity = '0.5';
     setTimeout(() => {
@@ -201,6 +238,94 @@ window.buyUpgrade = function (id) {
     }
 }
 
+// === FRAKTIONS-FENSTER (Radialmenü "⚜️ Fraktion") ===
+// Ersetzt keinen alten Button — Kultur/Forschung waren zuvor getrennte HUD-Buttons,
+// dieses Fenster fasst "was bringt mir meine gewählte Kultur GERADE JETZT" +
+// "nächste Kultur kaufen" an einer Stelle zusammen (HUD-Umbau, CLAUDE.md-Auftrag).
+// Inhalt wird bei jedem Öffnen frisch aus gameState gebaut, nicht zwischengespeichert.
+window.openFactionOverview = function () {
+    const pState = gameState.p[gameState.cp];
+    const myVillages = Object.values(gameState.v).filter(v => v === gameState.cp).length;
+    let html = '';
+
+    if (pState.f.length === 0) {
+        html += `<div class="card" style="flex:1 1 100%; text-align:left; cursor:default;">
+            <p>Kulturen ("Kultur-Pfeiler") sind das Fraktionssystem des Spiels: du wählst bis zu 2 der 4 Kulturen
+            (Feudalismus, Plünderer, Spionage, Gilden). Jede schaltet sofort 2 Spezialeinheiten, eine passive
+            Fähigkeit und 3 Forschungs-Upgrades frei.</p>
+        </div>`;
+    }
+
+    pState.f.forEach(facId => {
+        const fac = factions[facId];
+        // Aktuell wirksamer Passiv-Wert pro Kultur (Jonathan: "wie stark diese im
+        // Moment sind" soll sichtbar sein, nicht nur der abstrakte Beschreibungstext).
+        let passiveValue = '';
+        if (facId === 0) {
+            // Formel exakt wie beim Rekrutieren selbst (buyUnit, js/ui.js), sonst
+            // würde die Anzeige bei künftigen Balance-Änderungen dort lautlos veralten.
+            const fb = Math.floor(myVillages / 2);
+            passiveValue = `Aktuell: +${fb} Max-HP für neu rekrutierte Einheiten`;
+        } else if (facId === 1) {
+            const meleeCount = gameState.u.filter(u => u.p === gameState.cp && unitStats[u.t].isMelee).length;
+            passiveValue = `Aktuell: +1 DMG für ${meleeCount} eigene Nahkampf-Einheit${meleeCount === 1 ? '' : 'en'}`;
+        } else if (facId === 2) {
+            passiveValue = `Aktuell: +1 Sichtweite auf allen eigenen Einheiten & Gebäuden`;
+        } else if (facId === 3) {
+            // Bonus direkt aus calculateIncome (js/logic.js) isoliert statt hart
+            // codiert — damit die Anzeige nie von der echten Formel abweichen kann.
+            const income = calculateIncome(gameState.cp);
+            const extraGold = income.g - myVillages * 2;
+            passiveValue = `Aktuell: +${extraGold} Gold/Runde`;
+        }
+
+        const boughtUpgrades = Object.entries(upgrades).filter(([id, u]) => u.fac === facId && pState.u.includes(parseInt(id)));
+        const upgradeLines = boughtUpgrades.length
+            ? boughtUpgrades.map(([, u]) => `<div style="font-size:0.7rem; color: var(--text-dim);">✅ ${u.name}</div>`).join('')
+            : `<div style="font-size:0.7rem; color: var(--text-dim);">Noch keine Forschung gekauft.</div>`;
+
+        html += `<div class="card" style="flex:1 1 100%; text-align:left; cursor:default;">
+            <h3>${fac.name}</h3>
+            <p style="white-space:pre-line;">${fac.desc}</p>
+            <div class="passive-value">${passiveValue}</div>
+            <div style="margin-top:6px; border-top:1px solid rgba(180,150,100,0.2); padding-top:6px;">${upgradeLines}</div>
+        </div>`;
+    });
+
+    const status = window.getKulturStatus();
+    if (status.stage !== null) {
+        if (status.canBuy) {
+            html += `<div class="card" style="flex:1 1 100%;" onclick="window.handleFactionBuyClick(${status.cost})">
+                <h3>✨ ${status.stage}. Kultur wählen (${status.cost} Holz)</h3>
+            </div>`;
+        } else {
+            const missing = [];
+            if (status.villages < status.reqVillages) missing.push(`🏘️ ${status.reqVillages - status.villages} Dörfer`);
+            if (status.wood < status.cost) missing.push(`🪵 ${status.cost - status.wood} Holz`);
+            html += `<div class="card disabled" style="flex:1 1 100%;">
+                <h3>✨ ${status.stage}. Kultur wählen (${status.cost} Holz)</h3>
+                <p>Fehlt: ${missing.join(', ')}</p>
+            </div>`;
+        }
+    } else {
+        html += `<div style="text-align:center; color: var(--text-dim); font-size:0.85rem;">Beide Kulturen gewählt.</div>`;
+    }
+
+    document.getElementById('faction-cards').innerHTML = html;
+    document.getElementById('faction-overlay').style.display = 'flex';
+};
+
+// Server-Readonly-Guard analog zu handleCanvasClick (js/input.js): im Server-
+// Modus darf nur der aktive Spieler kaufen, Zuschauer/Wartende sehen das Fenster
+// nur lesend.
+window.handleFactionBuyClick = function (cost) {
+    if (!isLegacyUrlMode && currentGameId && currentTurnSlot !== currentUserSlot) {
+        showToast('Nur der aktive Spieler kann kaufen', 'error'); return;
+    }
+    document.getElementById('faction-overlay').style.display = 'none';
+    openDraft(cost);
+};
+
 // === UNIT PURCHASING ===
 window.buyUnit = function (type) {
     if (selectedHex) {
@@ -246,9 +371,11 @@ window.buyUWUnit = function (type) {
 };
 
 // === RELIQUIEN-SHOP (M10) ===
-// Kauf im Dorf-Menü (RELICS, js/data.js). "map" wirkt sofort (applyMapRelic,
-// js/logic.js) und landet nie im Inventar; alle anderen gehen in p[].rel und
-// werden separat ausgerüstet (window.startRelicEquip -> handleRelicTargetClick).
+// Kauf läuft über das Reliquien-Fenster (window.openRelicShop, Radialmenü "🏺
+// Reliquien") statt übers Dorf-Menü — dort war laut Jonathan "kein Platz dafür".
+// "map" wirkt sofort (applyMapRelic, js/logic.js) und landet nie im Inventar;
+// alle anderen gehen in p[].rel und werden separat ausgerüstet
+// (window.startRelicEquip -> handleRelicTargetClick).
 window.buyRelic = function (key) {
     const pState = gameState.p[gameState.cp];
     const def = RELICS[key];
@@ -263,9 +390,82 @@ window.buyRelic = function (key) {
         pState.rel.push(key);
         showToast(`${def.icon} ${def.name} erworben!`, 'gold');
     }
-    turnActions.push({ x: selectedHex ? selectedHex.x : 0, y: selectedHex ? selectedHex.y : 0, t: 'relicbuy' });
+    // Koordinate fürs Rekap: es gibt kein ausgewähltes Dorf-Hex mehr (Kauf läuft
+    // über das Reliquien-Fenster) — eigenes Startdorf als stabiler Ersatzwert,
+    // Fallback 0,0 falls pState.sv ausnahmsweise fehlt.
+    const [svx, svy] = (pState.sv || '0,0').split(',').map(Number);
+    turnActions.push({ x: svx, y: svy, t: 'relicbuy' });
     renderBoard(gameState); updateUI();
-    if (selectedHex) showTileUI(selectedHex.x, selectedHex.y, groundUnitAt(selectedHex.x, selectedHex.y));
+};
+
+// === RELIQUIEN-FENSTER (Radialmenü "🏺 Reliquien") ===
+// Baut Shop (kaufbar) + Inventar (ausrüstbar) bei jedem Öffnen frisch aus
+// gameState — Bestand ändert sich durch Kauf, das Overlay bleibt dabei aber
+// offen (siehe handleRelicBuyClick), muss also neu aufgebaut statt nur einmal
+// erzeugt werden.
+window.openRelicShop = function () {
+    buildRelicShopContent();
+    document.getElementById('relic-overlay').style.display = 'flex';
+};
+
+function buildRelicShopContent() {
+    const pState = gameState.p[gameState.cp];
+    const crystals = pState.k || 0;
+    let html = `<div class="crystal-header">💎 ${crystals} Kristalle</div>`;
+    if (crystals === 0) {
+        html += `<div style="text-align:center; color: var(--text-dim); font-size:0.8rem; margin-bottom:10px;">Kristalle entstehen durch Abbau an Kristalladern in der Unterwelt.</div>`;
+    }
+
+    html += `<div class="cards-container" style="max-width:600px;">`;
+    Object.entries(RELICS).forEach(([key, def]) => {
+        const afford = crystals >= def.cost;
+        const cls = afford ? 'card' : 'card disabled';
+        const onclick = afford ? `onclick="window.handleRelicBuyClick('${key}')"` : '';
+        html += `<div class="${cls}" ${onclick}>
+            <h3>${def.icon} ${def.name}</h3>
+            <p>${def.desc}</p>
+            <div class="cost">💎 ${def.cost}</div>
+        </div>`;
+    });
+    html += `</div>`;
+
+    html += `<h3 style="color: var(--gold); font-family: 'MedievalSharp', cursive; margin: 4px 0 8px; width:100%; text-align:center;">Inventar</h3>`;
+    if (pState.rel && pState.rel.length > 0) {
+        const counts = {};
+        pState.rel.forEach(r => counts[r] = (counts[r] || 0) + 1);
+        html += `<div style="display:flex; flex-direction:column; gap:6px; width:100%; margin-bottom:10px;">`;
+        Object.entries(counts).forEach(([key, n]) => {
+            const def = RELICS[key];
+            html += `<div class="card" style="flex-direction:row; justify-content:space-between; align-items:center; text-align:left; cursor:default;">
+                <span>${def.icon} ${def.name} (x${n})</span>
+                <button class="action-btn" style="padding:6px 10px; font-size:0.75rem; margin:0;" onclick="window.handleRelicEquipClick('${key}')">Ausrüsten</button>
+            </div>`;
+        });
+        html += `</div>`;
+    } else {
+        html += `<div style="text-align:center; color: var(--text-dim); font-size:0.85rem; margin-bottom:10px;">Keine Reliquien im Besitz.</div>`;
+    }
+
+    document.getElementById('relic-cards').innerHTML = html;
+}
+
+// Server-Readonly-Guard analog zu handleCanvasClick (js/input.js) — Kauf UND
+// Ausrüsten sind Aktionen, dürfen also im Server-Modus nur vom aktiven Spieler
+// ausgelöst werden.
+window.handleRelicBuyClick = function (key) {
+    if (!isLegacyUrlMode && currentGameId && currentTurnSlot !== currentUserSlot) {
+        showToast('Nur der aktive Spieler kann kaufen', 'error'); return;
+    }
+    window.buyRelic(key);
+    buildRelicShopContent(); // Bestand/Inventar geändert — Overlay bewusst NICHT schließen
+};
+
+window.handleRelicEquipClick = function (key) {
+    if (!isLegacyUrlMode && currentGameId && currentTurnSlot !== currentUserSlot) {
+        showToast('Nur der aktive Spieler kann ausrüsten', 'error'); return;
+    }
+    document.getElementById('relic-overlay').style.display = 'none';
+    window.startRelicEquip(key);
 };
 
 // === VILLAGE CAPTURE ===

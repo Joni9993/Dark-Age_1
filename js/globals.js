@@ -20,9 +20,12 @@ const ctx = canvas.getContext('2d');
 const uiContainer = document.getElementById('ui-container');
 const infoPanel = document.getElementById('info-panel');
 const actionMenu = document.getElementById('action-menu');
+// end-turn-btn bleibt unsichtbar im DOM (siehe Kommentar in index.html) — nur
+// als Klick-Ziel + Readonly-Guard-Flag (.disabled) fürs Radial-Menü (js/radialmenu.js).
 const endTurnBtn = document.getElementById('end-turn-btn');
-const upgradeBtn = document.getElementById('upgrade-btn');
-const researchBtn = document.getElementById('research-btn');
+// upgrade-btn/research-btn (Kultur/Forschung) sind aus dem HUD entfernt (ins
+// Radial-Menü + künftiges Fraktions-Fenster gewandert, js/radialmenu.js) —
+// ihre DOM-Referenzen sind daher hier absichtlich nicht mehr vorhanden.
 const linkBox = document.getElementById('link-box');
 const intermissionMsg = document.getElementById('intermission-msg');
 const waShareBtn = document.getElementById('wa-share-btn');

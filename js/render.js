@@ -646,6 +646,11 @@ function drawScene(state) {
             ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center';
             ctx.fillStyle = '#8d6e63';
             ctx.fillText('🌍', c.px, c.py - 26);
+            // Fortschritt direkt am Icon (Korrektur Juli 2026) — Pendant zum
+            // Label über dem Herz im 3D-Renderer (js/render3d.js).
+            ctx.font = 'bold 12px monospace';
+            ctx.fillStyle = '#ffd54f';
+            ctx.fillText(`${state.uw.hz.n}/${ERSCHLIESSUNG_TARGET}`, c.px, c.py - 42);
         }
     }
 
@@ -771,42 +776,71 @@ const Renderer2D = {
 
 let Renderer = Renderer2D;
 
-// === KAMERAFOKUS-TOGGLE ===
-// Drei Kamerafahrten im Zyklus: Standard -> Luftansicht (Vogelperspektive,
-// Flieger 100% sichtbar, nur 3D) -> Unterwelt (Kamera schwenkt unter die
-// Karte und blickt mit 90° auf ihre Unterseite, nur 3D; 2D-Fallback spiegelt
-// nur das Canvas per CSS). window.airView bleibt als Kompatibilitäts-Flag
-// bestehen — nur im Luftansicht-Zustand (1) aktiv — und steuert weiterhin
+// === KAMERAFOKUS-SCHIEBEREGLER ===
+// Stufenloser, rein manueller Regler (#camera-focus-slider, index.html) statt
+// des früheren Drei-Zustands-Zyklus-Buttons: Reglermitte (Wert 0) = Standard
+// (Default), nach oben = Luftansicht (Vogelperspektive, Flieger faden ein,
+// nur 3D), nach unten = Unterwelt (Kamera taucht über die vordere Kante unter
+// die Karte, nur 3D; 2D-Fallback spiegelt nur das Canvas per CSS). Die Kamera
+// dreht über den GESAMTEN Regelweg (Luft -> Standard -> Unterwelt) monoton in
+// eine Richtung, nie erst zurück (siehe UNDERWORLD_ELEV-Kommentar in
+// render3d.js) — der Luftansicht-Endpunkt entspricht dem früheren Button-
+// Zielwinkel, der Unterwelt-Endpunkt ist dafür bewusst neu gewählt. Der
+// Nutzer steuert die Kamera 1:1 per Drag und kann jederzeit anhalten — kein
+// Zeit-Tween.
+// window.airView bleibt als Kompatibilitäts-Flag bestehen — steuert weiterhin
 // die Klick-/Anvisier-Priorität bei gestapelten Hexes (input.js, logic.js).
-window.cameraFocus = 0;   // 0 = Standard, 1 = Luftansicht, 2 = Unterwelt
+window.cameraFocus = 0;      // abgeleitet: 0 = Standard, 1 = Luftansicht, 2 = Unterwelt
 window.airView = false;
-window.cycleCameraFocus = function () {
-    window.cameraFocus = (window.cameraFocus + 1) % 3;
-    window.airView = (window.cameraFocus === 1);
+window.cameraFocusPos = 0;   // Rohwert des Reglers, -1 (Unterwelt) .. 0 (Standard) .. +1 (Luft)
+window.setCameraFocusSlider = function (rawValue) {
+    const v = Math.max(-1, Math.min(1, Number(rawValue) / 100));
+    window.cameraFocusPos = v;
 
-    const btn = document.getElementById('camera-focus-btn');
-    if (btn) {
-        btn.classList.toggle('active', window.cameraFocus !== 0);
-        btn.classList.toggle('focus-underworld', window.cameraFocus === 2);
+    let surfaceVisible;
+    if (Renderer.setCameraFocusPos) {
+        Renderer.setCameraFocusPos(v);
+        surfaceVisible = Renderer.isSurfaceVisible ? Renderer.isSurfaceVisible() : v >= 0;
+    } else {
+        // 2D-Fallback: keine echte Kamerafahrt möglich, daher harter Schnitt
+        // bei Reglermitte statt eines stufenlosen Übergangs.
+        surfaceVisible = v >= 0;
     }
 
-    if (window.cameraFocus === 2) {
-        // Unterwelt: die komplette Oberflächen-Ebene ist nicht mehr anwählbar/
-        // steuerbar — eine bestehende Auswahl (Boden- oder Lufteinheit) fällt weg.
-        selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
-        window.specialActive = null; hideActionMenu();
-    } else if (selectedUnit) {
-        if (!window.airView && typeof isFlying === 'function' && isFlying(selectedUnit)) {
-            // Flieger sind außerhalb der Luftansicht nicht "beachtet" — Auswahl aufheben
+    window.airView = v > 0;
+    const newFocus = !surfaceVisible ? 2 : (window.airView ? 1 : 0);
+    const focusChanged = newFocus !== window.cameraFocus;
+    window.cameraFocus = newFocus;
+    if (!Renderer.setCameraFocusPos && Renderer.setCameraFocus) Renderer.setCameraFocus(newFocus);
+
+    const wrap = document.getElementById('camera-focus-slider-wrap');
+    if (wrap) {
+        wrap.classList.toggle('active', window.cameraFocus !== 0);
+        wrap.classList.toggle('focus-underworld', window.cameraFocus === 2);
+    }
+
+    if (focusChanged) {
+        if (window.cameraFocus === 2) {
+            // Unterwelt: die komplette Oberflächen-Ebene ist nicht mehr anwählbar/
+            // steuerbar — eine bestehende Auswahl (Boden- oder Lufteinheit) fällt weg.
             selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
             window.specialActive = null; hideActionMenu();
-        } else if (selectedUnit.a === 0 || selectedUnit.a === 2 || selectedUnit.a === 4) {
-            // Highlights an die neue Ebenen-Sicht anpassen (Luftziele ein-/ausblenden)
-            validMoves = (selectedUnit.a === 0 || selectedUnit.a === 4) ? calculateMoves(selectedUnit) : [];
-            validAttacks = (selectedUnit.a === 0 || selectedUnit.a === 2) ? calculateAttacks(selectedUnit) : [];
+        } else if (selectedUnit) {
+            if (!window.airView && typeof isFlying === 'function' && isFlying(selectedUnit)) {
+                // Flieger sind außerhalb der Luftansicht nicht "beachtet" — Auswahl aufheben
+                selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
+                window.specialActive = null; hideActionMenu();
+            } else if (selectedUnit.a === 0 || selectedUnit.a === 2 || selectedUnit.a === 4) {
+                // Highlights an die neue Ebenen-Sicht anpassen (Luftziele ein-/ausblenden)
+                validMoves = (selectedUnit.a === 0 || selectedUnit.a === 4) ? calculateMoves(selectedUnit) : [];
+                validAttacks = (selectedUnit.a === 0 || selectedUnit.a === 2) ? calculateAttacks(selectedUnit) : [];
+            }
         }
     }
 
-    if (Renderer.setCameraFocus) Renderer.setCameraFocus(window.cameraFocus);
-    else if (gameState) renderBoard(gameState);
+    // Ein einziger Render-Aufruf nach Kamera- UND Auswahl-Update (statt eines
+    // separaten Renders schon aus Renderer.setCameraFocusPos heraus) — sonst
+    // würde bei jedem Regler-Event doppelt gezeichnet, einmal noch mit der
+    // alten Auswahl-Highlight.
+    if (gameState) renderBoard(gameState);
 };

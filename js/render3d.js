@@ -108,33 +108,34 @@
     let anims3d = [];                      // Projektil-Animationen
     let floats3d = [];                     // DOM-Schadenszahlen
     let animRunning = false;
-    // Kamerafokus: drei Kamerafahrten (Standard/Luftansicht/Unterwelt), siehe
-    // Renderer3D.setCameraFocus(). Elevation = Blickwinkel in Grad über dem
+    // Kamerafokus: stufenloser, rein manueller Regler (js/render.js:
+    // setCameraFocusSlider) statt Drei-Zustands-Zyklus — siehe
+    // Renderer3D.setCameraFocusPos(). Elevation = Blickwinkel in Grad über dem
     // Horizont (90 = senkrecht von oben, ~40.5 = normale Bodenansicht,
     // negativ = Kamera unter der Karte, blickt nach oben).
     const AIR_VIEW_ELEV = 50 * Math.PI / 180;
-    // 180° + CAM_ELEV statt -CAM_ELEV: die Luftansicht kippt die Kamera bereits
-    // weiter nach hinten/oben (40.5°→50°) — die Unterwelt-Fahrt setzt diese
-    // Drehrichtung fort (über den Scheitel, weiter bis unter die Karte) statt
-    // umzukehren und durch die Vorderkante/den Horizont zu tauchen. Der Winkel
-    // ist der punktgespiegelte Standard-Blick: dieselbe Schräge wie die normale
-    // Bodenansicht, nur von unten auf die Kartenunterseite — senkrecht von
-    // unten (früher 270°) standen die Billboard-Einheiten in Kantenlage zur
-    // Kamera und wurden zu flachen Strichen.
-    const UNDERWORLD_ELEV = Math.PI + CAM_ELEV;
+    // CAM_ELEV - 180° statt CAM_ELEV + 180°: exakt derselbe Kamera-Blickwinkel
+    // wie früher der Button-Zustand "Unterwelt" (punktgespiegelter Standard-
+    // Blick — nur diese Pose vermeidet eine Links-Rechts-Spiegelung der Karte;
+    // ein reiner Boden-Spiegel auf derselben Seite [-CAM_ELEV] sah gespiegelt/
+    // falsch herum aus, ausprobiert und verworfen), nur algebraisch um -360°
+    // "abgewickelt" statt +360° — sin/cos sind periodisch, die Kamerapose ist
+    // also identisch. Der Grund für die andere Wicklung: der Regler muss über
+    // seinen GESAMTEN Weg (Luft oben -> Standard Mitte -> Unterwelt unten) eine
+    // einzige, nie umkehrende Drehrichtung ergeben (sonst kippt die Kamera beim
+    // Durchziehen sichtbar erst zurück, bevor sie weiterfährt). Von der
+    // Luftansicht (40.5°->50°, Kamera kippt weiter nach hinten/oben) aus MUSS
+    // die Unterwelt-Fahrt mit sinkendem Elevationswinkel weitergehen, nicht
+    // wieder steigend über den Scheitel — sie taucht dafür beim Durchziehen
+    // zwangsläufig durch den senkrechten Punkt (-90°, ehemals 270°), wo
+    // Billboard-Einheiten kurz in Kantenlage zur Kamera stehen und zu flachen
+    // Strichen werden. Das ist ein kurzer optischer Ruckler MITTEN im Zug (nicht
+    // an einer Ruheposition) und der Preis für die durchgehend gleiche
+    // Drehrichtung — der alte Button fuhr denselben Zielwinkel (220.5°) an,
+    // ohne je durch -90°/270° zu müssen, weil er nie rückwärts abgezogen wurde.
+    const UNDERWORLD_ELEV = CAM_ELEV - Math.PI;
     const AIR_ALPHA_GROUND = 0.1;          // Deckkraft der Flieger außerhalb der Luftansicht
     let airAlpha = AIR_ALPHA_GROUND;
-    let viewTween = null;                  // {start, dur, from:{elev,alpha}, to:{elev,alpha}}
-
-    // Kleinster Vorwärts-Schritt (>0) von `current`, der auf einen zu
-    // `nominal` kongruenten Winkel (mod 360°) trifft — damit der Kamerafokus-
-    // Zyklus nie rückwärts fährt, egal wie oft schon rundherum gedreht wurde.
-    function nextForwardElev(current, nominal) {
-        const twoPi = Math.PI * 2;
-        let delta = (nominal - current) % twoPi;
-        if (delta <= 1e-9) delta += twoPi;
-        return current + delta;
-    }
     const raycaster = new THREE.Raycaster();
     const texCache = {};
 
@@ -977,12 +978,14 @@
     // bewusst vereinfachte Kopie von addVoxelSprite statt Verzweigung: unter der
     // Karte steht die Kamera UNTER der y=0-Ebene und blickt nach OBEN — "hoch" im
     // Sprite muss deshalb Richtung Kamera (negatives Welt-Y) zeigen, umgekehrt zur
-    // Oberfläche. Seit die Unterwelt-Kamera schräg statt senkrecht von unten
-    // blickt (UNDERWORLD_ELEV = 180° + CAM_ELEV), kippen die Sprites wie der
-    // Oberflächen-"Pappaufsteller" mit der Kamera-Neigung mit — Pitch ist die
-    // Abweichung vom Unterwelt-Nominalwinkel, die Formel das punktgespiegelte
-    // Pendant zu addVoxelSprite (y und Tiefenrichtung negiert). Reine
-    // Präsentation, keine Spiellogik; Null-Risiko für die Boden-Darstellung.
+    // Oberfläche. Die Unterwelt-Kamera blickt schräg statt senkrecht von unten
+    // (UNDERWORLD_ELEV = CAM_ELEV - 180°), die Sprites kippen wie der Oberflächen-
+    // "Pappaufsteller" mit der Kamera-Neigung mit — Pitch ist die Abweichung vom
+    // Unterwelt-Nominalwinkel, die Formel y und Tiefenrichtung negiert (macht aus
+    // dem am Boden "aufrecht stehenden" Oberflächen-Pappaufsteller einen am Boden
+    // "hängenden": bei Pitch 0 exakt umgekehrt, keine Abhängigkeit davon, über
+    // welche Kante/Seite die Kamera dorthin gefahren ist). Reine Präsentation,
+    // keine Spiellogik; Null-Risiko für die Boden-Darstellung.
     function addUWVoxelSprite(spriteKey, wx, wz, groundY, playerColor, dimFactor, sizeMultiplier) {
         const arr = pixelSprites[spriteKey];
         if (!arr) return;
@@ -1120,9 +1123,19 @@
         const c = document.createElement('canvas');
         c.width = 64; c.height = 64;
         const g = c.getContext('2d');
-        g.font = "bold 40px 'Courier New', monospace";
+        // Schriftgröße schrittweise verkleinern, bis mehrzeichige Texte (z. B.
+        // "1/5", "💎12") mitsamt Umriss-Stroke ins quadratische 64px-Canvas passen —
+        // sonst schneidet der Sprite links/rechts ab, da die Sprite-Geometrie immer
+        // quadratisch skaliert wird (addIcon/addHpText: scale.set(size, size, 1)).
+        let fontSize = 40;
+        g.font = `bold ${fontSize}px 'Courier New', monospace`;
+        const maxWidth = 46;
+        while (fontSize > 16 && g.measureText(text).width > maxWidth) {
+            fontSize -= 2;
+            g.font = `bold ${fontSize}px 'Courier New', monospace`;
+        }
         g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.lineWidth = 8; g.strokeStyle = '#000';
+        g.lineWidth = Math.max(4, fontSize / 5); g.strokeStyle = '#000';
         g.strokeText(text, 32, 34);
         g.fillStyle = color;
         g.fillText(text, 32, 34);
@@ -1137,7 +1150,7 @@
     // GPU-seitig, bis nach ein paar Minuten Scrollen/Drehen der WebGL-Kontext
     // verloren ging (Bildschirm kurz schwarz, danach Tiles schwarz, HP-Texte weg).
     // Alpha wird auf 0.05er-Schritte gerundet, damit der Cache während des
-    // Luftansicht-Tweens (kontinuierliches airAlpha) endlich bleibt.
+    // Reglerziehens am Kamerafokus (kontinuierliches airAlpha) endlich bleibt.
     const spriteMatCache = {};
     function spriteMaterial(text, color, alpha) {
         const a = Math.round(alpha * 20) / 20;
@@ -1410,7 +1423,15 @@
                     // erschließenden Einheit statt eines festen Platzhalter-Rots —
                     // nur eine Kreatur (kein Spieler) im Zentrum behält den Platzhalter.
                     const heartColor = occupyingUnit ? playerColors[occupyingUnit.p] : '#ff6f61';
-                    addVoxelModel('herzkaverne', wx, wz, gyHeart + hexSize * 1.4, heartColor, 1, null, 0, false);
+                    const heartBaseY = gyHeart + hexSize * 1.4;
+                    addVoxelModel('herzkaverne', wx, wz, heartBaseY, heartColor, 1, null, 0, false);
+                    // Erschließungs-Fortschritt (n/TARGET) direkt über dem Herz auf der
+                    // Karte, statt nur im HUD-Text oben (der auf schmalen Bildschirmen/
+                    // Smartphones sonst zu voll wird) — Spieler sehen den Countdown so
+                    // beim Blick aufs Feld, ohne die Ressourcenzeile lesen zu müssen.
+                    if (state.uw && state.uw.hz) {
+                        addIcon(`${state.uw.hz.n}/${ERSCHLIESSUNG_TARGET}`, '#ffd54f', wx, wz, heartBaseY + modelTopHeight('herzkaverne') + 10, 13);
+                    }
                 }
             }
 
@@ -1663,19 +1684,10 @@
     }
 
     function animLoop3d() {
-        if (anims3d.length === 0 && floats3d.length === 0 && !viewTween) {
+        if (anims3d.length === 0 && floats3d.length === 0) {
             animRunning = false;
             if (lastState) drawScene3d(lastState);
             return;
-        }
-
-        // Luftansicht-Übergang: Kamera-Elevation + Flieger-Deckkraft weich blenden
-        if (viewTween) {
-            const p = Math.min(1, (performance.now() - viewTween.start) / viewTween.dur);
-            const e = p * p * (3 - 2 * p);   // smoothstep
-            cam3d.elev = viewTween.from.elev + (viewTween.to.elev - viewTween.from.elev) * e;
-            airAlpha = viewTween.from.alpha + (viewTween.to.alpha - viewTween.from.alpha) * e;
-            if (p >= 1) viewTween = null;
         }
 
         const alive = [];
@@ -1843,24 +1855,28 @@
             startAnimLoop();
         },
 
-        setCameraFocus(focus) {
-            // Fährt die Kamera zur gewählten Kamerafahrt:
-            // 0 Standard, 1 Luftansicht (Vogelperspektive, Flieger voll sichtbar),
-            // 2 Unterwelt (Kamera schwenkt unter die Karte, blickt senkrecht auf
-            // ihre Unterseite). Der ganze Zyklus dreht IMMER in dieselbe Richtung
-            // weiter (nie rückwärts) — nextForwardElev() sucht dazu jeweils den
-            // kleinsten Vorwärts-Schritt zum nächsten Ziel-Winkel (mod 360°),
-            // egal von welchem (ggf. mitten in einer laufenden Fahrt
-            // unterbrochenen) Winkel aus gestartet wird. Tempo skaliert mit dem
-            // Schwenkwinkel, damit der weite Unterwelt-Schwenk nicht hektisch wirkt.
+        // Stufenloser, rein manueller Kamerafokus-Regler: v=-1 exakter
+        // Unterwelt-Endpunkt (UNDERWORLD_ELEV), v=0 Standard (CAM_ELEV, Default),
+        // v=+1 exakter Luftansicht-Endpunkt (AIR_VIEW_ELEV). cam3d.elev ist
+        // linear in v über den GESAMTEN Bereich [-1,1] (zwei Geraden, die sich
+        // bei v=0 treffen) und dabei monoton — der Regler dreht die Kamera also
+        // über seinen ganzen Weg in eine einzige Richtung, nie erst zurück und
+        // dann weiter (siehe UNDERWORLD_ELEV-Kommentar oben). Kein Zeit-Tween:
+        // die Kamera folgt 1:1 der Reglerposition und bleibt exakt dort stehen,
+        // wo der Nutzer loslässt.
+        setCameraFocusPos(v) {
+            // Setzt nur den Kamera-/Deckkraft-Zustand — der Aufrufer (js/render.js,
+            // setCameraFocusSlider) rendert selbst einmalig nach allen abgeleiteten
+            // Zustandsänderungen (Auswahl-Reset etc.), damit nicht doppelt pro
+            // Regler-Event gezeichnet wird.
             ensureInit();
-            const nominalElev = focus === 1 ? AIR_VIEW_ELEV : focus === 2 ? UNDERWORLD_ELEV : CAM_ELEV;
-            const toAlpha = focus === 1 ? 1.0 : AIR_ALPHA_GROUND;
-            const from = { elev: cam3d.elev, alpha: airAlpha };
-            const to = { elev: nextForwardElev(cam3d.elev, nominalElev), alpha: toAlpha };
-            const deltaDeg = (to.elev - from.elev) * 180 / Math.PI;
-            viewTween = { start: performance.now(), dur: 350 + deltaDeg * 6, from, to };
-            startAnimLoop();
+            if (v >= 0) {
+                cam3d.elev = CAM_ELEV + (AIR_VIEW_ELEV - CAM_ELEV) * v;
+                airAlpha = AIR_ALPHA_GROUND + (1.0 - AIR_ALPHA_GROUND) * v;
+            } else {
+                cam3d.elev = CAM_ELEV + (UNDERWORLD_ELEV - CAM_ELEV) * -v;
+                airAlpha = AIR_ALPHA_GROUND;
+            }
         },
 
         spawnAttackAnim(fromX, fromY, toX, toY, type) {

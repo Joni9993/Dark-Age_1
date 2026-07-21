@@ -9,11 +9,12 @@ function handleCanvasClick(clientX, clientY) {
 
     // Ob die Oberfläche gerade zu sehen ist, richtet sich nach der tatsächlichen
     // Kameraposition (Renderer.isSurfaceVisible), nicht nach dem cameraFocus-
-    // Knopfzustand: der wechselt beim Tastendruck sofort, das Board dreht sich
-    // aber erst über ~1-2s tatsächlich um. Solange die Oberfläche zu sehen ist,
-    // läuft die normale Boden-Interaktion; sobald die Kamera unter der Karte
-    // steht, gehen Klicks stattdessen an die (noch entitätslose) Unterwelt-
-    // Feld-Auswahl.
+    // Wert: der Kamerafokus-Regler (js/render.js: setCameraFocusSlider) fährt
+    // die Kamera stufenlos per Drag, der Umschlagpunkt liegt geometrisch am
+    // Horizont, nicht an einer bestimmten Reglerstellung. Solange die
+    // Oberfläche zu sehen ist, läuft die normale Boden-Interaktion; sobald die
+    // Kamera unter der Karte steht, gehen Klicks stattdessen an die (noch
+    // entitätslose) Unterwelt-Feld-Auswahl.
     if (Renderer.isSurfaceVisible && !Renderer.isSurfaceVisible()) {
         handleUnderworldClick(clientX, clientY);
         return;
@@ -1759,56 +1760,68 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
         }
     }
 
-    // Reliquien-Shop (M10, PLAN.md Abschn. 7): eigenes Dorf, nur sichtbar wenn
-    // Kristalle vorhanden sind ODER schon Reliquien im Inventar liegen — Kauf-
-    // Buttons (RELICS, js/data.js) + "Ausrüsten"-Buttons für Bestand (map wirkt
-    // sofort beim Kauf und landet nie in p[].rel, siehe applyMapRelic).
-    let relicHtml = '';
-    if (villageOwner === gameState.cp && ((pState.k || 0) > 0 || (pState.rel && pState.rel.length > 0))) {
-        Object.entries(RELICS).forEach(([key, def]) => {
-            const afford = (pState.k || 0) >= def.cost;
-            relicHtml += `<button class="action-btn" style="padding: 6px 8px; font-size: 0.85rem; display:flex; flex-direction:column; align-items:center; gap:2px; border-color:#7fe3ff; ${afford ? '' : 'opacity:0.5;'}" ${afford ? `onclick="window.buyRelic('${key}')"` : 'disabled'} title="${def.desc}">
-                <div>${def.icon} ${def.name}</div>
-                <div style="font-size: 0.65rem; color: #7fe3ff;">${def.cost}💎</div>
-            </button>`;
-        });
-        if (pState.rel && pState.rel.length > 0) {
-            const counts = {};
-            pState.rel.forEach(r => counts[r] = (counts[r] || 0) + 1);
-            Object.entries(counts).forEach(([key, n]) => {
-                const def = RELICS[key];
-                relicHtml += `<button class="action-btn" style="padding: 6px 8px; font-size: 0.85rem; background:#4527a0;" onclick="window.startRelicEquip('${key}')">${def.icon} ${def.name} ausrüsten (${n}x)</button>`;
-            });
-        }
-    }
-
-    if (!clickedUnit && !recruitHtml && !relicHtml) { selectedUnit = null; validMoves = []; validAttacks = []; }
+    // Reliquien-Shop ist aus dem Dorf-Menü entfernt und lebt jetzt im eigenen
+    // Fenster (window.openRelicShop, Radialmenü "🏺 Reliquien", js/ui.js) — im
+    // Hauptgebäude-Menü war laut Jonathan kein Platz mehr dafür.
+    if (!clickedUnit && !recruitHtml) { selectedUnit = null; validMoves = []; validAttacks = []; }
 
     const tileMenuHtml = unitMenuHtml
-        + (recruitHtml ? `<div class="recruit-scroll" style="width:100%;">${recruitHtml}</div>` : '')
-        + (relicHtml ? `<div class="recruit-scroll" style="width:100%;">${relicHtml}</div>` : '');
+        + (recruitHtml ? `<div class="recruit-scroll" style="width:100%;">${recruitHtml}</div>` : '');
     if (tileMenuHtml) showActionMenu(tileMenuHtml);
 }
 
 // === POINTER / TOUCH EVENTS ===
+// Langdruck-Timer fürs Radial-Auswahlrad (js/radialmenu.js): 1s halten OHNE zu
+// ziehen öffnet das Rad am Druckpunkt. Kein expliziter "Spiel läuft gerade
+// nicht"-Guard nötig — die Listener hängen auf #canvas-wrapper, das auf
+// Start-/Lobby-/Overlay-Bildschirmen unsichtbar (display:none) bzw. von
+// Overlays verdeckt ist und dadurch ohnehin keine Pointer-Events bekommt.
+let longPressTimer = null;
+const LONG_PRESS_MS = 1000;
+
+function clearLongPressTimer() {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+}
+
 canvasWrapper.addEventListener('pointerdown', (e) => {
     isDragging = true;
     hasMoved = false;
     dragStartX = e.clientX; dragStartY = e.clientY;
     Renderer.beginGesture();
     canvasWrapper.setPointerCapture(e.pointerId);
+
+    // Neuer Druck beginnt: alten "Press konsumiert"-Zustand des Rads zurücksetzen,
+    // sonst würde ein Radial-Menü-Klick fälschlich noch den NÄCHSTEN Tap unterdrücken.
+    if (window.RadialMenu) RadialMenu.resetPressConsumed();
+    clearLongPressTimer();
+    longPressTimer = setTimeout(() => {
+        longPressTimer = null;
+        if (!isDragging || hasMoved) return; // Zwischenzeitlich losgelassen oder gezogen
+        isDragging = false; // laufendes Kamera-Panning/-Gesture beenden, das Rad übernimmt jetzt
+        if (navigator.vibrate) navigator.vibrate(30);
+        if (window.RadialMenu) RadialMenu.open(dragStartX, dragStartY);
+    }, LONG_PRESS_MS);
 });
 
 canvasWrapper.addEventListener('pointermove', (e) => {
     if (!isDragging) return;
     const dx = e.clientX - dragStartX; const dy = e.clientY - dragStartY;
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) hasMoved = true;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) { hasMoved = true; clearLongPressTimer(); }
     Renderer.gesturePan(dx, dy);
 });
 
 canvasWrapper.addEventListener('pointerup', (e) => {
+    clearLongPressTimer();
     isDragging = false;
     canvasWrapper.releasePointerCapture(e.pointerId);
+    // Solange das Rad offen ist (oder gerade durch DIESEN Loslass-Event auf
+    // Document-Ebene geschlossen wird — RadialMenu hängt seine eigenen
+    // pointerup-Listener erst beim Öffnen an document, die wegen Pointer-Capture
+    // NACH diesem Listener hier feuern, siehe js/radialmenu.js) darf kein
+    // normaler Karten-Klick durchgehen; wasPressConsumed() bleibt zusätzlich bis
+    // zum nächsten pointerdown wahr, als Absicherung falls die Event-Reihenfolge
+    // sich browserabhängig doch anders verhält.
+    if (window.RadialMenu && (RadialMenu.isOpen() || RadialMenu.wasPressConsumed())) return;
     if (!hasMoved) handleCanvasClick(e.clientX, e.clientY);
 });
 
@@ -1822,6 +1835,7 @@ canvasWrapper.addEventListener('wheel', (e) => {
 
 canvasWrapper.addEventListener('touchstart', e => {
     if (e.touches.length === 2) {
+        clearLongPressTimer(); // Pinch/Orbit mit 2 Fingern darf kein Radial-Menü öffnen
         isDragging = false;
         const [t0, t1] = e.touches;
         initialPinchDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
