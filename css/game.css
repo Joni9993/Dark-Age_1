@@ -408,13 +408,6 @@ canvas {
     left: 0;
 }
 
-/* Unterwelt-Kamerafokus im 2D-Fallback (?r2d=1): kein echter 3D-Kameraschwenk
-   möglich, daher spiegelt sich nur das Canvas (auf den Kopf gedreht) als
-   Annäherung an "Blick auf die Unterseite der Karte". */
-#gameCanvas.camera-focus-underworld {
-    transform: rotate(180deg);
-}
-
 /* Overlay für DOM-basierte Schadenszahlen (3D-Renderer) */
 #float-layer {
     position: absolute;
