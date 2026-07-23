@@ -54,9 +54,16 @@ async function ensureMusicBuffer() {
 
 async function startMusic() {
     if (!isMusicEnabled()) return;
+    // resume() MUSS als erstes und synchron aufgerufen werden, noch vor jedem
+    // await — sonst gilt der Aufruf (v.a. bei Safari/WebKit) nicht mehr als
+    // direkte Folge der User-Geste und die Autoplay-Policy blockt ihn. Ein
+    // await davor (z.B. auf den Buffer) reicht schon, um das zu brechen, auch
+    // wenn der Buffer längst im Cache liegt und der await sofort durchläuft.
+    const resumePromise = musicCtx.state === 'suspended' ? musicCtx.resume().catch(() => {}) : null;
     const buffer = await ensureMusicBuffer();
     if (!buffer) return;
-    if (musicCtx.state === 'suspended') await musicCtx.resume().catch(() => {});
+    if (resumePromise) await resumePromise;
+    else if (musicCtx.state === 'suspended') await musicCtx.resume().catch(() => {});
     if (musicSource) { try { musicSource.stop(); } catch (_) {} }
     musicSource = musicCtx.createBufferSource();
     musicSource.buffer = buffer;
