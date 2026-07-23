@@ -1,8 +1,8 @@
 // === ART-DATEN (Paletten, Pixel-Sprites, 3D-Voxelmodelle) ===
 // GENERIERT vom Art-Editor (editor.html) — Änderungen am besten dort machen.
 //
-// CLASSIC_* = unverändertes Live-Design, unangetastet vom Editor durchgereicht.
-// NEW_*     = Redesign in Arbeit, nur sichtbar mit ?debug=1 (oder im Editor).
+// NEW_*     = das Dark-Fantasy-Design, seit v3.0.0 das Live-Design für alle.
+// CLASSIC_* = das alte Vor-Redesign-Design, als Archiv unangetastet durchgereicht.
 // DEBUG_ART entscheidet, welcher Satz aktiv ist — siehe Ende der Datei.
 //
 // Sprite-Format: 1 Zeichen = 1 Pixel ('.' = transparent, 'P'/'p' = Spielerfarbe hell/dunkel).
@@ -64,11 +64,12 @@ function decodeSpriteRows(str) {
 const SP = decodeSpriteRows;
 const L = (str) => str.trim().split(/\s+/).map(r => [...r].map(ch => SPRITE_CHARS[ch] || 0));
 
-const DEBUG_ART = (typeof window !== 'undefined' && window.FORCE_NEW_ART === true)
-    || new URLSearchParams(location.search).has('debug');
+// Seit v3.0.0 (Unterwelt-Update) ist das NEW_*-Set das Live-Design für alle —
+// das frühere ?debug=1-Gate ist aufgehoben. CLASSIC_* bleibt als Archiv erhalten.
+const DEBUG_ART = true;
 
 // ============================================================================
-// CLASSIC — unverändertes Live-Design (nicht vom Editor bearbeitet)
+// CLASSIC — altes Vor-v3.0.0-Design, als Archiv erhalten (nicht vom Editor bearbeitet)
 // ============================================================================
 const CLASSIC_PAL = {
     "1": "#0e0c14",
@@ -4854,7 +4855,7 @@ const CLASSIC_VOXEL_MODELS = {
 };
 
 // ============================================================================
-// NEW — Redesign in Arbeit (nur ?debug=1 / Editor)
+// NEW — Dark-Fantasy-Design, seit v3.0.0 live
 // ============================================================================
 const NEW_PAL = {
     1: "#0e0c14",  // X
