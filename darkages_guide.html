@@ -766,9 +766,10 @@
         <h2>Die Karte</h2>
       </div>
 
-      <p>Die Karte besteht aus <strong>Sechseck-Feldern (Hexfeldern)</strong>. Jede Einheit kann sich pro Zug eine
-        bestimmte Anzahl Felder bewegen – je nach Einheitentyp. Bewegung wird nicht durch Terrain gebremst; einzig
-        <strong>Hügel</strong> geben Fernkämpfern einen Schadensbonus (siehe Abschnitt 11).</p>
+      <p>Die Karte besteht aus <strong>Sechseck-Feldern (Hexfeldern)</strong> in drei Terrain-Arten: Grasland,
+        Hügel und Wald. Jede Einheit kann sich pro Zug eine bestimmte Anzahl Felder bewegen – je nach Einheitentyp.
+        Bewegung wird nicht durch Terrain gebremst, wohl aber der Kampf: <strong>Hügel</strong> geben Fernkämpfern
+        einen Schadensbonus, <strong>Wald</strong> gibt Bodeneinheiten Deckung (siehe Abschnitt 11).</p>
 
       <p><strong>Nebel des Krieges:</strong> Du siehst nur, was deine Einheiten, Dörfer und Türme in ihrer Sichtweite
         erfassen (Basis-Sichtweite 2 Felder, Türme 2 Felder, Fraktion 👁️ Spionage +1). Der 🏗️ Tribok hat unabhängig
@@ -1212,8 +1213,9 @@
       <p>Halte einen Finger 1 Sekunde auf die Karte gedrückt, öffne im Auswahlrad <strong>„⚜️ Fraktion"</strong> und
         kaufe dort deine nächste Kultur. Jede
         Fraktion bringt sofort ihr <strong>komplettes Einheiten-Roster</strong> mit – die T2-Bodeneinheit, die
-        T3-Elite-Einheit <em>und</em> die Lufteinheit – plus die passive Fraktionsfähigkeit. Es gibt keine separate
-        Freischaltung pro Tier.</p>
+        T3-Elite-Einheit, die Lufteinheit <em>und</em> die Tiefen-Elite der Unterwelt (kaufbar am Stollenkopf, siehe
+        Abschnitt 14) – plus die passive Fraktionsfähigkeit. Es gibt keine separate Freischaltung pro Tier oder
+        Ebene.</p>
 
       <p><strong>Kultur-Stufen:</strong></p>
       <ul style="list-style:none; display:flex; flex-direction:column; gap:.5rem; margin:.8rem 0">
@@ -1235,21 +1237,24 @@
           <div class="f-name">🏰 Feudalismus</div>
           <div class="f-passive">Passive: +1 Max-HP auf neu rekrutierte Einheiten pro 2 Dörfer, die du beim Rekrutieren
             besitzt</div>
-          <div class="f-units">🛡️ Ritter (T2) · 🐪 Kamelreiter (T3) · 🚁 Luftschraube (Luft)</div>
+          <div class="f-units">🛡️ Ritter (T2) · 🐪 Kamelreiter (T3) · 🚁 Luftschraube (Luft) · ⚔️ Grubenritter
+            (Unterwelt)</div>
           <div class="f-special">Ritter „Rundumschlag" (3🪵): 4 DMG an alle Nachbarn.<br>Kamelreiter „Parthershot"
             (1🪵): angreifen, danach nochmal bewegen.</div>
         </div>
         <div class="faction-card">
           <div class="f-name">🩸 Plünderer</div>
           <div class="f-passive">Passive: +1 DMG für alle Nahkämpfer</div>
-          <div class="f-units">🪓 Berserker (T2) · 💣 Saboteur (T3) · 🛩️ Gleiter (Luft)</div>
+          <div class="f-units">🪓 Berserker (T2) · 💣 Saboteur (T3) · 🛩️ Gleiter (Luft) · 🪙 Beutegräber
+            (Unterwelt)</div>
           <div class="f-special">Berserker „Blutrausch" (2🪵): Aktionspunkt zurück, nochmal agieren.<br>Saboteur
             „Sprengen" (gratis): 8 DMG AoE, zerstört sich selbst.</div>
         </div>
         <div class="faction-card">
           <div class="f-name">👁️ Spionage</div>
           <div class="f-passive">Passive: +1 Sichtweite für alle Einheiten & Dörfer</div>
-          <div class="f-units">🗡️ Assassine (T2) · 🐘 Elefant (T3) · 🪂 Fallschirmspringer (Luft)</div>
+          <div class="f-units">🗡️ Assassine (T2) · 🐘 Elefant (T3) · 🪂 Fallschirmspringer (Luft) · 👂 Horcher
+            (Unterwelt)</div>
           <div class="f-special">Assassine „Unsichtbar" (2🪵): für Feinde nicht anvisierbar, bricht bei Angriff (2
             Runden Cooldown danach).<br>Elefant „Stampede" (3🪵): 5 DMG Linienangriff bis Distanz 2, kein Gegenangriff.
           </div>
@@ -1257,7 +1262,8 @@
         <div class="faction-card">
           <div class="f-name">⚖️ Gilden</div>
           <div class="f-passive">Passive: +1 extra Gold pro Dorf pro Runde</div>
-          <div class="f-units">🏗️ Tribok (T2) · 🚚 Wagenburg (T3) · 🎈 Bombenballon (Luft)</div>
+          <div class="f-units">🏗️ Tribok (T2) · 🚚 Wagenburg (T3) · 🎈 Bombenballon (Luft) · ⚙️ Bohrwagen
+            (Unterwelt)</div>
           <div class="f-special">Tribok „Flächenbrand" (3🪵): 3 DMG Zentrum, 2 DMG Nachbarn.<br>Wagenburg „Eingraben"
             (gratis): stationär, Reichweite 2, Verbündeten-Aura.</div>
         </div>
@@ -1415,6 +1421,10 @@
         Fernkämpfer und der Veteran-Bonus. Das Ergebnis wird anschließend mit dem Verhältnis <strong>aktuelle HP ÷
           Max-HP</strong> der angreifenden Einheit multipliziert und gerundet (mindestens 1 DMG). Eine schwer verwundete
         Einheit richtet also spürbar weniger Schaden an als eine bei voller Gesundheit.</p>
+
+      <p><strong>Wald-Deckung:</strong> Steht das angegriffene Ziel auf einem <strong>Wald</strong>-Feld, nimmt es
+        1 DMG weniger von jedem Angriff (mindestens 1 DMG bleibt immer). Gilt nur für Bodeneinheiten – Lufteinheiten
+        profitieren nicht davon, egal auf welchem Feld sie schweben.</p>
 
       <div class="screenshot">
         <span class="screenshot-label">Screenshot: Angriff</span>
