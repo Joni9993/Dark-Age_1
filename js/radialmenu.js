@@ -4,15 +4,19 @@
 // #canvas-wrapper (Timer + Auslösen in js/input.js, POINTER/TOUCH EVENTS)
 // öffnet ein Rad aus 5 Kreisen zentriert am Druckpunkt.
 //
-// Auswahl-Modell (Auftrag Jonathan, Juli 2026): das Rad ist KEIN Drag-und-
-// Loslassen-Menü mehr. Der Langdruck-Loslasser (onDocPointerUp) selbst wählt
-// nichts mehr aus und schließt auch nichts — das Rad bleibt einfach stehen,
-// sobald der Finger/Zeiger wieder abgehoben wird. Erst ein NEUER, separater
-// Tap entscheidet: Tap auf einen Kreis löst dessen Aktion aus und schließt
-// das Rad, Tap irgendwo daneben schließt es ohne Aktion. Dieser zweite Tap
-// wird über einen capturing document-pointerdown-Listener abgefangen
-// (onOutsidePointerDown) und per stopPropagation "verschluckt", damit er
-// nicht zusätzlich einen Hex anklickt oder einen neuen Langdruck startet.
+// Auswahl-Modell (Auftrag Jonathan, Juli 2026): BEIDE Bedienweisen funktionieren
+// nebeneinander.
+// (a) Drag-und-Loslassen wie beim alten Rad: während des Haltens auf einen
+//     Kreis ziehen (updateHighlight setzt activeKey) und loslassen wählt ihn
+//     sofort aus und schließt das Rad (onDocPointerUp → close(activeKey)).
+// (b) Halten-und-Loslassen ohne Ziehen: bleibt activeKey beim Loslassen leer
+//     (Finger nie aus der DEAD_ZONE bewegt), bleibt das Rad einfach offen
+//     stehen. Erst ein NEUER, separater Tap entscheidet dann: Tap auf einen
+//     Kreis löst dessen Aktion aus und schließt das Rad, Tap irgendwo daneben
+//     schließt es ohne Aktion. Dieser zweite Tap wird über einen capturing
+//     document-pointerdown-Listener abgefangen (onOutsidePointerDown) und per
+//     stopPropagation "verschluckt", damit er nicht zusätzlich einen Hex
+//     anklickt oder einen neuen Langdruck startet.
 //
 // Aktionen sind bewusst mit typeof/optional-chaining-Guards abgesichert:
 // Fraktions-Fenster (window.openFactionOverview) und Reliquien-Shop
@@ -159,15 +163,15 @@ window.RadialMenu = (function () {
 
     function onDocPointerMove(e) { updateHighlight(e.clientX, e.clientY); }
 
-    // Loslassen des ursprünglichen Langdrucks wählt nichts mehr aus — das Rad
-    // bleibt offen stehen (siehe Kommentar oben). Nur die Vorschau-Markierung
-    // wird zurückgesetzt, die Auswahl selbst passiert erst über einen neuen Tap.
+    // Loslassen des ursprünglichen Langdrucks: wurde währenddessen auf einen
+    // Kreis gezogen (activeKey gesetzt), wählt das Loslassen ihn wie beim alten
+    // Rad sofort aus. Wurde NICHT gezogen (activeKey leer), bleibt das Rad
+    // offen stehen und wartet auf einen separaten Tap (siehe Kommentar oben).
     function onDocPointerUp(e) {
         document.removeEventListener('pointermove', onDocPointerMove);
         document.removeEventListener('pointerup', onDocPointerUp);
         document.removeEventListener('pointercancel', onDocPointerCancel);
-        activeKey = null;
-        for (const it of items) it.el.classList.remove('active');
+        if (activeKey) { close(activeKey); return; }
         document.addEventListener('pointerdown', onOutsidePointerDown, true);
     }
 
