@@ -6,9 +6,29 @@ function handleCanvasClick(clientX, clientY) {
     if (showRecap) { showRecap = false; renderBoard(gameState); }
 
     hideActionMenu();
+
+    // Ob die Oberfläche gerade zu sehen ist, richtet sich nach der tatsächlichen
+    // Kameraposition (Renderer.isSurfaceVisible), nicht nach dem cameraFocus-
+    // Wert: der Kamerafokus-Regler (js/render.js: setCameraFocusSlider) fährt
+    // die Kamera stufenlos per Drag, der Umschlagpunkt liegt geometrisch am
+    // Horizont, nicht an einer bestimmten Reglerstellung. Solange die
+    // Oberfläche zu sehen ist, läuft die normale Boden-Interaktion; sobald die
+    // Kamera unter der Karte steht, gehen Klicks stattdessen an die (noch
+    // entitätslose) Unterwelt-Feld-Auswahl.
+    if (Renderer.isSurfaceVisible && !Renderer.isSurfaceVisible()) {
+        handleUnderworldClick(clientX, clientY);
+        return;
+    }
+
     const closest = Renderer.pickHex(clientX, clientY);
 
     if (closest) {
+        // Reliquien-Zielauswahl (M10) hat Vorrang, egal ob Boden oder Luft (kann
+        // beides treffen) — Gegenstück zum selben Check in handleUnderworldClick.
+        if (window.uwSpecialActive && window.uwSpecialActive.startsWith('relic_')) {
+            handleRelicTargetClick(closest.x, closest.y, false);
+            return;
+        }
         window.highlightedTunnelEnd = null;
         const clickedX = closest.x; const clickedY = closest.y;
         const vis = getVisibleHexes(gameState.cp); const isVisible = vis.has(`${clickedX},${clickedY}`);
@@ -500,7 +520,600 @@ function handleCanvasClick(clientX, clientY) {
             }
         }
         renderBoard(gameState);
+    } else {
+        // Klick NEBEN das Spielfeld (kein Hex getroffen): alles abwählen — sowohl
+        // die aktive Feld-/Einheiten-Auswahl als auch jeden laufenden Zielwahl-
+        // Modus (Tunnel-/Mauer-/Turm-Bau, Abriss, Turmschuss, Reliquie ausrüsten).
+        // Vereinigung aller Reset-Gruppen, die die einzelnen Abbruch-Zweige oben
+        // ohnehin schon nutzen — der Void-Klick ist der universelle "Abbrechen"-
+        // Geste-Ersatz. (Unterwelt-Pendant: handleUnderworldClick macht bei
+        // !closest bereits clearUWSelection().)
+        selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
+        window.specialActive = null; selectedTower = null;
+        window.tunnelStart = null; window.demolishTargets = [];
+        window.highlightedTunnelEnd = null;
+        window.uwSpecialActive = null;
+        renderBoard(gameState);
     }
+}
+
+// Klicks, während die Kamera tatsächlich unter der Karte steht (siehe
+// handleCanvasClick). M9b: volles Pendant zu handleCanvasClick — Ziel-Klicks
+// auf hervorgehobene Bewegungs-/Grab-/Abbau-Hexes lösen die jeweilige Aktion
+// aus (gleiches Muster wie validMoves/validAttacks oben), alles andere zeigt
+// Info + Aktionsmenü (showUnderworldTileUI, mkBtn-Muster wie showTileUI).
+function handleUnderworldClick(clientX, clientY) {
+    if (!isLegacyUrlMode && currentGameId && currentTurnSlot !== currentUserSlot) return;
+    hideActionMenu();
+    const closest = Renderer.pickHex(clientX, clientY);
+    if (!closest) { clearUWSelection(); renderBoard(gameState); return; }
+    const clickedX = closest.x, clickedY = closest.y;
+
+    // Reliquien-Zielauswahl (M10) hat Vorrang — kann sowohl Oberflächen- als auch
+    // Unterwelt-Ziele treffen, siehe handleRelicTargetClick.
+    if (window.uwSpecialActive && window.uwSpecialActive.startsWith('relic_')) {
+        handleRelicTargetClick(clickedX, clickedY, true);
+        return;
+    }
+
+    if (window.uwSpecialActive === 'collapse_select') {
+        const target = uwValidCollapse.find(c => c.x === clickedX && c.y === clickedY);
+        if (target) { executeUWCollapse(target.x, target.y); return; }
+        window.uwSpecialActive = null; uwValidCollapse = [];
+        showUnderworldTileUI(clickedX, clickedY);
+        renderBoard(gameState);
+        return;
+    }
+
+    if (window.uwSpecialActive === 'dynamite_select') {
+        const target = uwValidDynamite.find(d => d.x === clickedX && d.y === clickedY);
+        if (target) { executeUWDynamitePlace(target.x, target.y); return; }
+        window.uwSpecialActive = null; uwValidDynamite = [];
+        showUnderworldTileUI(clickedX, clickedY);
+        renderBoard(gameState);
+        return;
+    }
+
+    if (window.uwSpecialActive === 'jump_select') {
+        const target = uwValidJump.find(j => j.x === clickedX && j.y === clickedY);
+        if (target) { executeUWJump(target.x, target.y); return; }
+        window.uwSpecialActive = null; uwValidJump = [];
+        showUnderworldTileUI(clickedX, clickedY);
+        renderBoard(gameState);
+        return;
+    }
+
+    if (selectedUWUnit && uwValidAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
+        const targetAttack = uwValidAttacks.find(a => a.x === clickedX && a.y === clickedY);
+        executeUWAttack(clickedX, clickedY, targetAttack);
+        return;
+    }
+    if (selectedUWUnit && uwValidMoves.some(m => m.x === clickedX && m.y === clickedY)) {
+        executeUWMoveTo(clickedX, clickedY);
+        return;
+    }
+    if (selectedUWUnit && uwValidDigs.some(m => m.x === clickedX && m.y === clickedY)) {
+        executeUWDig(clickedX, clickedY);
+        return;
+    }
+
+    showUnderworldTileUI(clickedX, clickedY);
+    renderBoard(gameState);
+}
+
+function clearUWSelection() {
+    window.selectedUnderworldHex = null;
+    selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidAttacks = []; uwValidCollapse = []; uwValidDynamite = []; uwValidJump = [];
+    window.uwSpecialActive = null;
+    hideActionMenu();
+}
+
+// Pendant zu showTileUI für die Unterwelt-Ebene: Info-Panel + Aktionsmenü für
+// das angeklickte Unterwelt-Hex (eigene Einheit auswählen, Stollenkopf-Kauf).
+function showUnderworldTileUI(clickedX, clickedY) {
+    const pState = gameState.p[gameState.cp];
+    const uType = getUnderworldType(gameState, clickedX, clickedY);
+    const open = isUnderworldOpen(gameState, clickedX, clickedY);
+    const stollenOwner = getStollenkopfOwner(gameState, clickedX, clickedY);
+    const rawUnit = uwUnitAt(clickedX, clickedY);
+    const unit = (rawUnit && isUWUnitVisible(gameState.cp, rawUnit)) ? rawUnit : null;
+    const rawCreature = uwCreatureAt(clickedX, clickedY);
+    const creature = (rawCreature && isUWCreatureVisible(gameState.cp, rawCreature)) ? rawCreature : null;
+
+    window.selectedUnderworldHex = { x: clickedX, y: clickedY };
+    // Vorherige Auswahl VOR dem Reset sichern (Korrektur Juli 2026, Tooltip-Ausbau,
+    // exaktes Pendant zum Verhalten von showTileUI/selectedUnit oben, das gar nicht
+    // zurücksetzt): der Angriffsschaden-Vorschau-Check unten braucht die Auswahl aus
+    // dem VORHERIGEN Klick ("ich habe meine Einheit ausgewählt, jetzt klicke ich ein
+    // Ziel an") — wurde hier bisher VOR dem Check auf null/[] gesetzt, wodurch die
+    // Vorschau nie auslösen konnte (toter Code, kein Spieler bekam je eine Schaden-
+    // Kalkulation vor dem eigentlichen Angriff zu sehen).
+    const prevSelectedUnit = selectedUWUnit;
+    const prevValidAttacks = uwValidAttacks;
+    selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidAttacks = [];
+    window.uwSpecialActive = null;
+
+    // Entity-/Terrain-Zusatzinfos (Korrektur Juli 2026, Tooltip-Ausbau): jetzt IMMER
+    // berechnet und an alle drei Zweige (Einheit/Kreatur/leeres Feld) angehängt —
+    // vorher nur im "leeres Feld"-Zweig, wodurch z.B. der eigene Stollenkopf oder
+    // eine tickende Dynamit-Ladung unsichtbar wurden, sobald irgendeine Einheit
+    // oder Kreatur auf demselben Hex stand.
+    let extra = '';
+    if (stollenOwner !== -1) {
+        extra += `<br><span style="color:${getEntityColor(stollenOwner)}">${formatOwnerName(stollenOwner, gameState.cp)} Stollenkopf</span><div class="info-detail">Rekrutierungspunkt für Tiefeneinheiten (Tunnel-Startpunkt).</div>`;
+    }
+    const rem = getUWVeinRemaining(gameState, clickedX, clickedY);
+    if (rem > 0) extra += `<br><span style="color:#7fe3ff">💎 Ader: ${rem}/${getUWVeinMaxAmount(gameState, clickedX, clickedY)}</span><div class="info-detail">Abbau per Toggle (Arbeiter/Beutegräber in Reichweite) — danach dauerhaft offener Gang.</div>`;
+    if (isFundkammerHex(gameState, clickedX, clickedY)) {
+        const looted = gameState.uw && gameState.uw.f && gameState.uw.f[`${clickedX},${clickedY}`];
+        extra += `<br><span style="color:#c9a24b">🏺 Fundkammer${looted ? ' (geplündert)' : ''}</span>` + (looted ? '' : `<div class="info-detail">Mit einer Einheit auf diesem Feld per Button plündern — Kristalle oder eine Reliquie. Verbraucht die restlichen Aktionen der Einheit.</div>`);
+    }
+    if (gameState.uw && gameState.uw.w && gameState.uw.w[`${clickedX},${clickedY}`]) {
+        extra += `<br><span style="color:#dddddd">🕸 Spinnennetz</span><div class="info-detail">Stoppt jede Bewegung, die hier endet (Rest der Reichweite verfällt) — verbraucht sich beim Betreten, egal wer betritt.</div>`;
+    }
+    const dropHere = gameState.uw && gameState.uw.dr && gameState.uw.dr[`${clickedX},${clickedY}`];
+    if (dropHere) extra += `<br><span style="color:#7fe3ff">💎 Herrenloser Kristallhaufen: ${dropHere}</span><div class="info-detail">Wird von Arbeiter/Beutegräber beim Betreten automatisch aufgesammelt.</div>`;
+    const dynCharge = gameState.uw && gameState.uw.dy && gameState.uw.dy.find(dy => dy.hexes.some(h => h.x === clickedX && h.y === clickedY));
+    if (dynCharge) {
+        const isMine = dynCharge.p === gameState.cp;
+        const ownerLabel = isMine ? 'Deine' : `${formatOwnerName(dynCharge.p, gameState.cp)}`;
+        extra += `<br><span style="color:#ff6e40">🧨 ${ownerLabel} Dynamit-Ladung</span><div class="info-detail">Explodiert zu Beginn ${isMine ? 'deines' : 'seines'} nächsten Zuges — 6 DMG auf jedes der 3 Ziel-Hexes (auch eigene Truppen), sprengt massiven Fels dauerhaft frei (Kristalladern bleiben unangetastet).</div>`;
+    }
+    if (uType === UW_HERZ) {
+        const wormAlive = !(gameState.uw && gameState.uw.wd === 1);
+        extra += `<div class="info-detail" style="color:#c9a24b;">🌍 Herz der Tiefe — Sieg-Ziel unter dem zentralen Wachturm.${wormAlive ? ' Bewacht vom Alten Wurm; muss zuerst besiegt werden, bevor die Erschließung starten kann.' : ' Wurm besiegt — eigene Einheit hier postieren, um die Erschließung zu starten.'}</div>`;
+        const hz = gameState.uw && gameState.uw.hz;
+        if (hz) {
+            extra += `<div class="info-detail" style="color:${getEntityColor(hz.p)};">${formatOwnerName(hz.p, gameState.cp)} erschließt: ${hz.n}/${ERSCHLIESSUNG_TARGET} Zugenden gehalten</div>`;
+        }
+    }
+
+    // Lärm-Ping-Tooltip (Gehör-Ausbau, Korrektur Juli 2026): welche Art Geräusch
+    // wurde hier gehört (Graben/Abbau/Kämpfe/Dynamit/Stollenbruch/Kreatur) —
+    // vorher zeigte das markierte Feld nur eine Farbe, ohne Erklärung. Ein Hex
+    // kann mehrere Pings tragen (mehrere Geräuschquellen bilden zufällig auf
+    // dasselbe Netz-Hex ab), daher eine Zeile pro Ping.
+    getUWNoisePings(gameState.cp).filter(p => p.x === clickedX && p.y === clickedY).forEach(p => {
+        const label = UW_NOISE_TYPE_NAMES[p.type] || 'Unbekanntes Geräusch';
+        const precision = p.exact ? 'Genaue Ortung (Horcher in Reichweite)' : 'Ungefähre Richtung (nächstgelegenes eigenes Netz-Hex)';
+        extra += `<br><span style="color:${p.exact ? '#ff5252' : '#ffb300'}">👂 Lärm gehört: ${label}</span><div class="info-detail">${precision}</div>`;
+    });
+
+    if (unit) {
+        const maxHp = getUnitMaxHp(gameState.p[unit.p], unit.t, unit);
+        const ownerName = formatOwnerName(unit.p, gameState.cp);
+        const ownerColor = getEntityColor(unit.p);
+        const crText = unit.cr ? ` | 💎 trägt ${unit.cr}/3` : '';
+        const artText = unit.art ? ` | ${RELICS[unit.art].icon} ${RELICS[unit.art].name}` : '';
+        const vetText = unit.vet ? ' | ★ Veteran (+1 DMG)' : '';
+        let expectedDmgText = '';
+        if (prevSelectedUnit && prevSelectedUnit.p === gameState.cp && unit.p !== gameState.cp && prevValidAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
+            expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${getExpectedDamageUW(prevSelectedUnit, unit)} DMG</span>`;
+        }
+        infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} ${unitStats[unit.t].name} (${unit.h}/${maxHp} HP)</span><div class="info-detail">Bewegung: ${getUnitMove(gameState.p[unit.p], unit.t, unit)} | Angriff: ${unitStats[unit.t].dmg}${vetText}${crText}${artText}</div>${expectedDmgText}` + extra;
+    } else if (creature) {
+        const cStats = uwCreatureStats[creature.t];
+        let expectedDmgText = '';
+        if (prevSelectedUnit && prevSelectedUnit.p === gameState.cp && prevValidAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
+            expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${getExpectedDamageUW(prevSelectedUnit, creature)} DMG</span>`;
+        }
+        // Eigenes Angriffsmuster (Korrektur Juli 2026, Tooltip-Ausbau): vorher nur
+        // sichtbar, wenn man das ZIEL-Hex anklickte (Block unten) — ein Klick auf
+        // die Kreatur selbst zeigte nichts über ihr bevorstehendes Angriffsmuster,
+        // obwohl genau das die Ausweich-Entscheidung braucht.
+        let telegraphSelfText = '';
+        if (creature.ap) {
+            const atkHexes = getCreatureAttackHexes(gameState, creature);
+            if (atkHexes.length > 0) {
+                telegraphSelfText = `<div class="info-detail" style="color:#ff5252;">🎯 Bereitet Angriff vor — trifft ${atkHexes.length} Feld${atkHexes.length === 1 ? '' : 'er'} am Rundenende (${cStats.dmg} DMG je Treffer). Markierte Felder rechtzeitig verlassen!</div>`;
+            }
+        }
+        infoPanel.innerHTML = `<span style="color:#e57373">${cStats.name} (${creature.h}/${cStats.hp} HP)</span><div class="info-detail">Kreatur, neutral · ⚔️${cStats.dmg} DMG</div>${telegraphSelfText}${expectedDmgText}` + extra;
+    } else {
+        let tileDesc = '';
+        if (!open) {
+            tileDesc = uType === UW_ADER
+                ? `<div class="info-detail">Blockiert Bewegung, bis die Kristalle vollständig abgebaut sind.</div>`
+                : `<div class="info-detail">Blockiert Bewegung und Sicht. Nur Arbeiter oder Bohrwagen können hier graben (1 Hex/Zug, Bohrwagen 2).</div>`;
+        }
+        infoPanel.innerHTML = `${UW_TYPE_NAMES[uType]}${open ? '' : ' (massiv)'}${tileDesc}` + extra;
+    }
+
+    // Telegraph-Warnung (Korrektur Juli 2026, "Runden-Phase + Telegraph"):
+    // unabhängig davon, was gerade auf dem Hex steht (Einheit/Kreatur/leer) —
+    // "jeder hat genau einen Zug zum Ausweichen" ist die wichtigste Info hier,
+    // gilt für ALLE Spieler-Einheiten auf dem Feld, egal welchem Besitzer. NUR
+    // sichtbar mit eigener/verbündeter Einheit im Umkreis 2 (uwHexNearOwnUnits,
+    // gleiche Regel wie das Karten-Overlay in render.js/render3d.js, Korrektur
+    // Juli 2026) — sonst könnte man durch Abklicken bekannter Gänge Telegraphen
+    // ausspähen, obwohl gerade keine eigene Einheit dort steht, die sie sähe.
+    if (uwHexNearOwnUnits(gameState.cp, clickedX, clickedY)) {
+        (gameState.uw && gameState.uw.c || []).forEach(c => {
+            if (c.h <= 0 || !c.ap) return;
+            if (!getOpenCreatureAttackHexes(gameState, c).some(h => h.x === clickedX && h.y === clickedY)) return;
+            const cStats = uwCreatureStats[c.t];
+            infoPanel.innerHTML += `<div class="info-detail" style="color:#ff5252;">🎯 ${cStats.name} greift dieses Feld am Rundenende an (${cStats.dmg} DMG)</div>`;
+        });
+    }
+
+    let menuHtml = '';
+
+    // Eigene, agierbare Tiefeneinheit auf dem Feld -> auswählen, Bewegen/Graben/
+    // Angreifen (Klick auf Highlight) + Abbauen/Abliefern/Aufsteigen (Buttons).
+    // Bewegen+Agieren im selben Zug (Oberflächen-Parität, Korrektur Juli 2026,
+    // exaktes Pendant zu showTileUI oben): a=2 heißt "hat schon eine Aktion
+    // gemacht (Bewegung ODER Bohrwagen-Erstgrabung), darf noch GENAU eine
+    // weitere (Angriff/Graben/Fähigkeit), aber NICHT nochmal bewegen" — daher
+    // bleibt die Einheit bei a=2 auswählbar, uwValidMoves aber unten leer.
+    const selectable = unit && unit.p === gameState.cp && (unit.a === 0 || unit.a === 2);
+    if (selectable) {
+        selectedUWUnit = unit;
+        // Nur bei a===0 darf noch bewegt werden (keine zweite Bewegung nach a=2,
+        // gleiches Gate wie validMoves bei showTileUI/js/input.js oben).
+        uwValidMoves = (unit.a === 0) ? calculateMovesUW(unit) : [];
+        uwValidDigs = calculateDigsUW(unit);
+        uwValidAttacks = calculateAttacksUW(unit);
+        // Abbau (Korrektur Juli 2026): Toggle wie beim Steinabbau des Arbeiters oben
+        // (startMining/stopMining, js/abilities.js) — läuft automatisch am Zugende
+        // (processAutoMiningUW), verbraucht keine Aktion, kein Träger-Limit mehr.
+        // Abliefern läuft ebenfalls automatisch (processUWCrystalAutoDeliver), sobald
+        // die Einheit auf/neben ihrem Stollenkopf steht — kein manueller Button mehr.
+        // Fundkammer plündern (Korrektur Juli 2026, ersetzt das Auto-Plündern
+        // beim Betreten): Button wie "Dorf einnehmen" an der Oberfläche —
+        // Einheit steht AUF dem Fundkammer-Hex, Plündern verbraucht die
+        // restlichen Aktionen des Zuges (aus a=0 ODER a=2, `selectable` oben).
+        if (isFundkammerHex(gameState, clickedX, clickedY) && !(gameState.uw && gameState.uw.f && gameState.uw.f[`${clickedX},${clickedY}`])) {
+            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #8c6d2f;" onclick="window.startUWLootFundkammer()">🏺 Fundkammer plündern</button>`;
+        }
+        const mineTargets = calculateMineTargetsUW(unit);
+        if (!unit.mi && mineTargets.length > 0) {
+            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #00838f;" onclick="window.startUWMining()">💎 Abbau starten</button>`;
+        }
+        if (unit.mi) {
+            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #455a64;" onclick="window.stopUWMining()">🛑 Abbau stoppen</button>`;
+        }
+        if (unit.t === 7 && stollenOwner === gameState.cp) {
+            const surfaceFree = !groundUnitAt(clickedX, clickedY) && gameState.v[`${clickedX},${clickedY}`] === undefined;
+            if (surfaceFree) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #6d4c41;" onclick="window.uwAscend()">🕳 Aufsteigen</button>`;
+        }
+        // Dynamit + Stollenbruch (Sprengmeister 18 exklusiv). Dynamit ersetzt seit
+        // Juli 2026 die Unterminierung — wirkt nur innerhalb der Unterwelt, nie auf
+        // Oberflächen-Strukturen (siehe Kommentar bei processUWDynamiteDetonations).
+        if (unit.t === 18) {
+            const dynamiteTargets = calculateDynamiteTargetsUW(unit);
+            if (dynamiteTargets.length > 0) {
+                const afford = pState.m >= 1;
+                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #d84315; ${afford ? '' : 'opacity:0.5;'}" ${afford ? `onclick="window.startUWDynamite()"` : 'disabled'}>🧨 Dynamit legen (1🪵)</button>`;
+            }
+            const collapseTargets = calculateStollenbruchTargetsUW(unit);
+            if (collapseTargets.length > 0) {
+                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4e342e;" onclick="window.startUWCollapse()">💥 Stollenbruch</button>`;
+            }
+        }
+        // Sprung (Horcher 21 exklusiv, Korrektur Juli 2026, ersetzt die permanente
+        // Tarnung — war zu stark). Springt 2 Hex weit unabhängig von Fels/Weg
+        // dazwischen, Ziel muss bereits offen & frei sein (calculateHorcherJumpTargetsUW).
+        if (unit.t === 21) {
+            const jumpTargets = calculateHorcherJumpTargetsUW(unit);
+            if (jumpTargets.length > 0) {
+                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #5e35b1;" onclick="window.startUWJump()">🦘 Sprung (2 Felder)</button>`;
+            }
+        }
+        const hint = unit.t === 22 && unit.a === 0 ? ' (2 Grabungen möglich)'
+            : unit.a === 2 ? ' (bereits agiert — noch 1 Aktion möglich)' : '';
+        infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Einheit ausgewählt${hint}. Ziel wählen oder Aktion.</div>`;
+
+        // Fähigkeits-Beschreibung je Roster-Typ (Korrektur Juli 2026, Tooltip-Ausbau) —
+        // exaktes Pendant zum `specInfo`-Block von showTileUI oben (js/input.js), der
+        // für die Oberflächen-Einheiten dieselbe Rolle spielt. PLAN.md Abschn. 4.
+        let uwSpecInfo = '';
+        if (unit.t === 17) uwSpecInfo = 'Spezial: 🕯️ Wache – heilt +2 HP am Rundenende, wenn sie diesen Zug nicht bewegt wurde (Angreifen ist erlaubt, kein Überheilen über Max-HP).';
+        if (unit.t === 18) uwSpecInfo = 'Spezial: 🧨 Dynamit (1🪵) – detoniert zu Beginn deines nächsten Zuges, 6 DMG auf 3 Hexes (auch eigene Truppen!), sprengt massiven Fels dauerhaft frei (Kristalladern bleiben unangetastet, verschwinden nur durch vollständigen Abbau). 💥 Stollenbruch – eigenes offenes Nachbar-Hex wieder verfüllen (Verfolger aussperren).';
+        if (unit.t === 19) uwSpecInfo = 'Spezial: ⚔️ Sturmangriff – nach einem Kill darf sie sich noch einmal frisch bewegen und angreifen (einmal pro Zug).';
+        if (unit.t === 20) uwSpecInfo = 'Spezial: 🪙 Plündert Fundkammern/Adern doppelt so schnell, stiehlt getragene Kristalle bei einem Kill, Kopfgeld-Upgrade wirkt auch auf Kreaturen.';
+        if (unit.t === 21) uwSpecInfo = `Spezial: 👂 Lauschen – Lärm-Pings im Umkreis 5 als exaktes Hex statt nur Richtung. 🦘 Sprung – springt 2 Hex weit, unabhängig von Fels/Weg dazwischen (Ziel muss bereits offen & frei sein).`;
+        if (unit.t === 22) uwSpecInfo = 'Spezial: ⚙️ Gräbt 2 Hex/Zug (statt 1) – nur die allererste Grabung des Zuges belässt noch eine zweite Aktion.';
+        if (uwSpecInfo) infoPanel.innerHTML += `<div class="info-detail" style="color: #4fc3f7;">${uwSpecInfo}</div>`;
+    }
+
+    // Eigener freier Stollenkopf -> Rekrutieren: 17-18 immer verfügbar, 19-22 nur
+    // bei der jeweils gewählten Fraktion (uwFactionUnitMap, js/data.js — gleiches
+    // Muster wie die Fraktions-Einheiten der Dorf-Rekrutierung unten). Es gibt
+    // hier KEINEN eigenen Tunnelgräber-Kauf (Korrektur Juli 2026) — die Ebenen-
+    // Brücke ist der ganz normale Arbeiter (7), oben im Dorf rekrutiert, der an
+    // seinem eigenen Tunnel-Startpunkt abtaucht (uwDescend, js/abilities.js).
+    // Belegt-Check bewusst gegen rawUnit/rawCreature (nicht das fog-gefilterte
+    // `unit`) — ein durch Nebel unsichtbarer Besetzer (oder eine Kreatur, M11)
+    // darf trotzdem nicht überkauft werden (wie groundUnitAt bei buyUnit auf
+    // der Oberfläche, das auch unabhängig von Sicht blockiert).
+    if (stollenOwner === gameState.cp && !rawUnit && !rawCreature) {
+        const uwMkBtn = (t, icon) => {
+            const cost = getUnitCost(pState, t);
+            const afford = pState.g >= cost;
+            return `<button class="action-btn" style="padding: 6px 8px; font-size: 0.9rem; display:flex; flex-direction:column; align-items:center; gap:4px; ${afford ? '' : 'opacity:0.5;'}" ${afford ? `onclick="window.buyUWUnit(${t})"` : 'disabled'}>
+                <div>${icon} ${unitStats[t].name} (${cost}G)</div>
+                <div style="font-size: 0.65rem; color: #b0bec5; display:flex; gap:8px;"><span>❤️${unitStats[t].maxHp}</span><span>⚔️${unitStats[t].dmg}</span><span>👟${unitStats[t].move}</span></div>
+            </button>`;
+        };
+        menuHtml += uwMkBtn(17, '🛡') + uwMkBtn(18, '💥');
+        // Ein Spieler kann bis zu 2 Fraktionen freischalten (Kultur 1+2) — wie bei
+        // der Dorf-Rekrutierung unten zeigt jede gewählte Fraktion ihre Einheit.
+        const facIcons = { 19: '⚔', 20: '🪙', 21: '👂', 22: '⚙' };
+        (pState.f || []).forEach(f => {
+            const facUnit = uwFactionUnitMap[f];
+            if (facUnit) menuHtml += uwMkBtn(facUnit, facIcons[facUnit] || '★');
+        });
+    }
+
+    if (menuHtml) showActionMenu(menuHtml);
+}
+
+// Führt die Bewegung von `selectedUWUnit` nach (x,y) aus — reine Bewegung ohne
+// Graben, Ziel muss bereits offen sein (uwValidMoves, BFS über isUnderworldOpen).
+// Eine Fundkammer am Ziel wird NICHT mehr automatisch geplündert (Korrektur Juli
+// 2026) — das Aktionsmenü, das sich nach der Bewegung erneut öffnet, bietet
+// dafür den Plündern-Button an (window.startUWLootFundkammer unten). Die
+// eigentliche Zustandsmutation (Ortswechsel, a=2, Web/Aufsammeln) sitzt in
+// moveUWUnit (js/logic.js, DOM-frei testbar) — hier nur der dünne Wrapper
+// (Undo/turnActions/Toasts/Re-Öffnen).
+function executeUWMoveTo(clickedX, clickedY) {
+    saveUndoState();
+    const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
+    const unit = selectedUWUnit;
+    const { picked } = moveUWUnit(gameState, unit, clickedX, clickedY);
+    // uw:true (M13): Recap-Sichtbarkeit läuft über das Unterwelt-Netz (getVisibleUWHexes),
+    // nicht über die Oberflächen-Sicht — sonst würden fremde Stollen-Bewegungen an
+    // Spieler durchsickern, die zufällig die Oberfläche über dem Hex sehen können.
+    turnActions.push({ x: clickedX, y: clickedY, t: 'mv', fx: fromX, fy: fromY, uw: true });
+    infoPanel.innerHTML = 'Bewegt.';
+
+    // Herrenloser Kristallhaufen (Korrektur Juli 2026): nur trage-fähige Typen
+    // (Arbeiter 7, Beutegräber 20) sammeln automatisch ein, sobald sie das Hex
+    // betreten (pickupUWCrystalDrop prüft den Typ selbst).
+    if (picked > 0) {
+        showToast(`💎 ${picked} herrenlose Kristalle eingesammelt!`, 'gold');
+        turnActions.push({ x: clickedX, y: clickedY, t: 'pickup', uw: true });
+    }
+
+    // Bewegen+Agieren im selben Zug (Oberflächen-Parität, Korrektur Juli 2026):
+    // moveUWUnit hat a=2 gesetzt — die Einheit bleibt ausgewählt, das Aktionsmenü
+    // öffnet sich mit frisch von der NEUEN Position berechneten Angriffs-/Grab-/
+    // Fähigkeits-Optionen erneut (Muster: executeMoveTo -> showTileUI oben). Eine
+    // zweite Bewegung wird NICHT mehr angeboten (uwValidMoves-Gate a===0 s.o.).
+    showUnderworldTileUI(clickedX, clickedY);
+    renderBoard(gameState); updateUI();
+}
+
+// Graben: Ziel-Hex (angrenzender FELS) dauerhaft öffnen und die Einheit
+// nachrücken lassen ("sich durchfressen", siehe Auftrag) — erzeugt Lärm. Eine
+// FÄHIGKEIT wie Angreifen/Dynamit/Stollenbruch (aus a=0 ODER a=2 nutzbar,
+// Oberflächen-Parität, Korrektur Juli 2026) — digUWHex() selbst entscheidet die
+// resultierende a (inkl. der Bohrwagen-2x-Grabung-Ausnahme, s. dort).
+function executeUWDig(clickedX, clickedY) {
+    saveUndoState();
+    const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
+    const unit = selectedUWUnit;
+    const wasFreshTurn = unit.a === 0;
+    digUWHex(gameState, unit, clickedX, clickedY);
+    const isBohrwagenFirstDig = wasFreshTurn && unit.a === 2;
+    addUWNoise(clickedX, clickedY, 'dig');
+    turnActions.push({ x: clickedX, y: clickedY, t: 'dig', fx: fromX, fy: fromY, uw: true });
+    infoPanel.innerHTML = isBohrwagenFirstDig ? '⛏ Erste Grabung! Noch eine Grabung oder ein Angriff möglich.' : '⛏ Hex durchgegraben!';
+    if (unit.a === 2) {
+        // Bohrwagen-Zwischenzustand nach der ERSTEN Grabung: gleiches Re-Öffnen-
+        // Muster wie nach Bewegung (executeUWMoveTo) — Menü zeigt sofort die
+        // verbleibende 2. Grabung bzw. einen möglichen Angriff an.
+        showUnderworldTileUI(clickedX, clickedY);
+    } else {
+        clearUWSelection();
+    }
+    renderBoard(gameState); updateUI();
+}
+
+// Abbau-Toggle (Korrektur Juli 2026, Muster: startMining/stopMining oben) —
+// wählt automatisch die Ader mit dem höchsten Restbestand in Reichweite (eigenes
+// Hex oder angrenzend), kein Ziel-Klick mehr nötig. Der eigentliche Abbau läuft
+// passiv am Zugende (processAutoMiningUW, js/logic.js), verbraucht keine Aktion.
+window.startUWMining = function () {
+    if (!selectedUWUnit) return;
+    const targets = calculateMineTargetsUW(selectedUWUnit);
+    if (targets.length === 0) return;
+    saveUndoState();
+    targets.sort((a, b) => getUWVeinRemaining(gameState, b.x, b.y) - getUWVeinRemaining(gameState, a.x, a.y));
+    selectedUWUnit.mi = { x: targets[0].x, y: targets[0].y };
+    hideActionMenu();
+    infoPanel.innerHTML = `💎 Abbau gestartet!<div class="info-detail" style="color:#4fc3f7;">Am Rundenende: Kristalle +1 (solange du in Reichweite der Ader bleibst).</div>`;
+    renderBoard(gameState);
+};
+
+window.stopUWMining = function () {
+    if (!selectedUWUnit) return;
+    saveUndoState();
+    delete selectedUWUnit.mi;
+    hideActionMenu();
+    infoPanel.innerHTML = `💎 Abbau gestoppt.`;
+    renderBoard(gameState);
+};
+
+// === DYNAMIT (Sprengmeister 18, ersetzt Unterminierung — Korrektur Juli 2026) ===
+// Ziel-Auswahl wie Abbauen/Stollenbruch (mehrstufig, window.uwSpecialActive) —
+// mehrere angrenzende Fels-Hexes können gleichzeitig in Frage kommen, die
+// Sprengrichtung (Dreieck) hängt vom gewählten Ziel ab.
+window.startUWDynamite = function () {
+    if (!selectedUWUnit || selectedUWUnit.t !== 18) return;
+    const targets = calculateDynamiteTargetsUW(selectedUWUnit);
+    if (targets.length === 0) return;
+    const pState = gameState.p[gameState.cp];
+    if (pState.m < 1) { showToast('Nicht genug Holz! (1 benötigt)', 'error'); return; }
+    uwValidMoves = []; uwValidDigs = []; uwValidAttacks = [];
+    uwValidDynamite = targets;
+    window.uwSpecialActive = 'dynamite_select';
+    hideActionMenu();
+    infoPanel.innerHTML = `🧨 Dynamit legen<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes Nachbar-Hex.</div>`;
+    renderBoard(gameState);
+};
+
+// Platzieren: 1 Holz, verbraucht die Aktion, erzeugt Lärm — die Ladung explodiert
+// automatisch, sobald der platzierende Spieler seinen NÄCHSTEN Zug startet
+// (processUWDynamiteDetonations, doEndTurn) und wirkt NUR innerhalb der
+// Unterwelt (Einheiten/Kreaturen/Fels) — nie auf Oberflächen-Strukturen.
+function executeUWDynamitePlace(clickedX, clickedY) {
+    saveUndoState();
+    const pState = gameState.p[gameState.cp];
+    pState.m -= 1;
+    placeUWDynamite(gameState, selectedUWUnit, clickedX, clickedY);
+    addUWNoise(clickedX, clickedY, 'dynamite');
+    turnActions.push({ x: clickedX, y: clickedY, t: 'dynamite', uw: true });
+    infoPanel.innerHTML = '🧨 Dynamit platziert! Explodiert zu Beginn deines nächsten Zuges.';
+    window.uwSpecialActive = null; uwValidDynamite = [];
+    clearUWSelection();
+    renderBoard(gameState); updateUI();
+}
+
+// === STOLLENBRUCH (M12, Sprengmeister 18) ===
+// Ziel-Auswahl wie Abbauen/Mine (mehrstufig, window.uwSpecialActive) — mehrere
+// gegrabene Nachbar-Hexes können gleichzeitig in Frage kommen.
+window.startUWCollapse = function () {
+    if (!selectedUWUnit) return;
+    const targets = calculateStollenbruchTargetsUW(selectedUWUnit);
+    if (targets.length === 0) return;
+    uwValidMoves = []; uwValidDigs = []; uwValidAttacks = [];
+    uwValidCollapse = targets;
+    window.uwSpecialActive = 'collapse_select';
+    hideActionMenu();
+    infoPanel.innerHTML = `💥 Stollenbruch<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes, gegrabenes Nachbar-Hex.</div>`;
+    renderBoard(gameState);
+};
+
+function executeUWCollapse(clickedX, clickedY) {
+    saveUndoState();
+    const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
+    collapseUWHex(gameState, selectedUWUnit, clickedX, clickedY); // setzt a=1 selbst
+    addUWNoise(clickedX, clickedY, 'collapse');
+    turnActions.push({ x: clickedX, y: clickedY, t: 'collapse', fx: fromX, fy: fromY, uw: true });
+    infoPanel.innerHTML = '💥 Stollenbruch! Hex wieder massiver Fels.';
+    window.uwSpecialActive = null; uwValidCollapse = [];
+    clearUWSelection();
+    renderBoard(gameState); updateUI();
+}
+
+// === FUNDKAMMER PLÜNDERN (Korrektur Juli 2026, ersetzt das Auto-Plündern
+// beim Betreten) ===
+// Dünner Button-Wrapper um lootFundkammerAction (js/logic.js) — Muster wie
+// startCapture (js/ui.js): Undo sichern, Kern-Mutation (setzt a=1), Toast +
+// Recap-Eintrag, Auswahl aufräumen.
+window.startUWLootFundkammer = function () {
+    const unit = selectedUWUnit;
+    if (!unit || unit.p !== gameState.cp) return;
+    saveUndoState();
+    const loot = lootFundkammerAction(gameState, unit);
+    if (!loot) return; // schon geplündert/kein Fundkammer-Hex — Button hätte nicht sichtbar sein dürfen
+    if (loot.type === 'crystal') {
+        showToast(`🏺 Fundkammer: +${loot.amount} 💎 Kristalle!`, 'gold');
+    } else if (loot.instant) {
+        showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} — gesamte Karte aufgedeckt!`, 'gold');
+    } else {
+        showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} gefunden!`, 'gold');
+    }
+    turnActions.push({ x: unit.x, y: unit.y, t: 'loot', uw: true });
+    infoPanel.innerHTML = '🏺 Fundkammer geplündert!';
+    clearUWSelection();
+    renderBoard(gameState); updateUI();
+};
+
+// === SPRUNG (M10, Horcher 21 exklusiv — Korrektur Juli 2026, ersetzt die
+// permanente Tarnung) ===
+// Ziel-Auswahl wie Stollenbruch/Dynamit (mehrstufig, window.uwSpecialActive) —
+// mehrere Hexes im Ring-Abstand 2 können gleichzeitig in Frage kommen.
+window.startUWJump = function () {
+    if (!selectedUWUnit || selectedUWUnit.t !== 21) return;
+    const targets = calculateHorcherJumpTargetsUW(selectedUWUnit);
+    if (targets.length === 0) return;
+    uwValidMoves = []; uwValidDigs = []; uwValidAttacks = [];
+    uwValidJump = targets;
+    window.uwSpecialActive = 'jump_select';
+    hideActionMenu();
+    infoPanel.innerHTML = `🦘 Sprung<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein markiertes Feld (2 Hex entfernt, unabhängig vom Weg dazwischen).</div>`;
+    renderBoard(gameState);
+};
+
+function executeUWJump(clickedX, clickedY) {
+    saveUndoState();
+    const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
+    const unit = selectedUWUnit;
+    const { picked } = jumpUWUnit(gameState, unit, clickedX, clickedY);
+    turnActions.push({ x: clickedX, y: clickedY, t: 'jump', fx: fromX, fy: fromY, uw: true });
+    infoPanel.innerHTML = '🦘 Gesprungen!';
+
+    if (picked > 0) {
+        showToast(`💎 ${picked} herrenlose Kristalle eingesammelt!`, 'gold');
+        turnActions.push({ x: clickedX, y: clickedY, t: 'pickup', uw: true });
+    }
+
+    window.uwSpecialActive = null; uwValidJump = [];
+    clearUWSelection();
+    renderBoard(gameState); updateUI();
+}
+
+// Unterwelt-Nahkampf (M10/M11): Schaden -> Konterschlag nach 600ms wenn das
+// Ziel überlebt und in Reichweite bleibt -> bei Kill rückt der Angreifer aufs
+// Ziel-Hex nach (gleiches Grundmuster wie executeAttackOnTarget oben). Kreaturen
+// (targetAttack.isCreature, M11) laufen über resolveUWAttackOnCreature statt
+// resolveUWAttack — eigener Rückgabewert (Wurm-Tod, Beutegräber-Bonusgold).
+function executeUWAttack(clickedX, clickedY, targetAttack) {
+    saveUndoState();
+    const attackerUnit = selectedUWUnit;
+    const target = targetAttack.target;
+
+    const result = targetAttack.isCreature
+        ? resolveUWAttackOnCreature(gameState, attackerUnit, target)
+        : resolveUWAttack(gameState, attackerUnit, target);
+    spawnFloatingText(target.x, target.y, `-${result.finalDmg}`, "#ff5252");
+    addUWNoise(clickedX, clickedY, 'combat'); // Kämpfe erzeugen ebenfalls Lärm (PLAN.md Abschn. 5)
+
+    if (result.retDmg > 0) {
+        const retDmg = result.retDmg;
+        setTimeout(() => {
+            if (attackerUnit.h > 0) {
+                attackerUnit.h -= retDmg;
+                spawnFloatingText(attackerUnit.x, attackerUnit.y, `-${retDmg}`, "#ff5252");
+                if (attackerUnit.h <= 0) {
+                    gameState.uw.u = gameState.uw.u.filter(u => u.i !== attackerUnit.i);
+                    infoPanel.innerHTML += '<br>Deine Einheit wurde im Gegenangriff besiegt!';
+                }
+                renderBoard(gameState);
+            }
+        }, 600);
+    }
+    let msg = `Angriff! (-${result.finalDmg} HP)`;
+    if (result.stolenCrystals > 0) msg += ` | +${result.stolenCrystals}💎 erbeutet!`;
+    if (result.bonusGold > 0) msg += ` | +${result.bonusGold}💰 Kreaturen-Kopfgeld!`;
+    if (result.wormDied) {
+        msg += '<br>🐛 Ein Beben läuft durch das Land — der Alte Wurm ist gefallen!';
+        showToast('🐛 Ein Beben läuft durch das Land — der Alte Wurm ist gefallen!', 'gold');
+        // global:true (M13): PLAN.md Abschn. 5 — "globale Meldung" ist explizit
+        // fog-unabhängig (jeder erfährt davon), anders als die übrigen UW-Aktionen.
+        turnActions.push({ x: clickedX, y: clickedY, t: 'wormdeath', global: true });
+    }
+
+    // attackerUnit.a = 1 setzt bereits resolveUWAttack(OnCreature) selbst (js/logic.js) —
+    // Angriff ist eine Fähigkeit wie Graben/Dynamit (aus a=0 ODER a=2, verbraucht
+    // die Aktion vollständig, Oberflächen-Parität, Korrektur Juli 2026).
+    turnActions.push({ x: clickedX, y: clickedY, t: 'atk', fx: attackerUnit.x, fy: attackerUnit.y, uw: true });
+
+    // Grubenritter-Sturmangriff (Korrektur Juli 2026, maybeTriggerSturmangriff/
+    // js/logic.js): bei einem Kill setzt resolveUWAttack(OnCreature) attacker.a
+    // zurück auf 0 statt 1 (einmal pro Zug) — Einheit bleibt ausgewählt, Menü öffnet
+    // sich mit frisch berechneten Bewegungs-/Angriffsoptionen erneut (Muster:
+    // executeUWMoveTo/executeUWDig).
+    if (attackerUnit.a === 0) {
+        showUnderworldTileUI(attackerUnit.x, attackerUnit.y);
+        infoPanel.innerHTML += '<div class="info-detail" style="color: #4fc3f7;">⚔️ Sturmangriff! Noch eine Bewegung + Aktion möglich.</div>';
+    } else {
+        infoPanel.innerHTML = msg;
+        clearUWSelection();
+    }
+    renderBoard(gameState); updateUI();
 }
 
 // Führt den Angriff von `selectedUnit` auf `targetAttack` aus (Einheit, Hauptgebäude,
@@ -657,7 +1270,17 @@ function executeMoveTo(clickedX, clickedY) {
             const prevX = selectedUnit.x, prevY = selectedUnit.y;
 
             let targetX = clickedX; let targetY = clickedY; let teleported = false;
-            if (gameState.tu && !isFlying(selectedUnit) && !isHeavyUnit(selectedUnit)) {
+            // Der Arbeiter (7) nutzt Tunnel normalerweise wie jede andere Boden-
+            // einheit (Auto-Teleport auf Betreten). NUR wenn das Ziel exakt sein
+            // EIGENER Tunnel-Startpunkt ist (der einzige Ort, an dem Abtauchen
+            // möglich ist, siehe getUnderworldTunnelHeads/js/hex.js), landet er
+            // stattdessen einfach dort — sonst würde er beim bloßen Heranlaufen
+            // sofort quer über die Karte teleportiert, statt die Wahl zwischen
+            // normalem Tunnelgang und Abtauchen (uwDescend, js/abilities.js) zu
+            // bekommen (Korrektur Juli 2026).
+            const isOwnDescendPoint = selectedUnit.t === 7 && gameState.tu && gameState.tu.some(t =>
+                t.o === gameState.cp && t.r <= gameState.rn && t.x1 === clickedX && t.y1 === clickedY);
+            if (gameState.tu && !isFlying(selectedUnit) && !isHeavyUnit(selectedUnit) && !isOwnDescendPoint) {
                 let tunnel = gameState.tu.find(t => t.r <= gameState.rn && ((t.x1 === clickedX && t.y1 === clickedY) || (t.x2 === clickedX && t.y2 === clickedY)));
                 if (tunnel) {
                     let linkX = tunnel.x1 === clickedX ? tunnel.x2 : tunnel.x1;
@@ -1064,6 +1687,18 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                 let onTunnel = gameState.tu.find(t => (t.x1 === clickedUnit.x && t.y1 === clickedUnit.y) || (t.x2 === clickedUnit.x && t.y2 === clickedUnit.y));
                 if (onTunnel) {
                     window.highlightedTunnelEnd = { x: onTunnel.x1 === clickedUnit.x ? onTunnel.x2 : onTunnel.x1, y: onTunnel.y1 === clickedUnit.y ? onTunnel.y2 : onTunnel.y1 };
+                    // Der Arbeiter (7) bekommt an seinem EIGENEN Tunnel-STARTPUNKT (x1,y1)
+                    // ZUSÄTZLICH zum normalen Teleport die Option "Abtauchen" (Ebenenwechsel,
+                    // js/abilities.js) — kein Entweder-Oder, der Spieler entscheidet frei.
+                    // Nur x1,y1, nicht x2,y2: kein Stollenkopf am frei wählbaren Zielpunkt
+                    // (js/hex.js, getUnderworldTunnelHeads). Korrektur Juli 2026: früher gab
+                    // es dafür einen eigenen Tunnelgräber-Typ (16) mit exklusivem, den
+                    // normalen Teleport ausschließendem Sonderpfad — jetzt ist es einfach
+                    // der Arbeiter, der beide Wege nutzen darf.
+                    const isTunnelStart = onTunnel.x1 === clickedUnit.x && onTunnel.y1 === clickedUnit.y;
+                    if (clickedUnit.t === 7 && isTunnelStart && onTunnel.o === gameState.cp && onTunnel.r <= gameState.rn && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
+                        menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4527a0;" onclick="window.uwDescend()">🕳 Abtauchen</button>`;
+                    }
                     if (onTunnel.r <= gameState.rn && (clickedUnit.a === 0 || clickedUnit.a === 2) && !isHeavyUnit(clickedUnit)) {
                         menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #8d6e63;" onclick="useTunnel()">🚇 Durch Tunnel gehen</button>`;
                     }
@@ -1132,6 +1767,11 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
             };
             if (freeGroundHere) {
                 recruitHtml += mkBtn(0, '⚔️', 'Schwert') + mkBtn(1, '🏹', 'Bogen') + mkBtn(2, '🐎', 'Pferd');
+                // Arbeiter (7) ist die EINZIGE Brücke zwischen Oberfläche und Unterwelt
+                // (Korrektur Juli 2026, kein eigener Tunnelgräber-Typ mehr) — an seinem
+                // eigenen Tunnel-Startpunkt kann er zusätzlich zum normalen Tunnelgang
+                // "Abtauchen" (uwDescend, js/abilities.js), am Stollenkopf unten wieder
+                // "Aufsteigen" (uwAscend). Kein separater Rekrutierungs-Button nötig.
                 recruitHtml += mkBtn(7, '⛏️', 'Arbeiter', '#fff176');
                 if (pState.f.includes(0)) { recruitHtml += mkBtn(3, '🛡️', 'Ritter', '#fff176'); recruitHtml += mkBtn(10, '🐪', 'Kamelreiter', '#e65100'); }
                 if (pState.f.includes(1)) { recruitHtml += mkBtn(4, '🪓', 'Berserker', '#fff176'); recruitHtml += mkBtn(8, '💣', 'Saboteur', '#fff176'); }
@@ -1148,31 +1788,68 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
         }
     }
 
+    // Reliquien-Shop ist aus dem Dorf-Menü entfernt und lebt jetzt im eigenen
+    // Fenster (window.openRelicShop, Radialmenü "🏺 Reliquien", js/ui.js) — im
+    // Hauptgebäude-Menü war laut Jonathan kein Platz mehr dafür.
     if (!clickedUnit && !recruitHtml) { selectedUnit = null; validMoves = []; validAttacks = []; }
 
-    const tileMenuHtml = unitMenuHtml + (recruitHtml ? `<div class="recruit-scroll" style="width:100%;">${recruitHtml}</div>` : '');
+    const tileMenuHtml = unitMenuHtml
+        + (recruitHtml ? `<div class="recruit-scroll" style="width:100%;">${recruitHtml}</div>` : '');
     if (tileMenuHtml) showActionMenu(tileMenuHtml);
 }
 
 // === POINTER / TOUCH EVENTS ===
+// Langdruck-Timer fürs Radial-Auswahlrad (js/radialmenu.js): 1s halten OHNE zu
+// ziehen öffnet das Rad am Druckpunkt. Kein expliziter "Spiel läuft gerade
+// nicht"-Guard nötig — die Listener hängen auf #canvas-wrapper, das auf
+// Start-/Lobby-/Overlay-Bildschirmen unsichtbar (display:none) bzw. von
+// Overlays verdeckt ist und dadurch ohnehin keine Pointer-Events bekommt.
+let longPressTimer = null;
+const LONG_PRESS_MS = 1000;
+
+function clearLongPressTimer() {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+}
+
 canvasWrapper.addEventListener('pointerdown', (e) => {
     isDragging = true;
     hasMoved = false;
     dragStartX = e.clientX; dragStartY = e.clientY;
     Renderer.beginGesture();
     canvasWrapper.setPointerCapture(e.pointerId);
+
+    // Neuer Druck beginnt: alten "Press konsumiert"-Zustand des Rads zurücksetzen,
+    // sonst würde ein Radial-Menü-Klick fälschlich noch den NÄCHSTEN Tap unterdrücken.
+    if (window.RadialMenu) RadialMenu.resetPressConsumed();
+    clearLongPressTimer();
+    longPressTimer = setTimeout(() => {
+        longPressTimer = null;
+        if (!isDragging || hasMoved) return; // Zwischenzeitlich losgelassen oder gezogen
+        isDragging = false; // laufendes Kamera-Panning/-Gesture beenden, das Rad übernimmt jetzt
+        if (navigator.vibrate) navigator.vibrate(30);
+        if (window.RadialMenu) RadialMenu.open(dragStartX, dragStartY);
+    }, LONG_PRESS_MS);
 });
 
 canvasWrapper.addEventListener('pointermove', (e) => {
     if (!isDragging) return;
     const dx = e.clientX - dragStartX; const dy = e.clientY - dragStartY;
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) hasMoved = true;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) { hasMoved = true; clearLongPressTimer(); }
     Renderer.gesturePan(dx, dy);
 });
 
 canvasWrapper.addEventListener('pointerup', (e) => {
+    clearLongPressTimer();
     isDragging = false;
     canvasWrapper.releasePointerCapture(e.pointerId);
+    // Solange das Rad offen ist (oder gerade durch DIESEN Loslass-Event auf
+    // Document-Ebene geschlossen wird — RadialMenu hängt seine eigenen
+    // pointerup-Listener erst beim Öffnen an document, die wegen Pointer-Capture
+    // NACH diesem Listener hier feuern, siehe js/radialmenu.js) darf kein
+    // normaler Karten-Klick durchgehen; wasPressConsumed() bleibt zusätzlich bis
+    // zum nächsten pointerdown wahr, als Absicherung falls die Event-Reihenfolge
+    // sich browserabhängig doch anders verhält.
+    if (window.RadialMenu && (RadialMenu.isOpen() || RadialMenu.wasPressConsumed())) return;
     if (!hasMoved) handleCanvasClick(e.clientX, e.clientY);
 });
 
@@ -1186,6 +1863,7 @@ canvasWrapper.addEventListener('wheel', (e) => {
 
 canvasWrapper.addEventListener('touchstart', e => {
     if (e.touches.length === 2) {
+        clearLongPressTimer(); // Pinch/Orbit mit 2 Fingern darf kein Radial-Menü öffnen
         isDragging = false;
         const [t0, t1] = e.touches;
         initialPinchDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
@@ -1284,20 +1962,43 @@ function confirmSurrender() {
 
     gameState.p[surrenderingId].dead = 1;
     gameState.u = gameState.u.filter(u => u.p !== surrenderingId);
+    if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(u => u.p !== surrenderingId);
 
     Object.keys(gameState.v).forEach(k => {
         if (gameState.v[k] === surrenderingId) gameState.v[k] = -1;
     });
 
+    // Siehe doEndTurn: uw.n wird durch die Marker des gerade beendeten (hier:
+    // abgebrochenen) Zugs ersetzt.
+    if (gameState.uw || (window.uwNoiseScratch && window.uwNoiseScratch.length)) {
+        if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {} };
+        gameState.uw.n = window.uwNoiseScratch || [];
+    }
+    window.uwNoiseScratch = [];
+
     gameState.la = turnActions;
     turnActions = [];
 
+    let oldRn = gameState.rn;
     let loopGuard = 0;
     do {
         gameState.cp++;
         if (gameState.cp >= gameState.p.length) { gameState.cp = 0; gameState.rn++; }
         loopGuard++;
     } while (gameState.p[gameState.cp].dead === 1 && loopGuard < gameState.p.length);
+
+    // Unterwelt-Kreaturen: gleiche Runden-Phase-Verdrahtung wie doEndTurn (s.
+    // dort für die ausführliche Begründung) — auch ein Aufgeben kann einen
+    // Rundenwechsel auslösen (letzter Spieler der Runde gibt auf), dann muss
+    // die Kreaturen-Runden-Phase genauso laufen wie bei einem regulären Zugende.
+    gameState.uwbd = [];
+    if (gameState.rn > oldRn) {
+        const phase = uwCreatureRoundPhase();
+        gameState.uwbd = phase.floats;
+        phase.events.filter(e => e.type === 'creatureAtk').forEach(e => {
+            gameState.la.push({ x: e.x, y: e.y, t: 'creatureAtk', uw: true });
+        });
+    }
 
     const alivePlayers = gameState.p.filter(p => p.dead !== 1);
     const teamWinners = checkTeamWin(alivePlayers);
@@ -1312,11 +2013,13 @@ function confirmSurrender() {
 
     gameState.p.forEach(p => {
         if (Array.isArray(p.e)) p.e = compressFog(p.e);
+        if (Array.isArray(p.ue)) p.ue = compressFog(p.ue);
         if (p.al && p.al.length === 0) delete p.al;
         if (p.req && p.req.length === 0) delete p.req;
         if (p.tc && p.tc.length === 0) delete p.tc;
         if (p.of && p.of.length === 0) delete p.of;
         if (p.gifts && p.gifts.length === 0) delete p.gifts;
+        if (p.rel && p.rel.length === 0) delete p.rel;
         if (gameState.tu && gameState.tu.length === 0) delete gameState.tu;
         if (gameState.wa && gameState.wa.length === 0) delete gameState.wa;
         if (gameState.st && gameState.st.length === 0) delete gameState.st;
@@ -1330,21 +2033,66 @@ function confirmSurrender() {
         if (!u.bn) delete u.bn;
         delete u.i;
     });
+    // Unterwelt-Zustand (M9b/M10/M11): gleiches Delete-Defaults-Muster wie u[]
+    // oben + uw.d komprimiert wie p[].e/ue; state.uw komplett weglassen, wenn
+    // nichts von der Unterwelt je berührt wurde (spart Blob-Bytes in den meisten
+    // Spielen). uw.f/uw.w folgen demselben Muster wie uw.a; uw.c-Einträge bleiben
+    // kompakt ({t,x,y,h}, kein a/i — Kreaturen haben kein Aktions-/ID-Konzept);
+    // c.ap ({p,d}, Korrektur Juli 2026 — Telegraph-Muster/-Richtung, kleine Ints)
+    // wird automatisch mit serialisiert, braucht kein eigenes Default-Cleanup und
+    // wird NIE als eigenständige Hex-Liste gespeichert — Telegraph-Ziel-Hexes
+    // werden immer aus (Position, ap) über getCreatureAttackHexes abgeleitet, da
+    // Kreaturen sich während einer Runde nicht bewegen (js/logic.js).
+    // uw.wd (Wurm dauerhaft tot) ist ein einfaches Flag, kein Default-Cleanup nötig
+    // (bleibt einfach unter dem Schlüssel weg, bis der Wurm stirbt).
+    if (gameState.uw) {
+        (gameState.uw.u || []).forEach(u => {
+            if (u.a === 0) delete u.a;
+            if (!u.mi) delete u.mi; // Abbau-Toggle (Korrektur Juli 2026, Muster: u.mi oben)
+            delete u.i;
+        });
+        if (Array.isArray(gameState.uw.d)) gameState.uw.d = compressFog(gameState.uw.d);
+        if (gameState.uw.n && gameState.uw.n.length === 0) delete gameState.uw.n;
+        if (gameState.uw.a && Object.keys(gameState.uw.a).length === 0) delete gameState.uw.a;
+        if (gameState.uw.f && Object.keys(gameState.uw.f).length === 0) delete gameState.uw.f;
+        if (gameState.uw.w && Object.keys(gameState.uw.w).length === 0) delete gameState.uw.w;
+        if (gameState.uw.dr && Object.keys(gameState.uw.dr).length === 0) delete gameState.uw.dr; // Kristallhaufen (Korrektur Juli 2026)
+        if (gameState.uw.dy && gameState.uw.dy.length === 0) delete gameState.uw.dy; // Dynamit-Ladungen (Korrektur Juli 2026)
+        if (gameState.uw.c && gameState.uw.c.length === 0) delete gameState.uw.c;
+        if (!gameState.uw.d && (!gameState.uw.u || gameState.uw.u.length === 0) && !gameState.uw.n && !gameState.uw.a && !gameState.uw.f && !gameState.uw.w && !gameState.uw.dr && !gameState.uw.dy && !gameState.uw.c && !gameState.uw.wd && !gameState.uw.hz) delete gameState.uw;
+    }
     if (gameState.bd && gameState.bd.length === 0) delete gameState.bd;
+    if (gameState.uwbd && gameState.uwbd.length === 0) delete gameState.uwbd; // Moral-Kollaps-Floats (M12)
     const encodedState = LZString.compressToEncodedURIComponent(JSON.stringify(gameState));
 
     gameState.p.forEach(p => {
         if (typeof p.e === 'string') p.e = decompressFog(p.e);
+        if (typeof p.ue === 'string') p.ue = decompressFog(p.ue);
+        if (!p.ue) p.ue = [];
         if (!p.al) p.al = [];
         if (!p.req) p.req = [];
         if (!p.tc) p.tc = [];
         if (!p.of) p.of = [];
+        if (!p.rel) p.rel = [];
         if (p.dead === undefined) p.dead = 0;
     });
     if (!gameState.tu) gameState.tu = [];
     if (!gameState.wa) gameState.wa = [];
     if (!gameState.st) gameState.st = [];
     if (!gameState.tw) gameState.tw = [];
+    if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {}, f: {}, w: {}, c: [] };
+    if (typeof gameState.uw.d === 'string') gameState.uw.d = decompressFog(gameState.uw.d);
+    if (!gameState.uw.d) gameState.uw.d = [];
+    if (!gameState.uw.u) gameState.uw.u = [];
+    if (!gameState.uw.n) gameState.uw.n = [];
+    if (!gameState.uw.a) gameState.uw.a = {};
+    if (!gameState.uw.f) gameState.uw.f = {};
+    if (!gameState.uw.w) gameState.uw.w = {};
+    if (!gameState.uw.c) gameState.uw.c = [];
+    gameState.uw.u.forEach((u, idx) => {
+        if (u.a === undefined) u.a = 0;
+        if (!u.i) u.i = idx + 1;
+    });
     gameState.u.forEach((u, idx) => {
         if (u.a === undefined) u.a = 0;
         if (!u.i) u.i = idx + 1;
@@ -1445,8 +2193,10 @@ function hasRemainingActions() {
     const myVillageKeys = Object.entries(gameState.v)
         .filter(([k, v]) => v === pId)
         .map(([k]) => k);
-    // Kaufbare Typen: Basis 0,1,2 + Fraktions-Einheiten
-    const factionUnitMap = { 0: [3], 1: [4], 2: [5, 6], 3: [6, 7] };
+    // Kaufbare Typen: Basis 0,1,2 + Fraktions-Einheiten (inkl. Unterwelt-Spezial-
+    // einheiten 19-22, M10 — "kaufbar" ist hier nur eine Kosten-Untergrenze für
+    // den End-Zug-Hinweis, keine Verfügbarkeitsprüfung gegen Dorf/Stollenkopf).
+    const factionUnitMap = { 0: [3, 19], 1: [4, 20], 2: [5, 6, 21], 3: [6, 7, 22] };
     let buyableTypes = [0, 1, 2];
     if (pState.f) pState.f.forEach(fId => { if (factionUnitMap[fId]) buyableTypes = buyableTypes.concat(factionUnitMap[fId]); });
     const cheapest = Math.min(...buyableTypes.map(t => getUnitCost(pState, t)));
@@ -1506,7 +2256,7 @@ function openEndTurnConfirm() {
 
     const myVillageKeys = Object.entries(gameState.v).filter(([k, v]) => v === pId).map(([k]) => k);
     if (actions.length === 0 && myVillageKeys.length > 0) {
-        const factionUnitMap = { 0: [3, 10, 12], 1: [4, 8, 13], 2: [5, 9, 14], 3: [6, 11, 15] };
+        const factionUnitMap = { 0: [3, 10, 12, 19], 1: [4, 8, 13, 20], 2: [5, 9, 14, 21], 3: [6, 11, 15, 22] };
         let buyableTypes = [0, 1, 2];
         if (pState.f) pState.f.forEach(fId => { if (factionUnitMap[fId]) buyableTypes = buyableTypes.concat(factionUnitMap[fId]); });
         const cheapest = Math.min(...buyableTypes.map(t => getUnitCost(pState, t)));
@@ -1540,7 +2290,22 @@ function doEndTurn() {
     undoStack = [];
     updateUndoButton();
 
+    // Unterwelt-Lärm (M9b): uw.n wird durch die Marker des GERADE BEENDETEN Zugs
+    // ersetzt (nicht ergänzt) — siehe PLAN.md Abschn. 3/getUWNoisePings. Der
+    // Scratch-Puffer liegt bewusst außerhalb von gameState (siehe globals.js).
+    if (gameState.uw || (window.uwNoiseScratch && window.uwNoiseScratch.length)) {
+        if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {} };
+        gameState.uw.n = window.uwNoiseScratch || [];
+    }
+    window.uwNoiseScratch = [];
+
     processAutoMining(gameState.cp);
+    // Unterwelt-Pendant (Korrektur Juli 2026, Toggle-Abbau + Auto-Ablieferung wie
+    // beim Steinabbau oben): Reihenfolge bewusst Abbau -> Ablieferung, damit frisch
+    // abgebaute Kristalle im selben Zugende schon gebucht werden, falls die Einheit
+    // zufällig direkt am eigenen Stollenkopf steht.
+    processAutoMiningUW(gameState.cp);
+    processUWCrystalAutoDeliver(gameState.cp);
     floatingTexts = [];
     attackAnims = [];
     isAnimating = false;
@@ -1553,7 +2318,47 @@ function doEndTurn() {
         u.a = 0;
         delete u.br;
     });
+    // Grubenwache (17): "Wache" — heilt +2 HP, wenn sie im gerade beendeten Zug
+    // NICHT bewegt wurde (u.mv, von moveUWUnit gesetzt); Angreifen allein steht
+    // der Heilung nicht im Weg. Gecappt auf Max-HP. Muss VOR dem mv/a-Reset
+    // direkt darunter laufen, sonst wäre das Flag bereits wieder weg.
+    ((gameState.uw && gameState.uw.u) || []).forEach(u => {
+        if (u.t === 17 && u.p === gameState.cp && !u.mv) {
+            const maxHp = getUnitMaxHp(gameState.p[u.p], u.t, u);
+            u.h = Math.min(maxHp, u.h + 2);
+        }
+    });
+    // Unterwelt-Einheiten (M9b/M10): a-Reset wie oben, unfiltriert für alle Spieler
+    // (gleiches Muster).
+    ((gameState.uw && gameState.uw.u) || []).forEach(u => {
+        u.a = 0;
+        delete u.sm; // Sturmangriff-Sperre (Grubenritter 19) ist nur je Zug gültig
+        delete u.mv; // Bewegt-Flag (Grubenwache-Heilung) ist nur je Zug gültig
+    });
     if (gameState.p[gameState.cp].tc) gameState.p[gameState.cp].tc = [];
+
+    // Erschließung (M12, PLAN.md Abschn. 8): Bedingung am EIGENEN Zugende prüfen —
+    // also für den Spieler, der gerade seinen Zug beendet (gameState.cp VOR dem
+    // Wechsel unten). Dieser Toast feuert nur EINMAL, synchron im Browser-Tab
+    // dieses (erschließenden) Spielers selbst — bei 3+ Spielern erreicht das
+    // niemals alle direkt. Die eigentliche "alle erfahren es"-Garantie sitzt daher
+    // NICHT hier, sondern als eigener Reminder-Toast in bootGame() (js/main.js),
+    // der bei JEDEM Zugstart JEDES Spielers feuert, solange uw.hz aktiv ist
+    // (Korrektur Juli 2026, Bugfix — vorher bekamen nur der erschließende Spieler
+    // selbst plus zufällig der direkt nachfolgende Spieler überhaupt je etwas zu
+    // sehen). Der Recap-Eintrag unten bleibt zusätzlich als globales, fog-freies
+    // Event-Icon auf der Karte erhalten.
+    if (gameState.uw) {
+        const erschlEvent = advanceErschliessung(gameState, gameState.cp);
+        if (erschlEvent && erschlEvent.type !== 'reset') {
+            const name = gameState.p[erschlEvent.p].n;
+            showToast(`🌍 Die Erde bebt — ${name} erschließt das Herz der Tiefe (${erschlEvent.n}/${ERSCHLIESSUNG_TARGET})`, 'gold');
+            const cxHz = Math.floor(gameState.bw / 2), cyHz = Math.floor(gameState.bh / 2);
+            // global:true (M13): PLAN.md Abschn. 8 — "erfahren es ALLE über das
+            // Event-System", explizit fog-unabhängig wie der Wurm-Tod.
+            turnActions.push({ x: cxHz, y: cyHz, t: 'erschl', global: true });
+        }
+    }
 
     let oldRn = gameState.rn;
     let loopGuard = 0;
@@ -1563,7 +2368,47 @@ function doEndTurn() {
         loopGuard++;
     } while (gameState.p[gameState.cp].dead === 1 && loopGuard < gameState.p.length);
 
+    // Unterwelt-Kreaturen: die Runden-Phase (Korrektur Juli 2026, "Runden-Phase +
+    // Telegraph", ersetzt das alte Pro-Zug-Modell processUWCreatureTurn) läuft
+    // GENAU EINMAL pro Rundenwechsel — erkennbar an gameState.rn > oldRn, nicht
+    // an jedem einzelnen Spielerwechsel (Muster: Brand-Ticks, aber rundenweise
+    // statt zugweise). Design-Grund: bei 6 Spielern wurde eine Einheit im alten
+    // Modell bis zu 6x angegriffen, bevor ihr Besitzer überhaupt reagieren
+    // konnte. uwCreatureRoundPhase() selbst (js/logic.js) löst zuerst die
+    // Telegraphen der VORRUNDE auf (Schaden, besitzerunabhängig), bewegt dann
+    // die Kreaturen und setzt abschließend neue Telegraphen. Die Floats müssen
+    // VOR der uwbd-Zuweisung unten anfallen, damit sie mit den Moral-Kollaps-/
+    // Dynamit-Floats derselben Runde zusammen im UI landen.
+    let uwCreatureFloats = [];
+    if (gameState.rn > oldRn) {
+        const phase = uwCreatureRoundPhase();
+        uwCreatureFloats = phase.floats;
+        // uw:true (M13): Kreaturen-Angriffe sind Unterwelt-Ereignisse und im Recap
+        // nur für Spieler mit Netz-Sicht auf das betroffene Hex sichtbar (gleiche
+        // Fog-Regel wie alle anderen UW-Aktionen). Direkt an gameState.la gehängt
+        // statt an turnActions (das oben bereits geleert/umgehängt wurde) — die
+        // Events gehören noch zur GERADE beendeten Runde.
+        phase.events.filter(e => e.type === 'creatureAtk').forEach(e => {
+            gameState.la.push({ x: e.x, y: e.y, t: 'creatureAtk', uw: true });
+        });
+    }
+
     if (gameState.tw) gameState.tw.filter(tw => tw.o === gameState.cp).forEach(tw => tw.a = 0);
+
+    // Moral-Kollaps (M12, PLAN.md Abschn. 3): zu Beginn des eigenen Zuges (NEUER
+    // gameState.cp, direkt nach dem Wechsel oben) — kein nutzbarer Tunnel mehr ->
+    // alle eigenen Tiefeneinheiten verlieren 1 HP (Muster: Brand-Ticks). Reine
+    // Regel in applyMoralCollapse (js/logic.js), hier nur Toast + Float-Array.
+    const uwCollapseFloats = applyMoralCollapse(gameState, gameState.cp);
+    if (uwCollapseFloats.length > 0) showToast('⚠️ Deine Expedition ist abgeschnitten!', 'error');
+
+    // Dynamit-Detonation (ersetzt Unterminierung, Korrektur Juli 2026): läuft
+    // ebenfalls zu Beginn des eigenen Zuges — genau dann, wenn eine zuvor
+    // platzierte Ladung des NEUEN gameState.cp fällig ist (processUWDynamite-
+    // Detonations, js/logic.js). Wirkt ausschließlich innerhalb der Unterwelt.
+    const uwDynamiteFloats = processUWDynamiteDetonations(gameState.cp);
+    if (uwDynamiteFloats.length > 0) showToast('🧨 Dynamit detoniert!', 'gold');
+    gameState.uwbd = uwCreatureFloats.concat(uwCollapseFloats, uwDynamiteFloats);
 
     // === BRAND-TICKS (Ballon: Anzünden & Feuersturm, einheitlich über bn/bo) ===
     // Ein Brand-Tag (bn = ausstehender Folgeschaden, bo = verursachender Spieler) tickt genau
@@ -1615,7 +2460,31 @@ function doEndTurn() {
 
     const alivePlayers = gameState.p.filter(p => p.dead !== 1);
     const teamWinners2 = checkTeamWin(alivePlayers);
-    const isWin = teamWinners2 || alivePlayers.length === 1;
+    // Erschließung (M12): Sieg über die normale Win-Check-Logik, unabhängig davon,
+    // ob noch andere Spieler leben — "Sieger = Erschließer + Verbündete".
+    //
+    // Bugfix (Juli 2026): n erreicht bereits am eigenen letzten Zugende des
+    // Erschließers ERSCHLIESSUNG_TARGET/ERSCHLIESSUNG_TARGET (advanceErschliessung
+    // oben) — das ist aber, sofern der Erschließer nicht der LETZTE Spieler in der
+    // Zugreihenfolge ist, VOR dem Zugende der nach ihm kommenden Spieler in
+    // derselben Runde. Ohne diese Sperre gewann er einen Zug zu früh, bevor alle
+    // anderen Spieler ihren eigenen Zug in dieser letzten Runde überhaupt spielen
+    // konnten. Der Sieg wird daher erst final geprüft, wenn die Runde tatsächlich
+    // vollständig durchlaufen ist (gameState.rn > oldRn, d.h. der gerade endende
+    // Spieler war der letzte der Runde) — und zu diesem Zeitpunkt wird die
+    // Haltebedingung NOCHMAL frisch geprüft: hat ein nachfolgender Spieler in
+    // seinem eigenen Zug dieser Runde noch eine Einheit in die Kaverne gebracht,
+    // bricht das die Erschließung genauso ab wie jede andere Unterbrechung (Zähler
+    // komplett auf 0, kein Sieg).
+    let erschlWinners = null;
+    if (gameState.rn > oldRn && gameState.uw && gameState.uw.hz && gameState.uw.hz.n >= ERSCHLIESSUNG_TARGET) {
+        if (!checkErschliessungProgress(gameState, gameState.uw.hz.p)) {
+            delete gameState.uw.hz;
+        } else {
+            erschlWinners = checkErschliessungWin(gameState);
+        }
+    }
+    const isWin = teamWinners2 || alivePlayers.length === 1 || !!erschlWinners;
 
     const pId = gameState.cp; const pState = gameState.p[pId];
     let healsThisTurn = [];
@@ -1643,11 +2512,13 @@ function doEndTurn() {
 
     gameState.p.forEach(p => {
         if (Array.isArray(p.e)) p.e = compressFog(p.e);
+        if (Array.isArray(p.ue)) p.ue = compressFog(p.ue);
         if (p.al && p.al.length === 0) delete p.al;
         if (p.req && p.req.length === 0) delete p.req;
         if (p.tc && p.tc.length === 0) delete p.tc;
         if (p.of && p.of.length === 0) delete p.of;
         if (p.gifts && p.gifts.length === 0) delete p.gifts;
+        if (p.rel && p.rel.length === 0) delete p.rel;
         if (gameState.tu && gameState.tu.length === 0) delete gameState.tu;
         if (gameState.wa && gameState.wa.length === 0) delete gameState.wa;
         if (gameState.st && gameState.st.length === 0) delete gameState.st;
@@ -1661,21 +2532,66 @@ function doEndTurn() {
         if (!u.bn) delete u.bn;
         delete u.i;
     });
+    // Unterwelt-Zustand (M9b/M10/M11): gleiches Delete-Defaults-Muster wie u[]
+    // oben + uw.d komprimiert wie p[].e/ue; state.uw komplett weglassen, wenn
+    // nichts von der Unterwelt je berührt wurde (spart Blob-Bytes in den meisten
+    // Spielen). uw.f/uw.w folgen demselben Muster wie uw.a; uw.c-Einträge bleiben
+    // kompakt ({t,x,y,h}, kein a/i — Kreaturen haben kein Aktions-/ID-Konzept);
+    // c.ap ({p,d}, Korrektur Juli 2026 — Telegraph-Muster/-Richtung, kleine Ints)
+    // wird automatisch mit serialisiert, braucht kein eigenes Default-Cleanup und
+    // wird NIE als eigenständige Hex-Liste gespeichert — Telegraph-Ziel-Hexes
+    // werden immer aus (Position, ap) über getCreatureAttackHexes abgeleitet, da
+    // Kreaturen sich während einer Runde nicht bewegen (js/logic.js).
+    // uw.wd (Wurm dauerhaft tot) ist ein einfaches Flag, kein Default-Cleanup nötig
+    // (bleibt einfach unter dem Schlüssel weg, bis der Wurm stirbt).
+    if (gameState.uw) {
+        (gameState.uw.u || []).forEach(u => {
+            if (u.a === 0) delete u.a;
+            if (!u.mi) delete u.mi; // Abbau-Toggle (Korrektur Juli 2026, Muster: u.mi oben)
+            delete u.i;
+        });
+        if (Array.isArray(gameState.uw.d)) gameState.uw.d = compressFog(gameState.uw.d);
+        if (gameState.uw.n && gameState.uw.n.length === 0) delete gameState.uw.n;
+        if (gameState.uw.a && Object.keys(gameState.uw.a).length === 0) delete gameState.uw.a;
+        if (gameState.uw.f && Object.keys(gameState.uw.f).length === 0) delete gameState.uw.f;
+        if (gameState.uw.w && Object.keys(gameState.uw.w).length === 0) delete gameState.uw.w;
+        if (gameState.uw.dr && Object.keys(gameState.uw.dr).length === 0) delete gameState.uw.dr; // Kristallhaufen (Korrektur Juli 2026)
+        if (gameState.uw.dy && gameState.uw.dy.length === 0) delete gameState.uw.dy; // Dynamit-Ladungen (Korrektur Juli 2026)
+        if (gameState.uw.c && gameState.uw.c.length === 0) delete gameState.uw.c;
+        if (!gameState.uw.d && (!gameState.uw.u || gameState.uw.u.length === 0) && !gameState.uw.n && !gameState.uw.a && !gameState.uw.f && !gameState.uw.w && !gameState.uw.dr && !gameState.uw.dy && !gameState.uw.c && !gameState.uw.wd && !gameState.uw.hz) delete gameState.uw;
+    }
     if (gameState.bd && gameState.bd.length === 0) delete gameState.bd;
+    if (gameState.uwbd && gameState.uwbd.length === 0) delete gameState.uwbd; // Moral-Kollaps-Floats (M12)
     const encodedState = LZString.compressToEncodedURIComponent(JSON.stringify(gameState));
 
     gameState.p.forEach(p => {
         if (typeof p.e === 'string') p.e = decompressFog(p.e);
+        if (typeof p.ue === 'string') p.ue = decompressFog(p.ue);
+        if (!p.ue) p.ue = [];
         if (!p.al) p.al = [];
         if (!p.req) p.req = [];
         if (!p.tc) p.tc = [];
         if (!p.of) p.of = [];
+        if (!p.rel) p.rel = [];
         if (p.dead === undefined) p.dead = 0;
     });
     if (!gameState.tu) gameState.tu = [];
     if (!gameState.wa) gameState.wa = [];
     if (!gameState.st) gameState.st = [];
     if (!gameState.tw) gameState.tw = [];
+    if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {}, f: {}, w: {}, c: [] };
+    if (typeof gameState.uw.d === 'string') gameState.uw.d = decompressFog(gameState.uw.d);
+    if (!gameState.uw.d) gameState.uw.d = [];
+    if (!gameState.uw.u) gameState.uw.u = [];
+    if (!gameState.uw.n) gameState.uw.n = [];
+    if (!gameState.uw.a) gameState.uw.a = {};
+    if (!gameState.uw.f) gameState.uw.f = {};
+    if (!gameState.uw.w) gameState.uw.w = {};
+    if (!gameState.uw.c) gameState.uw.c = [];
+    gameState.uw.u.forEach((u, idx) => {
+        if (u.a === undefined) u.a = 0;
+        if (!u.i) u.i = idx + 1;
+    });
     gameState.u.forEach((u, idx) => {
         if (u.a === undefined) u.a = 0;
         if (!u.i) u.i = idx + 1;
@@ -1685,6 +2601,11 @@ function doEndTurn() {
     if (teamWinners2) {
         if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true);
         showWin(`${teamWinners2.map(p => p.n).join(' & ')} gewinnen gemeinsam!`);
+        return;
+    }
+    if (erschlWinners) {
+        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true);
+        showWin(`${erschlWinners.map(p => p.n).join(' & ')} haben das Herz der Tiefe erschlossen — wer das Fundament des Landes hält, dem beugt sich die Oberfläche!`);
         return;
     }
     if (alivePlayers.length === 1) {
@@ -1719,7 +2640,7 @@ function doEndTurn() {
 endTurnBtn.addEventListener('click', () => {
     if (endTurnBtn.disabled) return;
     endTurnBtn.disabled = true;
-    if (hasRemainingActions()) {
+    if (localStorage.getItem('da_endturn_confirm') !== '0' && hasRemainingActions()) {
         openEndTurnConfirm();
     } else {
         doEndTurn();

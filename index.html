@@ -55,7 +55,7 @@
         <button class="action-btn" onclick="showCreateGameModal()">+ Neues Spiel</button>
         <button class="action-btn secondary" onclick="showFriendsPanel()">👥 Freunde</button>
         <button class="action-btn secondary" onclick="window.open('darkages_guide.html','_blank')">📖 Anleitung</button>
-        <button id="enable-push-btn" class="action-btn secondary" onclick="handleEnablePush()" style="display:none;">🔔 Benachrichtigungen aktivieren</button>
+        <button class="action-btn secondary" onclick="openSettings()">⚙️ Einstellungen</button>
     </div>
 
     <!-- ── Lobby Screen ───────────────────────────────────────────────────── -->
@@ -109,6 +109,7 @@
     <div id="game-menu-popup" style="display:none;">
         <button id="menu-undo-item" onclick="undoLastAction(); closeGameMenu()" disabled>↩ Rückgängig</button>
         <button id="menu-surrender-item" onclick="openSurrenderDialog(); closeGameMenu()">🏳 Aufgeben</button>
+        <button onclick="openSettings(); closeGameMenu()">⚙️ Einstellungen</button>
         <button onclick="showHomeScreen(); closeGameMenu()">← Hauptmenü</button>
     </div>
 
@@ -220,6 +221,23 @@
             onclick="document.getElementById('research-overlay').style.display='none'">Schließen</button>
     </div>
 
+    <!-- Fraktions-Fenster (Radialmenü "⚜️ Fraktion", window.openFactionOverview, js/ui.js) -->
+    <div id="faction-overlay" class="overlay">
+        <h2 style="color: #d4c4a8; text-align: center; margin-bottom: 20px;">⚜️ Fraktionen</h2>
+        <div class="cards-container" id="faction-cards" style="max-width: 600px;"></div>
+        <button class="action-btn"
+            onclick="document.getElementById('faction-overlay').style.display='none'">Schließen</button>
+    </div>
+
+    <!-- Reliquien-Fenster (Radialmenü "🏺 Reliquien", window.openRelicShop, js/ui.js) — ersetzt den
+         ehemaligen Reliquien-Shop-Block im Dorf-Menü (js/input.js), fürs Hauptgebäude war kein Platz mehr. -->
+    <div id="relic-overlay" class="overlay">
+        <h2 style="color: #d4c4a8; text-align: center; margin-bottom: 20px;">🏺 Reliquien</h2>
+        <div id="relic-cards" style="width: 100%; max-width: 600px; display: flex; flex-direction: column; align-items: center;"></div>
+        <button class="action-btn"
+            onclick="document.getElementById('relic-overlay').style.display='none'">Schließen</button>
+    </div>
+
     <div id="dip-overlay" class="modal-backdrop" style="display: none;">
         <div class="screen-box modal-box" style="min-width: 300px;">
             <h3 style="margin-top: 0; font-family: 'MedievalSharp', cursive; color: var(--gold);">Diplomatie</h3>
@@ -238,6 +256,47 @@
         </div>
     </div>
 
+    <!-- ── Einstellungen (js/settings.js) ────────────────────────────────────── -->
+    <div id="settings-overlay" class="modal-backdrop" style="display:none;">
+        <div class="screen-box modal-box">
+            <h3 style="margin:0;font-family:'MedievalSharp',cursive;color:var(--gold);font-size:1.1rem;">⚙️ Einstellungen</h3>
+            <div class="settings-row">
+                <span class="settings-label">🎵 Musik</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="settings-music-toggle" onchange="setMusicEnabled(this.checked)">
+                    <span class="toggle-knob"></span>
+                </label>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">🔊 Lautstärke</span>
+                <input type="range" id="settings-music-vol" min="0" max="100" step="1"
+                    oninput="setMusicVolume(parseInt(this.value,10))">
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">🧊 3D-Ansicht</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="settings-renderer-toggle" onchange="setRenderer3D(this.checked)">
+                    <span class="toggle-knob"></span>
+                </label>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">⚔️ Zug-beenden-Bestätigung</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="settings-endturn-toggle" onchange="setEndTurnConfirmEnabled(this.checked)">
+                    <span class="toggle-knob"></span>
+                </label>
+            </div>
+            <div class="settings-row settings-row-col">
+                <span class="settings-label">🔔 Push-Benachrichtigungen</span>
+                <span id="settings-push-status" class="settings-status"></span>
+                <button id="settings-push-btn" class="action-btn secondary" style="display:none;"
+                    onclick="handleSettingsEnablePush()">🔔 Jetzt aktivieren</button>
+            </div>
+            <button id="settings-logout-btn" class="action-btn secondary" style="display:none;" onclick="handleLogout()">🚪 Abmelden</button>
+            <button class="action-btn" onclick="closeSettings()">Schließen</button>
+        </div>
+    </div>
+
     <!-- ── Friend Picker Overlay ─────────────────────────────────────────────── -->
     <div id="friend-picker-overlay" class="modal-backdrop" style="display:none;">
         <div class="screen-box modal-box">
@@ -253,22 +312,28 @@
     <div id="ui-container">
         <div id="info-panel">Lade Spielstand...</div>
         <div id="action-menu"></div>
-        <div style="display: flex; gap: 10px; width: 100%;">
-            <button id="upgrade-btn" class="action-btn"
-                style="background: #1b261c; border-color: #81c784; display: none; flex: 1;">✨ Kultur</button>
-            <button id="research-btn" class="action-btn"
-                style="background: #1a237e; border-color: #3949ab; display: none; flex: 1;" onclick="openResearch()">📜
-                Forschung</button>
-            <button id="dip-btn" class="action-btn"
-                style="background: #5e35b1; border-color: #7e57c2; display: none; flex: 1;" onclick="openDiplomacy()">🤝
-                Diplomatie</button>
-        </div>
-        <div style="display: flex; gap: 10px; width: 100%;">
-            <button id="end-turn-btn" class="action-btn" style="flex: 1;">Zug beenden</button>
-            <button id="air-view-btn" class="action-btn" onclick="toggleAirView()"
-                title="Luftansicht umschalten">✈️ Luftansicht</button>
+        <!-- "Zug beenden" ist unsichtbar, aber ABSICHTLICH im DOM: endTurnBtn (js/globals.js)
+             und sein .disabled-Flag sind der Readonly-/Spectator-Guard für den Servermodus
+             (gesetzt u.a. in js/lobby.js:340 beim Zuschauen, gelesen in js/input.js:2599-2636,
+             js/main.js:89, js/debug.js:170). Das Radial-Menü (js/radialmenu.js) löst "Zug
+             beenden" per endTurnBtn.click() aus, statt die Logik zu duplizieren — damit
+             greifen alle bestehenden Guards automatisch weiter, ganz ohne diesen Button
+             sichtbar irgendwo im Layout zu zeigen. -->
+        <button id="end-turn-btn" class="action-btn" style="display:none;"></button>
+
+        <div id="camera-focus-slider-wrap" title="Kamerafokus: oben Luftansicht, unten Unterwelt, Mitte Standard">
+            <span class="cfs-label cfs-label-air">🪽</span>
+            <input type="range" id="camera-focus-slider" min="-100" max="100" value="0" step="1"
+                oninput="setCameraFocusSlider(this.value)">
+            <span class="cfs-label cfs-label-underworld">⛏️</span>
         </div>
     </div>
+
+    <!-- Langdruck-Auswahlrad (js/radialmenu.js): ersetzt die entfernten HUD-Buttons
+         Forschung/Fraktion/Diplomatie/Reliquien/Zug-beenden. pointer-events:none auf dem
+         Overlay selbst (siehe css/game.css) — das Tracking läuft über document-Listener,
+         nicht über elementFromPoint, siehe radialmenu.js. -->
+    <div id="radial-menu-overlay" style="display:none;"></div>
 
     <script src="js/globals.js"></script>
     <script src="js/art.js"></script>
@@ -283,10 +348,13 @@
     <script src="js/ui.js"></script>
     <script src="js/diplomacy.js"></script>
     <script src="js/input.js"></script>
+    <script src="js/radialmenu.js"></script>
     <script src="js/mapgen.js"></script>
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
+    <script src="audio/theme_song_data.js"></script>
+    <script src="js/settings.js"></script>
     <script src="js/lobby.js"></script>
     <script src="js/debug.js"></script>
     <script src="js/main.js"></script>

@@ -1,7 +1,7 @@
 // === APP VERSION ===
 // Format: MAJOR.PATCH.HOTFIX — MAJOR = größeres Update/neue Implementation, PATCH = Patch, HOTFIX = Hotfix.
 // Immer nur die betroffene Stelle um 1 hochzählen. Siehe Versionierungsregel in CLAUDE.md.
-const APP_VERSION = '2.2.2';
+const APP_VERSION = '3.0.0';
 
 // === DOM REFERENCES ===
 const appVersionEl = document.getElementById('app-version');
@@ -20,9 +20,12 @@ const ctx = canvas.getContext('2d');
 const uiContainer = document.getElementById('ui-container');
 const infoPanel = document.getElementById('info-panel');
 const actionMenu = document.getElementById('action-menu');
+// end-turn-btn bleibt unsichtbar im DOM (siehe Kommentar in index.html) — nur
+// als Klick-Ziel + Readonly-Guard-Flag (.disabled) fürs Radial-Menü (js/radialmenu.js).
 const endTurnBtn = document.getElementById('end-turn-btn');
-const upgradeBtn = document.getElementById('upgrade-btn');
-const researchBtn = document.getElementById('research-btn');
+// upgrade-btn/research-btn (Kultur/Forschung) sind aus dem HUD entfernt (ins
+// Radial-Menü + künftiges Fraktions-Fenster gewandert, js/radialmenu.js) —
+// ihre DOM-Referenzen sind daher hier absichtlich nicht mehr vorhanden.
 const linkBox = document.getElementById('link-box');
 const intermissionMsg = document.getElementById('intermission-msg');
 const waShareBtn = document.getElementById('wa-share-btn');
@@ -68,6 +71,25 @@ let validAttacks = [];
 let selectedTower = null;
 window.highlightedTunnelEnd = null;
 window.demolishTargets = [];
+
+// === UNTERWELT (M9b) ===
+// Eigener Auswahl-/Highlight-Zustand statt Verzweigung von selectedUnit/validMoves —
+// gleiches Muster wie oben, aber getrennt, weil Unterwelt-Einheiten in `uw.u`
+// statt `u[]` leben (siehe Unterwelt/PLAN.md Abschn. 10).
+let selectedUWUnit = null;
+let uwValidMoves = [];      // BFS-Bewegungsziele (nur offene Hexes)
+let uwValidDigs = [];       // angrenzende FELS-Hexes — Klick darauf = Graben + Nachrücken in einem Zug
+let uwValidAttacks = [];    // Angriffsziele (M10, calculateAttacksUW)
+let uwValidCollapse = [];   // Stollenbruch-Ziele (M12, calculateStollenbruchTargetsUW)
+let uwValidDynamite = [];   // Dynamit-Ziele (Korrektur Juli 2026, calculateDynamiteTargetsUW)
+let uwValidJump = [];       // Horcher-Sprung-Ziele (Korrektur Juli 2026, calculateHorcherJumpTargetsUW)
+window.uwSpecialActive = null; // z.B. 'collapse_select', 'dynamite_select', 'relic_<key>' — mehrstufige Unterwelt-/Reliquien-Aktionen
+// Lärm-Marker des GERADE LAUFENDEN Zugs, noch nicht in gameState.uw.n übernommen
+// (das passiert erst in doEndTurn — "wird durch die Marker des beendeten Zugs
+// ersetzt", siehe PLAN.md Abschn. 3). Bewusst außerhalb von gameState: rein
+// transiente Zug-Anzeige, nicht Teil des Spielzustands/Undo — verhält sich wie
+// floatingTexts/attackAnims (auch außerhalb von gameState, pro Zug zurückgesetzt).
+window.uwNoiseScratch = [];
 
 // === UNDO ===
 let undoStack = [];

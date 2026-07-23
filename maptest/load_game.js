@@ -14,7 +14,9 @@ function loadGameCode() {
     global.teamModeSelect = selectStub;
     if (!global.document) global.document = { getElementById: () => null };
 
-    const files = ['js/prng.js', 'js/hex.js', 'js/mapgen.js'];
+    // js/data.js: seit M11 braucht buildInitialGameState (js/mapgen.js) die
+    // Kreaturen-Konstanten (UWC_*/uwCreatureStats) für die initiale Platzierung.
+    const files = ['js/prng.js', 'js/hex.js', 'js/data.js', 'js/mapgen.js'];
     const src = files
         .map(f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8'))
         .join('\n;\n');

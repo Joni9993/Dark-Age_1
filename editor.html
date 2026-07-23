@@ -164,6 +164,22 @@ const GROUPS = [
     ["Gebäude — 3D-Voxelmodelle", [
         ["vox:village", "Dorf (3D)"], ["vox:startVillage", "Startdorf (3D)"], ["vox:tower", "Wachturm (3D)"],
         ["vox:watchtower", "Zentralturm (3D)"], ["vox:wall", "Mauer (3D)"], ["vox:tunnel", "Tunnel (3D)"], ["vox:stone", "Steinhaufen (3D)"]
+    ]],
+    ["Unterwelt — Roster (Phase 3, Entwurf)", [
+        [16, "⛏ Tunnelgräber"], [17, "🛡 Grubenwache"], [18, "💥 Sprengmeister"],
+        [19, "⚔ Grubenritter (Feudalismus)"], [20, "🪙 Beutegräber (Plünderer)"],
+        [21, "👂 Horcher (Spionage)"], [22, "⚙ Bohrwagen (Gilden)"]
+    ]],
+    ["Unterwelt — Tierwelt (neutral)", [
+        ["uw_spinne", "🕷 Höhlenspinne"], ["uw_wuehler", "🦡 Blindwühler"],
+        ["uw_steinpanzer", "🪨 Steinpanzer"], ["uw_wurm", "🐛 Der Alte Wurm"]
+    ]],
+    ["Unterwelt — 3D-Voxelmodelle", [
+        ["vox:herzkaverne", "Herzkaverne (3D)"], ["vox:fundkammer", "🏺 Fundkammer (3D)"],
+        ["vox:uw_spinne", "🕷 Höhlenspinne (3D)"], ["vox:uw_wuehler", "🦡 Blindwühler (3D)"],
+        ["vox:uw_steinpanzer", "🪨 Steinpanzer (3D)"], ["vox:uw_wurm", "🐛 Der Alte Wurm (3D)"],
+        ["vox:uw_fels_a", "Fels-Brocken A (3D)"], ["vox:uw_fels_b", "Fels-Brocken B (3D)"],
+        ["vox:uw_fels_c", "Fels-Brocken C (3D)"]
     ]]
 ];
 const NAME_BY_KEY = {};
@@ -192,18 +208,125 @@ function freshWorkFromFile() {
 }
 const FILE_STATE = freshWorkFromFile();
 
+// ── Baseline-Tracking (gegen veraltete Autosaves) ───────────────────────────
+// Für jedes Asset (Sprite/Voxelmodell) merken wir uns einen Fingerabdruck des
+// js/art.js-Standes, von dem der aktuelle Autosave abstammt ("Baseline"). Beim
+// nächsten Laden gilt: hat sich js/art.js seit der Baseline geändert, gewinnt
+// js/art.js — außer der Nutzer hat exakt DIESES Asset seither selbst editiert,
+// dann ist es ein echter Konflikt (js/art.js gewinnt trotzdem, aber mit Toast).
+// So kann ein Spielstand-Fix in art.js (z.B. "Ritter/Kamelreiter vertauscht")
+// nicht mehr dauerhaft von einem älteren localStorage-Stand verdeckt werden.
+function hashStr(s) {
+    // Einfacher, deterministischer Fingerabdruck (FNV-1a) — reicht als
+    // "hat sich das geändert?"-Check, keine Kryptografie nötig.
+    let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0).toString(16);
+}
+function hashAsset(obj) { return hashStr(JSON.stringify(obj)); }
+function fileAssetHashes() {
+    const h = { sprites: {}, models: {} };
+    for (const k of Object.keys(FILE_STATE.sprites)) h.sprites[k] = hashAsset(FILE_STATE.sprites[k]);
+    for (const k of Object.keys(FILE_STATE.models)) h.models[k] = hashAsset(FILE_STATE.models[k]);
+    return h;
+}
+const CURRENT_FILE_HASHES = fileAssetHashes();
+function ensureBaseline(w) {
+    if (!w.baseline) w.baseline = { sprites: {}, models: {} };
+    if (!w.baseline.sprites) w.baseline.sprites = {};
+    if (!w.baseline.models) w.baseline.models = {};
+}
+function freshBaseline() { return { sprites: { ...CURRENT_FILE_HASHES.sprites }, models: { ...CURRENT_FILE_HASHES.models } }; }
+
 let work;
+let loadToast = null; // Meldung, die nach dem ersten Aufbau als Toast erscheint
+
 try {
-    const saved = localStorage.getItem(LS_KEY);
-    work = saved ? JSON.parse(saved) : freshWorkFromFile();
-    // Neue Assets aus der Datei übernehmen, die im gespeicherten Stand fehlen
-    for (const k of Object.keys(FILE_STATE.sprites)) if (!work.sprites[k]) work.sprites[k] = FILE_STATE.sprites[k];
-    for (const k of Object.keys(FILE_STATE.models)) if (!work.models[k]) work.models[k] = FILE_STATE.models[k];
-} catch (e) { work = freshWorkFromFile(); }
+    const rawSaved = localStorage.getItem(LS_KEY);
+    if (!rawSaved) {
+        // Kein Autosave vorhanden — frischer Start direkt vom Dateistand.
+        work = freshWorkFromFile();
+        work.baseline = freshBaseline();
+    } else {
+        const saved = JSON.parse(rawSaved);
+        const hadBaseline = !!saved.baseline;
+        work = saved;
+        ensureBaseline(work);
+
+        // Neue Assets aus der Datei übernehmen, die im gespeicherten Stand fehlen
+        // (z.B. gerade neu im Editor/Spiel angelegte Unterwelt-Sprites)
+        for (const k of Object.keys(FILE_STATE.sprites)) {
+            if (!work.sprites[k]) { work.sprites[k] = FILE_STATE.sprites[k]; work.baseline.sprites[k] = CURRENT_FILE_HASHES.sprites[k]; }
+        }
+        for (const k of Object.keys(FILE_STATE.models)) {
+            if (!work.models[k]) { work.models[k] = FILE_STATE.models[k]; work.baseline.models[k] = CURRENT_FILE_HASHES.models[k]; }
+        }
+
+        if (!hadBaseline) {
+            // ── Einmalige Migration eines Alt-Bestands (Autosave aus einer
+            // Editor-Version vor dem Baseline-Tracking). js/art.js gewinnt für
+            // jedes Asset, das vom aktuellen Dateistand abweicht — der alte
+            // Stand wird vorher komplett gesichert, nichts geht still verloren.
+            const backupKey = LS_KEY + "_backup_" + new Date().toISOString().slice(0, 10);
+            try { localStorage.setItem(backupKey, rawSaved); } catch (e) { /* voll — Migration trotzdem fortsetzen */ }
+
+            const updated = [];
+            for (const k of Object.keys(FILE_STATE.sprites)) {
+                if (!work.sprites[k] || hashAsset(work.sprites[k]) !== CURRENT_FILE_HASHES.sprites[k]) {
+                    work.sprites[k] = JSON.parse(JSON.stringify(FILE_STATE.sprites[k]));
+                    updated.push(NAME_BY_KEY[k] || k);
+                }
+            }
+            for (const k of Object.keys(FILE_STATE.models)) {
+                if (!work.models[k] || hashAsset(work.models[k]) !== CURRENT_FILE_HASHES.models[k]) {
+                    work.models[k] = JSON.parse(JSON.stringify(FILE_STATE.models[k]));
+                    updated.push(NAME_BY_KEY["vox:" + k] || ("vox:" + k));
+                }
+            }
+            // Baseline auf den jetzt aktuellen Dateistand setzen — ab hier greift
+            // beim nächsten Laden die normale Konflikterkennung unten.
+            work.baseline = freshBaseline();
+
+            loadToast = updated.length
+                ? `Editor auf Spielstand aktualisiert (${updated.length} Asset${updated.length === 1 ? "" : "s"}: ${updated.join(", ")}) — alter Stand gesichert unter „${backupKey}"`
+                : `Editor-Speicherstand geprüft, war bereits aktuell — Backup vorsichtshalber unter „${backupKey}"`;
+        } else {
+            // ── Normale Baseline-Prüfung: hat sich js/art.js seit dem letzten
+            // Speichern geändert, und hat der Nutzer das betroffene Asset selbst
+            // editiert (dann ist es ein echter Konflikt)? ──
+            const conflicts = [];
+            const reconcile = (workMap, baselineMap, fileMap, fileHashes, labelFor) => {
+                for (const k of Object.keys(fileMap)) {
+                    const fileHash = fileHashes[k];
+                    const baseHash = baselineMap[k];
+                    if (baseHash === undefined) { baselineMap[k] = fileHash; continue; } // gerade erst übernommen, s.o.
+                    if (fileHash === baseHash) continue; // js/art.js unverändert seit Baseline — nichts zu tun
+                    const workHash = workMap[k] ? hashAsset(workMap[k]) : undefined;
+                    if (workHash !== baseHash) conflicts.push(labelFor(k)); // Nutzer hat's ebenfalls verändert -> echter Konflikt
+                    workMap[k] = JSON.parse(JSON.stringify(fileMap[k]));    // js/art.js gewinnt in beiden Fällen
+                    baselineMap[k] = fileHash;
+                }
+            };
+            reconcile(work.sprites, work.baseline.sprites, FILE_STATE.sprites, CURRENT_FILE_HASHES.sprites, k => NAME_BY_KEY[k] || k);
+            reconcile(work.models, work.baseline.models, FILE_STATE.models, CURRENT_FILE_HASHES.models, k => NAME_BY_KEY["vox:" + k] || ("vox:" + k));
+
+            if (conflicts.length) {
+                loadToast = `js/art.js hat sich geändert — deine Bearbeitung an „${conflicts.join(", ")}" wurde durch den neuen Spielstand ersetzt`;
+            }
+        }
+    }
+} catch (e) {
+    work = freshWorkFromFile();
+    work.baseline = freshBaseline();
+}
 
 function persist() {
     try { localStorage.setItem(LS_KEY, JSON.stringify(work)); } catch (e) { /* voll/blockiert — ignorieren */ }
 }
+persist();
 
 // ── Auswahl / aktuelle Leinwand ─────────────────────────────────────────────
 let curKey = "0";            // Asset-Key ("vox:xyz" für Modelle)
@@ -690,7 +813,11 @@ function charForIndex(idx, extraChars) {
     return extraChars.map[idx];
 }
 function generateArtJs() {
-    const ec = { map: {}, pool: CHAR_POOL.split(""), n: 0 };
+    // Pool-Zeichen, die SPRITE_CHARS schon belegt, aussortieren — sonst bekommt
+    // eine neue Palettenfarbe denselben Buchstaben wie eine bestehende und beide
+    // kollabieren beim Laden auf EINEN Wert (so wurden im Juli 2026 Weiß/Schwarz
+    // von Gelb/Rot verdrängt: B/C waren doppelt vergeben, B=20 wurde zu B=24).
+    const ec = { map: {}, pool: CHAR_POOL.split("").filter(c => !(c in SPRITE_CHARS)), n: 0 };
     const indent = "        ";
 
     const spriteBlock = Object.entries(work.sprites).map(([k, sp]) => {
@@ -742,8 +869,8 @@ function generateArtJs() {
     return `// === ART-DATEN (Paletten, Pixel-Sprites, 3D-Voxelmodelle) ===
 // GENERIERT vom Art-Editor (editor.html) — Änderungen am besten dort machen.
 //
-// CLASSIC_* = unverändertes Live-Design, unangetastet vom Editor durchgereicht.
-// NEW_*     = Redesign in Arbeit, nur sichtbar mit ?debug=1 (oder im Editor).
+// NEW_*     = das Dark-Fantasy-Design, seit v3.0.0 das Live-Design für alle.
+// CLASSIC_* = das alte Vor-Redesign-Design, als Archiv unangetastet durchgereicht.
 // DEBUG_ART entscheidet, welcher Satz aktiv ist — siehe Ende der Datei.
 //
 // Sprite-Format: 1 Zeichen = 1 Pixel ('.' = transparent, 'P'/'p' = Spielerfarbe hell/dunkel).
@@ -781,11 +908,12 @@ function decodeSpriteRows(str) {
 const SP = decodeSpriteRows;
 const L = (str) => str.trim().split(/\\s+/).map(r => [...r].map(ch => SPRITE_CHARS[ch] || 0));
 
-const DEBUG_ART = (typeof window !== 'undefined' && window.FORCE_NEW_ART === true)
-    || new URLSearchParams(location.search).has('debug');
+// Seit v3.0.0 (Unterwelt-Update) ist das NEW_*-Set das Live-Design für alle —
+// das frühere ?debug=1-Gate ist aufgehoben. CLASSIC_* bleibt als Archiv erhalten.
+const DEBUG_ART = true;
 
 // ============================================================================
-// CLASSIC — unverändertes Live-Design (nicht vom Editor bearbeitet)
+// CLASSIC — altes Vor-v3.0.0-Design, als Archiv erhalten (nicht vom Editor bearbeitet)
 // ============================================================================
 const CLASSIC_PAL = ${classicPalStr};
 
@@ -796,7 +924,7 @@ const CLASSIC_TERRAIN_COLORS = ${classicTerrainStr};
 const CLASSIC_VOXEL_MODELS = ${classicVoxelModelsStr};
 
 // ============================================================================
-// NEW — Redesign in Arbeit (nur ?debug=1 / Editor)
+// NEW — Dark-Fantasy-Design, seit v3.0.0 live
 // ============================================================================
 const NEW_PAL = {
 ${palLines}
@@ -854,8 +982,13 @@ document.getElementById("btnCopy").onclick = async () => {
 };
 document.getElementById("btnResetAsset").onclick = () => {
     pushUndo();
-    if (isVox()) work.models[voxKey()] = JSON.parse(JSON.stringify(FILE_STATE.models[voxKey()]));
-    else work.sprites[curKey] = JSON.parse(JSON.stringify(FILE_STATE.sprites[curKey]));
+    if (isVox()) {
+        work.models[voxKey()] = JSON.parse(JSON.stringify(FILE_STATE.models[voxKey()]));
+        work.baseline.models[voxKey()] = CURRENT_FILE_HASHES.models[voxKey()];
+    } else {
+        work.sprites[curKey] = JSON.parse(JSON.stringify(FILE_STATE.sprites[curKey]));
+        work.baseline.sprites[curKey] = CURRENT_FILE_HASHES.sprites[curKey];
+    }
     curLayer = 0;
     afterChange();
     toast("Asset auf Dateistand zurückgesetzt");
@@ -863,6 +996,7 @@ document.getElementById("btnResetAsset").onclick = () => {
 document.getElementById("btnResetAll").onclick = () => {
     if (!confirm("Wirklich ALLE Änderungen verwerfen und den Stand aus js/art.js laden?")) return;
     work = freshWorkFromFile();
+    work.baseline = freshBaseline();
     curLayer = 0;
     persist();
     refreshAll();
@@ -897,6 +1031,7 @@ buildPlayerColors();
 buildTerrain();
 initPreview3d();
 refreshAll();
+if (loadToast) toast(loadToast);
 </script>
 </body>
 </html>

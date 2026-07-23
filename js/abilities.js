@@ -463,7 +463,11 @@ window.demolishWall = function (wx, wy) {
 };
 
 window.useTunnel = function () {
-    if (!selectedUnit || isFlying(selectedUnit) || isHeavyUnit(selectedUnit)) return; // Lufteinheiten & schwere Einheiten ignorieren Tunnel
+    // Lufteinheiten & schwere Einheiten ignorieren Tunnel. Der Arbeiter (7) nutzt
+    // Tunnel ganz normal wie jede andere Bodeneinheit — NUR an seinem eigenen
+    // Tunnel-Startpunkt bietet input.js zusätzlich "Abtauchen" (uwDescend) als
+    // Alternative an; hier keine Sonderbehandlung nötig (Korrektur Juli 2026).
+    if (!selectedUnit || isFlying(selectedUnit) || isHeavyUnit(selectedUnit)) return;
     saveUndoState();
     if (gameState.tu) {
         let tunnel = gameState.tu.find(t => t.r <= gameState.rn && ((t.x1 === selectedUnit.x && t.y1 === selectedUnit.y) || (t.x2 === selectedUnit.x && t.y2 === selectedUnit.y)));
@@ -483,3 +487,114 @@ window.useTunnel = function () {
         }
     }
 };
+
+// === UNTERWELT-EBENENWECHSEL (M9b, Korrektur Juli 2026) ===
+// Nur der Arbeiter (7) wechselt die Ebene — kein eigener Tunnelgräber-Typ mehr,
+// der Arbeiter behält Typ 7 und seine Oberflächen-Werte auch unten. Aktion am
+// Stollenkopf bzw. Tunnel-Startpunkt oben (siehe PLAN.md Abschn. 3). Beide
+// Richtungen behalten volle Bewegung + Aktion (a=0, Korrektur Juli 2026 —
+// vorher a=1/Zug verbraucht), verlieren aber weder Veteranenstatus noch
+// getragene Kristalle — nur das Trägerobjekt wandert zwischen u[] und uw.u.
+window.uwAscend = function () {
+    if (!selectedUWUnit || selectedUWUnit.t !== 7) return;
+    const { x, y } = selectedUWUnit;
+    if (getStollenkopfOwner(gameState, x, y) !== gameState.cp) return;
+    if (groundUnitAt(x, y) || gameState.v[`${x},${y}`] !== undefined) { showToast('Oberfläche blockiert!', 'error'); return; }
+    saveUndoState();
+    ascendUWUnit(gameState, selectedUWUnit);
+    // KEIN uw:true (M13): die Einheit erscheint jetzt AUF der Oberfläche — sichtbar
+    // über die Oberflächen-Sicht (Default), symmetrisch zu uwDescend unten.
+    turnActions.push({ x, y, t: 'cap' });
+    clearUWSelection();
+    infoPanel.innerHTML = '🕳 Aufgestiegen zur Oberfläche!';
+    hideActionMenu(); renderBoard(gameState); updateUI();
+};
+
+window.uwDescend = function () {
+    if (!selectedUnit || selectedUnit.t !== 7) return;
+    const { x, y } = selectedUnit;
+    // Nur am Tunnel-STARTPUNKT (x1,y1) — der Zielpunkt (x2,y2) hat seit der
+    // Stollenkopf-Korrektur (js/hex.js, getUnderworldTunnelHeads) keinen
+    // Stollenkopf mehr darunter, siehe Kommentar dort.
+    const ownHead = (gameState.tu || []).some(t => t.o === gameState.cp && t.r <= gameState.rn && t.x1 === x && t.y1 === y);
+    if (!ownHead) return;
+    if (uwUnitAt(x, y) || uwCreatureAt(x, y)) { showToast('Unterwelt-Feld belegt!', 'error'); return; }
+    saveUndoState();
+    descendUWUnit(gameState, selectedUnit);
+    // uw:true (M13): die Einheit verschwindet von der Oberfläche und taucht im
+    // Unterwelt-Netz auf — nur dort sichtbar.
+    turnActions.push({ x, y, t: 'cap', uw: true });
+    selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
+    infoPanel.innerHTML = '🕳 Abgetaucht in die Unterwelt!';
+    hideActionMenu(); renderBoard(gameState); updateUI();
+};
+
+// Abliefern lief bis Juli 2026 über einen manuellen Button — jetzt automatisch
+// am Zugende (processUWCrystalAutoDeliver, js/logic.js), sobald eine Einheit
+// auf/neben ihrem Stollenkopf steht. Kein window.uwDeliverCrystals mehr nötig.
+
+// === RELIQUIEN-ZIELAUSWAHL (M10) ===
+// mkBtn/specialActive-Muster wie Tunnel/Mauer/Turm-Bau oben: startRelicEquip
+// setzt den Modus, der NÄCHSTE Klick (Oberfläche ODER Unterwelt — beide Klick-
+// Handler prüfen window.uwSpecialActive.startsWith('relic_') zuerst, siehe
+// handleCanvasClick/handleUnderworldClick) liefert das Ziel.
+window.startRelicEquip = function (key) {
+    const def = RELICS[key];
+    if (!def) return;
+    // "map" braucht kein Ziel — wirkt sofort. Landet seit dem Fundkammer-Fix
+    // (Juli 2026) zwar nicht mehr im Inventar, alte Spielstände können sie dort
+    // aber noch haben: hier verbrauchen statt sinnlos eine Einheit zu wählen.
+    if (def.target === 'instant') {
+        const pState = gameState.p[gameState.cp];
+        const idx = (pState.rel || []).indexOf(key);
+        if (idx === -1) return;
+        saveUndoState();
+        pState.rel.splice(idx, 1);
+        applyMapRelic(gameState, gameState.cp);
+        showToast(`${def.icon} ${def.name} wirkt — gesamte Karte aufgedeckt!`, 'gold');
+        const [svx, svy] = (pState.sv || '0,0').split(',').map(Number);
+        turnActions.push({ x: svx, y: svy, t: 'relicuse' });
+        hideActionMenu(); renderBoard(gameState); updateUI();
+        return;
+    }
+    window.uwSpecialActive = 'relic_' + key;
+    hideActionMenu();
+    showToast(def.target === 'building' ? `Wähle ein eigenes Bauwerk für ${def.name}` : `Wähle eine eigene Einheit für ${def.name}`, 'info');
+};
+
+function handleRelicTargetClick(clickedX, clickedY, underworld) {
+    const key = window.uwSpecialActive.slice('relic_'.length);
+    const def = RELICS[key];
+    window.uwSpecialActive = null;
+    if (!def) { renderBoard(gameState); return; }
+
+    if (def.target === 'building') {
+        // Meisterwerkzeug: nur Oberflächen-Bauwerke (Mauer/Turm/Tunnel/Startdorf) —
+        // unten gibt es keine Bauwerke.
+        if (underworld) { showToast('Das Meisterwerkzeug zielt auf Oberflächen-Bauwerke.', 'error'); renderBoard(gameState); return; }
+        const wall = (gameState.wa || []).find(w => w.x === clickedX && w.y === clickedY && w.o === gameState.cp);
+        const tower = (gameState.tw || []).find(t => t.x === clickedX && t.y === clickedY && t.o === gameState.cp);
+        const tunnelEnd = (gameState.tu || []).find(t => t.o === gameState.cp && ((t.x1 === clickedX && t.y1 === clickedY) || (t.x2 === clickedX && t.y2 === clickedY)));
+        const isOwnStart = gameState.p[gameState.cp].sv === `${clickedX},${clickedY}`;
+        if (!wall && !tower && !tunnelEnd && !isOwnStart) { showToast('Kein eigenes Bauwerk auf diesem Feld.', 'error'); renderBoard(gameState); return; }
+        saveUndoState();
+        let ok = false;
+        if (wall) ok = applyRelicToBuilding(gameState, gameState.cp, wall, 10);
+        else if (tower) ok = applyRelicToBuilding(gameState, gameState.cp, tower, 15);
+        else if (tunnelEnd) ok = applyRelicToBuilding(gameState, gameState.cp, tunnelEnd, 13);
+        else ok = applyRelicToBuilding(gameState, gameState.cp, gameState.p[gameState.cp], undefined);
+        if (ok) { showToast('🔧 Bauwerk repariert!', 'gold'); turnActions.push({ x: clickedX, y: clickedY, t: 'relicuse' }); }
+    } else {
+        // Klinge/Harnisch: eigene Einheit, Oberfläche ODER Unterwelt.
+        const unit = underworld ? uwUnitAt(clickedX, clickedY) : groundUnitAt(clickedX, clickedY);
+        if (!unit || unit.p !== gameState.cp) { showToast('Keine eigene Einheit auf diesem Feld.', 'error'); renderBoard(gameState); return; }
+        if (unit.art) { showToast('Einheit trägt schon eine Reliquie.', 'error'); renderBoard(gameState); return; }
+        saveUndoState();
+        const ok = applyRelicToUnit(gameState, gameState.cp, key, unit);
+        // uw:true nur wenn die ausgerüstete Einheit unten steht (M13) — die
+        // Meisterwerkzeug-Variante oben bleibt Oberflächen-Sicht (Gebäude sind
+        // immer oben).
+        if (ok) { showToast(`${def.icon} ${def.name} ausgerüstet!`, 'gold'); turnActions.push({ x: clickedX, y: clickedY, t: 'relicuse', uw: underworld }); }
+    }
+    renderBoard(gameState); updateUI();
+}

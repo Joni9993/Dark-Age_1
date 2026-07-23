@@ -5,10 +5,10 @@ const getEntityColor = (id) => id === -1 ? "#888888" : playerColors[id];
 
 // === FACTIONS ===
 const factions = {
-    0: { name: "🏰 Feudalismus", desc: "Passive: Neu rekrutierte Einheiten erhalten +1 Max-HP pro 2 Dörfer, die du beim Rekrutieren besitzt.\nSpezial: 🛡️ Ritter, 🏹 Kamelreiter & 🚁 Luftschraube", cost: 10, reqV: 2 },
-    1: { name: "🩸 Plünderer", desc: "Passive: +1 DMG für Nahkämpfer.\nSpezial: 🪓 Berserker, 💥 Saboteur & 🛩️ Gleiter", cost: 10, reqV: 2 },
-    2: { name: "👁️ Spionage", desc: "Passive: +1 Sichtweite.\nSpezial: 🗡️ Assassine, 🐘 Elefant & 🪂 Fallschirmspringer", cost: 10, reqV: 2 },
-    3: { name: "⚖️ Gilden", desc: "Passive: +1 Gold pro Dorf.\nSpezial: 🏗️ Tribok, 🚚 Wagenburg & 🎈 Bombenballon", cost: 10, reqV: 2 }
+    0: { name: "🏰 Feudalismus", desc: "Passive: Neu rekrutierte Einheiten erhalten +1 Max-HP pro 2 Dörfer, die du beim Rekrutieren besitzt.\nSpezial: 🛡️ Ritter, 🏹 Kamelreiter, 🚁 Luftschraube & ⚔ Grubenritter", cost: 10, reqV: 2 },
+    1: { name: "🩸 Plünderer", desc: "Passive: +1 DMG für Nahkämpfer.\nSpezial: 🪓 Berserker, 💥 Saboteur, 🛩️ Gleiter & 🪙 Beutegräber", cost: 10, reqV: 2 },
+    2: { name: "👁️ Spionage", desc: "Passive: +1 Sichtweite.\nSpezial: 🗡️ Assassine, 🐘 Elefant, 🪂 Fallschirmspringer & 👂 Horcher", cost: 10, reqV: 2 },
+    3: { name: "⚖️ Gilden", desc: "Passive: +1 Gold pro Dorf.\nSpezial: 🏗️ Tribok, 🚚 Wagenburg, 🎈 Bombenballon & ⚙ Bohrwagen", cost: 10, reqV: 2 }
 };
 
 // === UPGRADES ===
@@ -16,7 +16,7 @@ const upgrades = {
     0: { fac: 0, t: 1, name: "Plattenpanzer", desc: "Basis-Schwerter erhalten +5 Max HP.", g: 0, m: 7 },
     1: { fac: 0, t: 2, name: "Waffenmeister", desc: "Neu rekrutierte Einheiten starten bereits als Veteran (+1 DMG).", g: 0, m: 7 },
     2: { fac: 1, t: 1, name: "Kopfgeld", desc: "+2 Gold für jeden Kill.", g: 0, m: 7 },
-    3: { fac: 1, t: 2, name: "Brandschatzer", desc: "Berserker machen +3 DMG gegen Hauptgebäude.", g: 0, m: 7 },
+    3: { fac: 1, t: 2, name: "Brandschatzer", desc: "Berserker machen +3 DMG gegen Hauptgebäude & Tunnel.", g: 0, m: 7 },
     4: { fac: 2, t: 1, name: "Spähbogen", desc: "Bogenschützen erhalten +1 Schaden.", g: 0, m: 7 },
     5: { fac: 2, t: 2, name: "Schattenläufer", desc: "Assassinen erhalten +1 Bewegung und +1 Schaden.", g: 0, m: 7 },
     6: { fac: 3, t: 1, name: "Söldner-Verträge", desc: "Schwert, Bogen & Pferd kosten -1 Gold.", g: 0, m: 7 },
@@ -49,5 +49,84 @@ const unitStats = {
     12: { dmg: 5, range: 1, move: 2, name: "Luftschraube", cost: 7, maxHp: 14, isMelee: true, isAir: true, hitsAir: true, hitsGround: true },
     13: { dmg: 5, range: 1, move: 4, name: "Gleiter", cost: 6, maxHp: 10, isMelee: true, isAir: true, hitsAir: true, hitsGround: true },
     14: { dmg: 4, range: 2, move: 2, name: "Fallschirmspringer", cost: 4, maxHp: 10, isMelee: false, isAir: true, hitsAir: true, hitsGround: false, ldMove: 2 },
-    15: { dmg: 4, range: 1, move: 2, name: "Bombenballon", cost: 9, maxHp: 14, isMelee: false, isAir: true, hitsAir: false, hitsGround: true, igniteDmg: 4, fsCost: 5, fsDmg: 3 }
+    15: { dmg: 4, range: 1, move: 2, name: "Bombenballon", cost: 9, maxHp: 14, isMelee: false, isAir: true, hitsAir: false, hitsGround: true, igniteDmg: 4, fsCost: 5, fsDmg: 3 },
+    // Unterwelt (Phase 3): eigene Ebene unter der Karte, siehe Unterwelt/PLAN.md.
+    // Kein Fraktions-Lock für 17-18 (jeder Spieler kann sie bauen); 19-22 sind
+    // Fraktions-Spezialeinheiten (Zuordnung wie oben über die faktionUnitMap-Stellen
+    // in input.js, nicht hier — unitStats selbst kennt keine Fraktionsbindung, exakt
+    // wie bei den Boden-/Lufteinheiten). "RW 1" heißt hier durchgehend Nahkampf.
+    // KEIN eigener Tunnelgräber-Typ (Korrektur Juli 2026, Jonathan: "es soll einfach
+    // nur der Arbeiter sein"): die Brücke zwischen den Ebenen ist der ganz normale
+    // Arbeiter (7, oben) — steht er an seinem eigenen Tunnel-Startpunkt, kann er
+    // abtauchen (uwDescend) und behält dabei Typ 7 sowie seine Oberflächen-Werte
+    // auch unten (kein separater Unterwelt-Stat-Block, keine zweite Rekrutierungs-
+    // option). Graben/Abbau-Fähigkeiten unten sind daher an Typ 7 gebunden
+    // (calculateDigsUW/calculateMineTargetsUW, js/logic.js), nicht mehr an 16.
+    // Grubenwache (17): "Wache"-Passiv — heilt +2 HP am Rundenende, wenn sie den
+    // Zug über NICHT bewegt wurde (u.mv, gesetzt in moveUWUnit); Angreifen allein
+    // steht dem nicht im Weg. Gecappt auf Max-HP (siehe die Grubenwache-Heilschleife
+    // in doEndTurn, js/input.js).
+    17: { dmg: 4, range: 1, move: 2, name: "Grubenwache", cost: 5, maxHp: 14, isMelee: true, light: true, isUW: true },
+    18: { dmg: 3, range: 1, move: 2, name: "Sprengmeister", cost: 6, maxHp: 8, isMelee: true, light: true, isUW: true },
+    // Grubenritter (19, Feudalismus): +fb-Bonus wie Ritter/Kamelreiter oben (getUnitMaxHp).
+    // Sturmangriff (Korrektur Juli 2026, maybeTriggerSturmangriff/js/logic.js):
+    // nach einem Kill (Einheit ODER Kreatur) noch einmal frisch bewegen+angreifen,
+    // einmal pro eigenem Zug — teure Elite-Einheit, daher 6 statt 5 Basis-DMG.
+    19: { dmg: 6, range: 1, move: 2, name: "Grubenritter", cost: 7, maxHp: 16, isMelee: true, light: true, isUW: true },
+    // Beutegräber (20, Plünderer): +1 DMG via Plünderer-Passiv (wie alle Nahkämpfer,
+    // hier schon in dmg eingepreist — getExpectedDamageUW addiert es zusätzlich analog
+    // zu getExpectedDamage, NICHT doppelt: dmg hier ist der Basiswert ohne Passiv).
+    20: { dmg: 4, range: 1, move: 3, name: "Beutegräber", cost: 5, maxHp: 10, isMelee: true, light: true, isUW: true },
+    // Horcher (21, Spionage): Lauschen (Lärm-Pings im Umkreis 5 als exaktes Hex,
+    // getUWNoisePings) + Sprung (calculateHorcherJumpTargetsUW/jumpUWUnit — 2 Hex
+    // weit, unabhängig von Fels/Weg dazwischen, Ziel muss offen & frei sein).
+    // Ersetzt seit Korrektur Juli 2026 die permanente Tarnung (iv=1 ab Aufstellung),
+    // die Jonathan zufolge zu stark war.
+    21: { dmg: 3, range: 1, move: 2, name: "Horcher", cost: 4, maxHp: 8, isMelee: true, light: true, isUW: true },
+    // Bohrwagen (22, Gilden): digMove = Grab-Aktionen pro Zug (2 statt 1, siehe
+    // digUWHex/executeUWDig — a=2 als Zwischenzustand wie beim Bewegen+Angreifen-Muster).
+    22: { dmg: 4, range: 1, move: 1, name: "Bohrwagen", cost: 9, maxHp: 14, isMelee: true, light: true, isUW: true, digMove: 2 }
+};
+
+// Fraktions-Zuordnung der Unterwelt-Spezialeinheiten (Typ-IDs 19-22) — gleiches
+// Muster wie die faktionUnitMap-Stellen in input.js (Rekrutierungsmenüs), hier
+// zentral für Rekrutierung UND Debug-Spawner.
+const uwFactionUnitMap = { 0: 19, 1: 20, 2: 21, 3: 22 };
+
+// === RELIQUIEN (M10, PLAN.md Abschn. 7) ===
+// Fundstücke alter Handwerkskunst (nicht sakral!) — kaufbar für Kristalle im
+// Dorf-Menü, eine ausgerüstete Reliquie pro Einheit (u[].art / uw.u[].art).
+// "map" wirkt sofort (Kauf UND Fundkammer-Fund) und landet nie in p[].rel
+// (siehe applyMapRelic; startRelicEquip verbraucht Altbestände im Inventar).
+const RELICS = {
+    blade: { name: "Damaszener Klinge", icon: "🗡️", cost: 4, desc: "Eine Einheit erhält permanent +5 DMG.", target: "unit" },
+    armor: { name: "Harnisch des Bergvolks", icon: "🛡️", cost: 4, desc: "Eine Einheit erhält permanent +10 Max-HP (heilt beim Ausrüsten mit).", target: "unit" },
+    tool: { name: "Meisterwerkzeug", icon: "🔧", cost: 3, desc: "Ein Bauwerk (Mauer/Turm/Tunnel/Startdorf) sofort auf volle HP.", target: "building" },
+    map: { name: "Karte der Tiefe", icon: "🗺️", cost: 7, desc: "Permanente Sicht auf die gesamte Karte (Oberfläche + Unterwelt-Netz).", target: "instant" }
+};
+
+// === UNTERWELT-KREATUREN (M11, PLAN.md Abschn. 5) ===
+// Eigener Nummernkreis (100+), bewusst NICHT 0-3 — würde sonst mit den
+// Oberflächen-Einheiten-Typ-IDs 0-3 (Schwert/Bogen/Pferd/Ritter) kollidieren,
+// falls eine Kreatur je versehentlich durch surface-seitigen Code (unitStats[t])
+// gejagt würde. Kreaturen gehören keinem Spieler (uw.c[] = {t, x, y, h}, kein p/a).
+// Reichweite ist für alle fix 1 (reiner Nahkampf), daher kein range-Feld nötig.
+const UWC_SPINNE = 100, UWC_WUEHLER = 101, UWC_STEINPANZER = 102, UWC_WURM = 103;
+// Balance-Erstentwurf (Playtest-Vorbehalt, PLAN.md Abschn. 5/12 — "Runden-Phase +
+// Telegraph", Korrektur Juli 2026): aggro = Radius, in dem uwNearestPlayerUnit
+// ein Ziel findet ("hört Erschütterungen"); huntMove = Schritte/Runde MIT Ziel
+// (Jagd, uwCreatureRoundPhase); patrolMove = Schritte/Runde OHNE Ziel
+// (Patrouille, aktuell einheitlich 1 für alle Kreaturen); leash (nur Wurm) =
+// maximale Distanz zum Herzkaverne-Zentrum, die die Jagd nie überschreitet.
+const uwCreatureStats = {
+    [UWC_SPINNE]: { name: "Höhlenspinne", hp: 6, dmg: 4, sprite: 'uw_spinne', aggro: 3, huntMove: 1, patrolMove: 1 },
+    [UWC_WUEHLER]: { name: "Blindwühler", hp: 12, dmg: 5, sprite: 'uw_wuehler', aggro: 4, huntMove: 1, patrolMove: 1 },
+    [UWC_STEINPANZER]: { name: "Steinpanzer", hp: 18, dmg: 6, sprite: 'uw_steinpanzer', aggro: 3, huntMove: 1, patrolMove: 1 },
+    // Der Alte Wurm: eigener AoE-Telegraph (trifft alle Ziele im Muster, siehe
+    // getCreatureAttackHexes/uwCreatureRoundPhase) — kontert aber NICHT mehr,
+    // wenn ihn ein Spieler im eigenen Zug angreift (resolveUWAttackOnCreature,
+    // js/logic.js, Korrektur Juli 2026, wie alle anderen Kreaturen). leash:
+    // verlässt die Umgebung der Herzkaverne nie weiter als 3 Hexes, auch nicht
+    // auf der Jagd.
+    [UWC_WURM]: { name: "Der Alte Wurm", hp: 30, dmg: 8, sprite: 'uw_wurm', aggro: 3, huntMove: 1, patrolMove: 1, leash: 3 }
 };

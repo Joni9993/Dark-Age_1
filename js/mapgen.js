@@ -109,7 +109,7 @@ function buildInitialGameState(playerNames, radius, teamMode = 'ffa') {
 
     for (let i = 0; i < count; i++) {
         const svLoc = `${startPos[i].vx},${startPos[i].vy}`;
-        players.push({ n: (playerNames[i] || '').trim() || `Spieler ${i + 1}`, g: 3, m: 1, s: 0, f: [], of: [], u: [], e: [], sv: svLoc, dead: 0, sh: 30 });
+        players.push({ n: (playerNames[i] || '').trim() || `Spieler ${i + 1}`, g: 3, m: 1, s: 0, k: 0, f: [], of: [], u: [], e: [], ue: [], sv: svLoc, dead: 0, sh: 30 });
         villages[svLoc] = i;
         units.push({ i: i + 1, p: i, t: 0, x: startPos[i].ux, y: startPos[i].uy, h: 10, a: 0 });
     }
@@ -230,7 +230,39 @@ function buildInitialGameState(playerNames, radius, teamMode = 'ffa') {
     placeForPlayers(restStoneBands, stoneOK, 2, placeStone);
     placeContested(budget.contestedStones[cnt], stoneOK, 2, placeStone);
 
-    const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [], ct: { x: cx, y: cy, ctrl: -1 } };
+    // uw = Unterwelt-Zustand (M9b/M10/M11): d = gegrabene Hexes (Indizes, wie
+    // p[].e/ue — Stollenköpfe zählen NICHT hierzu, die werden aus tu[] abgeleitet,
+    // siehe getStollenkopfOwner/isUnderworldOpen in hex.js), u = Tiefeneinheiten,
+    // n = Lärm-Marker der letzten Runde, a = angebrochene Kristalladern {"x,y": restH},
+    // f = geplünderte Fundkammern {"x,y": 1}, c = Kreaturen {t,x,y,h} (neutral,
+    // kein Besitzer), w = Spinnennetze {"x,y": 1}, wd = Alter Wurm dauerhaft tot.
+    const state = { sd: seed, bw: size, bh: size, rad: radius, rn: 1, cp: 0, df: null, p: players, v: villages, u: units, st: stones, tw: [], la: [], th: [], tu: [], wa: [], ct: { x: cx, y: cy, ctrl: -1 }, uw: { d: [], u: [], n: [], a: {}, f: {}, w: {}, dr: {}, dy: [] } };
+
+    // Unterwelt-Kreaturen (M11, Platzierung korrigiert Juli 2026): deterministisch
+    // aus dem Seed, und IMMER auf offenen Hexes — nie auf massivem Fels/Adern
+    // ("Gebirge"). Spinnen in den (Hash-Rang) "besten" natürlichen Kavernen,
+    // Steinpanzer auf einem Wach-Hex NEBEN den "reichsten" Adern (ggf. wird die
+    // Fels-Tasche daneben vorgegraben, getSteinpanzerGuardHex), Wühler in
+    // natürlichen Öffnungen, der Wurm exakt im Herzkaverne-Zentrum (== ct, s.o.).
+    // Dichte-Bänder siehe densityForRadius; `used` verhindert Doppelbelegungen.
+    const creatures = [];
+    const used = new Set([`${cx},${cy}`]); // Zentrum ist für den Wurm reserviert
+    const place = (t, x, y) => {
+        if (used.has(`${x},${y}`)) return;
+        used.add(`${x},${y}`);
+        creatures.push({ t, x, y, h: uwCreatureStats[t].hp });
+    };
+    getSpiderNestHexes(state).forEach(h => place(UWC_SPINNE, h.x, h.y));
+    getSteinpanzerVeinHexes(state).forEach(vein => {
+        // needsCarve-Taschen landen NICHT in uw.d — sie sind seed-deterministisch
+        // und zählen über getSteinpanzerPocketSet (isUnderworldOpen, js/hex.js)
+        // als natürlich offen. Unberührte Unterwelt bleibt so 0 Bytes im Blob.
+        const guard = getSteinpanzerGuardHex(state, vein);
+        if (guard) place(UWC_STEINPANZER, guard.x, guard.y);
+    });
+    getWuehlerSpawnHexes(state).forEach(h => place(UWC_WUEHLER, h.x, h.y));
+    creatures.push({ t: UWC_WURM, x: cx, y: cy, h: uwCreatureStats[UWC_WURM].hp });
+    state.uw.c = creatures;
 
     const teamSize = teamMode === 'teams2' ? 2 : teamMode === 'teams3' ? 3 : 0;
     if (teamSize > 0 && count % teamSize === 0 && count / teamSize >= 2) {

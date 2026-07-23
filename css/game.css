@@ -27,6 +27,13 @@ body {
     overflow: hidden;
     touch-action: none;
     min-height: 100vh;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+input, textarea {
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 h2 {
@@ -490,7 +497,16 @@ canvas {
 }
 
 /* Einheiten-Kaufmenü: horizontal scrollen statt den Screen mit mehreren
-   Zeilen nach oben zuzubauen */
+   Zeilen nach oben zuzubauen. Inhalt sitzt ZENTRIERT statt linksbündig —
+   aber bewusst über auto-Margins auf erstem/letztem Kind statt
+   justify-content: center: bei center + Überlauf schiebt Flexbox den
+   Inhalt symmetrisch über BEIDE Ränder hinaus und der linke Teil wäre
+   unerreichbar abgeschnitten (Scroll-Ursprung bleibt links). Auto-Margins
+   dagegen werden bei Platzmangel zu 0 aufgelöst — passt alles rein, ist es
+   mittig; läuft es über, scrollt es normal ab ganz links. Die Start-
+   Scrollposition wird dann in showActionMenu (js/ui.js) auf die Mitte
+   gesetzt, damit man mit 2 Fraktionen nach links UND rechts scrollen kann
+   statt immer nur nach rechts. */
 .recruit-scroll {
     display: flex;
     flex-wrap: nowrap;
@@ -502,6 +518,9 @@ canvas {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
 }
+
+.recruit-scroll > :first-child { margin-left: auto; }
+.recruit-scroll > :last-child { margin-right: auto; }
 
 .recruit-scroll .action-btn {
     flex: 0 0 auto;
@@ -659,6 +678,28 @@ canvas {
     color: var(--blue);
     font-size: 0.8rem;
     margin-top: 3px;
+}
+
+/* Fraktions-Fenster (window.openFactionOverview, js/ui.js): Zeile mit dem
+   AKTUELL wirksamen Passiv-Wert (z.B. "+2 Max-HP") — bewusst in Gold statt im
+   gedimmten Beschreibungstext, damit sofort auffällt, wie stark die Passive
+   gerade ist. */
+.passive-value {
+    color: var(--gold);
+    font-weight: bold;
+    font-size: 0.78rem;
+    text-align: left;
+}
+
+/* Reliquien-Fenster (window.openRelicShop, js/ui.js): Kristall-Bestand-Kopfzeile,
+   gleiche Cyan-Farbe wie die bisherigen Reliquien-Buttons im Dorf-Menü
+   (border-color:#7fe3ff, ehemals js/input.js). */
+.crystal-header {
+    color: #7fe3ff;
+    font-weight: bold;
+    font-size: 1rem;
+    text-align: center;
+    margin-bottom: 10px;
 }
 
 /* === LOGO === */
@@ -876,18 +917,115 @@ canvas {
 #menu-btn:hover { background: linear-gradient(180deg, #2a2a3a 0%, #1a1a28 100%); border-color: rgba(200, 184, 154, 0.6); }
 #menu-btn:active { transform: scale(0.95); }
 
-/* Luftansicht-Toggle: teilt sich die untere Leiste 50/50 mit "Zug beenden" */
-#air-view-btn {
-    flex: 1;
-    background: linear-gradient(180deg, #1e1e2a 0%, #13131c 100%);
-    color: #c8b89a;
-    border-color: rgba(200, 184, 154, 0.3);
+/* Kamerafokus-Schieberegler: stufenloser, rein manueller Regler unten rechts
+   am Bildschirmrand statt des früheren Drei-Zustands-Buttons. Oben (Wert
+   +100) = Luftansicht (blau), unten (Wert -100) = Unterwelt (violett), Mitte
+   (Wert 0, Default) = Standard.
+   Vertikalisierung über `writing-mode: vertical-lr; direction: rtl;` direkt
+   auf dem <input type=range> statt des früheren horizontal-gebaut-und-per-
+   transform-gedreht-Hacks: der Rotation-Hack drehte die Box um ihre eigene
+   Ecke (transform-origin: top left + translate), was den Thumb sichtbar
+   außermittig in seiner Wrap-Box sitzen ließ, weil das gedrehte Element noch
+   die horizontalen Maße für Layout-Zwecke behielt. writing-mode kehrt
+   stattdessen die Schreibrichtung des Elements selbst um (unterstützt ab
+   Chrome 119 / Firefox 120 / Safari 17.4 — das Projekt nutzt an anderer
+   Stelle bereits `:has()`, moderne Browser sind hier ok) — der Slider ist
+   dadurch nativ vertikal und zentriert sich selbst korrekt in der Wrap-Box,
+   kein `.cfs-track`-Hilfselement mehr nötig. `direction: rtl` sorgt dafür,
+   dass der Wertebereich in Leserichtung "aufsteigend nach oben" verläuft
+   (min unten, max oben) — ohne rtl würde vertical-lr allein min oben/max
+   unten anordnen, das wäre für +100=Luftansicht oben genau verkehrt.
+   Positionierung: der Wrap ist ein Kind von #ui-container (position: fixed
+   an der Unterkante, wächst mit Infotext/Aktionsmenü nach OBEN) und ankert
+   per position: absolute mit bottom: 100% an dessen OBERKANTE statt fest am
+   Screen — ein fester bottom-Pixelwert lag je nach Höhe der Leiste mitten
+   auf den Infotexten. So rutscht der Slider automatisch mit hoch und runter,
+   wenn die Leiste ihre Höhe ändert, und verdeckt nie den Text darunter. */
+#camera-focus-slider-wrap {
+    position: absolute;
+    right: 10px;
+    bottom: calc(100% + 6px);
+    z-index: 15;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 6px;
+    background: linear-gradient(180deg, rgba(10, 10, 14, 0.6) 0%, rgba(10, 10, 14, 0.4) 100%);
+    border: 1px solid rgba(200, 184, 154, 0.25);
+    border-radius: 10px;
 }
-#air-view-btn:hover { background: linear-gradient(180deg, #2a2a3a 0%, #1a1a28 100%); border-color: rgba(200, 184, 154, 0.6); }
-#air-view-btn.active {
-    background: linear-gradient(180deg, #1a3a5c 0%, #102840 100%);
-    color: #4fc3f7;
-    border-color: rgba(79, 195, 247, 0.6);
+
+.cfs-label {
+    font-size: 0.95rem;
+    line-height: 1;
+    opacity: 0.5;
+    filter: grayscale(0.6);
+    transition: opacity 0.15s ease, filter 0.15s ease;
+}
+
+#camera-focus-slider-wrap.active:not(.focus-underworld) .cfs-label-air {
+    opacity: 1;
+    filter: none;
+    text-shadow: 0 0 6px rgba(79, 195, 247, 0.8);
+}
+#camera-focus-slider-wrap.focus-underworld .cfs-label-underworld {
+    opacity: 1;
+    filter: none;
+    text-shadow: 0 0 6px rgba(192, 132, 252, 0.8);
+}
+
+/* width 28px MIT padding 0 10px (global box-sizing: border-box, siehe Reset
+   oben): die Content-Box — und damit der Track, der sie füllt — bleibt 8px
+   schmal und exakt zentriert, aber die Touch-Trefffläche ist die vollen 28px
+   breit. Ein nackter 8px-Input wäre auf dem Smartphone kaum zu greifen. */
+#camera-focus-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    writing-mode: vertical-lr;
+    direction: rtl;
+    width: 28px;
+    padding: 0 10px;
+    height: 130px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+/* Gradient läuft entlang der neuen (vertikalen) Achse: unten violett
+   (Unterwelt) -> Mitte neutral -> oben blau (Luftansicht), passend zu
+   direction:rtl (min unten, max oben). */
+#camera-focus-slider::-webkit-slider-runnable-track {
+    width: 8px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, #1a3a5c 0%, #1e1e2a 50%, #3a1a4a 100%);
+    border: 1px solid rgba(200, 184, 154, 0.3);
+}
+#camera-focus-slider::-moz-range-track {
+    width: 8px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, #1a3a5c 0%, #1e1e2a 50%, #3a1a4a 100%);
+    border: 1px solid rgba(200, 184, 154, 0.3);
+}
+
+#camera-focus-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px;
+    height: 22px;
+    /* exakt mittig auf dem 8px-Track: (22 - 8) / 2 */
+    margin-left: -7px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #e8c85a 0%, #b8923a 100%);
+    border: 2px solid #3a2a12;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+}
+#camera-focus-slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #e8c85a 0%, #b8923a 100%);
+    border: 2px solid #3a2a12;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
 }
 
 #game-menu-popup {
@@ -1506,4 +1644,232 @@ body {
 /* Safe area padding for notched phones (home screen, lobby, friends) */
 .screen-box {
     padding-bottom: max(28px, calc(env(safe-area-inset-bottom) + 12px));
+}
+
+/* === RADIAL-MENÜ (Langdruck-Auswahlrad) ===
+   Ersetzt die aus dem HUD entfernten Buttons Forschung/Fraktion/Diplomatie/
+   Reliquien/Zug beenden (js/radialmenu.js, ausgelöst durch 1s Druck ohne
+   Ziehen auf #canvas-wrapper, siehe js/input.js). Overlay UND alle Kinder
+   bekommen pointer-events:none — das Antippen/Anvisieren läuft komplett über
+   document-pointermove/-up-Listener mit Distanz-/Winkelberechnung zum
+   Druckpunkt (radialmenu.js), NICHT über elementFromPoint: der Finger selbst
+   verdeckt sonst genau den Kreis, den er gerade ansteuert, und ein Hit-Test
+   über das DOM würde dann "danebenliegen" registrieren, sobald der Finger
+   knapp neben statt exakt auf dem Kreis steht. Die Hintergrund-Vignette
+   (radial-gradient) wird pro Öffnung inline auf den Druckpunkt zentriert
+   gesetzt (JS), da sich der Druckpunkt bei jedem Öffnen ändert. */
+#radial-menu-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 150ms ease;
+}
+#radial-menu-overlay.radial-menu-visible { opacity: 1; }
+
+.radial-circle {
+    position: absolute;
+    width: 64px;
+    height: 64px;
+    margin-left: -32px;
+    margin-top: -32px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: var(--bg-card);
+    border: 2px solid var(--border-bright);
+    color: var(--text);
+    font-family: 'MedievalSharp', cursive;
+    transform: scale(0.4);
+    opacity: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    transition: transform 150ms ease, opacity 150ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+/* Einblend-Animation: erst NACH dem Einfügen ins DOM wird diese Klasse per
+   requestAnimationFrame auf #radial-menu-overlay gesetzt (radialmenu.js),
+   damit der Übergang von scale(0.4)/opacity:0 tatsächlich animiert statt
+   sofort im Endzustand zu starten. */
+#radial-menu-overlay.radial-menu-visible .radial-circle {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Kaufbar (aktuell nur "Fraktion", wenn die nächste Kultur leistbar ist):
+   grüner Puls statt starrem Rand, damit der Kaufanreiz auffällt, ohne den
+   Gold-Highlight für das anvisierte Ziel (.active, unten) zu überdecken —
+   .active steht bewusst NACH dieser Regel und gewinnt bei gleicher
+   Spezifität, falls beide Klassen gleichzeitig anliegen. */
+@keyframes radialAffordablePulse {
+    0%, 100% {
+        border-color: rgba(90, 214, 130, 0.55);
+        box-shadow: 0 0 8px 1px rgba(90, 214, 130, 0.35);
+    }
+    50% {
+        border-color: rgba(120, 255, 160, 1);
+        box-shadow: 0 0 20px 6px rgba(90, 214, 130, 0.85);
+    }
+}
+.radial-circle.affordable {
+    animation: radialAffordablePulse 1.4s ease-in-out infinite;
+}
+
+/* Anvisiert: der Kreis, dessen Mittelpunkt dem Zeiger am nächsten liegt UND
+   dessen Abstand zum Druckpunkt > ~40px ist (radialmenu.js) — darunter gilt
+   die Mitte/Abbrechen-Zone, kein Kreis wird hervorgehoben. */
+.radial-circle.active {
+    transform: scale(1.18);
+    border-color: var(--gold);
+    box-shadow: 0 0 18px 4px rgba(232, 184, 74, 0.75);
+}
+
+/* Deaktiviert (Zustand wird beim Öffnen einmalig berechnet, ändert sich
+   während des Haltens nicht): ausgegraut, löst bei Loslassen keine Aktion
+   aus (radialmenu.js zeigt bei Forschung stattdessen einen Hinweis-Toast). */
+.radial-circle.disabled {
+    opacity: 0.4;
+    filter: grayscale(0.7);
+}
+
+.radial-icon { font-size: 1.4rem; line-height: 1; }
+.radial-label { font-size: 0.55rem; line-height: 1.1; text-align: center; max-width: 56px; }
+
+.radial-center-dot {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    margin-left: -7px;
+    margin-top: -7px;
+    border-radius: 50%;
+    background: rgba(200, 184, 154, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    opacity: 0;
+    transition: opacity 150ms ease;
+}
+#radial-menu-overlay.radial-menu-visible .radial-center-dot { opacity: 1; }
+
+/* ── Einstellungs-Modal (js/settings.js) ─────────────────────────────────── */
+.settings-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    min-height: 48px;
+}
+
+.settings-row-col {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.settings-label {
+    font-size: 0.95rem;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.settings-status {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+}
+
+.settings-row-col .action-btn { width: 100%; margin: 0; }
+
+/* Toggle-Schalter */
+.toggle-switch {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+.toggle-knob {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.toggle-knob::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    top: 3px;
+    left: 4px;
+    background: var(--text-dim);
+    transition: transform 0.2s, background 0.2s;
+}
+
+.toggle-switch input:checked + .toggle-knob {
+    background: rgba(232, 184, 74, 0.15);
+    border-color: var(--gold);
+}
+
+.toggle-switch input:checked + .toggle-knob::before {
+    transform: translateX(21px);
+    background: var(--gold);
+}
+
+/* Lautstärke-Slider — Element bleibt 44px hoch (Touch-Target-Regel unten),
+   sichtbar ist nur der 6px-Track via Pseudo-Elemente (Pattern wie
+   #camera-focus-slider). */
+#settings-music-vol {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    cursor: pointer;
+}
+
+#settings-music-vol::-webkit-slider-runnable-track {
+    height: 6px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+}
+#settings-music-vol::-moz-range-track {
+    height: 6px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+}
+
+#settings-music-vol::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    margin-top: -7px; /* mittig auf dem 6px-Track: (18 - 6) / 2 + Trackrand */
+    border-radius: 50%;
+    background: var(--gold);
+    border: 1px solid rgba(0, 0, 0, 0.5);
+}
+#settings-music-vol::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--gold);
+    border: 1px solid rgba(0, 0, 0, 0.5);
 }

@@ -1,0 +1,3 @@
+# Editor-Download-Ablage: Jonathan legt frische art.js-Exporte im Root ab,
+# bevor sie (nach Pruefung!) nach js/art.js uebernommen werden - nie direkt tracken.
+/art.js

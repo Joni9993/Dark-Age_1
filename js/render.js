@@ -1,17 +1,79 @@
 // === SPRITE RENDERER ===
-function drawPixelSprite(ctx, cx, cy, spriteKey, playerColor) {
+// Gemeinsamer Pixel-Blitter für quadratische pixelSprites UND die (nicht
+// zwingend quadratischen) 2D-Projektionen von Voxelmodellen (s.u.).
+// tint: optionale Zielfarbe, in die jeder Pixel zu 45% gemischt wird —
+// 2D-Pendant zum THREE.Color.lerp-Tint des 3D-Renderers (Kristalladern).
+function drawSpriteGrid(ctx, cx, cy, arr, w, s, playerColor, tint) {
+    const h = arr.length / w;
+    const startX = cx - (w / 2) * s;
+    const startY = cy - (h / 2) * s;
+    for (let i = 0; i < arr.length; i++) {
+        const val = arr[i];
+        if (!val) continue;
+        let col = spritePixelColor(val, playerColor);
+        if (tint) col = tintColor(col, tint, 0.45);
+        ctx.fillStyle = col;
+        ctx.fillRect(startX + (i % w) * s, startY + Math.floor(i / w) * s, s, s);
+    }
+}
+
+function drawPixelSprite(ctx, cx, cy, spriteKey, playerColor, scaleMul, tint) {
     const arr = pixelSprites[spriteKey];
     if (!arr) return;
     const size = Math.round(Math.sqrt(arr.length));
-    const s = ((spriteKey === 9) ? 3.3 : 2.5) * 10 / size;
-    const startX = cx - (size / 2 * s);
-    const startY = cy - (size / 2 * s) - 6;
-    for (let i = 0; i < arr.length; i++) {
-        let val = arr[i];
-        if (val === 0) continue;
-        ctx.fillStyle = spritePixelColor(val, playerColor);
-        ctx.fillRect(startX + (i % size) * s, startY + Math.floor(i / size) * s, s, s);
+    const s = ((spriteKey === 9) ? 3.3 : 2.5) * 10 / size * (scaleMul || 1);
+    drawSpriteGrid(ctx, cx, cy - 6, arr, size, s, playerColor, tint);
+}
+
+// Farbmischung für den Kristall-Tint — akzeptiert '#rrggbb' und 'rgb(r,g,b)'
+// (spritePixelColor liefert beides), Ergebnis gecacht.
+const _tintCache = {};
+function tintColor(col, tint, f) {
+    const key = col + tint + f;
+    if (_tintCache[key]) return _tintCache[key];
+    function parse(c) {
+        if (c[0] === '#') { const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+        const m = c.match(/\d+/g);
+        return m ? m.slice(0, 3).map(Number) : null;
     }
+    const a = parse(col), b = parse(tint);
+    if (!a || !b) return (_tintCache[key] = col);
+    const mix = a.map((v, i) => Math.round(v + (b[i] - v) * f));
+    return (_tintCache[key] = `rgb(${mix[0]},${mix[1]},${mix[2]})`);
+}
+
+// 2D-Projektion eines 3D-Voxelmodells (Frontalansicht): für jede (x,y)-Spalte
+// der vorderste belegte Voxel (z von hinten nach vorn wie der Standard-
+// Kamerablick in render3d.js). Damit bekommen Unterwelt-Strukturen, die NUR
+// als Voxelmodell existieren (Fundkammer, Herzkaverne), automatisch ein
+// konsistentes 2D-Sprite aus denselben Editor-Daten — keine Pixel-Kopie,
+// die beim Modell-Update veralten könnte. Gecacht pro Key.
+const _modelSpriteCache = {};
+function voxelModelFrontSprite(key) {
+    if (key in _modelSpriteCache) return _modelSpriteCache[key];
+    const m = (typeof voxelModels !== 'undefined' && voxelModels) ? voxelModels[key] : null;
+    if (!m || !m.layers || !m.layers.length) return (_modelSpriteCache[key] = null);
+    const d = m.layers.length, h = m.layers[0].length, w = m.layers[0][0].length;
+    const arr = new Array(w * h).fill(0);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        for (let z = d - 1; z >= 0; z--) {
+            const v = m.layers[z][y] && m.layers[z][y][x];
+            if (v) { arr[y * w + x] = v; break; }
+        }
+    }
+    return (_modelSpriteCache[key] = { arr, w, h });
+}
+
+// Zeichnet die 2D-Projektion eines Voxelmodells zentriert auf (cx, cy),
+// normalisiert auf dieselbe ~25px-Boxgröße wie drawPixelSprite.
+// Liefert false, wenn das Modell (im aktuellen Art-Datensatz) nicht existiert —
+// Aufrufer fallen dann auf die alte Icon-/Formen-Darstellung zurück.
+function drawVoxelModelSprite2D(cx, cy, key, color, tint) {
+    const spr = voxelModelFrontSprite(key);
+    if (!spr) return false;
+    const s = 25 / Math.max(spr.w, spr.h);
+    drawSpriteGrid(ctx, cx, cy, spr.arr, spr.w, s, color, tint);
+    return true;
 }
 
 // === ANIMATION SYSTEM ===
@@ -235,16 +297,28 @@ function drawHex(x, y, terrainType, applyShroud, isRecap) {
     if (validAttacks.some(a => a.x === x && a.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
     if (window.highlightedTunnelEnd && window.highlightedTunnelEnd.x === x && window.highlightedTunnelEnd.y === y) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(79, 195, 247, 0.45)"; ctx.fill(); ctx.strokeStyle = "#4fc3f7"; ctx.lineWidth = 2; ctx.stroke(); }
     if (window.demolishTargets && window.demolishTargets.some(t => t.x === x && t.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 152, 0, 0.5)"; ctx.fill(); ctx.strokeStyle = "#ff9800"; ctx.lineWidth = 2; ctx.stroke(); }
+    // selectedUnderworldHex wird bewusst NICHT hier (Oberfläche) gezeichnet,
+    // sondern nur in drawUnderworldHex2D — wie in 3D (!surfaceVisible-Gate).
 }
 
 function drawEntity(x, y, color, hasActed, hp, maxHp, spriteKey, isStealth, unit) {
     const center = getHexCenter(x, y);
     const tType = getTerrainType(gameState, x, y);
+    const isAirborne = !!(unit && unitStats[unit.t] && unitStats[unit.t].isAir && isFlying(unit));
+    // Flieger schweben eine Ebene über dem Boden (2D-Pendant zum 3D-hover =
+    // hexSize * 1.4); der Schlagschatten bleibt unten auf dem Hex liegen.
+    const hover = isAirborne ? 20 : 0;
     const elevation = tType === 'hill' ? -6 : 0;
 
     let entityAlpha = isStealth ? (hasActed ? 0.3 : 0.85) : (hasActed ? 0.4 : 1.0);
-    // Flieger: standardmäßig fast durchsichtig, in der Luftansicht voll sichtbar
-    if (unit && unitStats[unit.t] && unitStats[unit.t].isAir && isFlying(unit)) entityAlpha *= window.airView ? 1 : 0.15;
+    // Flieger: Deckkraft folgt stufenlos dem Kamerafokus-Regler — Reglermitte
+    // 10%, Luftansicht-Endpunkt 100% (gleiche Formel wie airAlpha in
+    // render3d.js: AIR_ALPHA_GROUND + (1 - AIR_ALPHA_GROUND) * v), statt des
+    // früheren harten 15%/100%-Sprungs direkt an der Reglermitte.
+    if (isAirborne) {
+        const v = Math.max(0, Math.min(1, window.cameraFocusPos || 0));
+        entityAlpha *= 0.1 + 0.9 * v;
+    }
     ctx.globalAlpha = entityAlpha;
 
     if (isStealth) {
@@ -260,7 +334,7 @@ function drawEntity(x, y, color, hasActed, hp, maxHp, spriteKey, isStealth, unit
     ctx.fill();
 
     let isBuilding = (spriteKey === 'village' || spriteKey === 'startVillage' || spriteKey === 'tunnel');
-    const offsetY = -2 + elevation;
+    const offsetY = -2 + elevation - hover;
     let actualSprite = spriteKey;
     if (actualSprite === 11 && unit && unit.dp === 1) actualSprite = "wagen_dp";
 
@@ -317,6 +391,280 @@ function renderBoard(state) {
     if (!isAnimating) Renderer.render(state);
 }
 
+// Unterwelt-2D-Fallback: Draufsicht in Oberflächen-Orientierung. Seit Juli 2026
+// vollwertige Optik statt reiner Info-Parität: Einheiten/Kreaturen als echte
+// pixelSprites, Tunnel-HUB als Gebäude-Sprite, Kristalladern als kristall-
+// getintetes stone-Sprite, Fundkammer/Herzkaverne als 2D-Projektion ihrer
+// 3D-Voxelmodelle (voxelModelFrontSprite) — Farben angeglichen an UW_COLORS in
+// render3d.js. Alle Zweige behalten den alten Kreis-/Icon-Fallback für Art-
+// Datensätze ohne die neuen Sprites/Modelle (CLASSIC). Netz-Sicht
+// (getVisibleUWHexes), Ziel-Highlights und Gehör-Pings wie gehabt.
+const UW_2D_COLORS = {
+    [UW_FELS]: '#33333a', [UW_KAVERNE]: '#4d3c2a', [UW_ADER]: '#37363f',
+    [UW_RUINE]: '#4a3c2a', [UW_HERZ]: '#5c3a22'
+};
+// Kristall-Tint der Adern — gleicher Farbwert wie UW_CRYSTAL_TINT (render3d.js)
+const UW_2D_CRYSTAL_TINT = '#79ddff';
+
+// Gleiche HP-/Vorrats-Leiste wie an der Oberfläche (drawEntity) für alles in
+// der Unterwelt — ersetzt die früheren nackten Zahlen an Einheiten, Kreaturen,
+// Adern und dem Stollenkopf (Korrektur Juli 2026, Jonathan).
+function drawUWBar(cx, by, val, max) {
+    const barW = 16, barH = 4;
+    const pct = Math.min(1, Math.max(0, val / max));
+    const barX = cx - barW / 2;
+    ctx.fillStyle = "#ff1744"; ctx.fillRect(barX, by, barW, barH);
+    ctx.fillStyle = "#00e676"; ctx.fillRect(barX, by, barW * pct, barH);
+    ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.strokeRect(barX, by, barW, barH);
+}
+
+// Sichtbarer Terrain-Typ inkl. Laufzeit-Zustand — gleiche Logik wie
+// uwVisualType in render3d.js (dort ausführlicher kommentiert), hier als
+// eigene, schlanke Kopie (2D-Fallback bleibt bewusst minimal/unabhängig).
+function uw2DVisualType(x, y) {
+    const t = getUnderworldType(gameState, x, y);
+    if (t === UW_ADER) return getUWVeinRemaining(gameState, x, y) > 0 ? UW_ADER : UW_KAVERNE;
+    if (t === UW_FELS && isUnderworldOpen(gameState, x, y)) return UW_KAVERNE;
+    return t;
+}
+
+function drawUnderworldHex2D(x, y, uwVis, noisePings) {
+    const center = getHexCenter(x, y);
+    const key = `${x},${y}`;
+
+    // Korrektur Juli 2026: KEIN Early-Return mehr für unerkundete Hexes —
+    // Bewegliches (Einheiten/Kreaturen im Umkreis 2, isUW*Visible) und
+    // Telegraph-Markierungen in Einheitennähe müssen auch auf dunklen,
+    // nie betretenen Hexes gezeichnet werden (PLAN §3: "Bewegliches ist im
+    // Umkreis 2 sichtbar, UNABHÄNGIG von der Netz-Geometrie"). Statisches
+    // (Terrain, Adern, HUB, Netze) bleibt an `explored` gebunden.
+    const explored = uwVis.has(key);
+    if (!explored) {
+        drawHexPath(center.px, center.py);
+        ctx.fillStyle = "#0a0a0a"; ctx.fill(); ctx.strokeStyle = "#111"; ctx.stroke();
+    } else {
+
+    const uType = uw2DVisualType(x, y);
+    drawHexPath(center.px, center.py);
+    ctx.fillStyle = UW_2D_COLORS[uType] || UW_2D_COLORS[UW_FELS];
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.6)"; ctx.lineWidth = 1; ctx.stroke();
+
+    // Bodentextur (deterministisch wie die Oberflächen-Hexes): massiver Fels
+    // bekommt Gesteins-Sprenkel, offener Höhlenboden eine feine Körnung.
+    const uwRng = createPRNG(x * 1000 + y);
+    if (uType === UW_FELS || uType === UW_ADER) {
+        for (let i = 0; i < 4; i++) {
+            const sx = center.px + (uwRng() - 0.5) * 20;
+            const sy = center.py + (uwRng() - 0.5) * 12;
+            ctx.fillStyle = uwRng() > 0.5 ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.06)';
+            ctx.beginPath(); ctx.ellipse(sx, sy, 1.5 + uwRng() * 2, 1 + uwRng(), 0, 0, Math.PI * 2); ctx.fill();
+        }
+    } else {
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        for (let i = 0; i < 3; i++) {
+            const gx = center.px + (uwRng() - 0.5) * 18;
+            const gy = center.py + (uwRng() - 0.5) * 10;
+            ctx.beginPath(); ctx.ellipse(gx, gy, 1 + uwRng() * 1.5, 1, 0, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
+    if (uType === UW_ADER) {
+        // Kristallader: dasselbe stone-Sprite wie der Oberflächen-Steinhaufen,
+        // kristallblau getintet — 2D-Pendant zum getinteten Voxelmodell in 3D.
+        if (pixelSprites['stone']) {
+            drawPixelSprite(ctx, center.px, center.py + 4, 'stone', '#9e9e9e', 1, UW_2D_CRYSTAL_TINT);
+        } else {
+            ctx.fillStyle = '#7fe3ff';
+            ctx.beginPath(); ctx.arc(center.px, center.py, 3, 0, Math.PI * 2); ctx.fill();
+        }
+        // Restbestand als Vorrats-Leiste wie am Oberflächen-Steinhaufen
+        // (Korrektur Juli 2026, Jonathan: keine nackten Zahlen mehr unten)
+        const rem = getUWVeinRemaining(gameState, x, y);
+        if (rem > 0) drawUWBar(center.px, center.py + 8, rem, getUWVeinMaxAmount(gameState, x, y));
+    } else if (uType === UW_RUINE) {
+        // Nur echte Fundkammern (isFundkammerHex, Teilmenge der Ruinen-Hexes)
+        // zeigen das Fundkammer-Voxelmodell, solange ungeplündert — schlichte
+        // Stollenruinen bekamen fälschlich dasselbe Modell (Korrektur Juli 2026,
+        // Jonathan) und zeigen jetzt nur goldene Trümmer-Akzente, das 2D-Pendant
+        // zu den prozeduralen Akzent-Voxeln aus buildUnderworldTiles (gleiche
+        // Machart wie die roten Akzente der Herz-Ring-Hexes unten).
+        const looted = gameState.uw && gameState.uw.f && gameState.uw.f[key];
+        const isKammer = isFundkammerHex(gameState, x, y);
+        if (isKammer && !looted) {
+            if (!drawVoxelModelSprite2D(center.px, center.py - 2, 'fundkammer', '#9e9e9e')) {
+                ctx.strokeStyle = '#c9a24b'; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.moveTo(center.px - 6, center.py); ctx.lineTo(center.px + 6, center.py); ctx.stroke();
+            }
+        } else {
+            ctx.fillStyle = '#c9a24b';
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                ctx.arc(center.px + (uwRng() - 0.5) * 16, center.py + (uwRng() - 0.5) * 10, 1.2 + uwRng(), 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    } else if (uType === UW_HERZ) {
+        // Herzkaverne: das Voxelmodell (2D-Projektion) steht wie in 3D NUR auf
+        // dem exakten Zentrums-Hex — und nur, solange niemand darauf steht
+        // (wie centerOccupied in 3D), sonst verdeckt das Modell die Figur.
+        // Die übrigen Herz-Hexes bekommen kleine rote Akzente (Pendant zu den
+        // prozeduralen Akzent-Voxeln aus buildUnderworldTiles).
+        const isCenterHex = x === Math.floor(gameState.bw / 2) && y === Math.floor(gameState.bh / 2);
+        const occupied = uwUnitAt(x, y) || uwCreatureAt(x, y);
+        if (isCenterHex) {
+            if (!occupied && !drawVoxelModelSprite2D(center.px, center.py - 2, 'herzkaverne', '#ff6f61')) {
+                ctx.fillStyle = '#ff6f61';
+                ctx.beginPath(); ctx.arc(center.px, center.py, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+            }
+        } else {
+            ctx.fillStyle = '#ff6f61';
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                ctx.arc(center.px + (uwRng() - 0.5) * 16, center.py + (uwRng() - 0.5) * 10, 1.2 + uwRng(), 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    // Herrenloser Kristallhaufen (Korrektur Juli 2026): fällt beim Tod eines
+    // Trägers, wird von Arbeiter/Beutegräber beim Betreten automatisch eingesammelt.
+    const dropAmount = gameState.uw && gameState.uw.dr && gameState.uw.dr[`${x},${y}`];
+    if (dropAmount) {
+        ctx.fillStyle = '#7fe3ff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(`💎${dropAmount}`, center.px, center.py + 2);
+    }
+
+    // Tunnel-HUB (Korrektur Juli 2026): der Oberflächen-Tunnel wird auf sein
+    // Startpunkt-Hex gespiegelt — dasselbe tunnel-Sprite wie an der Oberfläche
+    // in der Besitzerfarbe + gemeinsamer HP-Pool (t.h), gleiche Info wie das
+    // gespiegelte 3D-Gebäude. Im Bau (r > rn) gedimmt.
+    const hubTunnel = (gameState.tu || []).find(t => t.x1 === x && t.y1 === y);
+    if (hubTunnel) {
+        ctx.globalAlpha = hubTunnel.r > gameState.rn ? 0.4 : 1;
+        if (pixelSprites['tunnel']) {
+            drawPixelSprite(ctx, center.px, center.py + 2, 'tunnel', playerColors[hubTunnel.o] || '#888');
+        } else {
+            ctx.fillStyle = playerColors[hubTunnel.o] || '#888';
+            ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
+            ctx.fillText('🚇', center.px, center.py + 4);
+        }
+        // Gemeinsamer HP-Pool als Leiste (13 = maxHp des Oberflächen-Tunnels)
+        drawUWBar(center.px, center.py + 8, hubTunnel.h, 13);
+        ctx.globalAlpha = 1;
+    }
+
+    // Ziel-Highlights: Bewegen grün, Graben bräunlich, Angreifen rot (M10) —
+    // gleiche Farbwahl wie render3d.js. Abbauen läuft seit der Toggle-Umstellung
+    // (Korrektur Juli 2026) ohne Ziel-Klick, kein Highlight mehr nötig.
+    if (uwValidMoves.some(m => m.x === x && m.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(100, 255, 100, 0.35)"; ctx.fill(); }
+    if (uwValidDigs.some(d => d.x === x && d.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(161, 102, 47, 0.55)"; ctx.fill(); }
+    if (uwValidCollapse.some(c => c.x === x && c.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(255, 152, 0, 0.5)"; ctx.fill(); }
+    if (uwValidDynamite.some(d => d.x === x && d.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(216, 67, 21, 0.55)"; ctx.fill(); }
+    if (uwValidJump.some(j => j.x === x && j.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(0, 229, 255, 0.5)"; ctx.fill(); }
+    if (uwValidAttacks.some(a => a.x === x && a.y === y)) { drawHexPath(center.px, center.py); ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
+
+    // Ausstehende Dynamit-Ladung (Korrektur Juli 2026, ersetzt Unterminierung):
+    // 🧨-Icon auf jedem der 3 Ziel-Hexes, solange die Ladung noch nicht detoniert
+    // ist — rein unterirdisch, keine Anzeige an der Oberfläche.
+    (gameState.uw && gameState.uw.dy || []).forEach(charge => {
+        if (charge.hexes.some(h => h.x === x && h.y === y)) {
+            ctx.fillStyle = '#ff6e40'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+            ctx.fillText('🧨', center.px, center.py - 6);
+        }
+    });
+
+    } // explored (Statisches endet hier — ab jetzt Bewegliches mit eigenen Sichtregeln)
+
+    // Tiefeneinheiten: eigene immer, fremde nur im Umkreis 2 eigener Einheiten
+    // (isUWUnitVisible, js/logic.js) — bewusst AUCH auf unerkundeten Hexes
+    // (Korrektur Juli 2026). Echtes Einheiten-Sprite wie an der Oberfläche
+    // (Juli 2026), gedimmt wenn gezogen; Kreis + Icon nur noch als Fallback
+    // für Art-Datensätze ohne die Sprites 17–22 (CLASSIC).
+    const UW_UNIT_ICONS = { 7: '⛏', 17: '🛡', 18: '💥', 19: '⚔', 20: '🪙', 21: '👂', 22: '⚙' };
+    const unit = uwUnitAt(x, y);
+    if (unit && isUWUnitVisible(gameState.cp, unit)) {
+        ctx.globalAlpha = (unit.iv === 1 ? 0.5 : 1) * (unit.a === 1 ? 0.55 : 1);
+        if (pixelSprites[unit.t]) {
+            // Auf dem Stollenkopf-Hex leicht nach unten versetzt, damit der HUB
+            // sichtbar bleibt (2D-Pendant zum Zur-Kamera-Vorziehen in 3D).
+            const onHub = (gameState.tu || []).some(t => t.x1 === x && t.y1 === y);
+            const uy = center.py + (onHub ? 6 : 0);
+            drawPixelSprite(ctx, center.px, uy, unit.t, playerColors[unit.p]);
+            drawUWBar(center.px, uy + 6, unit.h, getUnitMaxHp(gameState.p[unit.p], unit.t, unit));
+        } else {
+            ctx.fillStyle = playerColors[unit.p];
+            ctx.beginPath(); ctx.arc(center.px, center.py, 7, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+            ctx.fillText(UW_UNIT_ICONS[unit.t] || '?', center.px, center.py + 3);
+        }
+        ctx.textAlign = 'center';
+        if (unit.cr) { ctx.fillStyle = '#7fe3ff'; ctx.font = 'bold 8px monospace'; ctx.fillText(`💎${unit.cr}`, center.px, center.py - 16); }
+        if (unit.art) { ctx.fillStyle = '#ba68c8'; ctx.font = 'bold 8px monospace'; ctx.fillText(RELICS[unit.art].icon, center.px + 11, center.py - 12); }
+        ctx.globalAlpha = 1;
+    }
+
+    // Kreaturen (M11): neutral, gleiche Umkreis-2-Sichtregel (isUWCreatureVisible).
+    // Echtes Kreaturen-Sprite (uw_spinne/uw_wuehler/uw_steinpanzer/uw_wurm) im
+    // selben neutralen Ton wie in 3D, der Wurm größer; Kreis + Emoji als Fallback.
+    const UW_CREATURE_ICONS = { [UWC_SPINNE]: '🕷', [UWC_WUEHLER]: '🦡', [UWC_STEINPANZER]: '🪨', [UWC_WURM]: '🐛' };
+    const creature = uwCreatureAt(x, y);
+    if (creature && isUWCreatureVisible(gameState.cp, creature)) {
+        const isWurm = creature.t === UWC_WURM;
+        const cStats = uwCreatureStats[creature.t];
+        if (cStats && pixelSprites[cStats.sprite]) {
+            drawPixelSprite(ctx, center.px, center.py, cStats.sprite, '#e57373', isWurm ? 1.5 : 1);
+        } else {
+            ctx.fillStyle = '#7a3b3b';
+            ctx.beginPath(); ctx.arc(center.px, center.py, isWurm ? 10 : 7, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.font = `bold ${isWurm ? 12 : 9}px monospace`; ctx.textAlign = 'center';
+            ctx.fillText(UW_CREATURE_ICONS[creature.t] || '?', center.px, center.py + 4);
+        }
+        if (cStats) drawUWBar(center.px, center.py + (isWurm ? 12 : 6), creature.h, cStats.hp);
+    }
+
+    // Spinnennetze (M11): dezenter Bodenring — statisch, nur im eigenen Netz.
+    if (explored && gameState.uw && gameState.uw.w && gameState.uw.w[`${x},${y}`]) {
+        ctx.strokeStyle = 'rgba(221,221,221,0.6)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(center.px, center.py, 10, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // Gehör: Horcher-Ortung (exact) als deutlicheres rotes Fadenkreuz, sonst
+    // ungefähre Richtungsmarkierung als kleines Symbol am Netzrand.
+    const ping = noisePings.find(p => p.x === x && p.y === y);
+    if (ping) {
+        ctx.fillStyle = ping.exact ? '#ff5252' : '#ffb300'; ctx.font = `bold ${ping.exact ? 13 : 11}px monospace`; ctx.textAlign = 'center';
+        ctx.fillText(ping.exact ? '🎯' : '👂', center.px, center.py - 14);
+    }
+
+    // Telegraphierte Kreaturen-Angriffe (Korrektur Juli 2026, "Runden-Phase +
+    // Telegraph"): NUR sichtbar, wenn eine eigene (oder verbündete) Einheit
+    // aktuell im Umkreis 2 steht und den Treffer damit tatsächlich SEHEN kann
+    // (uwHexNearOwnUnits, dieselbe Regel wie isUWCreatureVisible) — die bloße
+    // Netz-Geometrie (uwVis/explored, "kenne ich von früher") reicht NICHT mehr
+    // aus (Korrektur Juli 2026, Jonathan: sonst blieb die Warnung stehen, obwohl
+    // gar keine eigene Einheit mehr dort war, um sie wahrzunehmen). Eigene
+    // Farbe/Icon-Kombi (dunkles Rot-Overlay + 🎯), nicht mit den grün/braun/
+    // orange/hellrot-halbtransparenten uwValid*-Auswahl-Highlights verwechselbar.
+    const telegraph = uwHexNearOwnUnits(gameState.cp, x, y) && (gameState.uw && gameState.uw.c || []).find(c =>
+        c.h > 0 && c.ap && getOpenCreatureAttackHexes(gameState, c).some(h => h.x === x && h.y === y));
+    if (telegraph) {
+        drawHexPath(center.px, center.py);
+        ctx.fillStyle = "rgba(183, 28, 28, 0.5)"; ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('🎯', center.px, center.py + 4);
+    }
+
+    if (window.selectedUnderworldHex && window.selectedUnderworldHex.x === x && window.selectedUnderworldHex.y === y) {
+        drawHexPath(center.px, center.py);
+        ctx.fillStyle = "rgba(192, 132, 252, 0.35)"; ctx.fill();
+        ctx.strokeStyle = "#c084fc"; ctx.lineWidth = 2; ctx.stroke();
+    }
+}
+
 function drawScene(state) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
@@ -324,17 +672,40 @@ function drawScene(state) {
     ctx.scale(camScale, camScale);
 
     updateExploration();
+    updateUWExploration();
     const vis = getVisibleHexes(gameState.cp);
     const explored = gameState.p[gameState.cp].e || [];
 
+    // M13: gleiche uw/global-Sichtregeln wie der Recap-Playback in bootGame (siehe
+    // dortiger Kommentar) — Unterwelt-Aktionen prüfen das Unterwelt-Netz statt der
+    // Oberflächen-Sicht, globale Meldungen (Wurm-Tod/Erschließung) immer sichtbar.
     const visibleRecaps = (state.la || []).filter(a => {
+        if (a.global) return true;
+        if (a.uw) {
+            const uwVis = getVisibleUWHexes(gameState.cp);
+            if (!uwVis.has(`${a.x},${a.y}`)) return false;
+            return !((gameState.uw && gameState.uw.u) || []).some(u => u.p !== gameState.cp && u.iv === 1 && u.x === a.x && u.y === a.y);
+        }
         if (!vis.has(`${a.x},${a.y}`)) return false;
         return !state.u.some(u => u.p !== state.cp && u.iv === 1 && u.x === a.x && u.y === a.y);
     });
 
+    // Unterwelt-Fokus (2): eigene, vom Oberflächen-Terrain unabhängige Draufsicht
+    // statt der normalen Hex-Schleife (Netz-Sicht statt Oberflächen-Fog, siehe
+    // getVisibleUWHexes/js/logic.js — "Unterwelt aufdecken" im Debug-Panel
+    // übersteuert weiterhin alles).
+    const uwVis = window.cameraFocus === 2 ? getVisibleUWHexes(gameState.cp) : null;
+    const uwNoisePings = window.cameraFocus === 2 ? getUWNoisePings(gameState.cp) : [];
+
     for (let y = 0; y < state.bh; y++) {
         for (let x = 0; x < state.bw; x++) {
             if (!isInsideMap(state, x, y)) continue;
+
+            if (window.cameraFocus === 2) {
+                drawUnderworldHex2D(x, y, uwVis, uwNoisePings);
+                continue;
+            }
+
             const idx = y * state.bw + x;
             const isVisible = vis.has(`${x},${y}`);
 
@@ -354,6 +725,11 @@ function drawScene(state) {
     }
 
     let renderQueue = [];
+    // Unterwelt-Kamerafokus (2): Oberflächen-Ebene bleibt komplett aus — siehe
+    // render3d.js für die ausführliche Begründung (keine Auswahl, keine
+    // durchscheinenden HP-/Ressourcen-Zahlen); die Unterwelt-Entities zeichnet
+    // drawUnderworldHex2D selbst.
+    if (window.cameraFocus !== 2) {
 
     if (state.tu) {
         state.tu.forEach(t => {
@@ -413,6 +789,8 @@ function drawScene(state) {
         }
     });
 
+    } // window.cameraFocus !== 2
+
     renderQueue.sort((a, b) => a.py - b.py);
 
     renderQueue.forEach(item => {
@@ -434,6 +812,42 @@ function drawScene(state) {
             drawEntity(item.vx, item.vy, item.color, false, undefined, undefined, "watchtower", false);
         }
     });
+
+    // Herz der Tiefe + Erschließung an der Oberfläche, nur in der Oberflächen-
+    // Ansicht. Dynamit (Korrektur Juli 2026) hat bewusst KEINE Oberflächen-
+    // Anzeige mehr — es wirkt ausschließlich unten.
+    if (window.cameraFocus !== 2 && state.ct) {
+        const c = getHexCenter(state.ct.x, state.ct.y);
+        // Steht eine Einheit/Kreatur im Zentrum der Herzkaverne, "rutscht" das
+        // Herz an die Oberfläche über den zentralen Wachturm hoch — gleiches
+        // Verhalten wie in 3D (js/render3d.js, "Herz der Tiefe"-Block), dort
+        // ausführlich begründet. Rand-Akzent in der Spielerfarbe der
+        // erschließenden Einheit, Platzhalter-Rot bei einer Kreatur.
+        const hcx = Math.floor(state.bw / 2), hcy = Math.floor(state.bh / 2);
+        const occupyingUnit = ((state.uw && state.uw.u) || []).find(u => u.x === hcx && u.y === hcy);
+        const heartOccupied = !!occupyingUnit
+            || ((state.uw && state.uw.c) || []).some(cr => cr.h > 0 && cr.x === hcx && cr.y === hcy);
+        if (heartOccupied) {
+            const heartColor = occupyingUnit ? playerColors[occupyingUnit.p] : '#ff6f61';
+            if (!drawVoxelModelSprite2D(c.px, c.py - 32, 'herzkaverne', heartColor)) {
+                ctx.fillStyle = '#ff6f61';
+                ctx.beginPath(); ctx.arc(c.px, c.py - 32, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+            }
+        }
+        if (state.uw && state.uw.hz) {
+            // Erschließungs-Fortschritt über dem Herz (Pendant zum Label im
+            // 3D-Renderer); ohne sichtbares Herz zusätzlich das 🌍-Beben-Icon.
+            if (!heartOccupied) {
+                ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center';
+                ctx.fillStyle = '#8d6e63';
+                ctx.fillText('🌍', c.px, c.py - 26);
+            }
+            ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+            ctx.fillStyle = '#ffd54f';
+            ctx.fillText(`${state.uw.hz.n}/${ERSCHLIESSUNG_TARGET}`, c.px, c.py - (heartOccupied ? 52 : 42));
+        }
+    }
 
     ctx.restore();
     updateUI();
@@ -474,13 +888,16 @@ const Renderer2D = {
         const mouseY = (rawY - camY) / camScale;
 
         let closest = null; let minDist = Infinity; let closestIsHill = false;
+        // Unterwelt-Fokus: alle Hexes werden flach auf Basishöhe gezeichnet
+        // (drawUnderworldHex2D) — die Oberflächen-Hügel dürfen das Picking
+        // dort weder anheben noch bevorzugen.
+        const uwFocus = window.cameraFocus === 2;
 
         for (let y = 0; y < gameState.bh; y++) {
             for (let x = 0; x < gameState.bw; x++) {
                 if (!isInsideMap(gameState, x, y)) continue;
                 const center = getHexCenter(x, y);
-                const tType = getTerrainType(gameState, x, y);
-                const isHill = tType === 'hill';
+                const isHill = !uwFocus && getTerrainType(gameState, x, y) === 'hill';
                 const topFaceY = isHill ? center.py - 6 : center.py;
                 let dist = Math.sqrt((mouseX - center.px) ** 2 + ((mouseY - topFaceY) / yCompress) ** 2);
 
@@ -533,45 +950,142 @@ const Renderer2D = {
         _requestRender();
     },
 
+    // camScale gehört in die Formel (Screen = camX + px * camScale, s. drawScene/
+    // pickHex) — ohne den Faktor landete das Ziel-Hex bei jedem Zoom ≠ 1 neben
+    // der Bildmitte (die Karte hing im 2D-Modus dauerhaft links oben).
     centerOn(hexX, hexY, scale) {
         if (scale !== undefined) camScale = scale;
         const center = getHexCenter(hexX, hexY);
-        camX = (canvas.width / 2) - center.px;
-        camY = (canvas.height / 2) - center.py;
+        camX = (canvas.width / 2) - center.px * camScale;
+        camY = (canvas.height / 2) - center.py * camScale;
     },
 
     spawnFloatingText: _spawnFloatingText2D,
     spawnAttackAnim: _spawnAttackAnim2D,
 
-    setAirView() {
-        if (gameState) drawScene(gameState);
-    }
+    // 2D hat keine echte Kamerafahrt/Kippung — die Oberfläche ist einfach dann
+    // sichtbar, wenn der Kamerafokus nicht auf Unterwelt steht.
+    isSurfaceVisible() {
+        return window.cameraFocus !== 2;
+    },
+
+    // Die Unterwelt wird in derselben Orientierung wie die Oberfläche gezeichnet
+    // (reine Draufsicht). Die frühere 180°-CSS-Drehung des Canvas (Annäherung an
+    // den "Blick von unten" des 3D-Renderers) ist bewusst entfernt: sie
+    // invertierte Pan-Gesten und pickHex (beide rechnen in unrotierten
+    // Canvas-Koordinaten) und stellte alle Texte/Icons auf den Kopf.
+    // Kein eigener Render hier — setCameraFocusSlider rendert am Ende genau
+    // einmal (siehe Kommentar dort), alles andere wäre ein Doppel-Draw pro
+    // Regler-Event.
+    setCameraFocus(focus) {}
 };
 
 let Renderer = Renderer2D;
 
-// === LUFTANSICHT-TOGGLE ===
-// Standard: Flieger ~10% sichtbar. Luftansicht: Flieger 100%, Kamera fährt
-// in die Vogelperspektive (nur 3D). window.airView steuert zusätzlich die
-// Klick-Priorität bei gestapelten Hexes (input.js).
+// === KAMERAFOKUS-SCHIEBEREGLER ===
+// Stufenloser, rein manueller Regler (#camera-focus-slider, index.html) statt
+// des früheren Drei-Zustands-Zyklus-Buttons: Reglermitte (Wert 0) = Standard
+// (Default), nach oben = Luftansicht (Vogelperspektive, Flieger faden stufen-
+// los ein — im 2D-Fallback über window.cameraFocusPos in drawEntity), nach
+// unten = Unterwelt (Kamera taucht über die vordere Kante unter die Karte, nur
+// 3D; der 2D-Fallback zeichnet eine Draufsicht in Oberflächen-Orientierung,
+// siehe Renderer2D.setCameraFocus). Die Kamera
+// dreht über den GESAMTEN Regelweg (Luft -> Standard -> Unterwelt) monoton in
+// eine Richtung, nie erst zurück (siehe UNDERWORLD_ELEV-Kommentar in
+// render3d.js) — der Luftansicht-Endpunkt entspricht dem früheren Button-
+// Zielwinkel, der Unterwelt-Endpunkt ist dafür bewusst neu gewählt. Der
+// Nutzer steuert die Kamera 1:1 per Drag und kann jederzeit anhalten — kein
+// Zeit-Tween.
+// window.airView bleibt als Kompatibilitäts-Flag bestehen — steuert weiterhin
+// die Klick-/Anvisier-Priorität bei gestapelten Hexes (input.js, logic.js).
+window.cameraFocus = 0;      // abgeleitet: 0 = Standard, 1 = Luftansicht, 2 = Unterwelt
 window.airView = false;
-window.toggleAirView = function () {
-    window.airView = !window.airView;
-    const btn = document.getElementById('air-view-btn');
-    if (btn) btn.classList.toggle('active', window.airView);
+window.cameraFocusPos = 0;   // Rohwert des Reglers, -1 (Unterwelt) .. 0 (Standard) .. +1 (Luft)
+window.setCameraFocusSlider = function (rawValue) {
+    const v = Math.max(-1, Math.min(1, Number(rawValue) / 100));
+    window.cameraFocusPos = v;
 
-    if (selectedUnit) {
-        if (!window.airView && typeof isFlying === 'function' && isFlying(selectedUnit)) {
-            // Flieger sind in der Bodenansicht nicht "beachtet" — Auswahl aufheben
+    let surfaceVisible;
+    if (Renderer.setCameraFocusPos) {
+        Renderer.setCameraFocusPos(v);
+        surfaceVisible = Renderer.isSurfaceVisible ? Renderer.isSurfaceVisible() : v >= 0;
+    } else {
+        // 2D-Fallback: keine echte Kamerafahrt möglich, daher harter Schnitt
+        // bei Reglermitte statt eines stufenlosen Übergangs.
+        surfaceVisible = v >= 0;
+    }
+
+    window.airView = v > 0;
+    const newFocus = !surfaceVisible ? 2 : (window.airView ? 1 : 0);
+    const focusChanged = newFocus !== window.cameraFocus;
+    window.cameraFocus = newFocus;
+    if (!Renderer.setCameraFocusPos && Renderer.setCameraFocus) Renderer.setCameraFocus(newFocus);
+
+    const wrap = document.getElementById('camera-focus-slider-wrap');
+    if (wrap) {
+        wrap.classList.toggle('active', window.cameraFocus !== 0);
+        wrap.classList.toggle('focus-underworld', window.cameraFocus === 2);
+    }
+
+    if (focusChanged) {
+        if (window.cameraFocus === 2) {
+            // Unterwelt: die komplette Oberflächen-Ebene ist nicht mehr anwählbar/
+            // steuerbar — eine bestehende Auswahl (Boden- oder Lufteinheit) fällt weg.
             selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
             window.specialActive = null; hideActionMenu();
-        } else if (selectedUnit.a === 0 || selectedUnit.a === 2 || selectedUnit.a === 4) {
-            // Highlights an die neue Ebenen-Sicht anpassen (Luftziele ein-/ausblenden)
-            validMoves = (selectedUnit.a === 0 || selectedUnit.a === 4) ? calculateMoves(selectedUnit) : [];
-            validAttacks = (selectedUnit.a === 0 || selectedUnit.a === 2) ? calculateAttacks(selectedUnit) : [];
+        } else if (selectedUnit) {
+            if (!window.airView && typeof isFlying === 'function' && isFlying(selectedUnit)) {
+                // Flieger sind außerhalb der Luftansicht nicht "beachtet" — Auswahl aufheben
+                selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
+                window.specialActive = null; hideActionMenu();
+            } else if (selectedUnit.a === 0 || selectedUnit.a === 2 || selectedUnit.a === 4) {
+                // Highlights an die neue Ebenen-Sicht anpassen (Luftziele ein-/ausblenden)
+                validMoves = (selectedUnit.a === 0 || selectedUnit.a === 4) ? calculateMoves(selectedUnit) : [];
+                validAttacks = (selectedUnit.a === 0 || selectedUnit.a === 2) ? calculateAttacks(selectedUnit) : [];
+            }
         }
     }
 
-    if (Renderer.setAirView) Renderer.setAirView(window.airView);
-    else if (gameState) renderBoard(gameState);
+    // Ein einziger Render-Aufruf nach Kamera- UND Auswahl-Update (statt eines
+    // separaten Renders schon aus Renderer.setCameraFocusPos heraus) — sonst
+    // würde bei jedem Regler-Event doppelt gezeichnet, einmal noch mit der
+    // alten Auswahl-Highlight.
+    if (gameState) renderBoard(gameState);
 };
+
+// Slider-Wrap während des Ziehens auf der aktuellen Bildschirmposition
+// festnageln: der Wrap ankert per CSS an der Oberkante von #ui-container
+// (css/game.css), und genau dieses Ziehen kann die Leiste umbauen — beim
+// Überschreiten der Unterwelt-Schwelle wird z.B. die aktive Auswahl (Dorf-Menü,
+// Einheit) aufgehoben, die Leiste schrumpft, der Slider rutscht nach unten,
+// während der Daumen noch an der alten Stelle liegt → der Regler springt unterm
+// Finger auf einen völlig anderen Wert (plötzlich wieder Luftansicht). Deshalb:
+// bei pointerdown die aktuelle Viewport-Position einfrieren (position: fixed),
+// erst beim Loslassen wieder auf die CSS-Verankerung zurückfallen — der Wrap
+// passt seine Position also erst NACH dem Loslassen an die neue Leistenhöhe an.
+// (right: 10px gilt fixed wie absolute am selben x — #ui-container ist
+// viewport-breit, nur die vertikale Verankerung unterscheidet sich.)
+(function () {
+    const wrap = document.getElementById('camera-focus-slider-wrap');
+    const slider = document.getElementById('camera-focus-slider');
+    if (!wrap || !slider) return;
+    let pinned = false;
+    slider.addEventListener('pointerdown', () => {
+        const r = wrap.getBoundingClientRect();
+        wrap.style.position = 'fixed';
+        wrap.style.top = r.top + 'px';
+        wrap.style.bottom = 'auto';
+        pinned = true;
+    });
+    // pointerup/-cancel auf window statt auf dem Slider: der Finger kann
+    // außerhalb des Elements losgelassen werden.
+    function unpin() {
+        if (!pinned) return;
+        pinned = false;
+        wrap.style.position = '';
+        wrap.style.top = '';
+        wrap.style.bottom = '';
+    }
+    window.addEventListener('pointerup', unpin);
+    window.addEventListener('pointercancel', unpin);
+})();

@@ -15,6 +15,12 @@ window.DEBUG_MODE = false;
 window.DEBUG_NO_FOG = false;
 window.DEBUG_HOTSEAT = false;
 window.DEBUG_TOOL = 'none';
+// "Unterwelt aufdecken": zeigt das komplette Unterwelt-Terrain + alle Tiefen-
+// einheiten unabhängig von den echten Netz-/Umkreis-Sichtregeln (getVisibleUWHexes/
+// isUWUnitVisible, js/logic.js). Produktions-Default AUS (wie DEBUG_NO_FOG oben) —
+// initDebugMode() schaltet es für den Test-/Debug-Modus zur Bequemlichkeit an,
+// der Panel-Toggle erlaubt, die echten Sichtregeln trotzdem zu prüfen.
+window.DEBUG_UW_REVEAL = false;
 
 const DEBUG_LS_KEY = 'da_debug_scenarios';
 
@@ -23,6 +29,7 @@ function initDebugMode(stateParam) {
     isLegacyUrlMode = true;
     window.DEBUG_NO_FOG = true;
     window.DEBUG_HOTSEAT = true;
+    window.DEBUG_UW_REVEAL = true;
 
     // Service Worker abschalten, damit Code-Änderungen sofort greifen (F5 statt Cache)
     if ('serviceWorker' in navigator) {
@@ -95,6 +102,7 @@ function debugApplyTool(hex) {
 
     if (tool === 'spawn') {
         const t = parseInt(document.getElementById('dbg-spawn-type').value);
+        if (unitStats[t].isUW) { showToast('Unterwelt-Einheit — bitte Werkzeug "Unterwelt setzen" nutzen (Klick unten in der Unterwelt-Ansicht).'); return; }
         // Ebenenbewusst: Flieger blockieren nur Flieger, Boden nur Boden
         const blocked = unitStats[t].isAir ? airUnitAt(x, y) : groundUnitAt(x, y);
         if (blocked) { showToast('Ebene belegt.'); return; }
@@ -123,6 +131,28 @@ function debugApplyTool(hex) {
     } else if (tool === 'ready') {
         if (!unitAt) { showToast('Keine Einheit auf dem Feld.'); return; }
         unitAt.a = unitAt.a ? 0 : 1;
+    } else if (tool === 'uwspawn') {
+        // Unterwelt-Einheit (17-22, aus dbg-spawn-type) auf ein Unterwelt-Hex setzen
+        // (unabhängig von Kamerafokus/Kauf-Regeln) — nur auf bereits offenen Hexes,
+        // nicht auf belegten.
+        const t = parseInt(document.getElementById('dbg-spawn-type').value);
+        if (!unitStats[t].isUW) { showToast('Keine Unterwelt-Einheit ausgewählt (17-22). Der Arbeiter (7) taucht über "Abtauchen" an seinem Tunnel-Startpunkt ab.'); return; }
+        if (!isUnderworldOpen(gameState, x, y)) { showToast('Hex ist noch massiver Fels — nicht setzbar.'); return; }
+        if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {} };
+        if (uwUnitAt(x, y)) { showToast('Unterwelt-Feld belegt.'); return; }
+        const owner = parseInt(document.getElementById('dbg-spawn-owner').value);
+        const nextId = gameState.uw.u.reduce((m, u) => Math.max(m, u.i || 0), 0) + 1;
+        const unitObj = { i: nextId, p: owner, t, x, y, h: getUnitMaxHp(gameState.p[owner], t), a: 0 };
+        gameState.uw.u.push(unitObj);
+    } else if (tool === 'uwcreature') {
+        // Kreatur (M11, Typ aus dbg-creature-type) auf ein offenes Unterwelt-Hex
+        // setzen — neutral, kein Besitzer, keine Kauf-/Kamerafokus-Prüfung nötig.
+        const t = parseInt(document.getElementById('dbg-creature-type').value);
+        if (!isUnderworldOpen(gameState, x, y)) { showToast('Hex ist noch massiver Fels — nicht setzbar.'); return; }
+        if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {}, f: {}, w: {}, c: [] };
+        if (!gameState.uw.c) gameState.uw.c = [];
+        if (uwUnitAt(x, y) || uwCreatureAt(x, y)) { showToast('Unterwelt-Feld belegt.'); return; }
+        gameState.uw.c.push({ t, x, y, h: uwCreatureStats[t].hp });
     }
 
     renderBoard(gameState);
@@ -150,6 +180,81 @@ function debugGive(g, m, s) {
     updateUI();
 }
 
+function debugGiveCrystals(k) {
+    const p = gameState.p[gameState.cp];
+    p.k = (p.k || 0) + k;
+    updateUI();
+}
+
+function debugGiveRelics() {
+    const p = gameState.p[gameState.cp];
+    if (!p.rel) p.rel = [];
+    Object.keys(RELICS).forEach(key => { if (key !== 'map') p.rel.push(key); }); // "map" wirkt sofort, kein Inventar-Item
+    renderBoard(gameState);
+    updateUI();
+    showToast('Je 1 Reliquie ins Inventar gelegt (außer Karte der Tiefe).');
+}
+
+// Alten Wurm sofort besiegen (M11) — entfernt ihn aus uw.c und setzt uw.wd
+// dauerhaft, exakt wie ein regulärer Spielerkill (siehe resolveUWAttackOnCreature).
+function debugKillWorm() {
+    if (!gameState.uw || !gameState.uw.c) { showToast('Kein Unterwelt-Zustand geladen.'); return; }
+    const worm = gameState.uw.c.find(c => c.t === UWC_WURM && c.h > 0);
+    if (!worm) { showToast('Der Alte Wurm ist bereits tot (oder nicht auf der Karte).'); return; }
+    gameState.uw.c = gameState.uw.c.filter(c => c !== worm);
+    gameState.uw.wd = 1;
+    renderBoard(gameState);
+    updateUI();
+    showToast('🐛 Ein Beben läuft durch das Land — der Alte Wurm ist gefallen!', 'gold');
+}
+
+// Erschließungs-Setup mit einem Klick (M12): tötet den Wurm (falls noch am
+// Leben) UND setzt eine eigene Einheit exakt ins Herzkaverne-Zentrum — damit
+// ist die Fortschritts-Bedingung sofort erfüllt (nächstes doEndTurn zählt hoch).
+function debugSetupErschliessung() {
+    if (!gameState.uw) gameState.uw = { d: [], u: [], n: [], a: {}, f: {}, w: {}, c: [] };
+    gameState.uw.wd = 1;
+    gameState.uw.c = (gameState.uw.c || []).filter(c => c.t !== UWC_WURM);
+    const cx = Math.floor(gameState.bw / 2), cy = Math.floor(gameState.bh / 2);
+    if (!uwUnitAt(cx, cy)) {
+        if (!gameState.uw.u) gameState.uw.u = [];
+        const nextId = gameState.uw.u.reduce((m, u) => Math.max(m, u.i || 0), 0) + 1;
+        gameState.uw.u.push({ i: nextId, p: gameState.cp, t: 7, x: cx, y: cy, h: getUnitMaxHp(gameState.p[gameState.cp], 7), a: 0 });
+    }
+    renderBoard(gameState);
+    updateUI();
+    showToast('Wurm tot + eigene Einheit im Herzkaverne-Zentrum gesetzt (nächster Zugende zählt).');
+}
+
+// Kreaturen-Runden-Phase sofort auslösen (Korrektur Juli 2026, "Runden-Phase +
+// Telegraph"): reines Testwerkzeug, läuft unabhängig vom tatsächlichen
+// Rundenwechsel (gameState.rn wird NICHT verändert) — löst bestehende
+// Telegraphen auf, bewegt die Kreaturen und setzt neue Telegraphen, exakt wie
+// uwCreatureRoundPhase() das normalerweise einmal pro Runde in doEndTurn tut.
+function debugRunCreaturePhase() {
+    if (!gameState.uw || !gameState.uw.c || gameState.uw.c.length === 0) { showToast('Keine Kreaturen im aktuellen Zustand.'); return; }
+    const phase = uwCreatureRoundPhase();
+    gameState.la = (gameState.la || []).concat(phase.events.filter(e => e.type === 'creatureAtk').map(e => ({ x: e.x, y: e.y, t: 'creatureAtk', uw: true })));
+    renderBoard(gameState);
+    updateUI();
+    showToast(`🐾 Kreaturen-Phase ausgeführt: ${phase.events.length} Treffer, ${gameState.uw.c.length} Kreaturen übrig.`);
+}
+
+// Dynamit sofort platzieren (Korrektur Juli 2026, ersetzt debugArmChamber):
+// findet den ersten eigenen Sprengmeister in der Unterwelt und platziert eine
+// Ladung auf seinem ersten gültigen Fels-Nachbarn, unabhängig vom Holzvorrat —
+// reines Testwerkzeug, um die Detonation am nächsten Zugstart schnell zu prüfen.
+function debugPlaceDynamite() {
+    const sprengmeister = ((gameState.uw && gameState.uw.u) || []).find(u => u.p === gameState.cp && u.t === 18);
+    if (!sprengmeister) { showToast('Kein eigener Sprengmeister in der Unterwelt.'); return; }
+    const targets = calculateDynamiteTargetsUW(sprengmeister);
+    if (targets.length === 0) { showToast('Kein Fels-Hex neben dem Sprengmeister.'); return; }
+    placeUWDynamite(gameState, sprengmeister, targets[0].x, targets[0].y);
+    renderBoard(gameState);
+    updateUI();
+    showToast('🧨 Dynamit sofort platziert (detoniert am nächsten eigenen Zugstart).');
+}
+
 function debugRefreshActions() {
     gameState.u.filter(u => u.p === gameState.cp).forEach(u => { u.a = 0; delete u.br; });
     (gameState.tw || []).filter(tw => tw.o === gameState.cp).forEach(tw => tw.a = 0);
@@ -159,6 +264,11 @@ function debugRefreshActions() {
 
 function debugToggleFog(off) {
     window.DEBUG_NO_FOG = off;
+    renderBoard(gameState);
+}
+
+function debugToggleUwReveal(on) {
+    window.DEBUG_UW_REVEAL = on;
     renderBoard(gameState);
 }
 
@@ -265,6 +375,7 @@ function buildDebugPanel() {
     document.body.appendChild(toggle);
 
     const unitOptions = Object.entries(unitStats).map(([t, s]) => `<option value="${t}">${s.name}</option>`).join('');
+    const creatureOptions = Object.entries(uwCreatureStats).map(([t, s]) => `<option value="${t}">${s.name}</option>`).join('');
 
     const panel = document.createElement('div');
     panel.id = 'dbg-panel';
@@ -286,10 +397,26 @@ function buildDebugPanel() {
             <button onclick="debugGive(10,0,0)">+10💰</button>
             <button onclick="debugGive(0,10,0)">+10🪵</button>
             <button onclick="debugGive(0,0,10)">+10🪨</button>
+            <button onclick="debugGiveCrystals(10)">+10💎</button>
+            <button onclick="debugGiveRelics()" title="Je eine Reliquie jedes Typs ins Inventar">+1️⃣ Reliquien</button>
         </div>
         <button onclick="debugRefreshActions()">⟳ Aktionen auffrischen</button>
         <label class="dbg-tool"><input type="checkbox" id="dbg-fog" checked
             onchange="debugToggleFog(this.checked)"> Fog of War aus</label>
+
+        <h4>Unterwelt</h4>
+        <label class="dbg-tool"><input type="checkbox" id="dbg-uw-reveal" checked
+            onchange="debugToggleUwReveal(this.checked)"> Unterwelt aufdecken (Netz-Sicht aus)</label>
+        <div class="dbg-row">
+            <button onclick="dbg.uwStats()" title="Typ-Verteilung des aktuellen Seeds in die Konsole loggen">📊 uwStats()</button>
+            <button onclick="dbg.uwState()" title="gameState.uw in die Konsole loggen">🗂 uw-State</button>
+        </div>
+        <div class="dbg-row">
+            <button onclick="debugKillWorm()" title="Alten Wurm sofort besiegen (uw.wd=1)">🐛 Wurm töten</button>
+            <button onclick="debugSetupErschliessung()" title="Wurm tot + eigene Einheit ins Herzkaverne-Zentrum">🌍 Erschließungs-Setup</button>
+        </div>
+        <button onclick="debugRunCreaturePhase()" title="uwCreatureRoundPhase() sofort ausführen (Testwerkzeug, unabhängig vom Rundenwechsel) + neu rendern">🐾 Kreaturen-Phase jetzt</button>
+        <button onclick="debugPlaceDynamite()" title="Dynamit-Ladung auf einem Fels-Nachbarn des ersten eigenen Sprengmeisters, ohne Holzkosten">🧨 Dynamit sofort platzieren</button>
 
         <h4>Klick-Werkzeug</h4>
         <label class="dbg-tool"><input type="radio" name="dbg-tool" value="none" checked
@@ -311,6 +438,13 @@ function buildDebugPanel() {
         </div>
         <label class="dbg-tool"><input type="radio" name="dbg-tool" value="ready"
             onchange="DEBUG_TOOL=this.value"> Aktion verbraucht an/aus</label>
+        <label class="dbg-tool"><input type="radio" name="dbg-tool" value="uwspawn"
+            onchange="DEBUG_TOOL=this.value"> ⛏ Unterwelt setzen (Typ oben, akt. Spieler)</label>
+        <label class="dbg-tool"><input type="radio" name="dbg-tool" value="uwcreature"
+            onchange="DEBUG_TOOL=this.value"> 🕷 Kreatur setzen:</label>
+        <div class="dbg-row" style="padding-left:16px;">
+            <select id="dbg-creature-type">${creatureOptions}</select>
+        </div>
 
         <h4>Spielstand</h4>
         <button onclick="debugStateToUrl()" title="Zustand in URL — Code ändern, F5, weitertesten">🔗 State → URL (F5-sicher)</button>
@@ -365,4 +499,54 @@ window.dbg = {
     switch: (i) => debugSwitchPlayer(i),
     faction: (pIdx, fId) => { const p = gameState.p[pIdx]; if (!p.f.includes(fId)) p.f.push(fId); renderBoard(gameState); },
     upgrade: (pIdx, uId) => { const p = gameState.p[pIdx]; if (!p.u) p.u = []; if (!p.u.includes(uId)) p.u.push(uId); },
+    // Zählt für den aktuellen Seed die Unterwelt-Typ-Verteilung (Fels/Kaverne/
+    // Ader/Ruine/Herz) über die komplette Karte und loggt sie in die Konsole.
+    uwStats: () => {
+        if (!gameState) { console.log('Kein Spiel geladen.'); return; }
+        const counts = { [UW_FELS]: 0, [UW_KAVERNE]: 0, [UW_ADER]: 0, [UW_RUINE]: 0, [UW_HERZ]: 0 };
+        let total = 0;
+        for (let y = 0; y < gameState.bh; y++) {
+            for (let x = 0; x < gameState.bw; x++) {
+                if (!isInsideMap(gameState, x, y)) continue;
+                counts[getUnderworldType(gameState, x, y)]++;
+                total++;
+            }
+        }
+        const pct = t => total ? (counts[t] / total * 100).toFixed(1) : '0.0';
+        const line = Object.keys(UW_TYPE_NAMES)
+            .map(t => `${UW_TYPE_NAMES[t]} ${counts[t]} (${pct(t)}%)`)
+            .join(' · ');
+        console.log(`Unterwelt-Verteilung (Seed ${gameState.sd}, ${total} Hexes): ${line}`);
+        return counts;
+    },
+    // Dumpt den kompletten Unterwelt-Zustand (gegrabene Hexes, Einheiten, Lärm,
+    // angebrochene Adern) + Kristalle/Netz-Sicht aller Spieler in die Konsole.
+    uwState: () => {
+        if (!gameState) { console.log('Kein Spiel geladen.'); return; }
+        console.log('gameState.uw:', gameState.uw);
+        gameState.p.forEach((p, i) => console.log(`Spieler ${i} (${p.n}): 💎${p.k || 0} · Netz-Hexes: ${(p.ue || []).length}`));
+        // Kreaturen (M11): Bestand nach Typ + Wurm-Status.
+        const creatures = (gameState.uw && gameState.uw.c) || [];
+        const counts = {};
+        creatures.forEach(c => { counts[c.t] = (counts[c.t] || 0) + 1; });
+        const line = Object.keys(uwCreatureStats).map(t => `${uwCreatureStats[t].name} ${counts[t] || 0}`).join(' · ');
+        console.log(`Kreaturen: ${line} · Wurm tot: ${gameState.uw && gameState.uw.wd ? 'ja' : 'nein'} · Netze: ${Object.keys((gameState.uw && gameState.uw.w) || {}).length}`);
+        // Telegraphen (Korrektur Juli 2026, "Runden-Phase + Telegraph"): welche
+        // Kreatur mit welchem Muster/welcher Richtung welche Felder markiert hat.
+        const telegraphed = creatures.filter(c => c.h > 0 && c.ap);
+        if (telegraphed.length > 0) {
+            telegraphed.forEach(c => {
+                const hexes = getCreatureAttackHexes(gameState, c).map(h => `${h.x},${h.y}`).join(' ');
+                console.log(`  🎯 ${uwCreatureStats[c.t].name} @${c.x},${c.y} (p${c.ap.p}/d${c.ap.d}): ${hexes}`);
+            });
+        } else {
+            console.log('  🎯 keine aktiven Telegraphen');
+        }
+        // Erschließung (M12): Fortschritt + ausstehende Dynamit-Ladungen.
+        const hz = gameState.uw && gameState.uw.hz;
+        console.log(`Erschließung: ${hz ? `${gameState.p[hz.p].n} (${hz.n}/${ERSCHLIESSUNG_TARGET})` : 'keine'}`);
+        const charges = (gameState.uw && gameState.uw.dy) || [];
+        console.log(`Ausstehende Dynamit-Ladungen: ${charges.length} (${charges.map(c => `${gameState.p[c.p].n}: ${c.hexes.map(h => `${h.x},${h.y}`).join('+')}`).join(' · ')})`);
+        return gameState.uw;
+    },
 };

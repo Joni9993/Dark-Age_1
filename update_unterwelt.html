@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dark Age – Update: Die Unterwelt</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;700&family=IM+Fell+English:ital@0;1&family=Inter:wght@400;600&display=swap');
+
+    :root {
+      --gold: #f5c842;
+      --gold-dark: #c49a0a;
+      --bg: #0d0d0f;
+      --card: #16181e;
+      --border: #2a2d3e;
+      --text: #d4c9b0;
+      --muted: #8a8a9a;
+      --new: #40c4ff;
+      --crystal: #b57cff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* HERO */
+    .hero {
+      text-align: center;
+      padding: 56px 20px 44px;
+      background: radial-gradient(ellipse at 50% 0%, #16100a 0%, var(--bg) 70%);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(245, 200, 66, 0.12);
+      border: 1px solid var(--gold-dark);
+      color: var(--gold);
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.9rem, 6vw, 3.2rem);
+      font-weight: 700;
+      color: var(--gold);
+      text-shadow: 0 0 40px rgba(245, 200, 66, 0.35), 0 2px 0 #000;
+      line-height: 1.15;
+    }
+
+    .hero-sub {
+      font-family: 'IM Fell English', serif;
+      font-style: italic;
+      color: var(--muted);
+      font-size: 1.05rem;
+      max-width: 560px;
+      margin: 14px auto 0;
+    }
+
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 40px 18px 70px;
+    }
+
+    /* LORE INTRO */
+    .lore {
+      font-family: 'IM Fell English', serif;
+      font-size: 1.12rem;
+      color: #c9bd9c;
+      text-align: center;
+      max-width: 620px;
+      margin: 0 auto 48px;
+      line-height: 1.7;
+    }
+
+    .lore strong {
+      color: var(--gold);
+      font-weight: normal;
+    }
+
+    /* SECTION */
+    .kicker {
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--gold);
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .section-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.5rem;
+      color: #e8e0c8;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    /* FEATURE CARDS */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+      margin-bottom: 56px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    .card-icon {
+      font-size: 1.7rem;
+      margin-bottom: 8px;
+    }
+
+    .card-title {
+      font-family: 'Cinzel', serif;
+      font-size: 0.98rem;
+      color: var(--gold);
+      margin-bottom: 6px;
+    }
+
+    .card p {
+      color: var(--muted);
+      font-size: 0.87rem;
+    }
+
+    .card p strong {
+      color: var(--text);
+    }
+
+    /* UI LIST */
+    .ui-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 56px;
+    }
+
+    .ui-row {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--new);
+      border-radius: 0 10px 10px 0;
+      padding: 13px 18px;
+    }
+
+    .ui-row .ico {
+      font-size: 1.3rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .ui-row .txt {
+      font-size: 0.9rem;
+    }
+
+    .ui-row .txt strong {
+      color: var(--text);
+    }
+
+    .ui-row .txt span {
+      color: var(--muted);
+    }
+
+    /* FIX LIST (deliberately quiet — low visual weight) */
+    .fixbox {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 22px;
+    }
+
+    .fixbox ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .fixbox li {
+      font-size: 0.83rem;
+      color: var(--muted);
+      display: flex;
+      gap: 8px;
+    }
+
+    .fixbox li::before {
+      content: '✓';
+      color: #5a7a5f;
+      flex-shrink: 0;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0 0 44px;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 34px 20px 10px;
+      color: var(--muted);
+      font-family: 'IM Fell English', serif;
+      font-style: italic;
+      font-size: 1rem;
+    }
+
+    @media (max-width: 600px) {
+      .card-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="hero">
+    <div class="hero-badge">Update 3.0 · Die Unterwelt</div>
+    <h1>Dreh das Spiel auf den Kopf</h1>
+    <div class="hero-sub">Jedem deiner Tunneleingänge ist ein eingang zur Unterwelt – und ab sofort kannst du
+      sie betreten.</div>
+  </div>
+
+  <div class="container">
+
+    <p class="lore">
+      Kein Sichtfeld mehr, nur dein eigenes <strong>Stollennetz</strong>. Kein Laufen, nur <strong>Graben</strong>.
+      Und du bist nicht allein: Höhlenspinnen nisten in den Kavernen, ein Blindwühler gräbt sich blind
+      durch jeden Fels, ein Steinpanzer wacht über den reichsten Adern – und tief im Zentrum, unter dem zentralen
+      Wachturm, hütet <strong>der Alte Wurm</strong> das Herz der Tiefe. Schlag ihn, halte die Kaverne fünf Runden
+      – und du gewinnst die Partie, ganz gleich was an der oberfläche passiert.
+    </p>
+
+    <div class="kicker">Auf einen Blick</div>
+    <div class="section-title">Was die Unterwelt mitbringt</div>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">🕳️</div>
+        <div class="card-title">Eine dritte Ebene</div>
+        <p>Baue einen Tunnel, schick deinen <strong>Arbeiter</strong> zum Stollenkopf und tauche ab.
+          Komplett eigenes Regelwerk: grabe, sprenge, dominiere.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚔️</div>
+        <div class="card-title">6 neue Einheiten</div>
+        <p>Grubenwache & Sprengmeister für alle, plus eine Tiefen-Elite pro Fraktion: Grubenritter, Beutegräber,
+          Horcher, Bohrwagen.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🦡</div>
+        <div class="card-title">4 Wesen der Tiefe</div>
+        <p>Echte PvE-Gefahr mit Telegraph-Warnung eine Runde im Voraus – Weich ihnen besser aus!</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">💎</div>
+        <div class="card-title">Kristalle & Reliquien</div>
+        <p>Neue Ressource aus Adern und Fundkammern – kauf dir Artefakte für einen Taktischen vorteil oder deine
+          Truppen.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🧨</div>
+        <div class="card-title">Dynamit</div>
+        <p>Sprengt Fels – die Unterwelt ist ein eigenständiges Schlachtfeld mit seinen eigenen Regeln.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🏆</div>
+        <div class="card-title">Dritter Siegweg</div>
+        <p>Erschließe das Herz der Tiefe und gewinne die ganze Partie – unabhängig vom Kampf oben.</p>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="kicker">Bedienung</div>
+    <div class="section-title">Neu im UI</div>
+
+    <div class="ui-list">
+      <div class="ui-row">
+        <div class="ico">🎡</div>
+        <div class="txt"><strong>Neues Auswahlrad</strong> – 1 Sekunde auf die Karte gedrückt halten öffnet ein Rad
+          mit Forschung, Fraktion, Diplomatie, Reliquien und Zug beenden. <span>Ersetzt die alten Einzel-Buttons.</span>
+        </div>
+      </div>
+      <div class="ui-row">
+        <div class="ico">🖐️</div>
+        <div class="txt"><strong>Kamerafokus-Schieberegler</strong> – ein Wisch zwischen Oberfläche, Luft und
+          Unterwelt. <span>Jede Ebene blendet die anderen sauber aus.</span></div>
+      </div>
+      <div class="ui-row">
+        <div class="ico">✋</div>
+        <div class="txt"><strong>Tippen ins Leere</strong> wählt jetzt zuverlässig alles ab und bricht Baumodi ab.</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="kicker">Unter der Haube</div>
+    <div class="section-title">Außerdem gefixt</div>
+
+    <div class="fixbox">
+      <ul>
+        <li>Dörfer werden beim Aufgeben zuverlässig neutral statt hängenzubleiben</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    Grab tief. Der Fels gibt nicht alles her – aber genug, um zu gewinnen.
+  </div>
+
+</body>
+
+</html>
