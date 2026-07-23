@@ -990,6 +990,13 @@ canvas {
     margin: 0;
     background: transparent;
     cursor: pointer;
+    /* Nur der Thumb soll klick-/ziehbar sein, nicht die Leiste selbst (sonst
+       springt der Wert bei jedem Klick auf die Leiste an diese Stelle). Die
+       Leiste (inkl. Track) wird per pointer-events:none unklickbar; der
+       Thumb hebt das gezielt wieder auf (::-webkit-slider-thumb /
+       ::-moz-range-thumb unten), da Pseudo-Elemente ihren eigenen
+       pointer-events-Wert setzen können. */
+    pointer-events: none;
 }
 
 /* Gradient läuft entlang der neuen (vertikalen) Achse: unten violett
@@ -1018,6 +1025,8 @@ canvas {
     background: linear-gradient(180deg, #e8c85a 0%, #b8923a 100%);
     border: 2px solid #3a2a12;
     box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+    pointer-events: auto;
+    cursor: pointer;
 }
 #camera-focus-slider::-moz-range-thumb {
     width: 22px;
@@ -1026,6 +1035,8 @@ canvas {
     background: linear-gradient(180deg, #e8c85a 0%, #b8923a 100%);
     border: 2px solid #3a2a12;
     box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+    pointer-events: auto;
+    cursor: pointer;
 }
 
 #game-menu-popup {

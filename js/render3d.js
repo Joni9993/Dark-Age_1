@@ -1815,7 +1815,7 @@
         },
 
         beginGesture() {
-            gestureStart = { tx: cam3d.tx, tz: cam3d.tz, scale: cam3d.scale, azim: cam3d.azim };
+            gestureStart = { tx: cam3d.tx, tz: cam3d.tz, scale: cam3d.scale, azim: cam3d.azim, elev: cam3d.elev };
         },
 
         gesturePan(dx, dy) {
@@ -1832,7 +1832,13 @@
 
         gestureOrbit(dAzim) {
             if (!gestureStart) return;
-            cam3d.azim = gestureStart.azim + dAzim;
+            // Jenseits des Zenit-/Nadir-Punkts (|elev| > 90°, tiefe Unterwelt-Ansicht)
+            // ist horiz = dist*cos(elev) negativ, wodurch dieselbe Azimut-Änderung
+            // die Kamera auf der Bildschirm-Gegenseite bewegt — der Zwei-Finger-Dreh
+            // fühlte sich dort seitenverkehrt an. Vorzeichen von cos(elev) am
+            // Gesten-Start kompensiert das, damit die Drehrichtung überall gleich bleibt.
+            const h = Math.cos(gestureStart.elev) < 0 ? -1 : 1;
+            cam3d.azim = gestureStart.azim + h * dAzim;
             requestRender3d();
         },
 
