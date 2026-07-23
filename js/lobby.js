@@ -21,7 +21,6 @@ async function showHomeScreen() {
     closeGameMenu();
     document.getElementById('home-screen').style.display    = 'flex';
     document.getElementById('home-username').textContent    = currentProfile?.username ?? '';
-    updateEnablePushButton();
     await refreshGameList();
     await refreshLeaderboardPanel();
 }

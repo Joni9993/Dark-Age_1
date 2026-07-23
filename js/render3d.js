@@ -1968,8 +1968,11 @@
 
     window.Renderer3D = Renderer3D;
 
-    // 3D ist Standard-Renderer; ?r2d=1 erzwingt den alten 2D-Renderer (Legacy-Fallback)
-    if (!new URLSearchParams(location.search).has('r2d')) {
+    // 3D ist Standard-Renderer; ?r2d=1 (URL gewinnt) oder die Einstellung
+    // "da_renderer" = '2d' (js/settings.js) erzwingt den alten 2D-Renderer.
+    const wantsR2d = new URLSearchParams(location.search).has('r2d')
+        || localStorage.getItem('da_renderer') === '2d';
+    if (!wantsR2d) {
         Renderer = Renderer3D;
     }
 })();

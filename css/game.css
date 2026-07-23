@@ -27,6 +27,13 @@ body {
     overflow: hidden;
     touch-action: none;
     min-height: 100vh;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+input, textarea {
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 h2 {
@@ -1750,3 +1757,126 @@ body {
     transition: opacity 150ms ease;
 }
 #radial-menu-overlay.radial-menu-visible .radial-center-dot { opacity: 1; }
+
+/* ── Einstellungs-Modal (js/settings.js) ─────────────────────────────────── */
+.settings-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    min-height: 48px;
+}
+
+.settings-row-col {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.settings-label {
+    font-size: 0.95rem;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.settings-status {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+}
+
+.settings-row-col .action-btn { width: 100%; margin: 0; }
+
+/* Toggle-Schalter */
+.toggle-switch {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+.toggle-knob {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.toggle-knob::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    top: 3px;
+    left: 4px;
+    background: var(--text-dim);
+    transition: transform 0.2s, background 0.2s;
+}
+
+.toggle-switch input:checked + .toggle-knob {
+    background: rgba(232, 184, 74, 0.15);
+    border-color: var(--gold);
+}
+
+.toggle-switch input:checked + .toggle-knob::before {
+    transform: translateX(21px);
+    background: var(--gold);
+}
+
+/* Lautstärke-Slider — Element bleibt 44px hoch (Touch-Target-Regel unten),
+   sichtbar ist nur der 6px-Track via Pseudo-Elemente (Pattern wie
+   #camera-focus-slider). */
+#settings-music-vol {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    cursor: pointer;
+}
+
+#settings-music-vol::-webkit-slider-runnable-track {
+    height: 6px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+}
+#settings-music-vol::-moz-range-track {
+    height: 6px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+}
+
+#settings-music-vol::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    margin-top: -7px; /* mittig auf dem 6px-Track: (18 - 6) / 2 + Trackrand */
+    border-radius: 50%;
+    background: var(--gold);
+    border: 1px solid rgba(0, 0, 0, 0.5);
+}
+#settings-music-vol::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--gold);
+    border: 1px solid rgba(0, 0, 0, 0.5);
+}

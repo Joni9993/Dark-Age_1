@@ -156,37 +156,6 @@ async function registerPush(fromUserGesture = false) {
     return true;
 }
 
-// Zeigt den manuellen "Benachrichtigungen aktivieren"-Button nur, wenn Push
-// unterstützt wird, aber noch keine aktive Subscription vorliegt (nötig als
-// direkter Tap-Trigger für iOS, und als sichtbarer Retry-Weg bei Fehlern).
-async function updateEnablePushButton() {
-    const btn = document.getElementById('enable-push-btn');
-    if (!btn) return;
-    if (!pushSupported() || Notification.permission === 'denied') { btn.style.display = 'none'; return; }
-    try {
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
-        btn.style.display = sub ? 'none' : 'block';
-    } catch {
-        btn.style.display = 'none';
-    }
-}
-
-async function handleEnablePush() {
-    const btn = document.getElementById('enable-push-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Bitte warten...'; }
-    try {
-        const ok = await registerPush(true);
-        showToast(ok ? 'Benachrichtigungen aktiviert!' : 'Berechtigung wurde nicht erteilt.');
-    } catch (err) {
-        console.error('[push] Manuelle Registrierung fehlgeschlagen:', err);
-        showToast('Aktivierung fehlgeschlagen — siehe Konsole.');
-    } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '🔔 Benachrichtigungen aktivieren'; }
-        updateEnablePushButton();
-    }
-}
-
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');

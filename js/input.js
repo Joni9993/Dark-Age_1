@@ -2640,7 +2640,7 @@ function doEndTurn() {
 endTurnBtn.addEventListener('click', () => {
     if (endTurnBtn.disabled) return;
     endTurnBtn.disabled = true;
-    if (hasRemainingActions()) {
+    if (localStorage.getItem('da_endturn_confirm') !== '0' && hasRemainingActions()) {
         openEndTurnConfirm();
     } else {
         doEndTurn();

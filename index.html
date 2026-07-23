@@ -55,7 +55,7 @@
         <button class="action-btn" onclick="showCreateGameModal()">+ Neues Spiel</button>
         <button class="action-btn secondary" onclick="showFriendsPanel()">👥 Freunde</button>
         <button class="action-btn secondary" onclick="window.open('darkages_guide.html','_blank')">📖 Anleitung</button>
-        <button id="enable-push-btn" class="action-btn secondary" onclick="handleEnablePush()" style="display:none;">🔔 Benachrichtigungen aktivieren</button>
+        <button class="action-btn secondary" onclick="openSettings()">⚙️ Einstellungen</button>
     </div>
 
     <!-- ── Lobby Screen ───────────────────────────────────────────────────── -->
@@ -109,6 +109,7 @@
     <div id="game-menu-popup" style="display:none;">
         <button id="menu-undo-item" onclick="undoLastAction(); closeGameMenu()" disabled>↩ Rückgängig</button>
         <button id="menu-surrender-item" onclick="openSurrenderDialog(); closeGameMenu()">🏳 Aufgeben</button>
+        <button onclick="openSettings(); closeGameMenu()">⚙️ Einstellungen</button>
         <button onclick="showHomeScreen(); closeGameMenu()">← Hauptmenü</button>
     </div>
 
@@ -255,6 +256,47 @@
         </div>
     </div>
 
+    <!-- ── Einstellungen (js/settings.js) ────────────────────────────────────── -->
+    <div id="settings-overlay" class="modal-backdrop" style="display:none;">
+        <div class="screen-box modal-box">
+            <h3 style="margin:0;font-family:'MedievalSharp',cursive;color:var(--gold);font-size:1.1rem;">⚙️ Einstellungen</h3>
+            <div class="settings-row">
+                <span class="settings-label">🎵 Musik</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="settings-music-toggle" onchange="setMusicEnabled(this.checked)">
+                    <span class="toggle-knob"></span>
+                </label>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">🔊 Lautstärke</span>
+                <input type="range" id="settings-music-vol" min="0" max="100" step="1"
+                    oninput="setMusicVolume(parseInt(this.value,10))">
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">🧊 3D-Ansicht</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="settings-renderer-toggle" onchange="setRenderer3D(this.checked)">
+                    <span class="toggle-knob"></span>
+                </label>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">⚔️ Zug-beenden-Bestätigung</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="settings-endturn-toggle" onchange="setEndTurnConfirmEnabled(this.checked)">
+                    <span class="toggle-knob"></span>
+                </label>
+            </div>
+            <div class="settings-row settings-row-col">
+                <span class="settings-label">🔔 Push-Benachrichtigungen</span>
+                <span id="settings-push-status" class="settings-status"></span>
+                <button id="settings-push-btn" class="action-btn secondary" style="display:none;"
+                    onclick="handleSettingsEnablePush()">🔔 Jetzt aktivieren</button>
+            </div>
+            <button id="settings-logout-btn" class="action-btn secondary" style="display:none;" onclick="handleLogout()">🚪 Abmelden</button>
+            <button class="action-btn" onclick="closeSettings()">Schließen</button>
+        </div>
+    </div>
+
     <!-- ── Friend Picker Overlay ─────────────────────────────────────────────── -->
     <div id="friend-picker-overlay" class="modal-backdrop" style="display:none;">
         <div class="screen-box modal-box">
@@ -311,6 +353,8 @@
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
+    <script src="audio/theme_song_data.js"></script>
+    <script src="js/settings.js"></script>
     <script src="js/lobby.js"></script>
     <script src="js/debug.js"></script>
     <script src="js/main.js"></script>
