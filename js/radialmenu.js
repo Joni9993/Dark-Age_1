@@ -1,12 +1,18 @@
 // === RADIAL-MENÜ (Langdruck-Auswahlrad) ===
 // Ersetzt die aus dem HUD entfernten Buttons Forschung/Kultur/Diplomatie/Zug-
-// beenden (siehe CLAUDE.md-Auftrag "HUD-Umbau"): 1s Druck ohne Ziehen auf
+// beenden (siehe CLAUDE.md-Auftrag "HUD-Umbau"): 0.7s Druck ohne Ziehen auf
 // #canvas-wrapper (Timer + Auslösen in js/input.js, POINTER/TOUCH EVENTS)
-// öffnet ein Rad aus 5 Kreisen zentriert am Druckpunkt. Solange gehalten,
-// übernimmt dieses Modul document-weite pointermove/pointerup-Listener;
-// input.js unterdrückt währenddessen (und kurz danach, siehe
-// wasPressConsumed()) seinen eigenen Klick-Handler, damit derselbe Press
-// nicht ZUSÄTZLICH einen Hex anklickt.
+// öffnet ein Rad aus 5 Kreisen zentriert am Druckpunkt.
+//
+// Auswahl-Modell (Auftrag Jonathan, Juli 2026): das Rad ist KEIN Drag-und-
+// Loslassen-Menü mehr. Der Langdruck-Loslasser (onDocPointerUp) selbst wählt
+// nichts mehr aus und schließt auch nichts — das Rad bleibt einfach stehen,
+// sobald der Finger/Zeiger wieder abgehoben wird. Erst ein NEUER, separater
+// Tap entscheidet: Tap auf einen Kreis löst dessen Aktion aus und schließt
+// das Rad, Tap irgendwo daneben schließt es ohne Aktion. Dieser zweite Tap
+// wird über einen capturing document-pointerdown-Listener abgefangen
+// (onOutsidePointerDown) und per stopPropagation "verschluckt", damit er
+// nicht zusätzlich einen Hex anklickt oder einen neuen Langdruck startet.
 //
 // Aktionen sind bewusst mit typeof/optional-chaining-Guards abgesichert:
 // Fraktions-Fenster (window.openFactionOverview) und Reliquien-Shop
@@ -153,29 +159,61 @@ window.RadialMenu = (function () {
 
     function onDocPointerMove(e) { updateHighlight(e.clientX, e.clientY); }
 
+    // Loslassen des ursprünglichen Langdrucks wählt nichts mehr aus — das Rad
+    // bleibt offen stehen (siehe Kommentar oben). Nur die Vorschau-Markierung
+    // wird zurückgesetzt, die Auswahl selbst passiert erst über einen neuen Tap.
     function onDocPointerUp(e) {
-        updateHighlight(e.clientX, e.clientY);
-        finish();
-    }
-
-    function onDocPointerCancel() { finish(); }
-
-    function finish() {
-        if (!isOpenFlag) return;
         document.removeEventListener('pointermove', onDocPointerMove);
         document.removeEventListener('pointerup', onDocPointerUp);
         document.removeEventListener('pointercancel', onDocPointerCancel);
+        activeKey = null;
+        for (const it of items) it.el.classList.remove('active');
+        document.addEventListener('pointerdown', onOutsidePointerDown, true);
+    }
 
-        if (activeKey) {
-            const item = items.find(it => it.key === activeKey);
+    function onDocPointerCancel() {
+        document.removeEventListener('pointermove', onDocPointerMove);
+        document.removeEventListener('pointerup', onDocPointerUp);
+        document.removeEventListener('pointercancel', onDocPointerCancel);
+        close(null);
+    }
+
+    // Kreis unter (px, py), oder null falls der Tap daneben liegt.
+    function hitTest(px, py) {
+        let closest = null, closestDist = Infinity;
+        for (const it of items) {
+            const d = Math.hypot(px - it.cx, py - it.cy);
+            if (d < closestDist) { closestDist = d; closest = it; }
+        }
+        return (closest && closestDist <= CIRCLE_SIZE / 2) ? closest : null;
+    }
+
+    // Der EINE Tap nach dem Öffnen, der entscheidet: Treffer schließt + löst aus,
+    // daneben schließt ohne Aktion. In der capturing Phase auf document
+    // registriert, damit dieser Tap per stopPropagation "verschluckt" wird,
+    // bevor input.js ihn als normalen Karten-Klick oder neuen Langdruck sieht.
+    function onOutsidePointerDown(e) {
+        document.removeEventListener('pointerdown', onOutsidePointerDown, true);
+        const hit = hitTest(e.clientX, e.clientY);
+        e.preventDefault();
+        e.stopPropagation();
+        close(hit ? hit.key : null);
+    }
+
+    function close(key) {
+        if (!isOpenFlag) return;
+        document.removeEventListener('pointerdown', onOutsidePointerDown, true);
+
+        if (key) {
+            const item = items.find(it => it.key === key);
             if (item && item.disabled) {
-                if (activeKey === 'research') {
+                if (key === 'research') {
                     if (typeof showToast === 'function') showToast('Erst eine Kultur wählen', 'error');
                 }
                 // andere deaktivierte Kreise (Diplomatie, Zug beenden während Readonly)
                 // brauchen keinen eigenen Hinweistext — ihr gegrauter Zustand spricht für sich.
             } else {
-                triggerAction(activeKey);
+                triggerAction(key);
             }
         }
 

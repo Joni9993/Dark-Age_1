@@ -1799,13 +1799,13 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
 }
 
 // === POINTER / TOUCH EVENTS ===
-// Langdruck-Timer fürs Radial-Auswahlrad (js/radialmenu.js): 1s halten OHNE zu
+// Langdruck-Timer fürs Radial-Auswahlrad (js/radialmenu.js): 0.7s halten OHNE zu
 // ziehen öffnet das Rad am Druckpunkt. Kein expliziter "Spiel läuft gerade
 // nicht"-Guard nötig — die Listener hängen auf #canvas-wrapper, das auf
 // Start-/Lobby-/Overlay-Bildschirmen unsichtbar (display:none) bzw. von
 // Overlays verdeckt ist und dadurch ohnehin keine Pointer-Events bekommt.
 let longPressTimer = null;
-const LONG_PRESS_MS = 1000;
+const LONG_PRESS_MS = 700;
 
 function clearLongPressTimer() {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }

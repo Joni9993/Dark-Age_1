@@ -1659,7 +1659,7 @@ body {
 
 /* === RADIAL-MENÜ (Langdruck-Auswahlrad) ===
    Ersetzt die aus dem HUD entfernten Buttons Forschung/Fraktion/Diplomatie/
-   Reliquien/Zug beenden (js/radialmenu.js, ausgelöst durch 1s Druck ohne
+   Reliquien/Zug beenden (js/radialmenu.js, ausgelöst durch 0.7s Druck ohne
    Ziehen auf #canvas-wrapper, siehe js/input.js). Overlay UND alle Kinder
    bekommen pointer-events:none — das Antippen/Anvisieren läuft komplett über
    document-pointermove/-up-Listener mit Distanz-/Winkelberechnung zum
