@@ -601,6 +601,7 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
             ctx.fillText(UW_UNIT_ICONS[unit.t] || '?', center.px, center.py + 3);
         }
         ctx.textAlign = 'center';
+        if (unit.mi) { ctx.fillStyle = '#fff176'; ctx.font = 'bold 9px monospace'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeText('⛏', center.px - 11, center.py - 12); ctx.fillText('⛏', center.px - 11, center.py - 12); }
         if (unit.cr) { ctx.fillStyle = '#7fe3ff'; ctx.font = 'bold 8px monospace'; ctx.fillText(`💎${unit.cr}`, center.px, center.py - 16); }
         if (unit.art) { ctx.fillStyle = '#ba68c8'; ctx.font = 'bold 8px monospace'; ctx.fillText(RELICS[unit.art].icon, center.px + 11, center.py - 12); }
         ctx.globalAlpha = 1;
