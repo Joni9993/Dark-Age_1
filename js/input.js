@@ -885,24 +885,31 @@ function executeUWMoveTo(clickedX, clickedY) {
 }
 
 // Graben: Ziel-Hex (angrenzender FELS) dauerhaft öffnen und die Einheit
-// nachrücken lassen ("sich durchfressen", siehe Auftrag) — erzeugt Lärm. Eine
-// FÄHIGKEIT wie Angreifen/Dynamit/Stollenbruch (aus a=0 ODER a=2 nutzbar,
-// Oberflächen-Parität, Korrektur Juli 2026) — digUWHex() selbst entscheidet die
-// resultierende a (inkl. der Bohrwagen-2x-Grabung-Ausnahme, s. dort).
+// nachrücken lassen ("sich durchfressen", siehe Auftrag) — erzeugt Lärm.
+// Graben ERSETZT die Bewegung (aus a=0 ODER a=2 nutzbar, Oberflächen-Parität) —
+// digUWHex() selbst entscheidet die resultierende a (inkl. Bohrwagen-2x-
+// Grabung-Ausnahme, s. dort); die ERSTE Grabung eines frischen Zuges hinterlässt
+// bei JEDER Einheit a=2 ("noch eine Aktion möglich", Korrektur Juli 2026 —
+// vorher nur beim Bohrwagen, wodurch normale Arbeiter nach dem Durchgraben von
+// Fels z.B. keinen danebenliegenden Kristall mehr abbauen konnten).
 function executeUWDig(clickedX, clickedY) {
     saveUndoState();
     const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
     const unit = selectedUWUnit;
     const wasFreshTurn = unit.a === 0;
+    const canDigAgain = (unitStats[unit.t].digMove || 1) > 1;
     digUWHex(gameState, unit, clickedX, clickedY);
-    const isBohrwagenFirstDig = wasFreshTurn && unit.a === 2;
+    const isFirstDigOfTurn = wasFreshTurn && unit.a === 2;
     addUWNoise(clickedX, clickedY, 'dig');
     turnActions.push({ x: clickedX, y: clickedY, t: 'dig', fx: fromX, fy: fromY, uw: true });
-    infoPanel.innerHTML = isBohrwagenFirstDig ? '⛏ Erste Grabung! Noch eine Grabung oder ein Angriff möglich.' : '⛏ Hex durchgegraben!';
+    infoPanel.innerHTML = !isFirstDigOfTurn ? '⛏ Hex durchgegraben!'
+        : canDigAgain ? '⛏ Erste Grabung! Noch eine Grabung oder eine Aktion möglich.'
+        : '⛏ Hex durchgegraben! Noch eine Aktion möglich (z. B. Abbau aktivieren).';
     if (unit.a === 2) {
-        // Bohrwagen-Zwischenzustand nach der ERSTEN Grabung: gleiches Re-Öffnen-
-        // Muster wie nach Bewegung (executeUWMoveTo) — Menü zeigt sofort die
-        // verbleibende 2. Grabung bzw. einen möglichen Angriff an.
+        // Zwischenzustand nach der ERSTEN Grabung: gleiches Re-Öffnen-Muster wie
+        // nach Bewegung (executeUWMoveTo) — Menü zeigt sofort die verbleibenden
+        // Optionen von der NEUEN Position an (bei Nicht-Bohrwagen ohne ein
+        // zweites Graben, s. calculateDigsUW).
         showUnderworldTileUI(clickedX, clickedY);
     } else {
         clearUWSelection();
@@ -2334,6 +2341,7 @@ function doEndTurn() {
         u.a = 0;
         delete u.sm; // Sturmangriff-Sperre (Grubenritter 19) ist nur je Zug gültig
         delete u.mv; // Bewegt-Flag (Grubenwache-Heilung) ist nur je Zug gültig
+        delete u.dg; // "Hat diesen Zug schon gegraben" (digUWHex) ist nur je Zug gültig
     });
     if (gameState.p[gameState.cp].tc) gameState.p[gameState.cp].tc = [];
 

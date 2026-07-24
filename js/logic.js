@@ -435,6 +435,12 @@ function jumpUWUnit(state, unit, x, y) {
 // (22) vorbehalten (PLAN.md Abschn. 3).
 function calculateDigsUW(unit) {
     if (unit.t !== 7 && unit.t !== 22) return [];
+    // Zweites Graben im selben Zug ist Bohrwagen-exklusiv (digMove>1, s.
+    // digUWHex) — ein normaler Arbeiter darf den a=2-Zwischenzustand nach
+    // seiner ersten Grabung nur noch für eine Nicht-Grab-Aktion nutzen
+    // (Angriff, Abbau-Toggle), sonst hätte jeder Arbeiter faktisch dasselbe
+    // 2-Hex/Zug-Grabtempo wie der Bohrwagen.
+    if (unit.dg && (unitStats[unit.t].digMove || 1) <= 1) return [];
     const targets = [];
     getNeighbors(unit.x, unit.y).forEach(n => {
         if (getUnderworldType(gameState, n.x, n.y) === UW_FELS && !isUnderworldOpen(gameState, n.x, n.y)) {
@@ -1216,23 +1222,27 @@ function moveUWUnit(state, unit, x, y) {
 }
 
 // Öffnet das Ziel-Hex dauerhaft und rückt die Einheit nach ("durchfressen") —
-// eine FÄHIGKEIT, keine Bewegung: aus a=0 ODER (nach vorheriger Bewegung) a=2
-// verbraucht sie die Aktion vollständig (a=1). EINZIGE Ausnahme: der Bohrwagen
-// (22, digMove=2, PLAN.md Abschn. 3/4) darf 2x/Zug graben — NUR seine ERSTE
-// Grabung dieser Runde (unit.a war noch 0, also die allererste Aktion des
-// Zuges) hinterlässt a=2 statt a=1, derselbe Zwischenzustand wie nach einer
-// Bewegung ("noch GENAU eine weitere Aktion möglich" — Oberflächen-Parität,
-// Korrektur Juli 2026). Grub der Bohrwagen bereits einmal ODER kam er über
-// eine Bewegung auf a=2, verbraucht seine nächste Grabung die Aktion wie bei
-// jeder anderen Einheit vollständig.
+// Graben ERSETZT hier die Bewegung (der einzige Weg durch massiven Fels), gilt
+// also für den a-Zustand wie eine normale Bewegung: die ERSTE Grabung des Zuges
+// (unit.a war noch 0) hinterlässt a=2, denselben "Bewegen+Agieren"-Zwischen-
+// zustand wie nach einer Bewegung durch offenes Gelände — Oberflächen-Parität
+// (Korrektur Juli 2026, Bugfix: Arbeiter konnten nach dem Durchgraben von Fels
+// nicht mehr abbauen, obwohl das Toggle wie beim Steinabbau keine Aktion
+// verbraucht; nach einer normalen Bewegung ging das schon). Kam die Einheit
+// bereits über eine Bewegung ODER eine vorherige Grabung auf a=2, verbraucht
+// die nächste Grabung die Aktion vollständig (a=1) wie jede andere Fähigkeit.
+// Das dg-Flag markiert "hat diesen Zug schon gegraben" — calculateDigsUW
+// sperrt damit ein ZWEITES Graben für alle außer dem Bohrwagen (22, digMove=2,
+// PLAN.md Abschn. 3/4, s. dort), der als einziger 2x/Zug graben darf.
 function digUWHex(state, unit, x, y) {
     if (!state.uw) state.uw = { d: [], u: [], n: [], a: {} };
     if (!state.uw.d) state.uw.d = [];
     const idx = y * state.bw + x;
     if (!state.uw.d.includes(idx)) state.uw.d.push(idx);
-    const bohrwagenFirstDig = (unitStats[unit.t].digMove || 1) > 1 && unit.a === 0;
+    const wasFreshTurn = unit.a === 0;
     unit.x = x; unit.y = y;
-    unit.a = bohrwagenFirstDig ? 2 : 1;
+    unit.a = wasFreshTurn ? 2 : 1;
+    unit.dg = 1;
 }
 
 // Ein Abbau-Tick: Beutegräber (20) nimmt bis zu 2 statt 1 (nie mehr als der
