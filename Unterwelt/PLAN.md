@@ -115,7 +115,7 @@ sie sich jederzeit verlustfrei aus (Position, `c.ap`) neu ableiten.
 | 🕷 **Höhlenspinne** | 6 | 4 | 3 | 2 | 1 | nistet in Kavernen; Netze machen ein Gang-Hex zur Engstelle mit Bewegungsstopp (legt nach jeder Bewegung eins auf ihrem Hex ab); patrouilliert im Umkreis 2 ihres Nests |
 | 🦡 **Blindwühler** | 12 | 5 | 4 (hört am weitesten) | 2 | 1 | gräbt sich selbst durch massiven Fels — auf der Jagd wie auf Patrouille (zieht ohne Ziel auf die letzte Lärmquelle im Umkreis 4 zu, nutzt dabei auch fremde Stollen). Wer viel gräbt, gräbt sich seine Feinde herbei |
 | 🪨 **Steinpanzer** | 18 | 6 | 3 | 1 (bewusst langsam — große AoE) | 1 | sitzt auf den reichsten Kristalladern; Patrouille-Schritte nur, wenn danach weiterhin eine Ader mit Restbestand angrenzt (Wachposten-Regel), sonst steht er |
-| 🐛 **Der Alte Wurm** | 30 | 8 | 3 | 2 (Leine: nie weiter als 3 Hexes vom Herzkaverne-Zentrum) | 1 | **Wächter der Herzkaverne**. Ohne Ziel: außerhalb Distanz 1 vom Zentrum 1 Schritt zurück, sonst 1 Schritt im Ring 1 (Patrouille ums Herz). Muss besiegt werden, bevor die Erschließung beginnen kann — stirbt einmal, bleibt tot (globale Meldung: „Ein Beben läuft durch das Land — der Alte Wurm ist gefallen") |
+| 🐛 **Der Alte Wurm** | 24 | 8 | 3 | 2 (Leine: nie weiter als 3 Hexes vom Herzkaverne-Zentrum) | 1 | **Wächter der Herzkaverne**. Ohne Ziel: außerhalb Distanz 1 vom Zentrum 1 Schritt zurück, sonst 1 Schritt im Ring 1 (Patrouille ums Herz). Muss besiegt werden, bevor die Erschließung beginnen kann — stirbt einmal, bleibt tot (globale Meldung: „Ein Beben läuft durch das Land — der Alte Wurm ist gefallen") |
 
 **Angriffsmuster** (`getCreatureAttackHexes`, geometrisch exakt über `uwHexInDirection`/`hexRingAround`/die
 Dynamit-Dreiecks-Geometrie `getDynamiteTriangle`/den Keil-Helper `getWedgeHexes`, alle `js/hex.js`+`js/logic.js`):
@@ -228,7 +228,7 @@ Kreatur schlägt nie durch die Wand auf eine dahinterliegende offene Tasche.
 
 ## 12. Balance-Flags & offene Fragen (nach Playtest / vor M-Start klären)
 
-- Wurm 30 HP / 8 DMG AoE (unbedingter Konter beim Angreifen, `resolveUWAttackOnCreature`): mit 4–5 Einheiten schaffbar? Soll er zwischen Kämpfen regenerieren?
+- Wurm 24 HP / 8 DMG AoE (unbedingter Konter beim Angreifen, `resolveUWAttackOnCreature`), Korrektur Juli 2026 (30 -> 24, Balancing-Auftrag Jonathan): mit 4–5 Einheiten schaffbar? Soll er zwischen Kämpfen regenerieren?
 - Runden-Phase + Telegraph (Korrektur Juli 2026): neue DMG-Werte (Spinne 4, Wühler 5, Steinpanzer 6, Wurm 8) + Aggro-/Bewegungswerte reiner Erstentwurf — fühlt sich "genau ein Zug zum Ausweichen" fair an, oder ist das bei mehreren gleichzeitig telegraphierenden Kreaturen (z. B. Spinne + Wühler auf überlappenden Feldern) zu viel Druck pro Runde? Steinpanzer-Erdrutsch/Wurm-Wirbel-Muster (6/12 Hexes) ggf. zu großflächig für die Kartenradien 5/7.
 - Erschließung 4 Runden + Zähler-Reset auf 0: zu hart? Alternative: Reset nur um −1 pro Unterbrechungsrunde.
 - Expeditionsgröße: aktuell nur durch Gold begrenzt — braucht es ein hartes Limit (z. B. max. 6 Einheiten unten)?

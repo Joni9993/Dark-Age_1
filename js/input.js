@@ -1575,8 +1575,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
         } else {
             const ownerName = formatOwnerName(villageOwner, gameState.cp);
             const ownerColor = getEntityColor(villageOwner);
-            let gInc = 2; if (gameState.p[villageOwner].f.includes(3)) gInc = 3;
-            infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} Dorf</span><div class="info-detail">Produziert +${gInc} Gold & +1 Holz pro Runde</div>`;
+            infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} Dorf</span><div class="info-detail">Produziert +2 Gold & +1 Holz pro Runde</div>`;
         }
     } else {
         let tunnel = gameState.tu ? gameState.tu.find(t => (t.x1 === clickedX && t.y1 === clickedY) || (t.x2 === clickedX && t.y2 === clickedY)) : null;

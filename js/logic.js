@@ -74,8 +74,8 @@ const calculateIncome = (pId) => {
     if (!gameState || !gameState.p[pId]) return { g: 0, m: 0 };
     const pState = gameState.p[pId];
     let myVillages = Object.values(gameState.v).filter(v => v === pId).length;
-    let extraGold = pState.f && pState.f.includes(3) ? 1 : 0;
-    return { g: myVillages * (2 + extraGold), m: myVillages * 1 };
+    let extraGold = pState.f && pState.f.includes(3) ? Math.floor(myVillages / 2) : 0;
+    return { g: myVillages * 2 + extraGold, m: myVillages * 1 };
 };
 
 // === NAME FORMATTING ===
@@ -1408,11 +1408,11 @@ function buyUWUnitAt(state, playerId, x, y, type) {
     if (!state.uw) state.uw = { d: [], u: [], n: [], a: {} };
     if (!state.uw.u) state.uw.u = [];
     const nextId = Math.max(0, ...state.uw.u.map(u => u.i || 0)) + 1;
-    // Feudalismus-Passiv (fb, wie buyUnit auf der Oberfläche): +1 Max-HP pro 2
+    // Feudalismus-Passiv (fb, wie buyUnit auf der Oberfläche): +1 Max-HP pro 3
     // Dörfer — betrifft insbesondere den Grubenritter (19), gilt aber generisch
     // wie oben für jede gekaufte Einheit.
     let fb = 0;
-    if (pState.f.includes(0)) fb = Math.floor(Object.values(state.v).filter(v => v === playerId).length / 2);
+    if (pState.f.includes(0)) fb = Math.floor(Object.values(state.v).filter(v => v === playerId).length / 3);
     const unitObj = { i: nextId, p: playerId, t: type, x, y, fb: fb, a: 1 };
     if (pState.u.includes(1)) unitObj.vet = 1; // Waffenmeister-Upgrade: startet als Veteran
     unitObj.h = getUnitMaxHp(pState, type, unitObj);

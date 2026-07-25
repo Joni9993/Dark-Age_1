@@ -264,7 +264,7 @@ window.openFactionOverview = function () {
         if (facId === 0) {
             // Formel exakt wie beim Rekrutieren selbst (buyUnit, js/ui.js), sonst
             // würde die Anzeige bei künftigen Balance-Änderungen dort lautlos veralten.
-            const fb = Math.floor(myVillages / 2);
+            const fb = Math.floor(myVillages / 3);
             passiveValue = `Aktuell: +${fb} Max-HP für neu rekrutierte Einheiten`;
         } else if (facId === 1) {
             const meleeCount = gameState.u.filter(u => u.p === gameState.cp && unitStats[u.t].isMelee).length;
@@ -340,7 +340,7 @@ window.buyUnit = function (type) {
             let nextId = Math.max(...gameState.u.map(u => u.i), 0) + 1;
             let fb = 0;
             if (pState.f.includes(0)) {
-                fb = Math.floor(Object.values(gameState.v).filter(v => v === gameState.cp).length / 2);
+                fb = Math.floor(Object.values(gameState.v).filter(v => v === gameState.cp).length / 3);
             }
             const unitObj = { i: nextId, p: gameState.cp, t: type, x: selectedHex.x, y: selectedHex.y, fb: fb, a: 1 };
             if (pState.u.includes(1)) unitObj.vet = 1;

@@ -5,10 +5,10 @@ const getEntityColor = (id) => id === -1 ? "#888888" : playerColors[id];
 
 // === FACTIONS ===
 const factions = {
-    0: { name: "🏰 Feudalismus", desc: "Passive: Neu rekrutierte Einheiten erhalten +1 Max-HP pro 2 Dörfer, die du beim Rekrutieren besitzt.\nSpezial: 🛡️ Ritter, 🏹 Kamelreiter, 🚁 Luftschraube & ⚔ Grubenritter", cost: 10, reqV: 2 },
+    0: { name: "🏰 Feudalismus", desc: "Passive: Neu rekrutierte Einheiten erhalten +1 Max-HP pro 3 Dörfer, die du beim Rekrutieren besitzt.\nSpezial: 🛡️ Ritter, 🏹 Kamelreiter, 🚁 Luftschraube & ⚔ Grubenritter", cost: 10, reqV: 2 },
     1: { name: "🩸 Plünderer", desc: "Passive: +1 DMG für Nahkämpfer.\nSpezial: 🪓 Berserker, 💥 Saboteur, 🛩️ Gleiter & 🪙 Beutegräber", cost: 10, reqV: 2 },
     2: { name: "👁️ Spionage", desc: "Passive: +1 Sichtweite.\nSpezial: 🗡️ Assassine, 🐘 Elefant, 🪂 Fallschirmspringer & 👂 Horcher", cost: 10, reqV: 2 },
-    3: { name: "⚖️ Gilden", desc: "Passive: +1 Gold pro Dorf.\nSpezial: 🏗️ Tribok, 🚚 Wagenburg, 🎈 Bombenballon & ⚙ Bohrwagen", cost: 10, reqV: 2 }
+    3: { name: "⚖️ Gilden", desc: "Passive: +1 Gold pro 2 Dörfer.\nSpezial: 🏗️ Tribok, 🚚 Wagenburg, 🎈 Bombenballon & ⚙ Bohrwagen", cost: 10, reqV: 2 }
 };
 
 // === UPGRADES ===
@@ -140,5 +140,5 @@ const uwCreatureStats = {
     // js/logic.js, Korrektur Juli 2026, wie alle anderen Kreaturen). leash:
     // verlässt die Umgebung der Herzkaverne nie weiter als 3 Hexes, auch nicht
     // auf der Jagd.
-    [UWC_WURM]: { name: "Der Alte Wurm", hp: 30, dmg: 8, sprite: 'uw_wurm', aggro: 3, huntMove: 1, patrolMove: 1, leash: 3 }
+    [UWC_WURM]: { name: "Der Alte Wurm", hp: 24, dmg: 8, sprite: 'uw_wurm', aggro: 3, huntMove: 1, patrolMove: 1, leash: 3 }
 };
