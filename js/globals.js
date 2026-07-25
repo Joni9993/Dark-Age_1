@@ -35,7 +35,6 @@ const mainTitle = document.getElementById('main-title');
 const toastContainer = document.getElementById('toast-container');
 const scoreboard = document.getElementById('scoreboard');
 const scoreCompact = document.getElementById('score-compact');
-const scoreExpanded = document.getElementById('score-expanded');
 const eventOverlay = document.getElementById('event-overlay');
 const eventIcon = document.getElementById('event-icon');
 const eventTitle = document.getElementById('event-title');

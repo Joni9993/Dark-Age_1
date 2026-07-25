@@ -98,7 +98,10 @@
     <div id="game-hud">
         <div id="scoreboard" onclick="toggleScoreboard()">
             <div class="score-compact" id="score-compact"></div>
-            <div class="score-expanded" id="score-expanded"></div>
+            <div id="scoreboard-popup" style="display:none;" onclick="event.stopPropagation()">
+                <div class="scoreboard-popup-header">🏆 Rangliste</div>
+                <div id="scoreboard-modal-content"></div>
+            </div>
         </div>
         <div id="resource-hud">💰 0 <span class="income-text">(+0)</span> | 🪵 0 <span class="income-text">(+0)</span> |
             🪨 0

@@ -59,15 +59,21 @@ function showToast(msg, type = 'info') {
 }
 
 // === SCOREBOARD ===
+// Fest oben rechts angeheftetes Dropdown (gleiches Positionierungs-Muster wie
+// #game-menu-popup: position:fixed, top-right der Bildschirmecke, unabhängig
+// von der Lage des #scoreboard-Triggers selbst) statt des zwischenzeitlichen
+// zentrierten Modals — Jonathans Feedback: das Modal "verlor den Charme" der
+// ursprünglichen Anheftung. Schließt wie vorher per Klick außerhalb.
 window.toggleScoreboard = function () {
     scoreboardOpen = !scoreboardOpen;
-    scoreExpanded.classList.toggle('open', scoreboardOpen);
+    document.getElementById('scoreboard-popup').style.display = scoreboardOpen ? 'block' : 'none';
 }
 
 document.addEventListener('click', (e) => {
-    if (scoreboardOpen && !scoreboard.contains(e.target)) {
+    const popup = document.getElementById('scoreboard-popup');
+    if (scoreboardOpen && popup && !scoreboard.contains(e.target) && !popup.contains(e.target)) {
         scoreboardOpen = false;
-        scoreExpanded.classList.remove('open');
+        popup.style.display = 'none';
     }
 });
 
@@ -92,14 +98,47 @@ function updateScoreboard() {
     });
     scoreCompact.innerHTML = compactHtml;
 
-    let expandedHtml = '';
-    scores.forEach(s => {
-        expandedHtml += `<div class="score-row ${s.isDead ? 'score-dead' : ''}">`;
-        expandedHtml += `<span class="score-dot" style="color:${playerColors[s.i]};background:${playerColors[s.i]}"></span>`;
-        expandedHtml += `<span>${s.p.n}: ${s.isDead ? 'Besiegt' : s.score + ' Pkt'}</span>`;
-        expandedHtml += `</div>`;
-    });
-    scoreExpanded.innerHTML = expandedHtml;
+    const modalContent = document.getElementById('scoreboard-modal-content');
+    if (modalContent) {
+        let html = '';
+        scores.forEach((s, rank) => {
+            // Fraktions-Icons (erstes Emoji aus factions[id].name) direkt in der
+            // Kopfzeile — sollen auf den ersten Blick sichtbar sein, siehe
+            // Forschungen/Reliquien dagegen erst per Antippen (score-card-details,
+            // per Klick auf die Karte auf-/zugeklappt — Chevron zeigt an, dass da
+            // mehr ist. Jonathans Feedback: die volle Aufschlüsselung für JEDEN
+            // Spieler auf einmal "verliert seinen Charme" / wirkt überladen).
+            const facIcons = (s.p.f || []).map(fid => factions[fid].name.split(' ')[0]).join(' ');
+            const clickable = !s.isDead;
+            html += `<div class="score-card ${s.isDead ? 'score-dead' : ''}" ${clickable ? 'onclick="this.classList.toggle(\'expanded\')"' : ''}>`;
+            html += `<div class="score-card-header">`;
+            html += `<span class="score-rank">${rank + 1}.</span>`;
+            html += `<span class="score-dot" style="color:${playerColors[s.i]};background:${playerColors[s.i]}"></span>`;
+            html += `<span class="score-name">${s.p.n}</span>`;
+            if (facIcons) html += `<span class="score-factions">${facIcons}</span>`;
+            html += `<span class="score-total">${s.isDead ? 'Besiegt' : s.score + ' Pkt'}</span>`;
+            if (clickable) html += `<span class="score-chevron">▸</span>`;
+            html += `</div>`;
+            if (clickable) {
+                const upgradeNames = (s.p.u || []).map(uid => upgrades[uid].name);
+
+                const relicParts = [];
+                if (s.p.rb) relicParts.push(`${RELICS.blade.icon} ${RELICS.blade.name}`);
+                if (s.p.ra) relicParts.push(`${RELICS.armor.icon} ${RELICS.armor.name}`);
+                if (s.p.mr) relicParts.push(`${RELICS.map.icon} ${RELICS.map.name}`);
+                const toolCount = (s.p.rel || []).filter(r => r === 'tool').length;
+                if (toolCount) relicParts.push(`${RELICS.tool.icon} ${RELICS.tool.name} ×${toolCount}`);
+
+                html += `<div class="score-card-details">`;
+                html += `<div class="score-subrow"><b>Forschungen:</b> ${upgradeNames.length ? upgradeNames.join(', ') : '—'}</div>`;
+                html += `<div class="score-subrow"><b>Reliquien:</b> ${relicParts.length ? relicParts.join(', ') : '—'}</div>`;
+                html += `</div>`;
+            }
+            html += `</div>`;
+        });
+        html += `<div class="score-legend">10 Punkte pro Dorf · 5 pro Einheit · 1 pro Gold</div>`;
+        modalContent.innerHTML = html;
+    }
 }
 
 // === MAIN UI UPDATE ===

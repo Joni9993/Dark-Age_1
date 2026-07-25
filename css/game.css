@@ -360,25 +360,6 @@ select:focus {
     flex-shrink: 0;
 }
 
-.score-expanded {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    background: var(--bg-panel);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--border);
-    border-radius: 0 0 8px 8px;
-    padding: 6px 10px;
-    min-width: 140px;
-    z-index: 200;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
-}
-
-.score-expanded.open {
-    display: block;
-}
-
 #canvas-wrapper {
     position: fixed;
     top: 0;
@@ -862,25 +843,118 @@ canvas {
 }
 
 /* === SCOREBOARD (now inside #game-hud) === */
-.score-row {
+/* Rangliste-Dropdown (#scoreboard-popup, js/ui.js updateScoreboard): eine
+   Karte pro Spieler. Kopfzeile (Punkte + Fraktionen) ist immer sichtbar;
+   Forschungen/Reliquien stecken in .score-card-details und werden erst per
+   Antippen der Karte aufgeklappt (Chevron dreht sich als Hinweis) — die volle
+   Aufschlüsselung für JEDEN Spieler gleichzeitig wirkte laut Jonathans
+   Feedback überladen und "verlor den Charme" der kompakten Rangliste. */
+.score-card {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-align: left;
+    transition: border-color 0.15s ease;
+}
+
+.score-card:not(.score-dead) {
+    cursor: pointer;
+}
+
+.score-card:not(.score-dead):hover {
+    border-color: var(--border-bright);
+}
+
+.score-card-header {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 1px 0;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.score-rank {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    min-width: 16px;
+}
+
+.score-name {
+    font-weight: bold;
+}
+
+.score-factions {
+    flex: 1;
+    letter-spacing: 1px;
     opacity: 0.9;
+}
+
+.score-total {
+    color: var(--gold);
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.score-chevron {
+    color: var(--text-dim);
     font-size: 0.7rem;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.score-card.expanded .score-chevron {
+    transform: rotate(90deg);
+}
+
+.score-card-details {
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 5px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(180, 150, 100, 0.15);
+}
+
+.score-card.expanded .score-card-details {
+    display: flex;
+}
+
+.score-subrow {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+}
+
+.score-subrow b {
+    color: var(--text);
+}
+
+.score-legend {
+    margin-top: 2px;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-align: center;
+    opacity: 0.7;
 }
 
 .score-dot {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     display: inline-block;
     box-shadow: 0 0 4px currentColor;
+    flex-shrink: 0;
 }
 
 .score-dead {
-    opacity: 0.25;
+    opacity: 0.4;
+}
+
+.score-dead .score-total {
     text-decoration: line-through;
 }
 
@@ -1122,6 +1196,43 @@ canvas {
 }
 #game-menu-popup button:hover:not(:disabled) { background: rgba(255,255,255,0.1); border-color: rgba(200,184,154,0.35); }
 #game-menu-popup button:disabled { opacity: 0.35; cursor: default; }
+
+/* Rangliste-Dropdown (#scoreboard-popup, js/ui.js toggleScoreboard): hängt
+   direkt unter dem #scoreboard-Trigger links (position:absolute relativ zu
+   #scoreboard, das schon position:relative hat) — Jonathans Wunsch: es soll
+   dort aufklappen, wo man auf die Punktzahl tippt, nicht oben rechts wie das
+   Menü. Klicks im Popup selbst stoppen ihre Propagation (siehe index.html),
+   sonst würde jeder Klick auf eine Karte über den onclick von #scoreboard
+   sofort wieder zuklappen. */
+#scoreboard-popup {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 6px;
+    z-index: 300;
+    width: 260px;
+    max-width: calc(100vw - 20px);
+    max-height: 70vh;
+    overflow-y: auto;
+    background: linear-gradient(180deg, rgba(26, 26, 36, 0.97) 0%, rgba(17, 17, 24, 0.97) 100%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(200, 184, 154, 0.25);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    padding: 10px;
+}
+
+.scoreboard-popup-header {
+    font-family: 'MedievalSharp', cursive;
+    color: var(--gold);
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    text-align: center;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid rgba(200, 184, 154, 0.2);
+}
 #menu-surrender-item { color: #ff8a80; border-color: rgba(255,80,80,0.2); }
 #menu-surrender-item:hover { background: rgba(255,50,50,0.12) !important; }
 
