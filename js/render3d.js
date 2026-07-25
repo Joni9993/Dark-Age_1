@@ -1514,6 +1514,10 @@
                 const topY = groundY - 34;
                 addHpText(u.h, wx, wz, topY, -1, u.h / getUnitMaxHp(state.p[u.p], u.t, u) < 0.15);
                 if (u.vet) addIcon('★', '#e8b84a', wx, wz, topY - 4, 9);
+                // Abbau-Symbol wie an der Oberfläche (⛏, siehe surfaceVisible-Zweig
+                // oben) — fehlte bisher hier, obwohl Kristall-Abbau (startUWMining,
+                // js/input.js) dasselbe u.mi-Feld setzt wie der Oberflächen-Abbau.
+                if (u.mi) addIcon('⛏', '#fff176', wx, wz, topY + 2, 11, 1, 1);
                 // Getragene Kristalle MIT Anzahl (Korrektur Juli 2026): "💎2" statt
                 // nur eines Symbols — man soll auf einen Blick sehen, wie voll der
                 // Träger ist (max. 3).

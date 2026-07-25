@@ -615,6 +615,16 @@ function showUnderworldTileUI(clickedX, clickedY) {
     const uType = getUnderworldType(gameState, clickedX, clickedY);
     const open = isUnderworldOpen(gameState, clickedX, clickedY);
     const stollenOwner = getStollenkopfOwner(gameState, clickedX, clickedY);
+    // Oberflächen-Parität (Korrektur Juli 2026, Bugfix): ein Klick auf ein noch
+    // nie erkundetes Unterwelt-Hex durfte bisher trotzdem Typ (Fels/Kaverne/
+    // Ader/Ruine/Herz), Restbestand, Fundkammer-/Stollenkopf-/Dynamit-Status
+    // verraten — anders als an der Oberfläche, wo unentdeckte Strukturen (Dorf,
+    // Turm, Tunnel, Steinvorkommen) im Tooltip hinter `isVisible` (showTileUI
+    // oben) verschwinden. `getVisibleUWHexes` ist dieselbe Menge, die auch der
+    // Renderer für Sichtbarkeit nutzt (render.js/render3d.js `uwVis`) — deckt
+    // sowohl die persistente Netz-Geometrie (p[].ue) als auch die aktuelle
+    // Sichtweite 1 um eigene Einheiten/Stollenköpfe ab.
+    const uwKnown = getVisibleUWHexes(gameState.cp).has(`${clickedX},${clickedY}`);
     const rawUnit = uwUnitAt(clickedX, clickedY);
     const unit = (rawUnit && isUWUnitVisible(gameState.cp, rawUnit)) ? rawUnit : null;
     const rawCreature = uwCreatureAt(clickedX, clickedY);
@@ -633,38 +643,43 @@ function showUnderworldTileUI(clickedX, clickedY) {
     selectedUWUnit = null; uwValidMoves = []; uwValidDigs = []; uwValidAttacks = [];
     window.uwSpecialActive = null;
 
-    // Entity-/Terrain-Zusatzinfos (Korrektur Juli 2026, Tooltip-Ausbau): jetzt IMMER
-    // berechnet und an alle drei Zweige (Einheit/Kreatur/leeres Feld) angehängt —
-    // vorher nur im "leeres Feld"-Zweig, wodurch z.B. der eigene Stollenkopf oder
-    // eine tickende Dynamit-Ladung unsichtbar wurden, sobald irgendeine Einheit
-    // oder Kreatur auf demselben Hex stand.
+    // Entity-/Terrain-Zusatzinfos (Korrektur Juli 2026, Tooltip-Ausbau): an alle
+    // drei Zweige (Einheit/Kreatur/leeres Feld) angehängt — vorher nur im
+    // "leeres Feld"-Zweig, wodurch z.B. der eigene Stollenkopf oder eine
+    // tickende Dynamit-Ladung unsichtbar wurden, sobald irgendeine Einheit oder
+    // Kreatur auf demselben Hex stand. NUR für erkundete Hexes (uwKnown) —
+    // sonst würde ein sichtbares Wesen (Umkreis-2-Regel, unabhängig von der
+    // Netz-Geometrie) verraten, was sich UNTER ihm verbirgt (Ader, Fundkammer,
+    // fremder Stollenkopf …), obwohl dieses Hex selbst noch nie erkundet wurde.
     let extra = '';
-    if (stollenOwner !== -1) {
-        extra += `<br><span style="color:${getEntityColor(stollenOwner)}">${formatOwnerName(stollenOwner, gameState.cp)} Stollenkopf</span><div class="info-detail">Rekrutierungspunkt für Tiefeneinheiten (Tunnel-Startpunkt).</div>`;
-    }
-    const rem = getUWVeinRemaining(gameState, clickedX, clickedY);
-    if (rem > 0) extra += `<br><span style="color:#7fe3ff">💎 Ader: ${rem}/${getUWVeinMaxAmount(gameState, clickedX, clickedY)}</span><div class="info-detail">Abbau per Toggle (Arbeiter/Beutegräber in Reichweite) — danach dauerhaft offener Gang.</div>`;
-    if (isFundkammerHex(gameState, clickedX, clickedY)) {
-        const looted = gameState.uw && gameState.uw.f && gameState.uw.f[`${clickedX},${clickedY}`];
-        extra += `<br><span style="color:#c9a24b">🏺 Fundkammer${looted ? ' (geplündert)' : ''}</span>` + (looted ? '' : `<div class="info-detail">Mit einer Einheit auf diesem Feld per Button plündern — Kristalle oder eine Reliquie. Verbraucht die restlichen Aktionen der Einheit.</div>`);
-    }
-    if (gameState.uw && gameState.uw.w && gameState.uw.w[`${clickedX},${clickedY}`]) {
-        extra += `<br><span style="color:#dddddd">🕸 Spinnennetz</span><div class="info-detail">Stoppt jede Bewegung, die hier endet (Rest der Reichweite verfällt) — verbraucht sich beim Betreten, egal wer betritt.</div>`;
-    }
-    const dropHere = gameState.uw && gameState.uw.dr && gameState.uw.dr[`${clickedX},${clickedY}`];
-    if (dropHere) extra += `<br><span style="color:#7fe3ff">💎 Herrenloser Kristallhaufen: ${dropHere}</span><div class="info-detail">Wird von Arbeiter/Beutegräber beim Betreten automatisch aufgesammelt.</div>`;
-    const dynCharge = gameState.uw && gameState.uw.dy && gameState.uw.dy.find(dy => dy.hexes.some(h => h.x === clickedX && h.y === clickedY));
-    if (dynCharge) {
-        const isMine = dynCharge.p === gameState.cp;
-        const ownerLabel = isMine ? 'Deine' : `${formatOwnerName(dynCharge.p, gameState.cp)}`;
-        extra += `<br><span style="color:#ff6e40">🧨 ${ownerLabel} Dynamit-Ladung</span><div class="info-detail">Explodiert zu Beginn ${isMine ? 'deines' : 'seines'} nächsten Zuges — 6 DMG auf jedes der 3 Ziel-Hexes (auch eigene Truppen), sprengt massiven Fels dauerhaft frei (Kristalladern bleiben unangetastet).</div>`;
-    }
-    if (uType === UW_HERZ) {
-        const wormAlive = !(gameState.uw && gameState.uw.wd === 1);
-        extra += `<div class="info-detail" style="color:#c9a24b;">🌍 Herz der Tiefe — Sieg-Ziel unter dem zentralen Wachturm.${wormAlive ? ' Bewacht vom Alten Wurm; muss zuerst besiegt werden, bevor die Erschließung starten kann.' : ' Wurm besiegt — eigene Einheit hier postieren, um die Erschließung zu starten.'}</div>`;
-        const hz = gameState.uw && gameState.uw.hz;
-        if (hz) {
-            extra += `<div class="info-detail" style="color:${getEntityColor(hz.p)};">${formatOwnerName(hz.p, gameState.cp)} erschließt: ${hz.n}/${ERSCHLIESSUNG_TARGET} Zugenden gehalten</div>`;
+    if (uwKnown) {
+        if (stollenOwner !== -1) {
+            extra += `<br><span style="color:${getEntityColor(stollenOwner)}">${formatOwnerName(stollenOwner, gameState.cp)} Stollenkopf</span><div class="info-detail">Rekrutierungspunkt für Tiefeneinheiten (Tunnel-Startpunkt).</div>`;
+        }
+        const rem = getUWVeinRemaining(gameState, clickedX, clickedY);
+        if (rem > 0) extra += `<br><span style="color:#7fe3ff">💎 Ader: ${rem}/${getUWVeinMaxAmount(gameState, clickedX, clickedY)}</span><div class="info-detail">Abbau per Toggle (Arbeiter/Beutegräber in Reichweite) — danach dauerhaft offener Gang.</div>`;
+        if (isFundkammerHex(gameState, clickedX, clickedY)) {
+            const looted = gameState.uw && gameState.uw.f && gameState.uw.f[`${clickedX},${clickedY}`];
+            extra += `<br><span style="color:#c9a24b">🏺 Fundkammer${looted ? ' (geplündert)' : ''}</span>` + (looted ? '' : `<div class="info-detail">Mit einer Einheit auf diesem Feld per Button plündern — Kristalle oder eine Reliquie. Verbraucht die restlichen Aktionen der Einheit.</div>`);
+        }
+        if (gameState.uw && gameState.uw.w && gameState.uw.w[`${clickedX},${clickedY}`]) {
+            extra += `<br><span style="color:#dddddd">🕸 Spinnennetz</span><div class="info-detail">Stoppt jede Bewegung, die hier endet (Rest der Reichweite verfällt) — verbraucht sich beim Betreten, egal wer betritt.</div>`;
+        }
+        const dropHere = gameState.uw && gameState.uw.dr && gameState.uw.dr[`${clickedX},${clickedY}`];
+        if (dropHere) extra += `<br><span style="color:#7fe3ff">💎 Herrenloser Kristallhaufen: ${dropHere}</span><div class="info-detail">Wird von Arbeiter/Beutegräber beim Betreten automatisch aufgesammelt.</div>`;
+        const dynCharge = gameState.uw && gameState.uw.dy && gameState.uw.dy.find(dy => dy.hexes.some(h => h.x === clickedX && h.y === clickedY));
+        if (dynCharge) {
+            const isMine = dynCharge.p === gameState.cp;
+            const ownerLabel = isMine ? 'Deine' : `${formatOwnerName(dynCharge.p, gameState.cp)}`;
+            extra += `<br><span style="color:#ff6e40">🧨 ${ownerLabel} Dynamit-Ladung</span><div class="info-detail">Explodiert zu Beginn ${isMine ? 'deines' : 'seines'} nächsten Zuges — 6 DMG auf jedes der 3 Ziel-Hexes (auch eigene Truppen), sprengt massiven Fels dauerhaft frei (Kristalladern bleiben unangetastet).</div>`;
+        }
+        if (uType === UW_HERZ) {
+            const wormAlive = !(gameState.uw && gameState.uw.wd === 1);
+            extra += `<div class="info-detail" style="color:#c9a24b;">🌍 Herz der Tiefe — Sieg-Ziel unter dem zentralen Wachturm.${wormAlive ? ' Bewacht vom Alten Wurm; muss zuerst besiegt werden, bevor die Erschließung starten kann.' : ' Wurm besiegt — eigene Einheit hier postieren, um die Erschließung zu starten.'}</div>`;
+            const hz = gameState.uw && gameState.uw.hz;
+            if (hz) {
+                extra += `<div class="info-detail" style="color:${getEntityColor(hz.p)};">${formatOwnerName(hz.p, gameState.cp)} erschließt: ${hz.n}/${ERSCHLIESSUNG_TARGET} Zugenden gehalten</div>`;
+            }
         }
     }
 
@@ -708,6 +723,11 @@ function showUnderworldTileUI(clickedX, clickedY) {
             }
         }
         infoPanel.innerHTML = `<span style="color:#e57373">${cStats.name} (${creature.h}/${cStats.hp} HP)</span><div class="info-detail">Kreatur, neutral · ⚔️${cStats.dmg} DMG</div>${telegraphSelfText}${expectedDmgText}` + extra;
+    } else if (!uwKnown) {
+        // Oberflächen-Parität: ein nie erkundetes Hex verrät weder Typ (Fels/
+        // Kaverne/Ader/Ruine/Herz) noch offen-Status — genau die Info, die das
+        // Netz-Fog eigentlich verbergen soll ("Blockiert Sicht").
+        infoPanel.innerHTML = `Unerforscht<div class="info-detail">Noch nicht erkundet — hierher muss erst eine eigene Einheit vordringen.</div>`;
     } else {
         let tileDesc = '';
         if (!open) {
@@ -884,24 +904,31 @@ function executeUWMoveTo(clickedX, clickedY) {
 }
 
 // Graben: Ziel-Hex (angrenzender FELS) dauerhaft öffnen und die Einheit
-// nachrücken lassen ("sich durchfressen", siehe Auftrag) — erzeugt Lärm. Eine
-// FÄHIGKEIT wie Angreifen/Dynamit/Stollenbruch (aus a=0 ODER a=2 nutzbar,
-// Oberflächen-Parität, Korrektur Juli 2026) — digUWHex() selbst entscheidet die
-// resultierende a (inkl. der Bohrwagen-2x-Grabung-Ausnahme, s. dort).
+// nachrücken lassen ("sich durchfressen", siehe Auftrag) — erzeugt Lärm.
+// Graben ERSETZT die Bewegung (aus a=0 ODER a=2 nutzbar, Oberflächen-Parität) —
+// digUWHex() selbst entscheidet die resultierende a (inkl. Bohrwagen-2x-
+// Grabung-Ausnahme, s. dort); die ERSTE Grabung eines frischen Zuges hinterlässt
+// bei JEDER Einheit a=2 ("noch eine Aktion möglich", Korrektur Juli 2026 —
+// vorher nur beim Bohrwagen, wodurch normale Arbeiter nach dem Durchgraben von
+// Fels z.B. keinen danebenliegenden Kristall mehr abbauen konnten).
 function executeUWDig(clickedX, clickedY) {
     saveUndoState();
     const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
     const unit = selectedUWUnit;
     const wasFreshTurn = unit.a === 0;
+    const canDigAgain = (unitStats[unit.t].digMove || 1) > 1;
     digUWHex(gameState, unit, clickedX, clickedY);
-    const isBohrwagenFirstDig = wasFreshTurn && unit.a === 2;
+    const isFirstDigOfTurn = wasFreshTurn && unit.a === 2;
     addUWNoise(clickedX, clickedY, 'dig');
     turnActions.push({ x: clickedX, y: clickedY, t: 'dig', fx: fromX, fy: fromY, uw: true });
-    infoPanel.innerHTML = isBohrwagenFirstDig ? '⛏ Erste Grabung! Noch eine Grabung oder ein Angriff möglich.' : '⛏ Hex durchgegraben!';
+    infoPanel.innerHTML = !isFirstDigOfTurn ? '⛏ Hex durchgegraben!'
+        : canDigAgain ? '⛏ Erste Grabung! Noch eine Grabung oder eine Aktion möglich.'
+        : '⛏ Hex durchgegraben! Noch eine Aktion möglich (z. B. Abbau aktivieren).';
     if (unit.a === 2) {
-        // Bohrwagen-Zwischenzustand nach der ERSTEN Grabung: gleiches Re-Öffnen-
-        // Muster wie nach Bewegung (executeUWMoveTo) — Menü zeigt sofort die
-        // verbleibende 2. Grabung bzw. einen möglichen Angriff an.
+        // Zwischenzustand nach der ERSTEN Grabung: gleiches Re-Öffnen-Muster wie
+        // nach Bewegung (executeUWMoveTo) — Menü zeigt sofort die verbleibenden
+        // Optionen von der NEUEN Position an (bei Nicht-Bohrwagen ohne ein
+        // zweites Graben, s. calculateDigsUW).
         showUnderworldTileUI(clickedX, clickedY);
     } else {
         clearUWSelection();
@@ -1798,13 +1825,13 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
 }
 
 // === POINTER / TOUCH EVENTS ===
-// Langdruck-Timer fürs Radial-Auswahlrad (js/radialmenu.js): 1s halten OHNE zu
+// Langdruck-Timer fürs Radial-Auswahlrad (js/radialmenu.js): 0.7s halten OHNE zu
 // ziehen öffnet das Rad am Druckpunkt. Kein expliziter "Spiel läuft gerade
 // nicht"-Guard nötig — die Listener hängen auf #canvas-wrapper, das auf
 // Start-/Lobby-/Overlay-Bildschirmen unsichtbar (display:none) bzw. von
 // Overlays verdeckt ist und dadurch ohnehin keine Pointer-Events bekommt.
 let longPressTimer = null;
-const LONG_PRESS_MS = 1000;
+const LONG_PRESS_MS = 700;
 
 function clearLongPressTimer() {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
@@ -2352,6 +2379,7 @@ function doEndTurn() {
         u.a = 0;
         delete u.sm; // Sturmangriff-Sperre (Grubenritter 19) ist nur je Zug gültig
         delete u.mv; // Bewegt-Flag (Grubenwache-Heilung) ist nur je Zug gültig
+        delete u.dg; // "Hat diesen Zug schon gegraben" (digUWHex) ist nur je Zug gültig
     });
     if (gameState.p[gameState.cp].tc) gameState.p[gameState.cp].tc = [];
 

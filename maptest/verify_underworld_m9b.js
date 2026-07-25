@@ -116,7 +116,10 @@ console.log('\n=== (b) Graben öffnet genau das Ziel-Hex und erzeugt Lärm ===')
         M.digUWHex(state, unit, target.x, target.y);
         assert(M.isUnderworldOpen(state, target.x, target.y), 'Ziel-Hex ist NACH dem Graben offen');
         assert(unit.x === target.x && unit.y === target.y, 'Einheit ist ins gegrabene Hex nachgerückt ("durchgefressen")');
-        assert(unit.a === 1, 'Aktion verbraucht (a=1)');
+        // Korrektur Juli 2026 (Bugfix "Arbeiter konnte nach dem Durchgraben nicht
+        // mehr abbauen"): die ERSTE Grabung des Zuges (a war 0) hinterlässt jetzt
+        // a=2 wie eine normale Bewegung, nicht mehr direkt a=1 — s. (g-c) unten.
+        assert(unit.a === 2 && unit.dg === 1, 'erste Grabung des Zuges hinterlässt a=2 (Zwischenzustand) + dg-Flag gesetzt');
         const idx = target.y * state.bw + target.x;
         assert(state.uw.d.includes(idx), 'Ziel-Index steht in uw.d');
         // Nachbar-Hexes, die NICHT gegraben wurden, bleiben unverändert offen/massiv
@@ -481,9 +484,13 @@ console.log('\n=== (g) Bewegen+Agieren im selben Zug (Oberflächen-Parität, Kor
     const movesAfterMove = (unitB.a === 0) ? M.calculateMovesUW(unitB) : [];
     assert(movesAfterMove.length === 0, 'bei a=2 werden KEINE weiteren Bewegungsziele angeboten (Gate wie showUnderworldTileUI)');
 
-    // --- (g-c) Fähigkeit aus a=0 (frischer Zug, keine Bewegung) setzt DIREKT
-    // a=1 — kein Zwischenzustand für normale Einheiten (nur der Bohrwagen ist
-    // die dokumentierte Ausnahme, s. (g-d)). ---
+    // --- (g-c) Graben aus a=0 (frischer Zug, keine Bewegung) hinterlässt seit
+    // der Korrektur Juli 2026 (Bugfix "Arbeiter konnte nach dem Durchgraben
+    // nicht mehr abbauen") a=2 — Graben zählt jetzt wie Bewegung als
+    // Zwischenzustand, für JEDE Einheit (nicht mehr nur den Bohrwagen, s.
+    // (g-d)). Ein zweites Graben im selben Zug bleibt trotzdem Bohrwagen-
+    // exklusiv (calculateDigsUW sperrt es über das dg-Flag), nur normale
+    // Nicht-Grab-Fähigkeiten (Angriff, Abbau-Toggle) sind aus a=2 nutzbar. ---
     const digStartC = findDigStart(stateA);
     assert(!!digStartC, 'Testaufbau: offenes Hex mit Fels-Nachbarn gefunden (g-c)');
     if (digStartC) {
@@ -492,7 +499,9 @@ console.log('\n=== (g) Bewegen+Agieren im selben Zug (Oberflächen-Parität, Kor
         assert(digTargetsC.length > 0, 'Testaufbau: Grabziel für (g-c) vorhanden');
         if (digTargetsC.length > 0) {
             M.digUWHex(stateA, unitC, digTargetsC[0].x, digTargetsC[0].y);
-            assert(unitC.a === 1, 'Graben aus a=0 (frischer Zug) setzt DIREKT a=1 — kein Zwischenzustand für normale Einheiten');
+            assert(unitC.a === 2 && unitC.dg === 1, 'Graben aus a=0 (frischer Zug) hinterlässt a=2 + dg-Flag — kein direktes a=1 mehr für normale Einheiten');
+            const digTargetsC2 = M.calculateDigsUW(unitC);
+            assert(digTargetsC2.length === 0, 'zweites Graben im selben Zug ist für normale Einheiten gesperrt (dg-Flag, Bohrwagen-exklusiv s. (g-d))');
         }
     }
     const attackerFresh = { i: 6, p: 0, t: 17, x: cxA, y: cyA, h: 14, a: 0 };
