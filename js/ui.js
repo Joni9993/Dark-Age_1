@@ -59,11 +59,10 @@ function showToast(msg, type = 'info') {
 }
 
 // === SCOREBOARD ===
-// Fest oben rechts angeheftetes Dropdown (gleiches Positionierungs-Muster wie
-// #game-menu-popup: position:fixed, top-right der Bildschirmecke, unabhängig
-// von der Lage des #scoreboard-Triggers selbst) statt des zwischenzeitlichen
-// zentrierten Modals — Jonathans Feedback: das Modal "verlor den Charme" der
-// ursprünglichen Anheftung. Schließt wie vorher per Klick außerhalb.
+// Dropdown hängt direkt unter dem #scoreboard-Trigger links auf (nicht mehr
+// zentriertes Modal, nicht oben rechts wie das Menü — Jonathans Feedback:
+// soll dort aufklappen, wo man auf die Punktzahl tippt). Schließt wie vorher
+// per Klick außerhalb.
 window.toggleScoreboard = function () {
     scoreboardOpen = !scoreboardOpen;
     document.getElementById('scoreboard-popup').style.display = scoreboardOpen ? 'block' : 'none';
@@ -88,14 +87,20 @@ function updateScoreboard() {
     });
     scores.sort((a, b) => b.score - a.score);
 
+    // Nur der Spitzenreiter im HUD selbst (statt einer Badge pro Spieler) —
+    // die Ressourcenleiste braucht bei mehr Ressourcen (Kristalle jetzt immer
+    // sichtbar) den Platz, den vorher N Badges belegt haben. Der Rest bleibt
+    // einen Tipp auf das Dropdown entfernt (Jonathans Feedback: "genügt, wenn
+    // nur Platz 1 gezeigt wird").
+    const leader = scores[0];
     let compactHtml = '';
-    scores.forEach(s => {
-        const opacity = s.isDead ? 'opacity:0.3;' : '';
+    if (leader) {
+        const opacity = leader.isDead ? 'opacity:0.3;' : '';
         compactHtml += `<span class="score-badge" style="${opacity}">`;
-        compactHtml += `<span class="score-dot" style="background:${playerColors[s.i]}"></span>`;
-        compactHtml += `<span>${s.isDead ? '✗' : s.score}</span>`;
-        compactHtml += `</span>`;
-    });
+        compactHtml += `<span class="score-dot" style="background:${playerColors[leader.i]}"></span>`;
+        compactHtml += `<span>${leader.isDead ? '✗' : leader.score}</span>`;
+        compactHtml += `</span><span class="score-compact-chevron">▾</span>`;
+    }
     scoreCompact.innerHTML = compactHtml;
 
     const modalContent = document.getElementById('scoreboard-modal-content');
@@ -147,13 +152,13 @@ function updateUI() {
     if (!pState.f) pState.f = []; if (!pState.of) pState.of = []; if (!pState.u) pState.u = [];
 
     const income = calculateIncome(pId);
-    resourceHud.innerHTML = `💰 ${pState.g} <span class="income-text">(+${income.g})</span> | 🪵 ${pState.m} <span class="income-text">(+${income.m})</span> | 🪨 ${pState.s || 0}`;
-    // Kristalle (Unterwelt-Ressource, pState.k) nur einblenden, sobald der Spieler
-    // welche besitzt — vor dem ersten Abbau ist die Ressource für die meisten
-    // Spieler irrelevant und würde die HUD-Zeile nur unnötig verlängern.
-    if (pState.k > 0) {
-        resourceHud.innerHTML += ` | 💎 ${pState.k}`;
-    }
+    // Kristalle (pState.k) sind jetzt von Anfang an mit in der Leiste (auch bei
+    // 0) statt erst ab dem ersten Abbau eingeblendet zu werden — Jonathans
+    // Wunsch, die Ressource durchgehend sichtbar zu haben. Der dadurch
+    // entstandene Platzbedarf ist der Grund, warum die Punktzahl-Anzeige
+    // links (score-compact, s.o.) jetzt nur noch den Spitzenreiter statt
+    // einer Badge pro Spieler zeigt.
+    resourceHud.innerHTML = `💰 ${pState.g} <span class="income-text">(+${income.g})</span> | 🪵 ${pState.m} <span class="income-text">(+${income.m})</span> | 🪨 ${pState.s || 0} | 💎 ${pState.k || 0}`;
     // Erschließungs-Countdown (M12): dauerhaft im HUD ALLER Spieler sichtbar,
     // solange uw.hz existiert — "volle Information, kein heimlicher Sieg".
     // Kurzform ohne Label/Klammern (Korrektur Juli 2026): der volle Fortschritt

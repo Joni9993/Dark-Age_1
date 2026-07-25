@@ -308,20 +308,24 @@ select:focus {
     font-weight: bold;
     text-shadow: 1px 1px 3px #000;
     pointer-events: auto;
-    gap: 6px;
+    gap: clamp(3px, 1.5vw, 6px);
 }
 
+/* clamp() statt fester rem-Werte: Gold/Holz/Stein/Kristalle (jetzt IMMER
+   alle vier sichtbar, s.o.) sollen auf jeder Bildschirmbreite ohne Umbruch
+   oder Abschneiden passen — die Schrift skaliert dafür stufenlos mit der
+   Viewport-Breite statt an einem festen Breakpoint zu kippen. */
 #resource-hud {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: clamp(4px, 1.8vw, 8px);
     white-space: nowrap;
-    font-size: 0.8rem;
+    font-size: clamp(0.62rem, 3vw, 0.8rem);
     flex-shrink: 0;
 }
 
 .income-text {
-    font-size: 0.65rem;
+    font-size: 0.82em;
     color: var(--green);
     font-weight: normal;
 }
@@ -334,6 +338,13 @@ select:focus {
     min-width: 0;
     cursor: pointer;
     position: relative;
+    /* #game-hud zentriert seine Kinder vertikal (align-items:center) statt sie
+       zu strecken — ohne stretch wäre #scoreboard nur so hoch wie die kleine
+       Punktzahl-Badge und läge dadurch mittig IN der HUD-Zeile. #scoreboard-
+       popup hängt sich aber per top:100% relativ an DIESES Element — ohne
+       stretch würde das Dropdown mitten in der HUD-Leiste beginnen statt
+       sauber darunter (genau das von Jonathan gemeldete Überlappen). */
+    align-self: stretch;
 }
 
 .score-compact {
@@ -347,7 +358,7 @@ select:focus {
     display: flex;
     align-items: center;
     gap: 3px;
-    font-size: 0.7rem;
+    font-size: clamp(0.6rem, 2.6vw, 0.7rem);
     opacity: 0.9;
     white-space: nowrap;
 }
@@ -358,6 +369,16 @@ select:focus {
     border-radius: 50%;
     display: inline-block;
     flex-shrink: 0;
+}
+
+/* Zeigt an, dass hinter der einzelnen Badge (nur Platz 1, siehe
+   updateScoreboard) noch eine ganze Rangliste steckt — ohne dieses Hinweis-
+   Chevron sähe die HUD-Zeile aus wie EIN Spielerscore statt "Platz 1 von N,
+   antippen für alle". */
+.score-compact-chevron {
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    opacity: 0.8;
 }
 
 #canvas-wrapper {
@@ -853,6 +874,8 @@ canvas {
     display: flex;
     flex-direction: column;
     gap: 3px;
+    min-width: 0;
+    overflow: hidden;
     padding: 10px 12px;
     margin-bottom: 8px;
     background: var(--bg-card);
@@ -873,33 +896,50 @@ canvas {
 .score-card-header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-size: 0.9rem;
+    min-width: 0;
 }
 
 .score-rank {
+    flex: 0 0 auto;
     color: var(--text-dim);
     font-size: 0.8rem;
     min-width: 16px;
 }
 
+/* flex:1 + min-width:0 + ellipsis: der Name ist das einzige Element, das bei
+   Platzmangel schrumpft/abgeschnitten wird — Fraktionen und Punktzahl (die
+   Sachen, die laut Jonathan "auf einen Blick" sichtbar sein sollen) bleiben
+   davon unberührt (flex: 0 0 auto unten), egal wie lang der Spielername oder
+   wie schmal der Bildschirm ist. Ohne min-width:0 ignoriert ein Flex-Item mit
+   overflow:visible seine intrinsische Breite beim Schrumpfen — das war der
+   Grund, warum lange Namen bisher aus der Karte herausliefen. */
 .score-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-weight: bold;
 }
 
 .score-factions {
-    flex: 1;
+    flex: 0 0 auto;
+    white-space: nowrap;
     letter-spacing: 1px;
     opacity: 0.9;
 }
 
 .score-total {
+    flex: 0 0 auto;
     color: var(--gold);
     font-weight: bold;
     white-space: nowrap;
 }
 
 .score-chevron {
+    flex: 0 0 auto;
     color: var(--text-dim);
     font-size: 0.7rem;
     transition: transform 0.2s ease;
