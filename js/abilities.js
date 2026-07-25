@@ -541,17 +541,18 @@ window.uwDescend = function () {
 window.startRelicEquip = function (key) {
     const def = RELICS[key];
     if (!def) return;
-    // "map" braucht kein Ziel — wirkt sofort. Landet seit dem Fundkammer-Fix
-    // (Juli 2026) zwar nicht mehr im Inventar, alte Spielstände können sie dort
-    // aber noch haben: hier verbrauchen statt sinnlos eine Einheit zu wählen.
+    // "instant"-Reliquien (Klingenschmiede/Bollwerk/Karte) brauchen kein Ziel —
+    // wirken sofort. Landen seit dem Fundkammer-Fix (Juli 2026) zwar nicht mehr
+    // im Inventar, alte Spielstände können sie dort aber noch haben: hier
+    // verbrauchen statt sinnlos eine Einheit/ein Bauwerk wählen zu lassen.
     if (def.target === 'instant') {
         const pState = gameState.p[gameState.cp];
         const idx = (pState.rel || []).indexOf(key);
         if (idx === -1) return;
         saveUndoState();
         pState.rel.splice(idx, 1);
-        applyMapRelic(gameState, gameState.cp);
-        showToast(`${def.icon} ${def.name} wirkt — gesamte Karte aufgedeckt!`, 'gold');
+        applyInstantRelic(gameState, gameState.cp, key);
+        showToast(`${def.icon} ${def.name} wirkt dauerhaft!`, 'gold');
         const [svx, svy] = (pState.sv || '0,0').split(',').map(Number);
         turnActions.push({ x: svx, y: svy, t: 'relicuse' });
         hideActionMenu(); renderBoard(gameState); updateUI();
@@ -559,42 +560,32 @@ window.startRelicEquip = function (key) {
     }
     window.uwSpecialActive = 'relic_' + key;
     hideActionMenu();
-    showToast(def.target === 'building' ? `Wähle ein eigenes Bauwerk für ${def.name}` : `Wähle eine eigene Einheit für ${def.name}`, 'info');
+    showToast(`Wähle ein eigenes Bauwerk für ${def.name}`, 'info');
 };
 
+// Nur noch "tool" (target: "building") landet hier — Klingenschmiede/Bollwerk/
+// Karte sind "instant" und kehren in startRelicEquip schon vorher zurück.
 function handleRelicTargetClick(clickedX, clickedY, underworld) {
     const key = window.uwSpecialActive.slice('relic_'.length);
     const def = RELICS[key];
     window.uwSpecialActive = null;
     if (!def) { renderBoard(gameState); return; }
 
-    if (def.target === 'building') {
-        // Meisterwerkzeug: nur Oberflächen-Bauwerke (Mauer/Turm/Tunnel/Startdorf) —
-        // unten gibt es keine Bauwerke.
-        if (underworld) { showToast('Das Meisterwerkzeug zielt auf Oberflächen-Bauwerke.', 'error'); renderBoard(gameState); return; }
-        const wall = (gameState.wa || []).find(w => w.x === clickedX && w.y === clickedY && w.o === gameState.cp);
-        const tower = (gameState.tw || []).find(t => t.x === clickedX && t.y === clickedY && t.o === gameState.cp);
-        const tunnelEnd = (gameState.tu || []).find(t => t.o === gameState.cp && ((t.x1 === clickedX && t.y1 === clickedY) || (t.x2 === clickedX && t.y2 === clickedY)));
-        const isOwnStart = gameState.p[gameState.cp].sv === `${clickedX},${clickedY}`;
-        if (!wall && !tower && !tunnelEnd && !isOwnStart) { showToast('Kein eigenes Bauwerk auf diesem Feld.', 'error'); renderBoard(gameState); return; }
-        saveUndoState();
-        let ok = false;
-        if (wall) ok = applyRelicToBuilding(gameState, gameState.cp, wall, 10);
-        else if (tower) ok = applyRelicToBuilding(gameState, gameState.cp, tower, 15);
-        else if (tunnelEnd) ok = applyRelicToBuilding(gameState, gameState.cp, tunnelEnd, 13);
-        else ok = applyRelicToBuilding(gameState, gameState.cp, gameState.p[gameState.cp], undefined);
-        if (ok) { showToast('🔧 Bauwerk repariert!', 'gold'); turnActions.push({ x: clickedX, y: clickedY, t: 'relicuse' }); }
-    } else {
-        // Klinge/Harnisch: eigene Einheit, Oberfläche ODER Unterwelt.
-        const unit = underworld ? uwUnitAt(clickedX, clickedY) : groundUnitAt(clickedX, clickedY);
-        if (!unit || unit.p !== gameState.cp) { showToast('Keine eigene Einheit auf diesem Feld.', 'error'); renderBoard(gameState); return; }
-        if (unit.art) { showToast('Einheit trägt schon eine Reliquie.', 'error'); renderBoard(gameState); return; }
-        saveUndoState();
-        const ok = applyRelicToUnit(gameState, gameState.cp, key, unit);
-        // uw:true nur wenn die ausgerüstete Einheit unten steht (M13) — die
-        // Meisterwerkzeug-Variante oben bleibt Oberflächen-Sicht (Gebäude sind
-        // immer oben).
-        if (ok) { showToast(`${def.icon} ${def.name} ausgerüstet!`, 'gold'); turnActions.push({ x: clickedX, y: clickedY, t: 'relicuse', uw: underworld }); }
-    }
+    // Meisterwerkzeug: nur Oberflächen-Bauwerke (Mauer/Turm/Tunnel/Startdorf) —
+    // unten gibt es keine Bauwerke.
+    if (underworld) { showToast('Das Meisterwerkzeug zielt auf Oberflächen-Bauwerke.', 'error'); renderBoard(gameState); return; }
+    const wall = (gameState.wa || []).find(w => w.x === clickedX && w.y === clickedY && w.o === gameState.cp);
+    const tower = (gameState.tw || []).find(t => t.x === clickedX && t.y === clickedY && t.o === gameState.cp);
+    const tunnelEnd = (gameState.tu || []).find(t => t.o === gameState.cp && ((t.x1 === clickedX && t.y1 === clickedY) || (t.x2 === clickedX && t.y2 === clickedY)));
+    const isOwnStart = gameState.p[gameState.cp].sv === `${clickedX},${clickedY}`;
+    if (!wall && !tower && !tunnelEnd && !isOwnStart) { showToast('Kein eigenes Bauwerk auf diesem Feld.', 'error'); renderBoard(gameState); return; }
+    saveUndoState();
+    const pState = gameState.p[gameState.cp];
+    let ok = false;
+    if (wall) ok = applyRelicToBuilding(gameState, gameState.cp, wall, getWallMaxHp(pState));
+    else if (tower) ok = applyRelicToBuilding(gameState, gameState.cp, tower, getTowerMaxHp(pState));
+    else if (tunnelEnd) ok = applyRelicToBuilding(gameState, gameState.cp, tunnelEnd, 13);
+    else ok = applyRelicToBuilding(gameState, gameState.cp, gameState.p[gameState.cp], undefined);
+    if (ok) { showToast('🔧 Bauwerk repariert!', 'gold'); turnActions.push({ x: clickedX, y: clickedY, t: 'relicuse' }); }
     renderBoard(gameState); updateUI();
 }

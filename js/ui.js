@@ -373,8 +373,9 @@ window.buyUWUnit = function (type) {
 // === RELIQUIEN-SHOP (M10) ===
 // Kauf läuft über das Reliquien-Fenster (window.openRelicShop, Radialmenü "🏺
 // Reliquien") statt übers Dorf-Menü — dort war laut Jonathan "kein Platz dafür".
-// "map" wirkt sofort (applyMapRelic, js/logic.js) und landet nie im Inventar;
-// alle anderen gehen in p[].rel und werden separat ausgerüstet
+// "instant"-Reliquien (Klingenschmiede/Bollwerk/Karte) wirken sofort
+// (applyInstantRelic, js/logic.js) und landen nie im Inventar; nur "tool"
+// (target: "building") geht in p[].rel und wird separat ausgerüstet
 // (window.startRelicEquip -> handleRelicTargetClick).
 window.buyRelic = function (key) {
     const pState = gameState.p[gameState.cp];
@@ -382,9 +383,9 @@ window.buyRelic = function (key) {
     if (!def || (pState.k || 0) < def.cost) { showToast('Nicht genug Kristalle!', 'error'); return; }
     saveUndoState();
     pState.k -= def.cost;
-    if (key === 'map') {
-        applyMapRelic(gameState, gameState.cp);
-        showToast('🗺️ Karte der Tiefe wirkt — gesamte Karte aufgedeckt!', 'gold');
+    if (def.target === 'instant') {
+        applyInstantRelic(gameState, gameState.cp, key);
+        showToast(`${def.icon} ${def.name} wirkt dauerhaft!`, 'gold');
     } else {
         if (!pState.rel) pState.rel = [];
         pState.rel.push(key);
@@ -466,6 +467,119 @@ window.handleRelicEquipClick = function (key) {
     }
     document.getElementById('relic-overlay').style.display = 'none';
     window.startRelicEquip(key);
+};
+
+// === HANDEL-FENSTER (Radialmenü "⚖️ Handel") ===
+// Tauscht Gold/Holz/Stein 1:1 in beide Richtungen. Kristalle sind bewusst
+// NICHT kaufbar (nur "Verkaufen: Kristalle" -> 1 💎 gibt 3 einer Kaufressource)
+// — sonst wären Reliquien rein per Gold ohne Unterwelt-Investment erreichbar
+// (Jonathan, Juli 2026). Macht Kristalle nach dem Reliquien-Umbau (siehe
+// applyInstantRelic, js/logic.js) zu einer dauerhaft nützlichen Ressource
+// statt nach dem letzten Reliquienkauf tot zu liegen.
+// UI (Korrektur Juli 2026, Smartphone-Feedback: <select>-Dropdowns wirkten
+// "clunky" auf Touch-Geräten): Ressourcen-Wahl als große Chip-Buttons statt
+// <select>, Menge als Slider (`.gift-slider`-Muster von Diplomatie/sendResources
+// wiederverwendet) statt Zahlenfeld — beides deutlich größere Touch-Ziele.
+const TRADE_RESOURCES = {
+    g: { label: 'Gold', icon: '💰' },
+    m: { label: 'Holz', icon: '🪵' },
+    s: { label: 'Stein', icon: '🪨' },
+    k: { label: 'Kristalle', icon: '💎' },
+};
+
+let tradeSellKey = 'g';
+let tradeBuyKey = 'm';
+
+window.openTradeShop = function () {
+    buildTradeShopContent();
+    document.getElementById('trade-overlay').style.display = 'flex';
+};
+
+function buildTradeShopContent() {
+    const pState = gameState.p[gameState.cp];
+    // Kristalle sind nie kaufbar — falls die aktuelle Kauf-Auswahl gerade durch
+    // die Verkaufen-Auswahl blockiert wird (gleiche Ressource) oder auf 'k'
+    // zeigt (Altzustand), auf die erste gültige Alternative ausweichen.
+    if (tradeBuyKey === tradeSellKey || tradeBuyKey === 'k') {
+        tradeBuyKey = Object.keys(TRADE_RESOURCES).find(k => k !== 'k' && k !== tradeSellKey);
+    }
+    const balanceLine = Object.entries(TRADE_RESOURCES).map(([key, r]) => `${r.icon} ${pState[key] || 0}`).join(' &nbsp;|&nbsp; ');
+    const chipRow = (selectedKey, keys, handlerName) => keys.map(key => {
+        const r = TRADE_RESOURCES[key];
+        const cls = 'trade-chip' + (key === selectedKey ? ' selected' : '');
+        return `<button class="${cls}" onclick="${handlerName}('${key}')"><span class="trade-chip-icon">${r.icon}</span>${r.label}</button>`;
+    }).join('');
+    const sellKeys = Object.keys(TRADE_RESOURCES);
+    const buyKeys = Object.keys(TRADE_RESOURCES).filter(k => k !== 'k' && k !== tradeSellKey);
+    const maxAmount = Math.max(0, pState[tradeSellKey] || 0);
+    const rate = tradeSellKey === 'k' ? 3 : 1;
+    document.getElementById('trade-cards').innerHTML = `
+        <div class="crystal-header">${balanceLine}</div>
+        <div style="width:100%; display:flex; flex-direction:column; gap:16px;">
+            <div>
+                <div class="trade-section-label">Verkaufen</div>
+                <div class="trade-chip-row">${chipRow(tradeSellKey, sellKeys, 'window.selectTradeSell')}</div>
+            </div>
+            <div class="trade-rate">${TRADE_RESOURCES[tradeSellKey].icon} 1 &nbsp;→&nbsp; ${rate} ${TRADE_RESOURCES[tradeBuyKey].icon}</div>
+            <div>
+                <div class="trade-section-label">Kaufen</div>
+                <div class="trade-chip-row">${chipRow(tradeBuyKey, buyKeys, 'window.selectTradeBuy')}</div>
+            </div>
+            <div class="gift-row">
+                <span class="gift-label">Menge <b id="trade-amount-out">0</b>/${maxAmount}</span>
+                <input type="range" class="gift-slider" id="trade-amount" min="0" max="${maxAmount}" value="0" step="1" style="--fill: 0%"
+                    oninput="window.updateTradePreview()">
+            </div>
+            <div id="trade-preview" class="passive-value" style="text-align:center;"></div>
+            <button class="action-btn" onclick="window.handleTradeClick()">Tauschen</button>
+        </div>`;
+    window.updateTradePreview();
+}
+
+window.selectTradeSell = function (key) {
+    tradeSellKey = key;
+    buildTradeShopContent();
+};
+
+window.selectTradeBuy = function (key) {
+    tradeBuyKey = key;
+    buildTradeShopContent();
+};
+
+window.updateTradePreview = function () {
+    const amountEl = document.getElementById('trade-amount');
+    const amount = Math.max(0, Math.floor(Number(amountEl.value) || 0));
+    const max = Number(amountEl.max) || 0;
+    document.getElementById('trade-amount-out').textContent = amount;
+    amountEl.style.setProperty('--fill', (max > 0 ? amount / max * 100 : 0) + '%');
+    const rate = tradeSellKey === 'k' ? 3 : 1;
+    document.getElementById('trade-preview').textContent = `Du erhältst: ${TRADE_RESOURCES[tradeBuyKey].icon} ${amount * rate}`;
+};
+
+window.handleTradeClick = function () {
+    if (!isLegacyUrlMode && currentGameId && currentTurnSlot !== currentUserSlot) {
+        showToast('Nur der aktive Spieler kann handeln', 'error'); return;
+    }
+    window.executeTrade();
+};
+
+window.executeTrade = function () {
+    const pState = gameState.p[gameState.cp];
+    const from = tradeSellKey, to = tradeBuyKey;
+    const amount = Math.max(0, Math.floor(Number(document.getElementById('trade-amount').value) || 0));
+    if (amount <= 0) { showToast('Bitte gib eine Menge ein!', 'error'); return; }
+    if (from === to) { showToast('Verkaufen und Kaufen müssen sich unterscheiden!', 'error'); return; }
+    if (to === 'k') { showToast('Kristalle können nicht gekauft werden!', 'error'); return; }
+    if ((pState[from] || 0) < amount) { showToast('Nicht genug Ressourcen!', 'error'); return; }
+    saveUndoState();
+    const rate = from === 'k' ? 3 : 1;
+    pState[from] -= amount;
+    pState[to] = (pState[to] || 0) + amount * rate;
+    const [svx, svy] = (pState.sv || '0,0').split(',').map(Number);
+    turnActions.push({ x: svx, y: svy, t: 'trade' });
+    showToast(`Verkauft: ${TRADE_RESOURCES[from].icon} ${amount} → Gekauft: ${TRADE_RESOURCES[to].icon} ${amount * rate}`, 'gold');
+    buildTradeShopContent(); // Bestand geändert — Fenster bleibt offen, Muster wie handleRelicBuyClick
+    updateUI();
 };
 
 // === VILLAGE CAPTURE ===

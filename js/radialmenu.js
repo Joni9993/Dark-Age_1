@@ -2,7 +2,7 @@
 // Ersetzt die aus dem HUD entfernten Buttons Forschung/Kultur/Diplomatie/Zug-
 // beenden (siehe CLAUDE.md-Auftrag "HUD-Umbau"): 1s Druck ohne Ziehen auf
 // #canvas-wrapper (Timer + Auslösen in js/input.js, POINTER/TOUCH EVENTS)
-// öffnet ein Rad aus 5 Kreisen zentriert am Druckpunkt. Solange gehalten,
+// öffnet ein Rad aus 6 Kreisen zentriert am Druckpunkt. Solange gehalten,
 // übernimmt dieses Modul document-weite pointermove/pointerup-Listener;
 // input.js unterdrückt währenddessen (und kurz danach, siehe
 // wasPressConsumed()) seinen eigenen Klick-Handler, damit derselbe Press
@@ -21,6 +21,7 @@ window.RadialMenu = (function () {
         { key: 'faction', icon: '⚜️', label: 'Fraktion' },
         { key: 'diplomacy', icon: '🤝', label: 'Diplomatie' },
         { key: 'relics', icon: '🏺', label: 'Reliquien' },
+        { key: 'trade', icon: '⚖️', label: 'Handel' },
         { key: 'endturn', icon: '🏁', label: 'Zug beenden' },
     ];
     const RADIUS = 95;          // Abstand Kreis-Mittelpunkt <-> Druckpunkt, siehe CLAUDE.md-Auftrag (~90-100px)
@@ -55,12 +56,14 @@ window.RadialMenu = (function () {
             diplomacy: !(gameState && (gameState.at || gameState.dp)),
             // Reliquien-Shop kommt im Folgeauftrag (window.openRelicShop) — analog zu faction.
             relics: false,
+            // Handel-Fenster (window.openTradeShop) — analog zu relics, immer aktiv.
+            trade: false,
             endturn: !!(endTurnBtn && endTurnBtn.disabled),
         };
     }
 
     // Druckpunkt in den Viewport klemmen, damit auch bei einem Druck nahe am
-    // Bildschirmrand alle 5 Kreise vollständig sichtbar bleiben.
+    // Bildschirmrand alle 6 Kreise vollständig sichtbar bleiben.
     function clampCenter(x, y) {
         const margin = RADIUS + CIRCLE_SIZE / 2 + 8;
         const vw = window.innerWidth, vh = window.innerHeight;
@@ -144,6 +147,9 @@ window.RadialMenu = (function () {
                 break;
             case 'relics':
                 if (typeof window.openRelicShop === 'function') window.openRelicShop();
+                break;
+            case 'trade':
+                if (typeof window.openTradeShop === 'function') window.openTradeShop();
                 break;
             case 'endturn':
                 endTurnBtn.click();

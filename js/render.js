@@ -602,7 +602,6 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
         }
         ctx.textAlign = 'center';
         if (unit.cr) { ctx.fillStyle = '#7fe3ff'; ctx.font = 'bold 8px monospace'; ctx.fillText(`💎${unit.cr}`, center.px, center.py - 16); }
-        if (unit.art) { ctx.fillStyle = '#ba68c8'; ctx.font = 'bold 8px monospace'; ctx.fillText(RELICS[unit.art].icon, center.px + 11, center.py - 12); }
         ctx.globalAlpha = 1;
     }
 
@@ -745,7 +744,7 @@ function drawScene(state) {
     if (state.wa) {
         state.wa.forEach(w => {
             if (vis.has(`${w.x},${w.y}`)) {
-                renderQueue.push({ py: getHexCenter(w.x, w.y).py, type: 'wall', vx: w.x, vy: w.y, ownerId: w.o, hp: w.h, maxHp: 10, spriteKey: "wall" });
+                renderQueue.push({ py: getHexCenter(w.x, w.y).py, type: 'wall', vx: w.x, vy: w.y, ownerId: w.o, hp: w.h, maxHp: getWallMaxHp(gameState.p[w.o]), spriteKey: "wall" });
             }
         });
     }
@@ -761,7 +760,7 @@ function drawScene(state) {
     if (state.tw) {
         state.tw.forEach(tw => {
             if (tw.h > 0 && vis.has(`${tw.x},${tw.y}`)) {
-                renderQueue.push({ py: getHexCenter(tw.x, tw.y).py, type: 'tower', vx: tw.x, vy: tw.y, ownerId: tw.o, hp: tw.h, maxHp: 15, spriteKey: "tower", acted: tw.a });
+                renderQueue.push({ py: getHexCenter(tw.x, tw.y).py, type: 'tower', vx: tw.x, vy: tw.y, ownerId: tw.o, hp: tw.h, maxHp: getTowerMaxHp(gameState.p[tw.o]), spriteKey: "tower", acted: tw.a });
             }
         });
     }
@@ -774,11 +773,11 @@ function drawScene(state) {
     for (const [key, ownerId] of Object.entries(state.v)) {
         if (vis.has(key) || ownerId === gameState.cp || (ownerId === -1 && explored.includes(parseInt(key.split(',')[1]) * state.bw + parseInt(key.split(',')[0])))) {
             const [vx, vy] = key.split(',').map(Number);
-            let isStart = false; let hp = undefined; let spriteKey = "village";
+            let isStart = false; let hp = undefined; let maxHp = undefined; let spriteKey = "village";
             if (ownerId !== -1 && gameState.p[ownerId] && gameState.p[ownerId].sv === key) {
-                isStart = true; hp = gameState.p[ownerId].sh; spriteKey = "startVillage";
+                isStart = true; hp = gameState.p[ownerId].sh; maxHp = getVillageMaxHp(gameState.p[ownerId]); spriteKey = "startVillage";
             }
-            renderQueue.push({ py: getHexCenter(vx, vy).py, type: 'building', vx, vy, ownerId, hp, spriteKey });
+            renderQueue.push({ py: getHexCenter(vx, vy).py, type: 'building', vx, vy, ownerId, hp, maxHp, spriteKey });
         }
     }
 

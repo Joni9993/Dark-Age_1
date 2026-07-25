@@ -63,7 +63,7 @@ Alle Kosten/Werte sind **Balance-Erstentwurf** (Playtest-Vorbehalt wie bei den L
 | Typ-ID | 17 | 18 |
 | Verfügbar | alle | alle |
 | Rekrutierung | am Stollenkopf | am Stollenkopf |
-| Kosten | 5 G | 6 G |
+| Kosten | 5 G | 4 G (Kostenkorrektur Juli 2026, war 6) |
 | HP | 14 | 8 |
 | Bewegung | 2 | 2 |
 | Angriff | 4 DMG, RW 1 | 3 DMG, RW 1 |
@@ -73,7 +73,7 @@ Alle Kosten/Werte sind **Balance-Erstentwurf** (Playtest-Vorbehalt wie bei den L
 |---|---|---|---|---|
 | Fraktion | Feudalismus (0) | Plünderer (1) | Spionage (2) | Gilden (3) |
 | Typ-ID | 19 | 20 | 21 | 22 |
-| Kosten | 7 G | 5 G | 4 G | 9 G |
+| Kosten | 6 G (Kostenkorrektur Juli 2026, war 7) | 4 G (Kostenkorrektur Juli 2026, war 5) | 3 G (Kostenkorrektur Juli 2026, war 4) | 6 G (Kostenkorrektur Juli 2026, war 9) |
 | HP | 16 (+`fb`-Bonus) | 10 | 8 | 14 |
 | Bewegung | 2 | 3 | 2 | 1 |
 | Angriff | 6 DMG, RW 1 (Korrektur Juli 2026, war 5 — teure Elite-Einheit) | 4 DMG (+1 Plünderer-Passiv), RW 1 | 3 DMG, RW 1 | 4 DMG Rammbohrer, RW 1 |
@@ -153,11 +153,26 @@ Kreatur schlägt nie durch die Wand auf eine dahinterliegende offene Tasche.
 ## 7. Ökonomie: Kristalle & Reliquien
 
 - **Kristalle** (`p[].k`) entstehen nur unten (Adern, Fundkammern). Abbau läuft als **Toggle** (Korrektur Juli 2026, Muster: Steinabbau des Arbeiters oben) — „Abbau starten"/„stoppen", verbraucht keine Aktion, läuft automatisch am Zugende, solange die Einheit in Reichweite (eigenes Hex oder angrenzend) einer Ader mit Restbestand steht. **Tragen bleibt nötig, aber ohne Obergrenze** (`u.cr`, uncapped) — die Fracht muss weiterhin physisch zum eigenen Stollenkopf getragen werden, liefert dort aber **automatisch** ab, sobald die Einheit auf/neben ihm steht (kein manueller „Abliefern"-Klick mehr). Stirbt ein Träger, **fällt seine Fracht als Haufen** auf das Sterbe-Hex (`uw.dr`) — jede andere trage-fähige Einheit (Arbeiter, Beutegräber) sammelt ihn beim Betreten automatisch ein; ein Beutegräber-Kill stiehlt sie stattdessen direkt (uncapped).
-- **Reliquien** = Fundstücke alter Handwerkskunst (nicht sakral!), kaufbar für Kristalle im Dorf-Menü, Erstentwurf:
-  - **Damaszener Klinge** (4 💎): eine Einheit permanent +5 DMG
-  - **Harnisch des Bergvolks** (4 💎): eine Einheit permanent +10 max-HP
+- **Reliquien** = Fundstücke alter Handwerkskunst (nicht sakral!), kaufbar für Kristalle im Reliquien-Fenster
+  (Radialmenü). **Korrektur Juli 2026** (Jonathan: Einzeleinheiten-Ausrüstung war zu schwach — stirbt die
+  Trägereinheit, ist die ganze Investition weg, und Unterwelt-Einheiten konkurrieren 1:1 in Gold mit der
+  Oberflächenarmee): Klingenschmiede/Bollwerk/Karte binden sich nicht mehr an eine Einheit (`u.art` entfällt),
+  sondern wirken sofort beim Kauf als permanentes Spieler-Flag (`applyInstantRelic`, js/logic.js) — nur das
+  Meisterwerkzeug bleibt zielgebunden (Bauwerk):
+  - **Klingenschmiede der Tiefe** (7 💎, vorher "Damaszener Klinge" 4 💎/Einzeleinheit): permanent +1 DMG für
+    ALLE eigenen Einheiten (Oberfläche, Unterwelt, Luft — `pState.rb`-Flag, gelesen von `getExpectedDamage`
+    UND `getExpectedDamageUW`, es gibt keine separate Luft-Schadensfunktion)
+  - **Bollwerk des Bergvolks** (7 💎, vorher "Harnisch des Bergvolks" 4 💎/Einzeleinheit): permanent +50%
+    Max-HP auf Startdorf/Mauern/Türme (sofort voll geheilt, Tunnel bewusst ausgenommen) + permanent +2 Max-HP
+    für ALLE eigenen Einheiten (sofort mitgeheilt) — `pState.ra`-Flag, gelesen von `getUnitMaxHp` sowie den
+    neuen Helpern `getVillageMaxHp`/`getWallMaxHp`/`getTowerMaxHp`
   - **Meisterwerkzeug** (3 💎): ein Bauwerk (Mauer/Turm/Tunnel/Startdorf) sofort auf volle HP
-  - **Karte der Tiefe** (7 💎, Preiskorrektur Juli 2026, vorher 5): permanente 100%-Sicht auf die gesammte MAP(oberfläche als auch unterwelt-netz) — nicht nur einmalig aufdecken (`p[].mr`-Flag, Fix Juli 2026)
+  - **Karte der Tiefe** (6 💎, Preiskorrektur Juli 2026, vorher 7): permanente 100%-Sicht auf die gesammte MAP
+    (Oberfläche als auch Unterwelt-Netz) — nicht nur einmalig aufdecken (`p[].mr`-Flag)
+- **Handel** (Korrektur Juli 2026, neues Radialmenü-Fenster „⚖️ Handel"): Gold/Holz/Stein tauschen 1:1 in beide
+  Richtungen; Kristalle sind bewusst NUR verkaufbar (1 💎 → 3 einer Zielressource), nicht kaufbar — sonst wären
+  Reliquien rein per Gold ohne Unterwelt-Investment erreichbar. Löst außerdem, dass Kristalle nach dem Kauf
+  aller vier Reliquien sonst nutzlos würden.
 
 ## 8. Der Herz-Sieg: die Erschließung
 
@@ -190,7 +205,9 @@ Kreatur schlägt nie durch die Wand auf eine dahinterliegende offene Tasche.
 - `uw.c[]` — Kreaturen `{t, x, y, h}`; Wurm tot = Eintrag fehlt + Flag `uw.wd = 1`
 - `uw.n[]` — Lärm-Marker der letzten Runde `{x, y}` (transient, wird pro Runde ersetzt)
 - `uw.hz` — Erschließung `{p, n}`
-- `u.rq[]`-Analogie für Reliquien: `p[].rel[]` gekaufte, `u[].art` ausgerüstete Reliquie
+- Reliquien: `p[].rel[]` gekaufte, noch nicht verbrauchte "building"-Reliquien (aktuell nur `tool`);
+  `p[].rb`/`p[].ra` permanente Passiv-Flags aus Klingenschmiede/Bollwerk (Korrektur Juli 2026, ersetzt
+  `u[].art`, siehe Abschn. 7) — wie `p[].mr` nie normalisiert/gelöscht, nur `1` gesetzt oder `undefined`
 
 **Terrain:** `getUnderworldType(state, x, y)` in `js/hex.js` neben `getTerrainType` (eigener Seed-Hash-Kanal). Offen = natürlich offen (Kaverne/Ruine/Herz) ODER in `uw.d`.
 

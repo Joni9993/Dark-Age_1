@@ -702,6 +702,60 @@ canvas {
     margin-bottom: 10px;
 }
 
+/* Handel-Fenster (window.openTradeShop, js/ui.js): Ressourcen-Wahl als Chip-
+   Buttons statt <select> — größere Touch-Ziele, besser für Smartphones
+   (Korrektur Juli 2026, Jonathans Feedback: Dropdowns wirkten "clunky"). */
+.trade-section-label {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+}
+
+.trade-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.trade-chip {
+    flex: 1 1 64px;
+    min-width: 64px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 6px;
+    background: rgba(10, 10, 10, 0.7);
+    border: 1px solid rgba(180, 150, 100, 0.2);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-size: 0.7rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.trade-chip-icon {
+    font-size: 1.4rem;
+}
+
+.trade-chip.selected {
+    border-color: var(--gold);
+    background: rgba(232, 184, 74, 0.12);
+    color: var(--gold);
+}
+
+/* Kurs-Anzeige zwischen Verkaufen/Kaufen-Chipreihen (z.B. "💰 1 → 1 🪵" oder
+   "💎 1 → 3 💰") — zeigt sofort, ob gerade der 1:1- oder der 1:3-Kristallkurs
+   greift, ohne dass man es erst am Ergebnis unten ablesen muss. */
+.trade-rate {
+    text-align: center;
+    color: var(--gold);
+    font-weight: bold;
+    font-size: 0.95rem;
+    margin-top: -6px;
+}
+
 /* === LOGO === */
 .game-logo {
     width: 110px;

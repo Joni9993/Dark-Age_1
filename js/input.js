@@ -201,7 +201,7 @@ function handleCanvasClick(clientX, clientY) {
                 saveUndoState();
                 pState.s = (pState.s || 0) - 1;
                 if (!gameState.wa) gameState.wa = [];
-                gameState.wa.push({ x: clickedX, y: clickedY, o: gameState.cp, h: 10 });
+                gameState.wa.push({ x: clickedX, y: clickedY, o: gameState.cp, h: getWallMaxHp(pState) });
 
                 selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'cap', fx: selectedUnit.x, fy: selectedUnit.y });
                 window.specialActive = null; selectedUnit = null; validMoves = [];
@@ -215,7 +215,7 @@ function handleCanvasClick(clientX, clientY) {
                 saveUndoState();
                 pState.s = (pState.s || 0) - 5;
                 if (!gameState.tw) gameState.tw = [];
-                gameState.tw.push({ x: clickedX, y: clickedY, o: gameState.cp, h: 15, a: 1 });
+                gameState.tw.push({ x: clickedX, y: clickedY, o: gameState.cp, h: getTowerMaxHp(pState), a: 1 });
                 selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'cap', fx: selectedUnit.x, fy: selectedUnit.y });
                 window.specialActive = null; selectedUnit = null; validMoves = [];
                 infoPanel.innerHTML = "🗼 Turm errichtet!"; renderBoard(gameState);
@@ -684,13 +684,12 @@ function showUnderworldTileUI(clickedX, clickedY) {
         const ownerName = formatOwnerName(unit.p, gameState.cp);
         const ownerColor = getEntityColor(unit.p);
         const crText = unit.cr ? ` | 💎 trägt ${unit.cr}/3` : '';
-        const artText = unit.art ? ` | ${RELICS[unit.art].icon} ${RELICS[unit.art].name}` : '';
         const vetText = unit.vet ? ' | ★ Veteran (+1 DMG)' : '';
         let expectedDmgText = '';
         if (prevSelectedUnit && prevSelectedUnit.p === gameState.cp && unit.p !== gameState.cp && prevValidAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
             expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${getExpectedDamageUW(prevSelectedUnit, unit)} DMG</span>`;
         }
-        infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} ${unitStats[unit.t].name} (${unit.h}/${maxHp} HP)</span><div class="info-detail">Bewegung: ${getUnitMove(gameState.p[unit.p], unit.t, unit)} | Angriff: ${unitStats[unit.t].dmg}${vetText}${crText}${artText}</div>${expectedDmgText}` + extra;
+        infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} ${unitStats[unit.t].name} (${unit.h}/${maxHp} HP)</span><div class="info-detail">Bewegung: ${getUnitMove(gameState.p[unit.p], unit.t, unit)} | Angriff: ${unitStats[unit.t].dmg}${vetText}${crText}</div>${expectedDmgText}` + extra;
     } else if (creature) {
         const cStats = uwCreatureStats[creature.t];
         let expectedDmgText = '';
@@ -1011,7 +1010,7 @@ window.startUWLootFundkammer = function () {
     if (loot.type === 'crystal') {
         showToast(`🏺 Fundkammer: +${loot.amount} 💎 Kristalle!`, 'gold');
     } else if (loot.instant) {
-        showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} — gesamte Karte aufgedeckt!`, 'gold');
+        showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} wirkt sofort!`, 'gold');
     } else {
         showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} gefunden!`, 'gold');
     }
@@ -1811,12 +1810,25 @@ function clearLongPressTimer() {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
 }
 
+// Rechte Maustaste gehalten + ziehen dreht die Kamera (Azimut) — das Desktop-
+// Äquivalent zum Zwei-Finger-Dreh am Smartphone (siehe touchmove weiter unten,
+// gestureOrbit). Radianten pro Pixel horizontaler Mausbewegung seit Gestenstart.
+const MOUSE_ORBIT_SENSITIVITY = 0.006;
+
+canvasWrapper.addEventListener('contextmenu', e => e.preventDefault());
+
 canvasWrapper.addEventListener('pointerdown', (e) => {
+    canvasWrapper.setPointerCapture(e.pointerId);
+    if (e.pointerType === 'mouse' && e.button === 2) {
+        isOrbiting = true;
+        dragStartX = e.clientX; dragStartY = e.clientY;
+        Renderer.beginGesture();
+        return;
+    }
     isDragging = true;
     hasMoved = false;
     dragStartX = e.clientX; dragStartY = e.clientY;
     Renderer.beginGesture();
-    canvasWrapper.setPointerCapture(e.pointerId);
 
     // Neuer Druck beginnt: alten "Press konsumiert"-Zustand des Rads zurücksetzen,
     // sonst würde ein Radial-Menü-Klick fälschlich noch den NÄCHSTEN Tap unterdrücken.
@@ -1832,6 +1844,11 @@ canvasWrapper.addEventListener('pointerdown', (e) => {
 });
 
 canvasWrapper.addEventListener('pointermove', (e) => {
+    if (isOrbiting) {
+        const dAzim = (e.clientX - dragStartX) * MOUSE_ORBIT_SENSITIVITY;
+        if (Renderer.gestureOrbit) Renderer.gestureOrbit(dAzim);
+        return;
+    }
     if (!isDragging) return;
     const dx = e.clientX - dragStartX; const dy = e.clientY - dragStartY;
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) { hasMoved = true; clearLongPressTimer(); }
@@ -1839,9 +1856,10 @@ canvasWrapper.addEventListener('pointermove', (e) => {
 });
 
 canvasWrapper.addEventListener('pointerup', (e) => {
+    canvasWrapper.releasePointerCapture(e.pointerId);
+    if (isOrbiting) { isOrbiting = false; return; }
     clearLongPressTimer();
     isDragging = false;
-    canvasWrapper.releasePointerCapture(e.pointerId);
     // Solange das Rad offen ist (oder gerade durch DIESEN Loslass-Event auf
     // Document-Ebene geschlossen wird — RadialMenu hängt seine eigenen
     // pointerup-Listener erst beim Öffnen an document, die wegen Pointer-Capture

@@ -52,8 +52,9 @@ function loadGameCode() {
             calculateDynamiteTargetsUW, getDynamiteTriangle, placeUWDynamite, processUWDynamiteDetonations,
             hasUsableTunnel, applyMoralCollapse,
             checkErschliessungProgress, advanceErschliessung, checkErschliessungWin, ERSCHLIESSUNG_TARGET,
-            lootFundkammer, applyRelicToUnit, applyRelicToBuilding, applyMapRelic,
+            lootFundkammer, applyInstantRelic, applyRelicToBuilding, applyMapRelic,
             getUnitMaxHp, getUnitCost, getUnitMove, unitStats, RELICS,
+            getVillageMaxHp, getWallMaxHp, getTowerMaxHp,
             uwCreatureStats, UWC_SPINNE, UWC_WUEHLER, UWC_STEINPANZER, UWC_WURM,
             checkTeamWin
         };
@@ -299,10 +300,12 @@ let lateGameStateForUrlTest = null;
     if (!state.uw.c) state.uw.c = [];
     state.uw.c.push({ t: M.UWC_SPINNE, x: 6, y: 6, h: 6 }, { t: M.UWC_WUEHLER, x: 8, y: 8, h: 12 });
 
-    // Reliquien: je 1 Spieler etwas im Inventar/ausgerüstet
-    state.p[0].rel = ['blade'];
+    // Reliquien (Korrektur Juli 2026: Klingenschmiede/Bollwerk sind Spieler-
+    // Passiv-Flags, nicht mehr Einheiten-Ausrüstung) — je 1 Spieler etwas im
+    // Inventar bzw. mit aktivem Passiv.
+    state.p[0].rel = ['tool'];
     state.p[1].rel = [];
-    state.uw.u[1].art = 'armor';
+    state.p[1].ra = 1;
     state.p[2].k = 6;
 
     // Ein Tunnel + laufende Erschließung
@@ -322,7 +325,7 @@ let lateGameStateForUrlTest = null;
 
     const stateNoUW = JSON.parse(JSON.stringify(state));
     delete stateNoUW.uw;
-    stateNoUW.p.forEach(p => { delete p.ue; delete p.rel; delete p.k; });
+    stateNoUW.p.forEach(p => { delete p.ue; delete p.rel; delete p.k; delete p.rb; delete p.ra; });
     const withoutUW = LZString.compressToEncodedURIComponent(JSON.stringify(stateNoUW));
 
     const deltaBytes = withUW.length - withoutUW.length;

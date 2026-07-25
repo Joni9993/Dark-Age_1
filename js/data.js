@@ -67,25 +67,32 @@ const unitStats = {
     // steht dem nicht im Weg. Gecappt auf Max-HP (siehe die Grubenwache-Heilschleife
     // in doEndTurn, js/input.js).
     17: { dmg: 4, range: 1, move: 2, name: "Grubenwache", cost: 5, maxHp: 14, isMelee: true, light: true, isUW: true },
-    18: { dmg: 3, range: 1, move: 2, name: "Sprengmeister", cost: 6, maxHp: 8, isMelee: true, light: true, isUW: true },
+    // Sprengmeister (18): Kostenkorrektur Juli 2026 (6 -> 4g) — Balancing-Auftrag
+    // Jonathan, Unterwelt-Einheiten sollen weniger stark mit der Oberflächen-
+    // Armee ums selbe Gold konkurrieren (siehe Reliquien-Rework, Abschn. 7).
+    18: { dmg: 3, range: 1, move: 2, name: "Sprengmeister", cost: 4, maxHp: 8, isMelee: true, light: true, isUW: true },
     // Grubenritter (19, Feudalismus): +fb-Bonus wie Ritter/Kamelreiter oben (getUnitMaxHp).
     // Sturmangriff (Korrektur Juli 2026, maybeTriggerSturmangriff/js/logic.js):
     // nach einem Kill (Einheit ODER Kreatur) noch einmal frisch bewegen+angreifen,
     // einmal pro eigenem Zug — teure Elite-Einheit, daher 6 statt 5 Basis-DMG.
-    19: { dmg: 6, range: 1, move: 2, name: "Grubenritter", cost: 7, maxHp: 16, isMelee: true, light: true, isUW: true },
+    // Kostenkorrektur Juli 2026 (7 -> 6g), gleicher Balancing-Auftrag wie oben.
+    19: { dmg: 6, range: 1, move: 2, name: "Grubenritter", cost: 6, maxHp: 16, isMelee: true, light: true, isUW: true },
     // Beutegräber (20, Plünderer): +1 DMG via Plünderer-Passiv (wie alle Nahkämpfer,
     // hier schon in dmg eingepreist — getExpectedDamageUW addiert es zusätzlich analog
     // zu getExpectedDamage, NICHT doppelt: dmg hier ist der Basiswert ohne Passiv).
-    20: { dmg: 4, range: 1, move: 3, name: "Beutegräber", cost: 5, maxHp: 10, isMelee: true, light: true, isUW: true },
+    // Kostenkorrektur Juli 2026 (5 -> 4g), gleicher Balancing-Auftrag wie oben.
+    20: { dmg: 4, range: 1, move: 3, name: "Beutegräber", cost: 4, maxHp: 10, isMelee: true, light: true, isUW: true },
     // Horcher (21, Spionage): Lauschen (Lärm-Pings im Umkreis 5 als exaktes Hex,
     // getUWNoisePings) + Sprung (calculateHorcherJumpTargetsUW/jumpUWUnit — 2 Hex
     // weit, unabhängig von Fels/Weg dazwischen, Ziel muss offen & frei sein).
     // Ersetzt seit Korrektur Juli 2026 die permanente Tarnung (iv=1 ab Aufstellung),
-    // die Jonathan zufolge zu stark war.
-    21: { dmg: 3, range: 1, move: 2, name: "Horcher", cost: 4, maxHp: 8, isMelee: true, light: true, isUW: true },
+    // die Jonathan zufolge zu stark war. Kostenkorrektur Juli 2026 (4 -> 3g),
+    // gleicher Balancing-Auftrag wie oben.
+    21: { dmg: 3, range: 1, move: 2, name: "Horcher", cost: 3, maxHp: 8, isMelee: true, light: true, isUW: true },
     // Bohrwagen (22, Gilden): digMove = Grab-Aktionen pro Zug (2 statt 1, siehe
     // digUWHex/executeUWDig — a=2 als Zwischenzustand wie beim Bewegen+Angreifen-Muster).
-    22: { dmg: 4, range: 1, move: 1, name: "Bohrwagen", cost: 9, maxHp: 14, isMelee: true, light: true, isUW: true, digMove: 2 }
+    // Kostenkorrektur Juli 2026 (9 -> 6g), gleicher Balancing-Auftrag wie oben.
+    22: { dmg: 4, range: 1, move: 1, name: "Bohrwagen", cost: 6, maxHp: 14, isMelee: true, light: true, isUW: true, digMove: 2 }
 };
 
 // Fraktions-Zuordnung der Unterwelt-Spezialeinheiten (Typ-IDs 19-22) — gleiches
@@ -95,14 +102,19 @@ const uwFactionUnitMap = { 0: 19, 1: 20, 2: 21, 3: 22 };
 
 // === RELIQUIEN (M10, PLAN.md Abschn. 7) ===
 // Fundstücke alter Handwerkskunst (nicht sakral!) — kaufbar für Kristalle im
-// Dorf-Menü, eine ausgerüstete Reliquie pro Einheit (u[].art / uw.u[].art).
-// "map" wirkt sofort (Kauf UND Fundkammer-Fund) und landet nie in p[].rel
-// (siehe applyMapRelic; startRelicEquip verbraucht Altbestände im Inventar).
+// Dorf-Menü. Alle vier wirken sofort beim Kauf (target: "instant") außer
+// "tool", das ein Bauwerk als Ziel braucht (target: "building") — keine
+// Reliquie wird mehr an eine einzelne Einheit gebunden (Korrektur Juli 2026:
+// Klinge/Bollwerk waren als Einzeleinheiten-Ausrüstung zu schwach/riskant,
+// siehe applyInstantRelic, js/logic.js). "map"/"blade"/"armor" landen nie in
+// p[].rel (siehe applyInstantRelic; startRelicEquip verbraucht Altbestände
+// aus Spielständen vor diesem Umbau automatisch instant statt sie ausrüsten
+// zu lassen).
 const RELICS = {
-    blade: { name: "Damaszener Klinge", icon: "🗡️", cost: 4, desc: "Eine Einheit erhält permanent +5 DMG.", target: "unit" },
-    armor: { name: "Harnisch des Bergvolks", icon: "🛡️", cost: 4, desc: "Eine Einheit erhält permanent +10 Max-HP (heilt beim Ausrüsten mit).", target: "unit" },
+    blade: { name: "Klingenschmiede der Tiefe", icon: "⚒️", cost: 7, desc: "Permanent: alle eigenen Einheiten (Oberfläche, Unterwelt, Luft) erhalten +1 DMG.", target: "instant" },
+    armor: { name: "Bollwerk des Bergvolks", icon: "🛡️", cost: 7, desc: "Permanent: Startdorf, Mauern & Türme erhalten +50% Max-HP (sofort voll geheilt); alle eigenen Einheiten erhalten +2 Max-HP (sofort mitgeheilt).", target: "instant" },
     tool: { name: "Meisterwerkzeug", icon: "🔧", cost: 3, desc: "Ein Bauwerk (Mauer/Turm/Tunnel/Startdorf) sofort auf volle HP.", target: "building" },
-    map: { name: "Karte der Tiefe", icon: "🗺️", cost: 7, desc: "Permanente Sicht auf die gesamte Karte (Oberfläche + Unterwelt-Netz).", target: "instant" }
+    map: { name: "Karte der Tiefe", icon: "🗺️", cost: 6, desc: "Permanente Sicht auf die gesamte Karte (Oberfläche + Unterwelt-Netz).", target: "instant" }
 };
 
 // === UNTERWELT-KREATUREN (M11, PLAN.md Abschn. 5) ===

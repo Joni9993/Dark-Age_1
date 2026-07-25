@@ -1288,14 +1288,14 @@
             if (state.wa) {
                 const wallSet = new Set(state.wa.map(w => `${w.x},${w.y}`));
                 state.wa.forEach(w => {
-                    if (vis.has(`${w.x},${w.y}`)) entities.push({ x: w.x, y: w.y, spriteKey: 'wall', ownerId: w.o, hp: w.h, maxHp: 10, bn: w.bn, rot: computeWallRotation(w.x, w.y, wallSet) });
+                    if (vis.has(`${w.x},${w.y}`)) entities.push({ x: w.x, y: w.y, spriteKey: 'wall', ownerId: w.o, hp: w.h, maxHp: getWallMaxHp(state.p[w.o]), bn: w.bn, rot: computeWallRotation(w.x, w.y, wallSet) });
                 });
             }
             if (state.st) state.st.forEach(s => {
                 if (s.h > 0 && vis.has(`${s.x},${s.y}`)) entities.push({ x: s.x, y: s.y, spriteKey: 'stone', color: '#9e9e9e', hp: s.h, maxHp: 40 });
             });
             if (state.tw) state.tw.forEach(tw => {
-                if (tw.h > 0 && vis.has(`${tw.x},${tw.y}`)) entities.push({ x: tw.x, y: tw.y, spriteKey: 'tower', ownerId: tw.o, hp: tw.h, maxHp: 15, dim: tw.a === 1 ? 0.45 : 1, bn: tw.bn });
+                if (tw.h > 0 && vis.has(`${tw.x},${tw.y}`)) entities.push({ x: tw.x, y: tw.y, spriteKey: 'tower', ownerId: tw.o, hp: tw.h, maxHp: getTowerMaxHp(state.p[tw.o]), dim: tw.a === 1 ? 0.45 : 1, bn: tw.bn });
             });
             if (state.ct) {
                 entities.push({ x: state.ct.x, y: state.ct.y, spriteKey: 'watchtower', color: state.ct.ctrl === -1 ? '#888888' : getEntityColor(state.ct.ctrl) });
@@ -1304,11 +1304,11 @@
                 const [vx, vy] = key.split(',').map(Number);
                 const idx = vy * state.bw + vx;
                 if (vis.has(key) || ownerId === state.cp || (ownerId === -1 && explored.includes(idx))) {
-                    let hp, spriteKey = 'village', bn;
+                    let hp, maxHp = 30, spriteKey = 'village', bn;
                     if (ownerId !== -1 && state.p[ownerId] && state.p[ownerId].sv === key) {
-                        hp = state.p[ownerId].sh; spriteKey = 'startVillage'; bn = state.p[ownerId].bn;
+                        hp = state.p[ownerId].sh; maxHp = getVillageMaxHp(state.p[ownerId]); spriteKey = 'startVillage'; bn = state.p[ownerId].bn;
                     }
-                    entities.push({ x: vx, y: vy, spriteKey, ownerId, hp, maxHp: 30, flag: true, bn });
+                    entities.push({ x: vx, y: vy, spriteKey, ownerId, hp, maxHp, flag: true, bn });
                 }
             }
             state.u.forEach(unit => {
@@ -1518,7 +1518,6 @@
                 // nur eines Symbols — man soll auf einen Blick sehen, wie voll der
                 // Träger ist (max. 3).
                 if (u.cr) addIcon(`💎${u.cr}`, '#7fe3ff', wx, wz, topY - 12, 11, 1, 1);
-                if (u.art) addIcon(RELICS[u.art].icon, '#ba68c8', wx, wz, topY - 4, 9, 1, -1);
             });
 
             // Hex-Marker-Icons (🏺/💎-Drop/🧨/🎯) können auf DEMSELBEN Hex

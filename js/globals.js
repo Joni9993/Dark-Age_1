@@ -1,7 +1,7 @@
 // === APP VERSION ===
 // Format: MAJOR.PATCH.HOTFIX — MAJOR = größeres Update/neue Implementation, PATCH = Patch, HOTFIX = Hotfix.
 // Immer nur die betroffene Stelle um 1 hochzählen. Siehe Versionierungsregel in CLAUDE.md.
-const APP_VERSION = '3.0.0';
+const APP_VERSION = '3.1.0';
 
 // === DOM REFERENCES ===
 const appVersionEl = document.getElementById('app-version');
@@ -100,6 +100,7 @@ let hasMoved = false;
 let dragStartX = 0, dragStartY = 0;
 let initialPinchDist = null;
 let initialPinchAngle = null;
+let isOrbiting = false; // rechte Maustaste gehalten: Desktop-Pendant zum Zwei-Finger-Dreh
 
 // === SCOREBOARD ===
 let scoreboardOpen = false;

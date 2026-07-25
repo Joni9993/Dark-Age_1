@@ -30,9 +30,9 @@ function loadGameCode() {
             calculateMovesUW, calculateDigsUW, calculateMineTargetsUW, uwUnitAt, moveUWUnit,
             digUWHex, mineUWVein, deliverUWCrystals, ascendUWUnit, descendUWUnit, buyUWUnitAt,
             isChokepoint, calculateAttacksUW, getExpectedDamageUW, resolveUWAttack,
-            lootFundkammer, lootFundkammerAction, applyRelicToUnit, applyRelicToBuilding, applyMapRelic, RELIC_KEYS,
+            lootFundkammer, lootFundkammerAction, applyInstantRelic, applyRelicToBuilding, applyMapRelic, RELIC_KEYS,
             getUnitMaxHp, getUnitCost, getUnitMove, checkVeteran, unitStats, RELICS, uwFactionUnitMap,
-            getVisibleHexes
+            getVisibleHexes, getVillageMaxHp, getWallMaxHp, getTowerMaxHp, getExpectedDamage
         };
     `);
     return fn();
@@ -309,50 +309,73 @@ console.log('\n=== (d) Fundkammer: nur einmal plünderbar, deterministisch gleic
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n=== (e) Reliquien-Effekte in getExpectedDamage(UW)/getUnitMaxHp ===');
+// Korrektur Juli 2026: Klinge/Harnisch sind keine Einzeleinheiten-Ausrüstung
+// mehr (applyRelicToUnit entfällt) — beide wirken über applyInstantRelic
+// sofort als permanentes Spieler-Flag (pState.rb/pState.ra).
+console.log('\n=== (e) Reliquien-Passive: Klingenschmiede/Bollwerk in getExpectedDamage(UW)/getUnitMaxHp ===');
 {
     const state = freshState(11, 5, 2);
     const pState = state.p[0];
-    pState.rel = ['blade', 'armor'];
-
-    // Klinge: +5 DMG auf Oberfläche UND Unterwelt
-    const uwUnitPlain = { i: 1, p: 0, t: 17, x: state.rad, y: state.rad, h: 14 };
-    const uwUnitBlade = { i: 2, p: 0, t: 17, x: state.rad, y: state.rad, h: 14, art: 'blade' };
+    const uwUnit = { i: 1, p: 0, t: 17, x: state.rad, y: state.rad, h: 14 };
     const target = { i: 3, p: 1, t: 17, x: 0, y: 0, h: 14 };
-    const dmgPlain = M.getExpectedDamageUW(uwUnitPlain, target);
-    const dmgBlade = M.getExpectedDamageUW(uwUnitBlade, target);
-    assert(dmgBlade === dmgPlain + 5, `Damaszener Klinge +5 DMG in getExpectedDamageUW (${dmgBlade} === ${dmgPlain}+5)`);
 
-    // Harnisch: +10 Max-HP via getUnitMaxHp (gilt generisch für Oberfläche+Unterwelt)
-    const maxHpPlain = M.getUnitMaxHp(pState, 17, uwUnitPlain);
-    const uwUnitArmor = { i: 4, p: 0, t: 17, x: 0, y: 0, h: 14, art: 'armor' };
-    const maxHpArmor = M.getUnitMaxHp(pState, 17, uwUnitArmor);
-    assert(maxHpArmor === maxHpPlain + 10, `Harnisch +10 Max-HP in getUnitMaxHp (${maxHpArmor} === ${maxHpPlain}+10)`);
+    const dmgBefore = M.getExpectedDamageUW(uwUnit, target);
+    pState.rb = 1;
+    const dmgAfter = M.getExpectedDamageUW(uwUnit, target);
+    assert(dmgAfter === dmgBefore + 1, `Klingenschmiede der Tiefe +1 DMG in getExpectedDamageUW (${dmgAfter} === ${dmgBefore}+1)`);
 
-    // applyRelicToUnit: verbraucht das Inventar-Item, heilt beim Ausrüsten mit,
-    // verweigert eine zweite Reliquie auf derselben Einheit
-    const freshUnit = { i: 5, p: 0, t: 7, x: 0, y: 0, h: 5 }; // 5/10 HP (Arbeiter)
-    const relBefore = pState.rel.length;
-    const ok = M.applyRelicToUnit(state, 0, 'armor', freshUnit);
-    assert(ok === true, 'applyRelicToUnit gelingt mit Reliquie im Inventar');
-    assert(freshUnit.art === 'armor', 'Einheit trägt die Reliquie jetzt');
-    assert(freshUnit.h === Math.min(M.getUnitMaxHp(pState, 7, freshUnit), 5 + 10), `Einheit heilt beim Ausrüsten um 10 mit (gemessen: ${freshUnit.h})`);
-    assert(pState.rel.length === relBefore - 1, 'Reliquie aus dem Inventar entfernt');
-    const okTwice = M.applyRelicToUnit(state, 0, 'blade', freshUnit);
-    assert(okTwice === false, 'zweite Reliquie auf derselben Einheit wird verweigert (eine pro Einheit)');
+    const maxHpBefore = M.getUnitMaxHp(pState, 17, uwUnit);
+    pState.ra = 1;
+    const maxHpAfter = M.getUnitMaxHp(pState, 17, uwUnit);
+    assert(maxHpAfter === maxHpBefore + 2, `Bollwerk des Bergvolks +2 Max-HP in getUnitMaxHp (${maxHpAfter} === ${maxHpBefore}+2)`);
+}
 
-    // applyRelicToBuilding: Bauwerk auf volle HP, Startdorf-Sonderfall (.sh)
-    pState.rel.push('tool', 'tool');
+console.log('\n=== (e2) applyInstantRelic: Bollwerk heilt Bauwerke + eigene Einheiten sofort mit ===');
+{
+    const state = freshState(11, 5, 2);
+    const pState = state.p[0];
+    pState.rel = ['armor'];
+    state.wa.push({ x: 1, y: 1, o: 0, h: 3 }, { x: 2, y: 2, o: 1, h: 3 }); // zweite Mauer gehört Spieler 1
+    state.tw.push({ x: 3, y: 3, o: 0, h: 5, a: 0 });
+    state.p[0].sh = 12;
+    const unit = { i: 10, p: 0, t: 7, x: 0, y: 0, h: 5 }; // 5/10 HP Arbeiter
+    state.u.push(unit);
+    const uwUnit = { i: 11, p: 0, t: 17, x: state.rad, y: state.rad, h: 3 };
+    state.uw.u.push(uwUnit);
+
+    M.applyInstantRelic(state, 0, 'armor');
+
+    assert(pState.ra === 1, 'p[0].ra-Flag gesetzt');
+    assert(state.p[0].sh === 45, `Startdorf sofort auf neues Maximum geheilt (${state.p[0].sh} === 45)`);
+    assert(state.wa[0].h === 15, `eigene Mauer sofort auf neues Maximum geheilt (${state.wa[0].h} === 15)`);
+    assert(state.wa[1].h === 3, 'fremde Mauer bleibt unverändert');
+    assert(state.tw[0].h === 23, `eigener Turm sofort auf neues Maximum geheilt (${state.tw[0].h} === 23)`);
+    assert(unit.h === 7, `eigene Oberflächen-Einheit sofort +2 HP mitgeheilt (${unit.h} === 7)`);
+    assert(uwUnit.h === 5, `eigene Unterwelt-Einheit sofort +2 HP mitgeheilt (${uwUnit.h} === 5)`);
+}
+
+console.log('\n=== (e3) applyRelicToBuilding (Meisterwerkzeug) respektiert das Bollwerk-Maximum ===');
+{
+    const state = freshState(12, 5, 2);
+    const pState = state.p[0];
+    pState.rel = ['tool', 'tool', 'tool'];
     const wall = { x: 1, y: 1, o: 0, h: 3 };
     const okWall = M.applyRelicToBuilding(state, 0, wall, 10);
-    assert(okWall === true && wall.h === 10, 'Meisterwerkzeug heilt Mauer auf volle HP (10)');
+    assert(okWall === true && wall.h === 10, 'Meisterwerkzeug heilt Mauer auf volle HP (10, kein Bollwerk)');
     state.p[0].sh = 5;
     const okStart = M.applyRelicToBuilding(state, 0, state.p[0], undefined);
-    assert(okStart === true && state.p[0].sh === 30, 'Meisterwerkzeug heilt Startdorf auf volle HP (30, .sh-Sonderfall)');
+    assert(okStart === true && state.p[0].sh === 30, 'Meisterwerkzeug heilt Startdorf auf volle HP (30, .sh-Sonderfall, kein Bollwerk)');
 
-    // applyMapRelic: komplette Karte (Oberfläche + Unterwelt) aufgedeckt
+    pState.ra = 1;
+    state.p[0].sh = 5;
+    const okStartBoosted = M.applyRelicToBuilding(state, 0, state.p[0], undefined);
+    assert(okStartBoosted === true && state.p[0].sh === 45, `Meisterwerkzeug heilt Startdorf mit Bollwerk auf das erhöhte Maximum (${state.p[0].sh} === 45)`);
+}
+
+console.log('\n=== (e4) Karte der Tiefe über applyInstantRelic (ersetzt direkten applyMapRelic-Aufruf) ===');
+{
     const stateMap = freshState(11, 5, 2);
-    M.applyMapRelic(stateMap, 0);
+    M.applyInstantRelic(stateMap, 0, 'map');
     const total = stateMap.bw * stateMap.bh;
     assert(stateMap.p[0].e.length === total, `p[0].e vollständig aufgedeckt (${stateMap.p[0].e.length} === ${total})`);
     assert(stateMap.p[0].ue.length === total, `p[0].ue vollständig aufgedeckt (${stateMap.p[0].ue.length} === ${total})`);
@@ -381,12 +404,14 @@ console.log('\n=== (e) Reliquien-Effekte in getExpectedDamage(UW)/getUnitMaxHp =
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('\n=== (f) Serialisierungs-Roundtrip mit p[].rel/u[].art/uw.f ===');
+console.log('\n=== (f) Serialisierungs-Roundtrip mit p[].rel/p[].rb/p[].ra/uw.f ===');
 {
     const state = freshState(13, 7, 2);
-    state.p[0].rel = ['blade', 'tool'];
-    state.u.push({ i: 99, p: 0, t: 0, x: 0, y: 0, h: 10, art: 'armor' });
-    state.uw.u.push({ i: 1, p: 0, t: 19, x: 2, y: 2, h: 16, art: 'blade' });
+    state.p[0].rel = ['tool'];
+    // rb/ra sind spielerweite Passiv-Flags (Korrektur Juli 2026, ersetzen
+    // u[].art/uw.u[].art) — wie p[].mr nur "1" gesetzt, kein Einheiten-Feld mehr.
+    state.p[0].rb = 1;
+    state.p[0].ra = 1;
     state.uw.f['4,4'] = 1;
 
     const prngSrc = fs.readFileSync(path.join(ROOT, 'js/prng.js'), 'utf8');
@@ -404,8 +429,8 @@ console.log('\n=== (f) Serialisierungs-Roundtrip mit p[].rel/u[].art/uw.f ===');
         if (state.uw.f && Object.keys(state.uw.f).length === 0) delete state.uw.f;
     }
     const wireJson = JSON.stringify(state);
-    assert(wireJson.includes('"art":"armor"') && wireJson.includes('"art":"blade"'), 'u[].art/uw.u[].art im Wire-JSON vorhanden');
-    assert(wireJson.includes('"rel":["blade","tool"]'), 'p[].rel im Wire-JSON vorhanden');
+    assert(wireJson.includes('"rb":1') && wireJson.includes('"ra":1'), 'p[].rb/p[].ra im Wire-JSON vorhanden');
+    assert(wireJson.includes('"rel":["tool"]'), 'p[].rel im Wire-JSON vorhanden');
 
     // --- Restore-Block (Muster aus bootGame) ---
     const restored = JSON.parse(wireJson);
@@ -416,11 +441,8 @@ console.log('\n=== (f) Serialisierungs-Roundtrip mit p[].rel/u[].art/uw.f ===');
     if (!restored.uw.f) restored.uw.f = {};
     restored.uw.u.forEach((u, idx) => { if (u.a === undefined) u.a = 0; if (!u.i) u.i = idx + 1; });
 
-    assert(JSON.stringify(restored.p[0].rel) === JSON.stringify(['blade', 'tool']), 'p[0].rel verlustfrei nach Roundtrip');
-    // IDs werden beim Restore neu vergeben (Index-basiert, wie bootGame das schon
-    // immer macht) — das Testunit hier eindeutig über seinen Typ/die Reliquie finden.
-    assert(restored.u.find(u => u.t === 0 && u.art === 'armor') !== undefined, 'u[].art (Oberfläche) verlustfrei');
-    assert(restored.uw.u[0].art === 'blade', 'uw.u[].art (Unterwelt) verlustfrei');
+    assert(JSON.stringify(restored.p[0].rel) === JSON.stringify(['tool']), 'p[0].rel verlustfrei nach Roundtrip');
+    assert(restored.p[0].rb === 1 && restored.p[0].ra === 1, 'p[0].rb/p[0].ra verlustfrei nach Roundtrip');
     assert(restored.uw.f['4,4'] === 1, 'uw.f-Flag verlustfrei');
 
     // Default-Fall: leeres p[].rel wird beim Encode weggelassen (keine leere Liste im Blob)

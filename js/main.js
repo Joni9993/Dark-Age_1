@@ -122,8 +122,8 @@ function bootGame() {
         // dig/mine/loot/relicbuy/relicuse/wormdeath (M9b-M11, Unterwelt) + chamber/
         // detonate/collapse/erschl (M12) nutzen dieselben Tags wie oben — eigene
         // Farbe/Icon statt der defensiven '•'/#fff-Fallbacks in playNextRecap unten.
-        const recapColors = { mv: '#64b5f6', atk: '#ff5252', buy: '#69f0ae', cap: '#ffab40', dig: '#a1662f', mine: '#7fe3ff', deliver: '#ffca28', loot: '#c9a24b', relicbuy: '#ba68c8', relicuse: '#ba68c8', wormdeath: '#8d6e63', chamber: '#ffb300', detonate: '#d84315', collapse: '#ff9800', erschl: '#8d6e63', creatureAtk: '#ff8a65' };
-        const recapIcons = { mv: '→', atk: '⚔', buy: '✦', cap: '⚑', dig: '⛏', mine: '💎', deliver: '💰', loot: '🏺', relicbuy: '🗺️', relicuse: '🔧', wormdeath: '🐛', chamber: '💣', detonate: '🧨', collapse: '💥', erschl: '🌍', creatureAtk: '🐾' };
+        const recapColors = { mv: '#64b5f6', atk: '#ff5252', buy: '#69f0ae', cap: '#ffab40', dig: '#a1662f', mine: '#7fe3ff', deliver: '#ffca28', loot: '#c9a24b', relicbuy: '#ba68c8', relicuse: '#ba68c8', trade: '#4dd0e1', wormdeath: '#8d6e63', chamber: '#ffb300', detonate: '#d84315', collapse: '#ff9800', erschl: '#8d6e63', creatureAtk: '#ff8a65' };
+        const recapIcons = { mv: '→', atk: '⚔', buy: '✦', cap: '⚑', dig: '⛏', mine: '💎', deliver: '💰', loot: '🏺', relicbuy: '🗺️', relicuse: '🔧', trade: '💱', wormdeath: '🐛', chamber: '💣', detonate: '🧨', collapse: '💥', erschl: '🌍', creatureAtk: '🐾' };
 
         function playNextRecap() {
             if (recapIndex >= recapActions.length) {

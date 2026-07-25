@@ -40,11 +40,20 @@ const getUnitMaxHp = (pState, type, unit) => {
     let hp = (type === 0 && pState.u.includes(0)) ? 15 : unitStats[type].maxHp;
     if (unit && unit.fb) hp += unit.fb;
     if (type === 11 && pState.u.includes(11)) hp += 4;
-    // Reliquie "Harnisch des Bergvolks" (M10): +10 Max-HP, gilt für Oberflächen-
-    // UND Unterwelt-Einheiten gleichermaßen (getUnitMaxHp wird von beiden genutzt).
-    if (unit && unit.art === 'armor') hp += 10;
+    // Reliquie "Bollwerk des Bergvolks" (M10, Korrektur Juli 2026 — spielerweites
+    // Passiv statt Einzeleinheiten-Ausrüstung): +2 Max-HP für ALLE eigenen
+    // Einheiten, Oberfläche UND Unterwelt (getUnitMaxHp wird von beiden genutzt).
+    if (pState.ra) hp += 2;
     return hp;
 };
+
+// === BUILDING STAT HELPERS ===
+// Reliquie "Bollwerk des Bergvolks" (M10): +50% Max-HP auf Startdorf/Mauer/Turm
+// (Tunnel bleibt bewusst außen vor, siehe PLAN.md Abschn. 7). Immer mit dem
+// pState des BESITZERS aufrufen, nicht des Angreifers/Betrachters.
+const getVillageMaxHp = (pState) => pState.ra ? 45 : 30;
+const getWallMaxHp = (pState) => pState.ra ? 15 : 10;
+const getTowerMaxHp = (pState) => pState.ra ? 23 : 15;
 
 const getUnitCost = (pState, type) =>
     ([0, 1, 2].includes(type) && pState.u.includes(6)) ? unitStats[type].cost - 1 : unitStats[type].cost;
@@ -89,18 +98,22 @@ const getExpectedDamage = (attackerUnit, targetType, targetOwnerId, targetUnit) 
     if (attackerUnit.t === 6 && pState.u.includes(7)) {
         let targetMaxHp = 10;
         if (targetType === 'unit' && targetUnit) targetMaxHp = getUnitMaxHp(gameState.p[targetUnit.p], targetUnit.t, targetUnit);
-        else if (targetType === 'building') targetMaxHp = 30;
-        else if (targetType === 'tower') targetMaxHp = 15;
-        else if (targetType === 'wall') targetMaxHp = 10;
+        // Bollwerk des Bergvolks (M10) kann das Ziel-Maximum anheben — mit dem
+        // pState des ZIEL-Besitzers rechnen, nicht des Angreifers.
+        else if (targetType === 'building') targetMaxHp = getVillageMaxHp(gameState.p[targetOwnerId]);
+        else if (targetType === 'tower') targetMaxHp = getTowerMaxHp(gameState.p[targetOwnerId]);
+        else if (targetType === 'wall') targetMaxHp = getWallMaxHp(gameState.p[targetOwnerId]);
         else if (targetType === 'tunnel') targetMaxHp = 13;
         dmg += Math.max(1, Math.round(targetMaxHp * 0.2));
     }
     if (attackerUnit.t === 9 && (targetType === 'building' || targetType === 'tunnel' || targetType === 'wall' || targetType === 'tower') && pState.u.includes(10)) dmg += 5;
     // Hügel-Bonus nur für Bodeneinheiten — ein Flieger steht nicht auf dem Hügel
     if (!stats.isMelee && !(stats.isAir && isFlying(attackerUnit)) && getTerrainType(gameState, attackerUnit.x, attackerUnit.y) === 'hill') dmg += 1;
-    // Reliquie "Damaszener Klinge" (M10): +5 DMG permanent (Oberfläche + Unterwelt-
-    // Pendant getExpectedDamageUW nutzen denselben Reliquien-Key).
-    if (attackerUnit.art === 'blade') dmg += 5;
+    // Reliquie "Klingenschmiede der Tiefe" (M10, Korrektur Juli 2026 — spieler-
+    // weites Passiv statt Einzeleinheiten-Ausrüstung): +1 DMG für ALLE eigenen
+    // Einheiten (Oberfläche + Unterwelt-Pendant getExpectedDamageUW unten, auch
+    // Lufteinheiten — es gibt keine separate Luft-Schadensfunktion).
+    if (pState.rb) dmg += 1;
     dmg += getVeteranBonus(attackerUnit);
 
     const maxHp = getUnitMaxHp(pState, attackerUnit.t, attackerUnit);
@@ -604,14 +617,14 @@ function calculateAttacksUW(unit) {
 }
 
 // Unterwelt-Pendant zu getExpectedDamage: Plünderer-Nahkampf-Passiv, Veteranen-
-// Bonus, Reliquie (Klinge), HP-Skalierung wie oben.
+// Bonus, Reliquie (Klingenschmiede), HP-Skalierung wie oben.
 function getExpectedDamageUW(attackerUnit, targetUnit) {
     const pState = gameState.p[attackerUnit.p];
     const stats = unitStats[attackerUnit.t];
     let dmg = stats.dmg;
 
     if (pState.f.includes(1) && stats.isMelee) dmg += 1;
-    if (attackerUnit.art === 'blade') dmg += 5;
+    if (pState.rb) dmg += 1;
     dmg += getVeteranBonus(attackerUnit);
 
     const maxHp = getUnitMaxHp(pState, attackerUnit.t, attackerUnit);
@@ -1468,10 +1481,10 @@ function lootFundkammer(state, playerId, unit, x, y) {
     }
     const idx = Math.min(RELIC_KEYS.length - 1, Math.floor(underworldHash(state, x, y, 3) * RELIC_KEYS.length));
     const relic = RELIC_KEYS[idx];
-    // "map" wirkt sofort wie beim Kauf (buyRelic, js/ui.js) und landet nie im
-    // Inventar — über applyRelicToUnit ausgerüstet hätte sie keinen Effekt.
-    if (relic === 'map') {
-        applyMapRelic(state, playerId);
+    // Instant-Reliquien (Klingenschmiede/Bollwerk/Karte) wirken sofort wie beim
+    // Kauf (buyRelic, js/ui.js) und landen nie im Inventar.
+    if (RELICS[relic].target === 'instant') {
+        applyInstantRelic(state, playerId, relic);
         return { type: 'relic', relic, instant: true };
     }
     if (!pState.rel) pState.rel = [];
@@ -1493,22 +1506,6 @@ function lootFundkammerAction(state, unit) {
     return loot;
 }
 
-// Reliquie auf eine Einheit ausrüsten (Klinge/Harnisch) — eine Reliquie pro
-// Einheit, Oberfläche ODER Unterwelt (dieselbe Funktion, u.art wird von
-// getUnitMaxHp/getExpectedDamage(UW) gleichermaßen gelesen).
-function applyRelicToUnit(state, playerId, relicKey, unit) {
-    const pState = state.p[playerId];
-    const idx = (pState.rel || []).indexOf(relicKey);
-    if (idx === -1 || unit.art) return false;
-    unit.art = relicKey;
-    if (relicKey === 'armor') {
-        const maxHp = getUnitMaxHp(pState, unit.t, unit); // jetzt inkl. +10-Bonus
-        unit.h = Math.min(maxHp, unit.h + 10);
-    }
-    pState.rel.splice(idx, 1);
-    return true;
-}
-
 // Meisterwerkzeug auf ein Bauwerk: sofort volle HP. `target` ist das Struktur-
 // Objekt (Mauer/Turm/Tunnel) mit `.h`, ODER der Spieler-State selbst fürs
 // Startdorf (`.sh`) — maxHpFor wird für alles außer dem Startdorf übergeben.
@@ -1516,7 +1513,7 @@ function applyRelicToBuilding(state, playerId, target, maxHpFor) {
     const pState = state.p[playerId];
     const idx = (pState.rel || []).indexOf('tool');
     if (idx === -1) return false;
-    if (target.sh !== undefined) target.sh = 30; else target.h = maxHpFor;
+    if (target.sh !== undefined) target.sh = getVillageMaxHp(pState); else target.h = maxHpFor;
     pState.rel.splice(idx, 1);
     return true;
 }
@@ -1535,6 +1532,26 @@ function applyMapRelic(state, playerId) {
     pState.e = all.slice();
     pState.ue = all.slice();
     pState.mr = 1;
+}
+
+// Zentraler Anwend-Punkt für alle drei "instant"-Reliquien (Klingenschmiede,
+// Bollwerk, Karte der Tiefe — Korrektur Juli 2026, ersetzt applyRelicToUnit):
+// keine hängt mehr an einer einzelnen Einheit, alle drei setzen ein
+// permanentes Spieler-Flag statt u.art zu belegen. Bollwerk heilt zusätzlich
+// sofort alle eigenen Bauwerke/Einheiten auf das neue (höhere) Maximum hoch —
+// dieselbe "wirkt sofort spürbar" Erwartung wie das alte Ausrüsten-mit-Heilen.
+function applyInstantRelic(state, playerId, key) {
+    const pState = state.p[playerId];
+    if (key === 'map') { applyMapRelic(state, playerId); return; }
+    if (key === 'blade') { pState.rb = 1; return; }
+    if (key === 'armor') {
+        pState.ra = 1;
+        pState.sh = getVillageMaxHp(pState);
+        (state.wa || []).forEach(w => { if (w.o === playerId) w.h = getWallMaxHp(pState); });
+        (state.tw || []).forEach(t => { if (t.o === playerId) t.h = getTowerMaxHp(pState); });
+        state.u.forEach(u => { if (u.p === playerId) u.h = Math.min(getUnitMaxHp(pState, u.t, u), u.h + 2); });
+        if (state.uw && state.uw.u) state.uw.u.forEach(u => { if (u.p === playerId) u.h = Math.min(getUnitMaxHp(pState, u.t, u), u.h + 2); });
+    }
 }
 
 // === MORAL-KOLLAPS (M12, PLAN.md Abschn. 3) ===
