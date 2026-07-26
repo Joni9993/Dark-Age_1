@@ -49,29 +49,101 @@ function giftForm(i) {
     `;
 }
 
+// Fasst die anderen (lebenden) Spieler aus Sicht von `cp` in drei Gruppen
+// zusammen, statt sie einzeln mit sich wiederholenden "Verbündet mit: ..."
+// Zeilen aufzuzählen (Jonathans Feedback: "selbe Info wird oft angezeigt"):
+//   - myTeam: die eigenen Verbündeten (einzeln gelistet, weil man mit jedem
+//     einzeln Ressourcen tauschen kann — giftForm ist pro Spieler)
+//   - teams: fremde Bündnisse/Teams, transitiv über die al-Listen ihrer
+//     Mitglieder aufgelöst und zu EINER Karte gebündelt (im festen Team-Modus,
+//     js/mapgen.js state.at, sind das immer alle übrigen Spieler in
+//     gleich großen Gruppen; in freier Diplomatie höchstens Paare, da dort
+//     laut sendAlliance/acceptAlliance ohnehin nur 1 aktives Bündnis erlaubt ist)
+//   - neutrals: Spieler ganz ohne Bündnis (nur in freier Diplomatie möglich —
+//     im festen Team-Modus ist jeder Spieler von Anfang an einem Team
+//     zugeteilt, siehe buildInitialGameState)
+function computeDiplomacyGroups(cp) {
+    const pState = gameState.p[cp];
+    const myAllies = new Set(pState.al || []);
+    const others = gameState.p
+        .map((p, i) => ({ p, i }))
+        .filter(({ p, i }) => i !== cp && !p.dead);
+
+    const myTeam = others.filter(({ i }) => myAllies.has(i)).map(({ i }) => i);
+    const rest = others.filter(({ i }) => !myAllies.has(i));
+
+    const teams = [];
+    const seen = new Set();
+    rest.forEach(({ p, i }) => {
+        if (seen.has(i) || !p.al || p.al.length === 0) return;
+        const teamIds = [...new Set([i, ...p.al])].filter(id => id !== cp && !gameState.p[id].dead);
+        teamIds.forEach(id => seen.add(id));
+        teams.push(teamIds.sort((a, b) => a - b));
+    });
+
+    const neutrals = rest.filter(({ i }) => !seen.has(i)).map(({ i }) => i);
+
+    return { myTeam, teams, neutrals };
+}
+
+// Namenszeile + Aktions-Buttons für einen einzelnen Spieler in freier
+// Diplomatie (Anfragen/Annehmen/Ablehnen/Zurückziehen) — unverändert aus der
+// bisherigen Logik übernommen, nur in eine wiederverwendbare Funktion
+// ausgelagert, damit sowohl gebündelte Team-Karten als auch einzelne
+// Neutrale-Karten sie nutzen können.
+function renderDipActionRow(id, pState, maxReached) {
+    const p = gameState.p[id];
+    let actionBtn;
+    if (pState.req && pState.req.includes(id)) {
+        actionBtn = `<button class="action-btn dip-action-btn" style="background: #43a047;" onclick="acceptAlliance(${id})">🤝 Annehmen (5💰 5🪵)</button>
+                     <button class="action-btn dip-action-btn" style="background: #888;" onclick="rejectAlliance(${id})">❌ Ablehnen</button>`;
+    } else if (p.req && p.req.includes(gameState.cp)) {
+        actionBtn = `<button class="action-btn dip-action-btn" style="background: #e53935;" onclick="withdrawAlliance(${id})">❌ Zurückziehen</button>`;
+    } else if (maxReached) {
+        actionBtn = `<button class="action-btn dip-action-btn" style="opacity: 0.5;" disabled>✉️ Anfragen (5💰 5🪵)</button>`;
+    } else {
+        actionBtn = `<button class="action-btn dip-action-btn" style="background: #3949ab;" onclick="sendAlliance(${id})">✉️ Anfragen (5💰 5🪵)</button>`;
+    }
+    return `
+        <div class="dip-card-header">
+            <span class="dip-name" style="color: ${playerColors[id]}">${p.n}</span>
+            <div class="dip-action-row">${actionBtn}</div>
+        </div>
+    `;
+}
+
 window.openDiplomacy = function () {
     const content = document.getElementById('dip-content');
     content.innerHTML = '';
     const pState = gameState.p[gameState.cp];
+    const { myTeam, teams, neutrals } = computeDiplomacyGroups(gameState.cp);
 
     if (gameState.at) {
-        gameState.p.forEach((p, i) => {
-            if (i === gameState.cp || p.dead) return;
-            const isAlly = pState.al && pState.al.includes(i);
-            const otherAllies = (p.al || [])
-                .filter(id => id !== gameState.cp && id !== i && !gameState.p[id].dead)
-                .map(id => gameState.p[id].n);
-            content.innerHTML += `
-                <div style="display: flex; flex-direction: column; gap: 3px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 5px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: ${playerColors[i]}">${p.n}</span>
-                        <span style="font-size: 0.8rem; color: ${isAlly ? '#69f0ae' : '#ff5252'}">${isAlly ? '🤝 Verbündeter' : '⚔️ Feind'}</span>
+        if (myTeam.length) {
+            const names = myTeam.map(id => gameState.p[id].n).join(', ');
+            content.innerHTML += `<div class="dip-section-title">🤝 Dein Team</div>`;
+            content.innerHTML += `<div class="dip-card dip-card-ally">
+                <div class="dip-team-names">Gemeinsam mit ${names}</div>
+                ${myTeam.map(id => `
+                    <div class="dip-member-row">
+                        <div class="dip-card-header"><span class="dip-name" style="color: ${playerColors[id]}">${gameState.p[id].n}</span></div>
+                        ${giftForm(id)}
                     </div>
-                    ${otherAllies.length ? `<span style="font-size: 0.72rem; color: #999; text-align: left;">🤝 Verbündet mit: ${otherAllies.join(', ')}</span>` : ''}
-                    ${isAlly ? giftForm(i) : ''}
-                </div>
-            `;
-        });
+                `).join('')}
+            </div>`;
+        }
+        if (teams.length) {
+            content.innerHTML += `<div class="dip-section-title">⚔️ Gegnerische Teams</div>`;
+            teams.forEach(teamIds => {
+                const names = teamIds.map(id => gameState.p[id].n).join(', ');
+                content.innerHTML += `<div class="dip-card dip-card-enemy">
+                    <div class="dip-card-header">
+                        <span class="dip-name">${names}</span>
+                        <span class="dip-badge dip-badge-enemy">⚔️ Feind</span>
+                    </div>
+                </div>`;
+            });
+        }
         document.getElementById('dip-overlay').style.display = 'flex';
         return;
     }
@@ -80,41 +152,37 @@ window.openDiplomacy = function () {
     const hasOutReq = gameState.p.some(p => p.req && p.req.includes(gameState.cp));
     const maxReached = hasAlliance || hasOutReq;
 
-    gameState.p.forEach((p, i) => {
-        if (i === gameState.cp || p.dead) return;
-
-        const otherAllies = (p.al || [])
-            .filter(id => id !== gameState.cp && id !== i && !gameState.p[id].dead)
-            .map(id => gameState.p[id].n);
-
-        const isAlly = pState.al && pState.al.includes(i);
-        let actionBtn = '';
-        if (isAlly) {
-            actionBtn = `<button class="action-btn" style="background: #e53935; padding: 4px 8px; font-size: 0.8rem;" onclick="breakAlliance(${i})">💔 Brechen</button>`;
-        } else if (pState.req && pState.req.includes(i)) {
-            actionBtn = `<button class="action-btn" style="background: #43a047; padding: 4px 8px; font-size: 0.8rem;" onclick="acceptAlliance(${i})">🤝 Annehmen (5💰 5🪵)</button>
-                         <button class="action-btn" style="background: #888; padding: 4px 8px; font-size: 0.8rem; margin-top: 5px;" onclick="rejectAlliance(${i})">❌ Ablehnen</button>`;
-        } else if (p.req && p.req.includes(gameState.cp)) {
-            actionBtn = `<button class="action-btn" style="background: #e53935; padding: 4px 8px; font-size: 0.8rem;" onclick="withdrawAlliance(${i})">❌ Zurückziehen</button>`;
-        } else {
-            if (maxReached) {
-                actionBtn = `<button class="action-btn" style="background: #3949ab; padding: 4px 8px; font-size: 0.8rem; opacity: 0.5;" disabled>✉️ Anfragen (5💰 5🪵)</button>`;
-            } else {
-                actionBtn = `<button class="action-btn" style="background: #3949ab; padding: 4px 8px; font-size: 0.8rem;" onclick="sendAlliance(${i})">✉️ Anfragen (5💰 5🪵)</button>`;
-            }
-        }
-
-        content.innerHTML += `
-            <div style="display: flex; flex-direction: column; align-items: flex-end; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 5px;">
-                <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 5px;">
-                    <span style="color: ${playerColors[i]}">${p.n}</span>
+    if (myTeam.length) {
+        content.innerHTML += `<div class="dip-section-title">🤝 Dein Verbündeter</div>`;
+        myTeam.forEach(id => {
+            content.innerHTML += `<div class="dip-card dip-card-ally">
+                <div class="dip-card-header">
+                    <span class="dip-name" style="color: ${playerColors[id]}">${gameState.p[id].n}</span>
+                    <button class="action-btn dip-action-btn" style="background: #e53935;" onclick="breakAlliance(${id})">💔 Brechen</button>
                 </div>
-                ${otherAllies.length ? `<span style="font-size: 0.72rem; color: #999; width: 100%; text-align: left; margin-bottom: 5px;">🤝 Verbündet mit: ${otherAllies.join(', ')}</span>` : ''}
-                <div style="display: flex; gap: 5px;">${actionBtn}</div>
-                ${isAlly ? giftForm(i) : ''}
-            </div>
-        `;
-    });
+                ${giftForm(id)}
+            </div>`;
+        });
+    }
+
+    if (teams.length) {
+        content.innerHTML += `<div class="dip-section-title">⚔️ Verbündete Gegner</div>`;
+        teams.forEach(teamIds => {
+            const names = teamIds.map(id => gameState.p[id].n).join(' & ');
+            content.innerHTML += `<div class="dip-card dip-card-enemy">
+                <div class="dip-team-names">${names} sind verbündet</div>
+                ${teamIds.map(id => `<div class="dip-member-row">${renderDipActionRow(id, pState, maxReached)}</div>`).join('')}
+            </div>`;
+        });
+    }
+
+    if (neutrals.length) {
+        content.innerHTML += `<div class="dip-section-title">◌ Neutral</div>`;
+        neutrals.forEach(id => {
+            content.innerHTML += `<div class="dip-card dip-card-neutral">${renderDipActionRow(id, pState, maxReached)}</div>`;
+        });
+    }
+
     document.getElementById('dip-overlay').style.display = 'flex';
 };
 

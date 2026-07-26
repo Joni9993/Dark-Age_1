@@ -1686,6 +1686,99 @@ canvas {
     width: 100%;
 }
 
+/* ── Diplomatie-Fenster (#dip-overlay, js/diplomacy.js openDiplomacy) ─────────
+   Spieler werden in drei Gruppen gebündelt statt einzeln mit sich
+   wiederholenden "Verbündet mit: ..."-Zeilen aufgelistet: das eigene Team
+   (.dip-card-ally, einzeln gelistet — Ressourcenaustausch ist pro Spieler),
+   fremde Bündnisse (.dip-card-enemy, EINE Karte pro Team statt einer pro
+   Mitglied) und unverbündete Einzelspieler (.dip-card-neutral). */
+.dip-section-title {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: left;
+    margin: 10px 0 4px;
+}
+
+.dip-section-title:first-child {
+    margin-top: 0;
+}
+
+.dip-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-align: left;
+}
+
+.dip-card-ally {
+    border-color: rgba(105, 240, 174, 0.3);
+}
+
+.dip-card-enemy {
+    border-color: rgba(255, 82, 82, 0.25);
+}
+
+.dip-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.dip-name {
+    font-weight: bold;
+}
+
+.dip-badge {
+    font-size: 0.78rem;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.dip-badge-enemy {
+    color: #ff5252;
+}
+
+.dip-team-names {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+}
+
+.dip-member-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 6px;
+    margin-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dip-member-row:first-of-type {
+    border-top: none;
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.dip-action-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.dip-action-btn {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    margin-top: 0;
+}
+
 /* ── Friends Panel ───────────────────────────────────────────────────────── */
 #friends-panel { gap: 12px; }
 
