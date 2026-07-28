@@ -314,40 +314,19 @@ select:focus {
 /* clamp() statt fester rem-Werte: Gold/Holz/Stein/Kristalle (jetzt IMMER
    alle vier sichtbar, s.o.) sollen auf jeder Bildschirmbreite ohne Umbruch
    oder Abschneiden passen — die Schrift skaliert dafür stufenlos mit der
-   Viewport-Breite statt an einem festen Breakpoint zu kippen.
-   #resource-hud selbst darf jetzt schrumpfen (flex:1 1 auto statt
-   flex-shrink:0) — sonst hätte #hz-hud (s.u.) nie die Chance, VOR dem
-   ☰-Menü-Button zu kürzen: ohne Spielraum in der Außenbox greift
-   flex-shrink an einem Kind gar nicht erst. Innen bleibt #resource-core
-   trotzdem starr (flex-shrink:0), nur #hz-hud gibt bei Platzmangel nach. */
+   Viewport-Breite statt an einem festen Breakpoint zu kippen. Der
+   Erschließungs-Status (beliebig langer Spielername) lag früher zusätzlich
+   in dieser Zeile und sprengte auf schmalen Phones selbst mit Ellipsis noch
+   die Breite (Jonathans Meldung) — er steckt jetzt stattdessen im
+   Ranglisten-Dropdown (updateScoreboard, js/ui.js), daher bleibt diese
+   Zeile bewusst wieder simpel nicht-schrumpfend wie vor dieser Funktion.*/
 #resource-hud {
     display: flex;
     align-items: center;
     gap: clamp(4px, 1.8vw, 8px);
+    white-space: nowrap;
     font-size: clamp(0.62rem, 3vw, 0.8rem);
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-}
-
-#resource-core {
-    display: flex;
-    align-items: center;
-    gap: clamp(4px, 1.8vw, 8px);
-    white-space: nowrap;
     flex-shrink: 0;
-}
-
-/* Erschließungs-Countdown-Anzeige (js/ui.js updateUI): einziges Element in
-   der HUD-Zeile, das bei Platzmangel kürzt (Ellipsis) statt den Menü-Button
-   zu verdrängen — der Spielername darin ist beliebig lang, im Gegensatz zu
-   den Kernressourcen daneben. */
-#hz-hud {
-    flex-shrink: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .income-text {
@@ -955,6 +934,17 @@ canvas {
     white-space: nowrap;
     letter-spacing: 1px;
     opacity: 0.9;
+}
+
+/* Erschließungs-Status (js/ui.js updateScoreboard): zog aus der oberen
+   HUD-Zeile hierher um (siehe #resource-hud, game.css) — hier ist Platz für
+   den Namen des Spielers unbegrenzt vorhanden (score-name kürzt bei Bedarf
+   selbst per Ellipsis, s.o.), ohne den Menü-Button zu gefährden. */
+.score-hz-badge {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    color: var(--blue);
+    font-size: 0.78rem;
 }
 
 .score-total {

@@ -103,6 +103,13 @@ function updateScoreboard() {
     }
     scoreCompact.innerHTML = compactHtml;
 
+    // Rundenzahl direkt im Rangliste-Header statt in der oberen HUD-Zeile —
+    // zusammen mit dem Erschließungs-Status unten (score-hz-badge) auf
+    // Jonathans Vorschlag hier gebündelt, weil dafür schon Platz ist, ohne
+    // etwas anderes zu verdrängen (siehe #resource-hud in game.css).
+    const popupHeader = document.getElementById('scoreboard-popup-header');
+    if (popupHeader) popupHeader.textContent = `🏆 Rangliste · Runde ${gameState.rn}`;
+
     const modalContent = document.getElementById('scoreboard-modal-content');
     if (modalContent) {
         let html = '';
@@ -114,6 +121,13 @@ function updateScoreboard() {
             // mehr ist. Jonathans Feedback: die volle Aufschlüsselung für JEDEN
             // Spieler auf einmal "verliert seinen Charme" / wirkt überladen).
             const facIcons = (s.p.f || []).map(fid => factions[fid].name.split(' ')[0]).join(' ');
+            // Erschließungs-Status (M12, war früher in der oberen HUD-Zeile,
+            // s.o.): "volle Information, kein heimlicher Sieg" heißt, er muss
+            // weiter auf den ersten Blick sichtbar sein — also auch hier in
+            // der eingeklappten Kopfzeile, nicht hinter dem Antippen versteckt.
+            const hzBadge = (gameState.uw && gameState.uw.hz && gameState.uw.hz.p === s.i)
+                ? `<span class="score-hz-badge" title="Erschließung der Unterwelt">🌍 ${gameState.uw.hz.n}/${ERSCHLIESSUNG_TARGET}</span>`
+                : '';
             const clickable = !s.isDead;
             html += `<div class="score-card ${s.isDead ? 'score-dead' : ''}" ${clickable ? 'onclick="this.classList.toggle(\'expanded\')"' : ''}>`;
             html += `<div class="score-card-header">`;
@@ -121,6 +135,7 @@ function updateScoreboard() {
             html += `<span class="score-dot" style="color:${playerColors[s.i]};background:${playerColors[s.i]}"></span>`;
             html += `<span class="score-name">${s.p.n}</span>`;
             if (facIcons) html += `<span class="score-factions">${facIcons}</span>`;
+            if (hzBadge) html += hzBadge;
             html += `<span class="score-total">${s.isDead ? 'Besiegt' : s.score + ' Pkt'}</span>`;
             if (clickable) html += `<span class="score-chevron">▸</span>`;
             html += `</div>`;
@@ -158,25 +173,18 @@ function updateUI() {
     // entstandene Platzbedarf ist der Grund, warum die Punktzahl-Anzeige
     // links (score-compact, s.o.) jetzt nur noch den Spitzenreiter statt
     // einer Badge pro Spieler zeigt.
-    // #resource-core (Gold/Holz/Stein/Kristalle) ist in ein eigenes Span mit
-    // flex-shrink:0 gepackt, #hz-hud (s.u.) in eins mit flex-shrink:1 +
-    // Ellipsis — dadurch schrumpft/kürzt bei Platzmangel NUR der (beliebig
-    // lange) Spielername der Erschließungszeile, nie die Kernressourcen, und
-    // vor allem nie der ☰-Menü-Button daneben. Vorher lag die ganze Zeile
-    // (inkl. Name) in einem einzigen flex-shrink:0/nowrap-Container — bei
-    // einem langen Namen wurde dadurch der Menü-Button auf schmalen
-    // Smartphones aus dem sichtbaren Bereich gedrängt (Jonathans Meldung).
-    resourceHud.innerHTML = `<span id="resource-core">💰 ${pState.g} <span class="income-text">(+${income.g})</span> | 🪵 ${pState.m} <span class="income-text">(+${income.m})</span> | 🪨 ${pState.s || 0} | 💎 ${pState.k || 0}</span>`;
-    // Erschließungs-Countdown (M12): dauerhaft im HUD ALLER Spieler sichtbar,
-    // solange uw.hz existiert — "volle Information, kein heimlicher Sieg".
-    // Kurzform ohne Label/Klammern (Korrektur Juli 2026): der volle Fortschritt
-    // (n/TARGET) steht jetzt zusätzlich direkt über dem Herz auf der Karte
-    // (js/render3d.js, nur bei Oberflächen-Kamera sichtbar) — die HUD-Zeile bleibt
-    // als kompakter Fallback für die Unterwelt-Kamera-Ansicht.
-    if (gameState.uw && gameState.uw.hz) {
-        const hzName = gameState.p[gameState.uw.hz.p] ? gameState.p[gameState.uw.hz.p].n : '?';
-        resourceHud.innerHTML += `<span id="hz-hud">| 🌍 ${hzName} ${gameState.uw.hz.n}/${ERSCHLIESSUNG_TARGET}</span>`;
-    }
+    resourceHud.innerHTML = `💰 ${pState.g} <span class="income-text">(+${income.g})</span> | 🪵 ${pState.m} <span class="income-text">(+${income.m})</span> | 🪨 ${pState.s || 0} | 💎 ${pState.k || 0}`;
+    // Erschließungs-Countdown (M12) stand früher zusätzlich hier in der HUD-
+    // Zeile ("| 🌍 Name n/TARGET") — bei langen Spielernamen reichte selbst
+    // Kürzen per Ellipsis nicht, weil Leader-Badge + alle vier Ressourcen +
+    // Menü-Button allein auf schmalen Phones schon die volle Breite
+    // beanspruchen (Jonathans Meldung, Screenshot zeigte den verdeckten
+    // Menü-Button trotz Ellipsis-Fix). Jetzt komplett aus der Leiste entfernt
+    // und stattdessen direkt beim betroffenen Spieler im Ranglisten-Dropdown
+    // angezeigt (updateScoreboard, dort ist Platz für beliebig lange Namen
+    // via Ellipsis vorhanden, ohne dass etwas anderes verdrängt wird) — die
+    // Karte über dem Herz (js/render3d.js) bleibt weiterhin der primäre
+    // Fortschrittsanzeiger auf der Oberflächen-Kamera.
 
     infoPanel.style.color = playerColors[pId];
     // Unterwelt-Auswahl (Korrektur Juli 2026, Tooltip-Fix): diese Bedingung kannte
