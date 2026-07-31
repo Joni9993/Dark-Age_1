@@ -704,7 +704,7 @@ function showUnderworldTileUI(clickedX, clickedY) {
         if (prevSelectedUnit && prevSelectedUnit.p === gameState.cp && unit.p !== gameState.cp && prevValidAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
             expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${getExpectedDamageUW(prevSelectedUnit, unit)} DMG</span>`;
         }
-        infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} ${unitStats[unit.t].name} (${unit.h}/${maxHp} HP)</span><div class="info-detail">Bewegung: ${getUnitMove(gameState.p[unit.p], unit.t, unit)} | Angriff: ${unitStats[unit.t].dmg}${vetText}${crText}</div>${expectedDmgText}` + extra;
+        infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} ${unitStats[unit.t].name} (${unit.h}/${maxHp} HP)</span><div class="info-detail">Bewegung: ${getUnitMove(gameState.p[unit.p], unit.t, unit)} | Angriff: ${getUnitAttack(gameState.p[unit.p], unit.t)}${vetText}${crText}</div>${expectedDmgText}` + extra;
     } else if (creature) {
         const cStats = uwCreatureStats[creature.t];
         let expectedDmgText = '';
@@ -845,7 +845,7 @@ function showUnderworldTileUI(clickedX, clickedY) {
             const afford = pState.g >= cost;
             return `<button class="action-btn" style="padding: 6px 8px; font-size: 0.9rem; display:flex; flex-direction:column; align-items:center; gap:4px; ${afford ? '' : 'opacity:0.5;'}" ${afford ? `onclick="window.buyUWUnit(${t})"` : 'disabled'}>
                 <div>${icon} ${unitStats[t].name} (${cost}G)</div>
-                <div style="font-size: 0.65rem; color: #b0bec5; display:flex; gap:8px;"><span>❤️${unitStats[t].maxHp}</span><span>⚔️${unitStats[t].dmg}</span><span>👟${unitStats[t].move}</span></div>
+                <div style="font-size: 0.65rem; color: #b0bec5; display:flex; gap:8px;"><span>❤️${getUnitMaxHp(pState, t, null)}</span><span>⚔️${getUnitAttack(pState, t)}</span><span>👟${getUnitMove(pState, t, null)}</span></div>
             </button>`;
         };
         menuHtml += uwMkBtn(17, '🛡') + uwMkBtn(18, '💥');
@@ -1522,7 +1522,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
         const ownerName = formatOwnerName(clickedUnit.p, gameState.cp);
         const ownerColor = getEntityColor(clickedUnit.p);
         const moveStat = getUnitMove(gameState.p[clickedUnit.p], clickedUnit.t, clickedUnit);
-        const atkDmg = unitStats[clickedUnit.t].dmg;
+        const atkDmg = getUnitAttack(gameState.p[clickedUnit.p], clickedUnit.t);
 
         let expectedDmgText = "";
         if (selectedUnit && selectedUnit.p === gameState.cp && clickedUnit.p !== gameState.cp && validAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
@@ -1766,7 +1766,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
         if (freeGroundHere || freeAirHere) {
             if (!clickedUnit) { selectedUnit = null; validMoves = []; validAttacks = []; }
             const mkBtn = (t, icon, name, col = '') => {
-                const hp = getUnitMaxHp(pState, t), mv = getUnitMove(pState, t, null), dmg = unitStats[t].dmg, cost = getUnitCost(pState, t), rg = unitStats[t].range;
+                const hp = getUnitMaxHp(pState, t), mv = getUnitMove(pState, t, null), dmg = getUnitAttack(pState, t), cost = getUnitCost(pState, t), rg = unitStats[t].range;
                 return `<button class="action-btn" style="padding: 6px 8px; font-size: 0.9rem; display:flex; flex-direction:column; align-items:center; gap:4px; ${col ? 'border-color: ' + col + ';' : ''}" onclick="window.buyUnit(${t})">
                     <div>${icon} ${name} (${cost}G)</div>
                     <div style="font-size: 0.65rem; color: #b0bec5; display: flex; gap: 8px;"><span>❤️${hp}</span><span>⚔️${dmg}</span><span>👟${mv}</span><span>🎯${rg}</span></div>

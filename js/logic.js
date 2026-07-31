@@ -69,6 +69,26 @@ const getUnitRange = (pState, unit) => {
     return unitStats[unit.t].range;
 };
 
+// Live-Angriffswert für reine Stat-Anzeigen (Info-Panel, Rekrutierungs-Vorschau)
+// ohne konkretes Ziel — Pendant zu getUnitMove/getUnitMaxHp oben (Korrektur Juli
+// 2026: diese Anzeigen zeigten bisher den nackten unitStats[].dmg-Basiswert,
+// Forschungs-Upgrades und Reliquien blieben unsichtbar, bis man tatsächlich
+// angriff). Nur die dauerhaften, ziel-UNabhängigen Angreifer-Boni aus
+// getExpectedDamage/getExpectedDamageUW — bewusst OHNE Veteran (eigene Notiz im
+// Panel, keine Doppelanzeige), Hügel-Terrain und HP-Skalierung (situativ, keine
+// dauerhaften Stats) sowie ziel-abhängige Boni (Gebäude-Typ, Wagenburg-Aura,
+// Wald-Deckung des Ziels) — die bleiben getExpectedDamage(UW) mit konkretem Ziel
+// vorbehalten.
+const getUnitAttack = (pState, type) => {
+    const stats = unitStats[type];
+    let dmg = stats.dmg;
+    if (pState.f.includes(1) && stats.isMelee) dmg += 1;
+    if (type === 1 && pState.u.includes(4)) dmg += 1;
+    if (type === 5 && pState.u.includes(5)) dmg += 1;
+    if (pState.rb) dmg += 1;
+    return dmg;
+};
+
 // === INCOME ===
 const calculateIncome = (pId) => {
     if (!gameState || !gameState.p[pId]) return { g: 0, m: 0 };
