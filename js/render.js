@@ -375,7 +375,10 @@ function drawEntity(x, y, color, hasActed, hp, maxHp, spriteKey, isStealth, unit
         ctx.fillText('★', center.px, center.py + offsetY - 14);
     }
 
-    if (unit && unit.mi) {
+    // Live-Vorschau (Korrektur Juli 2026): folgt der Einheit sofort beim Hin-/
+    // Weglaufen statt erst am Zugende (unit.mi wird nur dann aktualisiert), siehe
+    // hasSurfaceMineTargetsInRange (js/logic.js).
+    if (unit && hasSurfaceMineTargetsInRange(unit)) {
         ctx.fillStyle = '#fff176';
         ctx.font = 'bold 12px sans-serif';
         ctx.textAlign = 'center';
@@ -601,7 +604,9 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
             ctx.fillText(UW_UNIT_ICONS[unit.t] || '?', center.px, center.py + 3);
         }
         ctx.textAlign = 'center';
-        if (unit.mi) { ctx.fillStyle = '#fff176'; ctx.font = 'bold 9px monospace'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeText('⛏', center.px - 11, center.py - 12); ctx.fillText('⛏', center.px - 11, center.py - 12); }
+        // Live-Vorschau (Korrektur Juli 2026, wie an der Oberfläche oben): folgt
+        // sofort statt erst am Zugende (unit.mi), siehe calculateMineTargetsUW.
+        if (calculateMineTargetsUW(unit).length > 0) { ctx.fillStyle = '#fff176'; ctx.font = 'bold 9px monospace'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeText('⛏', center.px - 11, center.py - 12); ctx.fillText('⛏', center.px - 11, center.py - 12); }
         if (unit.cr) { ctx.fillStyle = '#7fe3ff'; ctx.font = 'bold 8px monospace'; ctx.fillText(`💎${unit.cr}`, center.px, center.py - 16); }
         ctx.globalAlpha = 1;
     }

@@ -257,6 +257,15 @@ function calculateAttacks(unit) {
 }
 
 // === AUTO MINING ===
+// Live-Vorschau fürs ⛏-Icon (Korrektur Juli 2026): dieselbe Bedingung, unter der
+// processAutoMining unten am Zugende tatsächlich abbaut, aber JETZT auswertbar —
+// die Renderer (render.js/render3d.js) rufen das bei jedem Frame/Klick auf, statt
+// sich auf das nur am Zugende aktualisierte `unit.mi` zu verlassen. So folgt das
+// Icon sichtbar, sobald ein Arbeiter neben einen Steinhaufen läuft oder wieder weg.
+function hasSurfaceMineTargetsInRange(unit) {
+    return unit.t === 7 && !!gameState.st && gameState.st.some(s => s.h > 0 && hexDistance({ x: unit.x, y: unit.y }, { x: s.x, y: s.y }) === 1);
+}
+
 // Vollautomatisch (Korrektur Juli 2026, "Abbau immer aktivieren"): jeder eigene
 // Arbeiter baut ab, sobald er neben einem Steinhaufen mit Restbestand steht —
 // kein manueller Start-Klick mehr nötig (kein Grund, Abbau je zu unterlassen).
@@ -470,6 +479,9 @@ function calculateDigsUW(unit) {
 // Kristalladern, die die Einheit abbauen kann: das eigene Hex selbst (falls ein
 // Stollenkopf zufällig auf einer Ader liegt) + angrenzende Ader-Hexes mit Restbestand.
 // Abbau ist Arbeiter (7, Ebenen-Brücke) und Beutegräber (20) vorbehalten (PLAN.md Abschn. 4).
+// Dient auch als Live-Vorschau fürs ⛏-Icon (render.js/render3d.js, `.length > 0`)
+// — dieselbe Bedingung, unter der processAutoMiningUW am Zugende abbaut, aber
+// bei jedem Frame/Klick auswertbar (Pendant zu hasSurfaceMineTargetsInRange oben).
 function calculateMineTargetsUW(unit) {
     if (unit.t !== 7 && unit.t !== 20) return [];
     const targets = [];

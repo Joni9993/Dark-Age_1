@@ -1370,7 +1370,9 @@
                     const topY = hasVoxelBody ? gy + hover + modelTopHeight(spriteKey) + 4 : gy + hover + 30;
                     addHpText(u.h, wx, wz, topY, -1, u.h / maxHp < 0.15, uiA);
                     if (u.vet) addIcon('★', '#e8b84a', wx, wz, topY + 4, 9, uiA);
-                    if (u.mi) addIcon('⛏', '#fff176', wx, wz, topY - 2, 11, uiA, 1);
+                    // Live-Vorschau (Korrektur Juli 2026): folgt sofort beim Hin-/Weglaufen
+                    // statt erst am Zugende (u.mi), siehe hasSurfaceMineTargetsInRange.
+                    if (hasSurfaceMineTargetsInRange(u)) addIcon('⛏', '#fff176', wx, wz, topY - 2, 11, uiA, 1);
                     if (u.bn) addIcon('🔥', '#ff6e40', wx, wz, topY, 11, uiA, 1);
                     if (u.cg) addIcon('📦', '#ffcc80', wx, wz, topY - 10, 10, uiA, 1);
                     // Aufgestiegener Arbeiter mit Kristallfracht: auch oben sichtbar machen
@@ -1515,9 +1517,9 @@
                 addHpText(u.h, wx, wz, topY, -1, u.h / getUnitMaxHp(state.p[u.p], u.t, u) < 0.15);
                 if (u.vet) addIcon('★', '#e8b84a', wx, wz, topY - 4, 9);
                 // Abbau-Symbol wie an der Oberfläche (⛏, siehe surfaceVisible-Zweig
-                // oben) — der vollautomatische Kristall-Abbau (processAutoMiningUW,
-                // js/logic.js) setzt dasselbe u.mi-Feld wie der Oberflächen-Abbau.
-                if (u.mi) addIcon('⛏', '#fff176', wx, wz, topY + 2, 11, 1, 1);
+                // oben) — Live-Vorschau (Korrektur Juli 2026): folgt sofort beim Hin-/
+                // Weglaufen statt erst am Zugende, siehe calculateMineTargetsUW.
+                if (calculateMineTargetsUW(u).length > 0) addIcon('⛏', '#fff176', wx, wz, topY + 2, 11, 1, 1);
                 // Getragene Kristalle MIT Anzahl (Korrektur Juli 2026): "💎2" statt
                 // nur eines Symbols — man soll auf einen Blick sehen, wie voll der
                 // Träger ist (max. 3).
