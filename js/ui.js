@@ -571,6 +571,8 @@ function buildTradeShopContent() {
     const sellKeys = Object.keys(TRADE_RESOURCES);
     const buyKeys = Object.keys(TRADE_RESOURCES).filter(k => k !== 'k' && k !== tradeSellKey);
     const maxAmount = Math.max(0, pState[tradeSellKey] || 0);
+    const minAmount = maxAmount > 0 ? 1 : 0;
+    const startAmount = minAmount;
     const rate = tradeSellKey === 'k' ? 3 : 1;
     document.getElementById('trade-cards').innerHTML = `
         <div class="crystal-header">${balanceLine}</div>
@@ -585,8 +587,8 @@ function buildTradeShopContent() {
                 <div class="trade-chip-row">${chipRow(tradeBuyKey, buyKeys, 'window.selectTradeBuy')}</div>
             </div>
             <div class="gift-row">
-                <span class="gift-label">Menge <b id="trade-amount-out">0</b>/${maxAmount}</span>
-                <input type="range" class="gift-slider" id="trade-amount" min="0" max="${maxAmount}" value="0" step="1" style="--fill: 0%"
+                <span class="gift-label">Menge <b id="trade-amount-out">${startAmount}</b>/${maxAmount}</span>
+                <input type="range" class="gift-slider" id="trade-amount" min="${minAmount}" max="${maxAmount}" value="${startAmount}" step="1" style="--fill: ${maxAmount > minAmount ? (startAmount - minAmount) / (maxAmount - minAmount) * 100 : 0}%"
                     oninput="window.updateTradePreview()">
             </div>
             <div id="trade-preview" class="passive-value" style="text-align:center;"></div>
@@ -608,9 +610,10 @@ window.selectTradeBuy = function (key) {
 window.updateTradePreview = function () {
     const amountEl = document.getElementById('trade-amount');
     const amount = Math.max(0, Math.floor(Number(amountEl.value) || 0));
+    const min = Number(amountEl.min) || 0;
     const max = Number(amountEl.max) || 0;
     document.getElementById('trade-amount-out').textContent = amount;
-    amountEl.style.setProperty('--fill', (max > 0 ? amount / max * 100 : 0) + '%');
+    amountEl.style.setProperty('--fill', (max > min ? (amount - min) / (max - min) * 100 : 0) + '%');
     const rate = tradeSellKey === 'k' ? 3 : 1;
     document.getElementById('trade-preview').textContent = `Du erhältst: ${TRADE_RESOURCES[tradeBuyKey].icon} ${amount * rate}`;
 };
