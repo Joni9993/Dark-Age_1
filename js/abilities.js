@@ -374,27 +374,6 @@ window.useAbility = function (type) {
     }
 };
 
-window.startMining = function () {
-    if (!selectedUnit || selectedUnit.t !== 7) return;
-    saveUndoState();
-    const adj = (gameState.st || []).filter(s => s.h > 0 && hexDistance({ x: s.x, y: s.y }, { x: selectedUnit.x, y: selectedUnit.y }) === 1);
-    if (adj.length === 0) { showToast("Kein Steinhaufen neben dir.", "error"); return; }
-    adj.sort((a, b) => b.h - a.h);
-    selectedUnit.mi = { x: adj[0].x, y: adj[0].y };
-    hideActionMenu();
-    infoPanel.innerHTML = `⛏️ Abbau gestartet!<div class="info-detail" style="color:#4fc3f7;">Am Rundenende: +1🪨, Steinhaufen -1 (solange du daneben stehst).</div>`;
-    renderBoard(gameState);
-};
-
-window.stopMining = function () {
-    if (!selectedUnit || selectedUnit.t !== 7) return;
-    saveUndoState();
-    delete selectedUnit.mi;
-    hideActionMenu();
-    infoPanel.innerHTML = `⛏️ Abbau gestoppt.`;
-    renderBoard(gameState);
-};
-
 window.toggleDeploy = function () {
     if (!selectedUnit || selectedUnit.t !== 11) return;
     saveUndoState();

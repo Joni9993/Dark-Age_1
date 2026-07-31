@@ -257,19 +257,22 @@ function calculateAttacks(unit) {
 }
 
 // === AUTO MINING ===
+// Vollautomatisch (Korrektur Juli 2026, "Abbau immer aktivieren"): jeder eigene
+// Arbeiter baut ab, sobald er neben einem Steinhaufen mit Restbestand steht —
+// kein manueller Start-Klick mehr nötig (kein Grund, Abbau je zu unterlassen).
+// `w.mi` bleibt als reiner Ziel-Cache/Icon-Marker erhalten, ist aber nicht mehr
+// die Voraussetzung dafür, ob abgebaut wird.
 function processAutoMining(pId) {
     const pState = gameState.p[pId];
     if (!pState.s) pState.s = 0;
     if (!gameState.st) gameState.st = [];
-    const myWorkers = gameState.u.filter(u => u.p === pId && u.t === 7 && u.mi);
+    const myWorkers = gameState.u.filter(u => u.p === pId && u.t === 7);
     myWorkers.forEach(w => {
-        if (!w.mi) return;
-        let target = gameState.st.find(s => s.x === w.mi.x && s.y === w.mi.y && s.h > 0);
+        let target = w.mi ? gameState.st.find(s => s.x === w.mi.x && s.y === w.mi.y && s.h > 0) : null;
         if (!target || hexDistance({ x: w.x, y: w.y }, { x: target.x, y: target.y }) !== 1) {
-            // Gespeichertes Ziel weg oder außer Reichweite (z.B. nach Bewegung durch
-            // einen Tunnel): auf einen anderen angrenzenden Steinhaufen umschwenken
-            // statt den Abbau-Modus zu beenden — der Toggle bleibt an, solange
-            // IRGENDEINE Quelle angrenzt (größter Vorrat zuerst, wie startMining).
+            // Kein (gültiges) Ziel gecacht: bestmöglichen angrenzenden Steinhaufen
+            // suchen (größter Vorrat zuerst) — deckt sowohl den Zielwechsel bei
+            // Erschöpfung als auch die Erstaktivierung ab.
             const adj = gameState.st.filter(s => s.h > 0 && hexDistance({ x: w.x, y: w.y }, { x: s.x, y: s.y }) === 1);
             adj.sort((a, b) => b.h - a.h);
             target = adj[0] || null;
@@ -438,7 +441,8 @@ function jumpUWUnit(state, unit, x, y) {
     const webKey = `${x},${y}`;
     if (state.uw && state.uw.w && state.uw.w[webKey]) delete state.uw.w[webKey];
     const picked = pickupUWCrystalDrop(state, unit);
-    return { picked };
+    const delivered = tryUWCrystalAutoDeliver(state, unit);
+    return { picked, delivered };
 }
 
 // Angrenzende FELS-Hexes, die noch nicht offen sind — ein Klick darauf gräbt UND
@@ -1220,7 +1224,7 @@ function updateUWExploration() {
 // Eine Fundkammer am Ziel wird NICHT mehr automatisch geplündert (Korrektur
 // Juli 2026) — Plündern ist jetzt eine eigene Button-Aktion wie "Dorf
 // einnehmen" an der Oberfläche, siehe lootFundkammerAction.
-// Gibt { picked } für die Toast-Texte des Aufrufers zurück.
+// Gibt { picked, delivered } für die Toast-Texte des Aufrufers zurück.
 function moveUWUnit(state, unit, x, y) {
     unit.x = x; unit.y = y;
     unit.a = 2;
@@ -1231,7 +1235,12 @@ function moveUWUnit(state, unit, x, y) {
     const webKey = `${x},${y}`;
     if (state.uw && state.uw.w && state.uw.w[webKey]) delete state.uw.w[webKey];
     const picked = pickupUWCrystalDrop(state, unit);
-    return { picked };
+    // Sofort abliefern statt erst am Zugende (Korrektur Juli 2026), siehe
+    // tryUWCrystalAutoDeliver — läuft NACH dem Aufsammeln, damit frisch
+    // aufgenommene herrenlose Kristalle direkt mit abgeliefert werden, falls
+    // der Fund zufällig schon auf/neben dem eigenen Stollenkopf liegt.
+    const delivered = tryUWCrystalAutoDeliver(state, unit);
+    return { picked, delivered };
 }
 
 // Öffnet das Ziel-Hex dauerhaft und rückt die Einheit nach ("durchfressen") —
@@ -1247,6 +1256,9 @@ function moveUWUnit(state, unit, x, y) {
 // Das dg-Flag markiert "hat diesen Zug schon gegraben" — calculateDigsUW
 // sperrt damit ein ZWEITES Graben für alle außer dem Bohrwagen (22, digMove=2,
 // PLAN.md Abschn. 3/4, s. dort), der als einziger 2x/Zug graben darf.
+// Gibt { delivered } zurück (Sofort-Ablieferung, siehe moveUWUnit/
+// tryUWCrystalAutoDeliver — ein Arbeiter kann sich mit Fracht bis auf
+// Reichweite 1 an seinen Stollenkopf heranfressen).
 function digUWHex(state, unit, x, y) {
     if (!state.uw) state.uw = { d: [], u: [], n: [], a: {} };
     if (!state.uw.d) state.uw.d = [];
@@ -1256,15 +1268,17 @@ function digUWHex(state, unit, x, y) {
     unit.x = x; unit.y = y;
     unit.a = wasFreshTurn ? 2 : 1;
     unit.dg = 1;
+    const delivered = tryUWCrystalAutoDeliver(state, unit);
+    return { delivered };
 }
 
 // Ein Abbau-Tick: Beutegräber (20) nimmt bis zu 2 statt 1 (nie mehr als der
 // Restbestand hergibt), Träger bekommt exakt die tatsächlich entnommene Menge
 // OHNE Obergrenze (Korrektur Juli 2026 — Tragen ist weiterhin nötig, nur das
 // Limit fällt weg). Bei Restbestand 0 wird das Hex dauerhaft offen (uw.d) und
-// der uw.a-Eintrag gelöscht. Verbraucht KEINE Aktion mehr (Toggle-Abbau wie
-// beim Arbeiter/Stein, siehe processAutoMiningUW/startUWMining) — anders als
-// beim einmaligen Graben ist Abbauen ein passiver Dauerzustand. Gibt den neuen
+// der uw.a-Eintrag gelöscht. Verbraucht KEINE Aktion mehr und läuft vollautomatisch
+// (wie beim Arbeiter/Stein, siehe processAutoMiningUW) — anders als beim
+// einmaligen Graben ist Abbauen ein passiver Dauerzustand. Gibt den neuen
 // Restbestand zurück.
 function mineUWVein(state, unit, x, y) {
     if (!state.uw) state.uw = { d: [], u: [], n: [], a: {} };
@@ -1287,24 +1301,32 @@ function mineUWVein(state, unit, x, y) {
 }
 
 // === UNTERWELT: AUTO-ABBAU (Korrektur Juli 2026) ===
-// Läuft am Zugende wie processAutoMining (Steinabbau oben): jede eigene
-// Tiefeneinheit mit gesetztem `mi` (Toggle, siehe startUWMining/js/abilities.js)
-// baut 1 Tick ab, SOLANGE sie noch in Reichweite (Distanz <=1, deckt sowohl
-// "angrenzend" als auch "auf einem Stollenkopf über der Ader stehend" ab) einer
-// Ader mit Restbestand steht — sonst stoppt der Abbau automatisch (Bewegung
-// weg, Ader erschöpft). Verbraucht keine Aktion, läuft für jeden eigenen Zug.
+// Vollautomatisch (Muster: processAutoMining/Steinabbau oben, "Abbau immer
+// aktivieren") — kein manueller Start-Klick mehr: jede eigene abbaufähige
+// Tiefeneinheit (Arbeiter 7, Beutegräber 20, s. calculateMineTargetsUW) baut
+// 1 Tick ab, SOLANGE sie in Reichweite (Distanz <=1, deckt sowohl "angrenzend"
+// als auch "auf einem Stollenkopf über der Ader stehend" ab) einer Ader mit
+// Restbestand steht. `w.mi` bleibt als Ziel-Cache/Icon-Marker erhalten.
+// Verbraucht keine Aktion, läuft für jeden eigenen Zug.
 function processAutoMiningUW(pId) {
     if (!gameState.uw || !gameState.uw.u) return;
-    const myWorkers = gameState.uw.u.filter(u => u.p === pId && u.mi);
+    const myWorkers = gameState.uw.u.filter(u => u.p === pId);
     myWorkers.forEach(w => {
-        if (!w.mi) return;
-        let tx = w.mi.x, ty = w.mi.y;
-        let inRange = getUWVeinRemaining(gameState, tx, ty) > 0 && hexDistance({ x: w.x, y: w.y }, { x: tx, y: ty }) <= 1;
+        let tx, ty, inRange = false;
+        if (w.mi) {
+            tx = w.mi.x; ty = w.mi.y;
+            inRange = getUWVeinRemaining(gameState, tx, ty) > 0 && hexDistance({ x: w.x, y: w.y }, { x: tx, y: ty }) <= 1;
+        }
         if (!inRange) {
-            // Ziel weg/außer Reichweite: auf eine andere Ader in Reichweite
-            // umschwenken statt zu stoppen (Muster: processAutoMining oben).
+            // Kein (gültiges) Ziel gecacht: bestmögliche Ader in Reichweite
+            // suchen (größter Vorrat zuerst) — deckt Zielwechsel bei Erschöpfung
+            // UND Erstaktivierung ab. Für Nicht-Abbau-Typen liefert
+            // calculateMineTargetsUW immer [] (Typ-Gate dort).
             const alt = calculateMineTargetsUW(w);
-            if (alt.length > 0) { tx = alt[0].x; ty = alt[0].y; w.mi = { x: tx, y: ty }; inRange = true; }
+            if (alt.length > 0) {
+                alt.sort((a, b) => getUWVeinRemaining(gameState, b.x, b.y) - getUWVeinRemaining(gameState, a.x, a.y));
+                tx = alt[0].x; ty = alt[0].y; w.mi = { x: tx, y: ty }; inRange = true;
+            }
         }
         if (inRange) {
             mineUWVein(gameState, w, tx, ty);
@@ -1321,22 +1343,33 @@ function processAutoMiningUW(pId) {
 }
 
 // === UNTERWELT: AUTO-ABLIEFERUNG (Korrektur Juli 2026) ===
-// Läuft ebenfalls am Zugende: jede eigene Tiefeneinheit mit Fracht, die auf
-// oder neben (Distanz <=1) einem eigenen nutzbaren Stollenkopf steht, liefert
-// automatisch ab — kein manueller "Abliefern"-Klick mehr nötig.
+// Läuft am Zugende als Sicherheitsnetz für jede eigene Tiefeneinheit mit Fracht,
+// die auf/neben (Distanz <=1) einem eigenen nutzbaren Stollenkopf steht — z.B.
+// wenn ein Stollenkopf erst DURCH die Bewegung eines Verbündeten/Gegners in
+// Reichweite kommt. Der Regelfall läuft aber schon vorher SOFORT bei der
+// Bewegung selbst, siehe tryUWCrystalAutoDeliver.
 function processUWCrystalAutoDeliver(pId) {
     if (!gameState.uw || !gameState.uw.u) return;
-    const heads = getUnderworldTunnelHeads(gameState).filter(h => h.owner === pId);
-    if (heads.length === 0) return;
-    gameState.uw.u.filter(u => u.p === pId && u.cr > 0).forEach(u => {
-        const inRange = heads.some(h => hexDistance({ x: u.x, y: u.y }, { x: h.x, y: h.y }) <= 1);
-        if (inRange) deliverUWCrystals(gameState, pId, u);
-    });
+    gameState.uw.u.filter(u => u.p === pId && u.cr > 0).forEach(u => tryUWCrystalAutoDeliver(gameState, u));
 }
 
-// Abliefern: verbraucht bewusst KEINE Aktion (Komfort, siehe PLAN.md) — wird
-// jetzt automatisch von processUWCrystalAutoDeliver aufgerufen, die reine
-// Buchungsfunktion bleibt aber eigenständig (u. a. von den Tests direkt genutzt).
+// Sofort-Ablieferung (Korrektur Juli 2026, "im selben Zug nutzbar"): direkt
+// nach jeder Bewegung/Grabung/Sprung aufgerufen (moveUWUnit/digUWHex/
+// jumpUWUnit) statt erst am Zugende — kommt eine Einheit mit Fracht dabei auf/
+// neben (Distanz <=1) einen eigenen nutzbaren Stollenkopf, werden die Kristalle
+// SOFORT gebucht (pState.k), der Spieler kann sie noch im laufenden Zug
+// ausgeben (z.B. Rekrutieren). processUWCrystalAutoDeliver (Zugende) bleibt als
+// Sicherheitsnetz bestehen. Gibt die abgelieferte Menge zurück (0 = nichts).
+function tryUWCrystalAutoDeliver(state, unit) {
+    if (!unit.cr) return 0;
+    const heads = getUnderworldTunnelHeads(state).filter(h => h.owner === unit.p);
+    if (heads.length === 0) return 0;
+    const inRange = heads.some(h => hexDistance({ x: unit.x, y: unit.y }, { x: h.x, y: h.y }) <= 1);
+    return inRange ? deliverUWCrystals(state, unit.p, unit) : 0;
+}
+
+// Reine Buchungsfunktion (Aktions- und Bewegungs-frei) — bewusst eigenständig,
+// u. a. von den Tests direkt genutzt.
 function deliverUWCrystals(state, playerId, unit) {
     const pState = state.p[playerId];
     if (!pState.k) pState.k = 0;

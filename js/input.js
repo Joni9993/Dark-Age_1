@@ -772,9 +772,10 @@ function showUnderworldTileUI(clickedX, clickedY) {
         uwValidMoves = (unit.a === 0) ? calculateMovesUW(unit) : [];
         uwValidDigs = calculateDigsUW(unit);
         uwValidAttacks = calculateAttacksUW(unit);
-        // Abbau (Korrektur Juli 2026): Toggle wie beim Steinabbau des Arbeiters oben
-        // (startMining/stopMining, js/abilities.js) — läuft automatisch am Zugende
-        // (processAutoMiningUW), verbraucht keine Aktion, kein Träger-Limit mehr.
+        // Abbau (Korrektur Juli 2026, "Abbau immer aktivieren"): läuft komplett
+        // automatisch am Zugende (processAutoMiningUW), sobald eine abbaufähige
+        // Einheit neben einer Ader mit Restbestand steht — kein Button mehr nötig,
+        // verbraucht keine Aktion, kein Träger-Limit.
         // Abliefern läuft ebenfalls automatisch (processUWCrystalAutoDeliver), sobald
         // die Einheit auf/neben ihrem Stollenkopf steht — kein manueller Button mehr.
         // Fundkammer plündern (Korrektur Juli 2026, ersetzt das Auto-Plündern
@@ -783,13 +784,6 @@ function showUnderworldTileUI(clickedX, clickedY) {
         // restlichen Aktionen des Zuges (aus a=0 ODER a=2, `selectable` oben).
         if (isFundkammerHex(gameState, clickedX, clickedY) && !(gameState.uw && gameState.uw.f && gameState.uw.f[`${clickedX},${clickedY}`])) {
             menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #8c6d2f;" onclick="window.startUWLootFundkammer()">🏺 Fundkammer plündern</button>`;
-        }
-        const mineTargets = calculateMineTargetsUW(unit);
-        if (!unit.mi && mineTargets.length > 0) {
-            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #00838f;" onclick="window.startUWMining()">💎 Abbau starten</button>`;
-        }
-        if (unit.mi) {
-            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #455a64;" onclick="window.stopUWMining()">🛑 Abbau stoppen</button>`;
         }
         if (unit.t === 7 && stollenOwner === gameState.cp) {
             const surfaceFree = !groundUnitAt(clickedX, clickedY) && gameState.v[`${clickedX},${clickedY}`] === undefined;
@@ -879,7 +873,7 @@ function executeUWMoveTo(clickedX, clickedY) {
     saveUndoState();
     const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
     const unit = selectedUWUnit;
-    const { picked } = moveUWUnit(gameState, unit, clickedX, clickedY);
+    const { picked, delivered } = moveUWUnit(gameState, unit, clickedX, clickedY);
     // uw:true (M13): Recap-Sichtbarkeit läuft über das Unterwelt-Netz (getVisibleUWHexes),
     // nicht über die Oberflächen-Sicht — sonst würden fremde Stollen-Bewegungen an
     // Spieler durchsickern, die zufällig die Oberfläche über dem Hex sehen können.
@@ -892,6 +886,13 @@ function executeUWMoveTo(clickedX, clickedY) {
     if (picked > 0) {
         showToast(`💎 ${picked} herrenlose Kristalle eingesammelt!`, 'gold');
         turnActions.push({ x: clickedX, y: clickedY, t: 'pickup', uw: true });
+    }
+    // Sofort-Ablieferung (Korrektur Juli 2026, "im selben Zug nutzbar"): kam die
+    // Einheit mit Fracht in Reichweite des eigenen Stollenkopfs, sind die
+    // Kristalle jetzt schon gebucht (pState.k) — noch in diesem Zug ausgebbar.
+    if (delivered > 0) {
+        showToast(`💎 ${delivered} Kristalle abgeliefert!`, 'gold');
+        turnActions.push({ x: clickedX, y: clickedY, t: 'deliver', uw: true });
     }
 
     // Bewegen+Agieren im selben Zug (Oberflächen-Parität, Korrektur Juli 2026):
@@ -917,13 +918,19 @@ function executeUWDig(clickedX, clickedY) {
     const unit = selectedUWUnit;
     const wasFreshTurn = unit.a === 0;
     const canDigAgain = (unitStats[unit.t].digMove || 1) > 1;
-    digUWHex(gameState, unit, clickedX, clickedY);
+    const { delivered } = digUWHex(gameState, unit, clickedX, clickedY);
     const isFirstDigOfTurn = wasFreshTurn && unit.a === 2;
     addUWNoise(clickedX, clickedY, 'dig');
     turnActions.push({ x: clickedX, y: clickedY, t: 'dig', fx: fromX, fy: fromY, uw: true });
     infoPanel.innerHTML = !isFirstDigOfTurn ? '⛏ Hex durchgegraben!'
         : canDigAgain ? '⛏ Erste Grabung! Noch eine Grabung oder eine Aktion möglich.'
         : '⛏ Hex durchgegraben! Noch eine Aktion möglich (z. B. Abbau aktivieren).';
+    // Sofort-Ablieferung (Korrektur Juli 2026): das Durchgraben kann eine
+    // fracht-tragende Einheit direkt in Stollenkopf-Reichweite bringen.
+    if (delivered > 0) {
+        showToast(`💎 ${delivered} Kristalle abgeliefert!`, 'gold');
+        turnActions.push({ x: clickedX, y: clickedY, t: 'deliver', uw: true });
+    }
     if (unit.a === 2) {
         // Zwischenzustand nach der ERSTEN Grabung: gleiches Re-Öffnen-Muster wie
         // nach Bewegung (executeUWMoveTo) — Menü zeigt sofort die verbleibenden
@@ -935,31 +942,6 @@ function executeUWDig(clickedX, clickedY) {
     }
     renderBoard(gameState); updateUI();
 }
-
-// Abbau-Toggle (Korrektur Juli 2026, Muster: startMining/stopMining oben) —
-// wählt automatisch die Ader mit dem höchsten Restbestand in Reichweite (eigenes
-// Hex oder angrenzend), kein Ziel-Klick mehr nötig. Der eigentliche Abbau läuft
-// passiv am Zugende (processAutoMiningUW, js/logic.js), verbraucht keine Aktion.
-window.startUWMining = function () {
-    if (!selectedUWUnit) return;
-    const targets = calculateMineTargetsUW(selectedUWUnit);
-    if (targets.length === 0) return;
-    saveUndoState();
-    targets.sort((a, b) => getUWVeinRemaining(gameState, b.x, b.y) - getUWVeinRemaining(gameState, a.x, a.y));
-    selectedUWUnit.mi = { x: targets[0].x, y: targets[0].y };
-    hideActionMenu();
-    infoPanel.innerHTML = `💎 Abbau gestartet!<div class="info-detail" style="color:#4fc3f7;">Am Rundenende: Kristalle +1 (solange du in Reichweite der Ader bleibst).</div>`;
-    renderBoard(gameState);
-};
-
-window.stopUWMining = function () {
-    if (!selectedUWUnit) return;
-    saveUndoState();
-    delete selectedUWUnit.mi;
-    hideActionMenu();
-    infoPanel.innerHTML = `💎 Abbau gestoppt.`;
-    renderBoard(gameState);
-};
 
 // === DYNAMIT (Sprengmeister 18, ersetzt Unterminierung — Korrektur Juli 2026) ===
 // Ziel-Auswahl wie Abbauen/Stollenbruch (mehrstufig, window.uwSpecialActive) —
@@ -1067,13 +1049,17 @@ function executeUWJump(clickedX, clickedY) {
     saveUndoState();
     const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
     const unit = selectedUWUnit;
-    const { picked } = jumpUWUnit(gameState, unit, clickedX, clickedY);
+    const { picked, delivered } = jumpUWUnit(gameState, unit, clickedX, clickedY);
     turnActions.push({ x: clickedX, y: clickedY, t: 'jump', fx: fromX, fy: fromY, uw: true });
     infoPanel.innerHTML = '🦘 Gesprungen!';
 
     if (picked > 0) {
         showToast(`💎 ${picked} herrenlose Kristalle eingesammelt!`, 'gold');
         turnActions.push({ x: clickedX, y: clickedY, t: 'pickup', uw: true });
+    }
+    if (delivered > 0) {
+        showToast(`💎 ${delivered} Kristalle abgeliefert!`, 'gold');
+        turnActions.push({ x: clickedX, y: clickedY, t: 'deliver', uw: true });
     }
 
     window.uwSpecialActive = null; uwValidJump = [];
@@ -1667,10 +1653,6 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
             }
 
             if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
-                const adjStone = gameState.st && gameState.st.some(s => s.h > 0 && hexDistance({ x: s.x, y: s.y }, { x: clickedUnit.x, y: clickedUnit.y }) === 1);
-                if (adjStone && !clickedUnit.mi) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #616161;" onclick="startMining()">⛏️ Abbau starten</button>`;
-                if (clickedUnit.mi) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #455a64;" onclick="stopMining()">🛑 Abbau stoppen</button>`;
-
                 const stones = pState.s || 0;
                 if (stones >= 1) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #795548;" onclick="useAbility('wall')">🧱 Mauer (1🪨)</button>`;
                 else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🧱 Mauer (1🪨)</button>`;
