@@ -461,7 +461,11 @@ canvas {
     font-weight: bold;
     white-space: pre-line;
     min-height: 16px;
-    max-height: 70px;
+    /* War fix 70px — das reicht für Titel + zwei Detailzeilen, aber viele
+       Infotexte (Kristallader, Einheiten mit Schadensvorschau + Hinweis) sind
+       länger und wurden mitten im Satz abgeschnitten. An die Bildschirmhöhe
+       koppeln, damit auf normalen Handys praktisch alles komplett passt. */
+    max-height: clamp(70px, 26vh, 200px);
     overflow-y: auto;
     text-shadow: 1px 1px 3px #000;
     border-radius: 8px;
@@ -475,6 +479,23 @@ canvas {
    an die Bildschirmhöhe koppeln statt an einen festen Pixelwert */
 #info-panel:has(.stack-picker) {
     max-height: 32vh;
+}
+
+/* Passt der Inhalt trotz max-height nicht, wäre er ohne das hier unlesbar:
+   pointer-events:none (damit man die Karte durch das Panel hindurch ziehen
+   kann) unterbindet auch das Scrollen. js/ui.js setzt .is-scrollable per
+   MutationObserver nur dann, wenn wirklich etwas abgeschnitten ist — sonst
+   bleibt das Panel wie bisher komplett klick-durchlässig. */
+#info-panel.is-scrollable {
+    pointer-events: auto;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    /* Scroll-Hinweis: angedeutete Kante unten, verschwindet am Listenende */
+    box-shadow: inset 0 -14px 12px -12px rgba(0, 0, 0, 0.95);
+}
+
+#info-panel.is-scrollable.is-at-end {
+    box-shadow: none;
 }
 
 #info-panel::-webkit-scrollbar {
@@ -1563,14 +1584,45 @@ canvas {
     mask-image: linear-gradient(to bottom, black calc(100% - 20px), transparent 100%);
 }
 
-/* One line per row — long names truncate with an ellipsis instead of
-   wrapping into the button next to them. */
+/* One line per row. Nur der Name kürzt mit Ellipse — Rang, Siege und der
+   Button/Status behalten immer ihre volle Breite, damit man bei langen Namen
+   trotzdem die Siege sieht. */
 #leaderboard-list .friend-row > span {
+    white-space: nowrap;
+}
+
+/* Zeilen ohne Button (ich selbst / bereits befreundet) sonst niedriger als
+   Zeilen mit Button (der hat min-height 44px) → einheitliche Höhe erzwingen. */
+#leaderboard-list .friend-row {
+    min-height: 60px;
+}
+
+#leaderboard-list .lb-rank {
+    flex: 0 0 auto;
+    color: var(--text-dim);
+}
+
+#leaderboard-list .lb-name {
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
     min-width: 0;
     flex: 1 1 auto;
+    text-align: left;   /* .screen-box zentriert sonst den Namen im gewachsenen Span */
+}
+
+#leaderboard-list .lb-wins {
+    flex: 0 0 auto;
+    color: var(--text-dim);
+    text-align: right;
+}
+
+#leaderboard-list .lb-tag {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    opacity: 0.75;
 }
 
 #leaderboard-list .friend-row .action-btn {

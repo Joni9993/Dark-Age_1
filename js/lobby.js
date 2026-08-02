@@ -429,15 +429,38 @@ async function removeFriend(otherId, otherName) {
 // ── Leaderboard (inline auf dem Home-Screen) ─────────────────────────────────
 
 async function refreshLeaderboardPanel() {
-    const rows = await api.get('/api/leaderboard').catch(() => []);
+    const [rows, friends] = await Promise.all([
+        api.get('/api/leaderboard').catch(() => []),
+        api.get('/api/friends').catch(() => [])
+    ]);
+
+    // Profil-ID → 'accepted' | 'pending' (egal wer angefragt hat), damit für
+    // bestehende Freunde bzw. offene Anfragen kein "+ Freund" mehr erscheint.
+    const relation = new Map();
+    for (const f of friends) {
+        const otherId = f.requester_id === currentProfile?.id ? f.addressee_id : f.requester_id;
+        relation.set(otherId, f.status);
+    }
+
     const list = document.getElementById('leaderboard-list');
     list.innerHTML = '';
     rows.forEach((row, i) => {
         const isMe = row.id === currentProfile?.id;
+        const rel  = relation.get(row.id);
+
+        let action = '';
+        if (isMe)                     action = '';
+        else if (rel === 'accepted')  action = '<span class="lb-tag">✓ Freund</span>';
+        else if (rel === 'pending')   action = '<span class="lb-tag">Angefragt</span>';
+        else action = `<button class="action-btn" onclick="addFriendFromLeaderboard('${escHtml(row.username)}')">+ Freund</button>`;
+
         const div = document.createElement('div');
         div.className = 'friend-row';
-        div.innerHTML = `<span>#${i + 1} ${escHtml(row.username)}${isMe ? ' (Du)' : ''} — ${row.wins} Siege</span>
-            ${isMe ? '' : `<button class="action-btn" onclick="addFriendFromLeaderboard('${escHtml(row.username)}')">+ Freund</button>`}`;
+        // Name eigener Span → nur er kürzt mit Ellipse, die Siege bleiben immer sichtbar.
+        div.innerHTML = `<span class="lb-rank">#${i + 1}</span>
+            <span class="lb-name">${escHtml(row.username)}${isMe ? ' (Du)' : ''}</span>
+            <span class="lb-wins">${row.wins} Siege</span>
+            ${action}`;
         list.appendChild(div);
     });
     if (!list.children.length)
@@ -448,6 +471,7 @@ async function addFriendFromLeaderboard(username) {
     try {
         const result = await api.post('/api/friends/request', { username });
         showToast(result.accepted ? `Du bist jetzt mit ${username} befreundet!` : `Anfrage an ${username} gesendet!`);
+        await refreshLeaderboardPanel();
     } catch (err) { showToast(err.message); }
 }
 

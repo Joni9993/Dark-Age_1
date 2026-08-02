@@ -657,4 +657,37 @@ window.startCapture = function () {
         selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
         hideActionMenu(); infoPanel.innerHTML = "Dorf eingenommen!"; renderBoard(gameState);
     }
-}
+};
+
+// === INFO-PANEL: ABGESCHNITTENE TEXTE LESBAR MACHEN ===
+// #info-panel hat pointer-events:none, damit man die Karte durch das Panel
+// hindurch ziehen kann — das unterbindet aber auch das Scrollen, sodass alles
+// jenseits der max-height schlicht unlesbar war. Statt die ~60 Zuweisungen an
+// infoPanel.innerHTML einzeln anzufassen, beobachtet ein MutationObserver den
+// Inhalt und schaltet das Panel nur bei echtem Überlauf scrollbar
+// (.is-scrollable, siehe css/game.css).
+(function initInfoPanelScrollWatch() {
+    if (!infoPanel) return;
+
+    function syncEndState() {
+        // 1px Toleranz: scrollTop ist fraktional, sobald der Zoom nicht 100% ist
+        const atEnd = infoPanel.scrollHeight - infoPanel.scrollTop - infoPanel.clientHeight <= 1;
+        infoPanel.classList.toggle('is-at-end', atEnd);
+    }
+
+    function syncOverflow() {
+        const overflows = infoPanel.scrollHeight > infoPanel.clientHeight + 1;
+        infoPanel.classList.toggle('is-scrollable', overflows);
+        if (overflows) syncEndState();
+        else infoPanel.classList.remove('is-at-end');
+    }
+
+    // Neuer Text → immer oben beginnen, sonst hängt das Panel im alten Scrollstand
+    new MutationObserver(() => { infoPanel.scrollTop = 0; syncOverflow(); })
+        .observe(infoPanel, { childList: true, subtree: true, characterData: true });
+
+    infoPanel.addEventListener('scroll', syncEndState, { passive: true });
+    window.addEventListener('resize', syncOverflow);
+    syncOverflow();
+})();
+
