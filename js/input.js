@@ -1346,7 +1346,7 @@ function executeMoveTo(clickedX, clickedY) {
 
             let hasAbilities = false;
             if (selectedUnit.t === 3 && pState.m >= 3) hasAbilities = true;
-            if (selectedUnit.t === 4 && selectedUnit.a === 1 && !selectedUnit.br && pState.m >= 2) hasAbilities = true;
+            if (selectedUnit.t === 4 && selectedUnit.a === 1 && !selectedUnit.br && !selectedUnit.nb && pState.m >= 2) hasAbilities = true;
             if (selectedUnit.t === 5 && !selectedUnit.iv && !selectedUnit.cd && pState.m >= 2) hasAbilities = true;
             if (selectedUnit.t === 6 && pState.m >= 4) hasAbilities = true;
             if (selectedUnit.t === 7) {
@@ -1612,9 +1612,13 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
     }
 
     let unitMenuHtml = '';
-    if (clickedUnit && clickedUnit.p === gameState.cp && (clickedUnit.a === 0 || clickedUnit.a === 2 || clickedUnit.a === 4 || (clickedUnit.t === 4 && clickedUnit.a === 1))) {
+    // nb ("neu gebaut", js/ui.js buyUnit): a===1 kann entweder "hat diese Runde
+    // schon angegriffen" (Berserker-Sonderfall unten) oder "gerade erst gekauft"
+    // bedeuten — Letzteres darf den Berserker-Sonderfall nicht auslösen, sonst
+    // wäre Blutrausch direkt im Kaufzug nutzbar (siehe buyUnit-Kommentar).
+    if (clickedUnit && clickedUnit.p === gameState.cp && (clickedUnit.a === 0 || clickedUnit.a === 2 || clickedUnit.a === 4 || (clickedUnit.t === 4 && clickedUnit.a === 1 && !clickedUnit.nb))) {
         let isOwnActive = (clickedUnit.a === 0 || clickedUnit.a === 2);
-        let isOwnBerserkerUsed = clickedUnit.t === 4 && clickedUnit.a === 1;
+        let isOwnBerserkerUsed = clickedUnit.t === 4 && clickedUnit.a === 1 && !clickedUnit.nb;
 
         if (isOwnActive || isOwnBerserkerUsed || clickedUnit.a === 4) {
             selectedUnit = clickedUnit;
@@ -1627,7 +1631,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                 if (pState.m >= 3) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #3949ab;" onclick="useAbility('ritter')">🌀 Rundumschlag (3🪵)</button>`;
                 else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🌀 Rundumschlag (3🪵)</button>`;
             }
-            if (clickedUnit.t === 4 && clickedUnit.a === 1) {
+            if (clickedUnit.t === 4 && clickedUnit.a === 1 && !clickedUnit.nb) {
                 if (pState.m >= 2 && !clickedUnit.br) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #e53935;" onclick="useAbility('berserker')">🩸 Blutrausch (2🪵)</button>`;
                 else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🩸 Blutrausch (2🪵)</button>`;
             }
@@ -2343,6 +2347,7 @@ function doEndTurn() {
     gameState.u.forEach(u => {
         u.a = 0;
         delete u.br;
+        delete u.nb;
     });
     // Grubenwache (17): "Wache" — heilt +2 HP, wenn sie im gerade beendeten Zug
     // NICHT bewegt wurde (u.mv, von moveUWUnit gesetzt); Angreifen allein steht

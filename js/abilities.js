@@ -2,6 +2,7 @@
 window.useAbility = function (type) {
     const pState = gameState.p[gameState.cp];
     if (!selectedUnit) return;
+    if (type === 'berserker' && selectedUnit.nb) return; // gerade erst gekauft — Blutrausch erst ab der nächsten Runde
     saveUndoState();
 
     if (type === 'ritter') {

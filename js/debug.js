@@ -256,7 +256,7 @@ function debugPlaceDynamite() {
 }
 
 function debugRefreshActions() {
-    gameState.u.filter(u => u.p === gameState.cp).forEach(u => { u.a = 0; delete u.br; });
+    gameState.u.filter(u => u.p === gameState.cp).forEach(u => { u.a = 0; delete u.br; delete u.nb; });
     (gameState.tw || []).filter(tw => tw.o === gameState.cp).forEach(tw => tw.a = 0);
     renderBoard(gameState);
     showToast('Alle Aktionen aufgefrischt.');

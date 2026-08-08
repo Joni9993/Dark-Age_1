@@ -401,7 +401,12 @@ window.buyUnit = function (type) {
             if (pState.f.includes(0)) {
                 fb = Math.floor(Object.values(gameState.v).filter(v => v === gameState.cp).length / 3);
             }
-            const unitObj = { i: nextId, p: gameState.cp, t: type, x: selectedHex.x, y: selectedHex.y, fb: fb, a: 1 };
+            // nb ("neu gebaut"): a===1 allein reicht nicht, um "gerade gekauft" von
+            // "hat diese Runde schon angegriffen" zu unterscheiden — der Berserker
+            // missbrauchte das sonst, um Blutrausch (Fähigkeit setzt a zurück) direkt
+            // im Kaufzug zu nutzen und dann noch zu laufen/anzugreifen. Wird zusammen
+            // mit br beim Rundenende gelöscht (js/input.js doEndTurn).
+            const unitObj = { i: nextId, p: gameState.cp, t: type, x: selectedHex.x, y: selectedHex.y, fb: fb, a: 1, nb: 1 };
             if (pState.u.includes(1)) unitObj.vet = 1;
             unitObj.h = getUnitMaxHp(pState, type, unitObj);
             gameState.u.push(unitObj);
