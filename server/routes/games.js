@@ -119,7 +119,7 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
 
 // ── POST /api/games/:id/turn  — submit a turn ────────────────────────────────
 router.post('/:id/turn', authMiddleware, async (req, res) => {
-    const { state_blob, next_slot, next_round, eliminated_slots = [], game_finished = false } = req.body;
+    const { state_blob, next_slot, next_round, eliminated_slots = [], game_finished = false, winner_slots = null } = req.body;
 
     // Verify it's this player's turn
     const { rows: [row] } = await pool.query(
@@ -183,21 +183,32 @@ router.post('/:id/turn', authMiddleware, async (req, res) => {
     // Write new state
     const newStatus = game_finished ? 'finished' : 'active';
     await pool.query(
-        `UPDATE games SET state_blob = $1, current_slot = $2, round = $3, status = $4, updated_at = NOW()
-         WHERE id = $5`,
-        [finalBlob, finalNextSlot, finalNextRound, newStatus, req.params.id]
+        `UPDATE games SET state_blob = $1, current_slot = $2, round = $3, status = $4, winner_slots = $5, updated_at = NOW()
+         WHERE id = $6`,
+        [finalBlob, finalNextSlot, finalNextRound, newStatus, game_finished ? winner_slots : null, req.params.id]
     );
 
     const url = `${process.env.APP_URL}?game=${req.params.id}`;
 
     if (game_finished) {
-        // Notify winners (non-eliminated, non-submitter players)
+        // Notify all other (non-submitter) players — but only the actual
+        // winners get "gewonnen". Bugfix (Aug 2026): a Team-/Erschließungs-win
+        // ends the game while a losing opponent is still `eliminated = FALSE`
+        // (they weren't defeated, the game just ended out from under them), so
+        // "non-eliminated" alone no longer implies "winner" the way it does for
+        // the last-survivor case. Fall back to the old (imprecise) behavior only
+        // if the client didn't send winner_slots (shouldn't happen post-fix).
         pool.query(
-            'SELECT profile_id FROM game_players WHERE game_id = $1 AND eliminated = FALSE AND profile_id != $2',
+            'SELECT profile_id, slot, eliminated FROM game_players WHERE game_id = $1 AND profile_id != $2',
             [req.params.id, req.profileId]
-        ).then(({ rows: winners }) => {
-            for (const w of winners) {
-                notifyPlayer(w.profile_id, 'Dark Ages', `Spiel beendet! Du hast "${row.name}" gewonnen!`, url).catch(() => {});
+        ).then(({ rows: others }) => {
+            for (const o of others) {
+                if (o.eliminated) continue; // already notified via the newlyEliminated loop below
+                const isWinner = Array.isArray(winner_slots) ? winner_slots.includes(o.slot) : true;
+                const msg = isWinner
+                    ? `Spiel beendet! Du hast "${row.name}" gewonnen!`
+                    : `Spiel beendet! "${row.name}" ist vorbei — du hast diesmal nicht gewonnen.`;
+                notifyPlayer(o.profile_id, 'Dark Ages', msg, url).catch(() => {});
             }
         }).catch(() => {});
     } else {
@@ -277,10 +288,13 @@ router.post('/:id/abandon', authMiddleware, async (req, res) => {
 
     const newBlob = LZString.compressToEncodedURIComponent(JSON.stringify(state));
     const newStatus = gameFinished ? 'finished' : 'active';
+    // Sole-survivor win only (this route doesn't detect team/Erschließungs-wins
+    // triggered indirectly by an abandon) — mirrors alivePlayers.length === 1 above.
+    const winnerSlots = gameFinished ? [state.p.indexOf(alivePlayers[0])] : null;
 
     await pool.query(
-        `UPDATE games SET state_blob = $1, current_slot = $2, round = $3, status = $4, updated_at = NOW() WHERE id = $5`,
-        [newBlob, nextSlot, nextRound, newStatus, req.params.id]
+        `UPDATE games SET state_blob = $1, current_slot = $2, round = $3, status = $4, winner_slots = $5, updated_at = NOW() WHERE id = $6`,
+        [newBlob, nextSlot, nextRound, newStatus, winnerSlots, req.params.id]
     );
     await pool.query(
         'UPDATE game_players SET eliminated = TRUE, left_game = TRUE WHERE game_id = $1 AND profile_id = $2',

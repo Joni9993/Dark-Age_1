@@ -60,6 +60,12 @@ async function initSchema() {
 
         ALTER TABLE game_players ADD COLUMN IF NOT EXISTS left_game BOOLEAN DEFAULT FALSE;
         ALTER TABLE games ADD COLUMN IF NOT EXISTS team_mode TEXT NOT NULL DEFAULT 'ffa';
+        -- winner_slots (Bugfix Aug 2026): bei Team-/Erschließungs-Sieg bleiben
+        -- verlierende Spieler eliminated=FALSE (die Runde endet unter ihnen weg,
+        -- sie wurden nicht besiegt) — "gewonnen" ist also nicht länger gleichbedeutend
+        -- mit "nicht eliminiert". NULL für ältere, vor diesem Fix beendete Spiele
+        -- (Sieg-Benachrichtigung/Leaderboard fallen dort auf die alte Heuristik zurück).
+        ALTER TABLE games ADD COLUMN IF NOT EXISTS winner_slots INT[];
 
         CREATE TABLE IF NOT EXISTS friendships (
             requester_id UUID REFERENCES profiles(id) ON DELETE CASCADE,

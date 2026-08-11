@@ -2131,12 +2131,12 @@ function confirmSurrender() {
 
     const nextPlayer = gameState.p[gameState.cp];
     if (teamWinners) {
-        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true);
+        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true, teamWinners);
         showWin(`${teamWinners.map(p => p.n).join(' & ')} gewinnen gemeinsam!`);
         return;
     }
     if (alivePlayers.length === 1) {
-        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true);
+        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true, alivePlayers);
         showWin(`${alivePlayers[0].n} hat als Letzter überlebt! (${surrenderingName} hat aufgegeben)`);
         return;
     }
@@ -2631,17 +2631,17 @@ function doEndTurn() {
     });
 
     if (teamWinners2) {
-        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true);
+        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true, teamWinners2);
         showWin(`${teamWinners2.map(p => p.n).join(' & ')} gewinnen gemeinsam!`);
         return;
     }
     if (erschlWinners) {
-        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true);
+        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true, erschlWinners);
         showWin(`${erschlWinners.map(p => p.n).join(' & ')} haben das Herz der Tiefe erschlossen — wer das Fundament des Landes hält, dem beugt sich die Oberfläche!`);
         return;
     }
     if (alivePlayers.length === 1) {
-        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true);
+        if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true, alivePlayers);
         showWin(`${alivePlayers[0].n} hat als Letzter überlebt!`);
         return;
     }
@@ -2688,12 +2688,20 @@ window.confirmEndTurn = confirmEndTurn;
 
 
 // === SERVER TURN SUBMISSION ===
-async function submitTurnToServer(encodedState, nextPlayerName, isFinished = false) {
+async function submitTurnToServer(encodedState, nextPlayerName, isFinished = false, winners = null) {
     endTurnBtn.disabled = true;
 
     const eliminatedSlots = gameState.p
         .map((p, i) => (p.dead === 1 ? i : null))
         .filter(i => i !== null);
+
+    // winner_slots (Bugfix Aug 2026): bei Team-/Erschließungs-Sieg bleiben
+    // verlierende Spieler `eliminated = FALSE` (sie wurden nicht besiegt, das
+    // Spiel endete unter ihnen weg) — der Server kann "gewonnen" also NICHT
+    // mehr aus "nicht eliminiert" ableiten (das traf früher nur auf den
+    // Alleinüberlebenden-Fall zu). `winners` sind hier die tatsächlichen
+    // Sieger-Spielerobjekte aus gameState.p; wir schicken ihre Indizes (== DB slot).
+    const winnerSlots = winners ? winners.map(p => gameState.p.indexOf(p)) : null;
 
     try {
         await api.post(`/api/games/${currentGameId}/turn`, {
@@ -2702,6 +2710,7 @@ async function submitTurnToServer(encodedState, nextPlayerName, isFinished = fal
             next_round:       gameState.rn,
             eliminated_slots: eliminatedSlots,
             game_finished:    isFinished,
+            winner_slots:     winnerSlots,
         });
         if (!isFinished) showServerIntermission(nextPlayerName);
     } catch (err) {
