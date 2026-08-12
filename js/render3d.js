@@ -1694,6 +1694,14 @@
         if (!surfaceVisible && window.selectedUnderworldHex) {
             addOverlay(window.selectedUnderworldHex.x, window.selectedUnderworldHex.y, 0xc084fc, 0.55, state, true);
         }
+        // Cross-Layer-Referenzmarker (Spielerwunsch, Aug 2026): das zuletzt in der
+        // Oberwelt ausgewählte Feld, gleicher Cyan-Ton wie highlightedTunnelEnd
+        // oben ("Ort-Hinweis", keine echte Auswahl). Nicht gezeichnet, wenn das
+        // Feld ohnehin schon als selectedUnderworldHex aktiv markiert ist.
+        if (!surfaceVisible && window.lastSurfaceHex &&
+            !(window.selectedUnderworldHex && window.selectedUnderworldHex.x === window.lastSurfaceHex.x && window.selectedUnderworldHex.y === window.lastSurfaceHex.y)) {
+            addOverlay(window.lastSurfaceHex.x, window.lastSurfaceHex.y, 0x4fc3f7, 0.4, state, true);
+        }
         // Unterwelt-Ziel-Highlights: Bewegung grün wie oben, Graben bräunlich (eigene
         // Farbe, siehe M9b-Auftrag), Angreifen rot wie oben (M10), Stollenbruch orange
         // (M12), Dynamit dunkelrot, Horcher-Sprung cyan (beide Korrektur Juli 2026) —

@@ -46,6 +46,20 @@ function bootGame() {
     if (!gameState.uw.dr) gameState.uw.dr = {};
     if (!gameState.uw.dy) gameState.uw.dy = [];
     if (!gameState.uw.c) gameState.uw.c = [];
+    // Kristallader unter einem fertigen Tunnelkopf (Korrektur August 2026,
+    // Spielerfeedback Vincent): bisher nur ÜBER isUnderworldTunnelHead
+    // abgeleitet ("offen, solange der Tunnel steht") — wird jetzt einmalig
+    // dauerhaft in uw.d persistiert, sobald der Tunnel nutzbar ist (t.r <= rn).
+    // Ohne das würde eine leergegrabene Ader nach Zerstörung des Tunnels wieder
+    // mit vollem Bestand auftauchen. Läuft bei jedem bootGame (Zugstart/Laden)
+    // und zieht damit auch bereits betroffene Bestandsspielstände nach.
+    (gameState.tu || []).forEach(t => {
+        if (t.r > gameState.rn) return; // Tunnel noch im Bau
+        if (getUnderworldType(gameState, t.x1, t.y1) !== UW_ADER) return;
+        const idx = t.y1 * gameState.bw + t.x1;
+        if (!gameState.uw.d.includes(idx)) gameState.uw.d.push(idx);
+    });
+
     gameState.uw.u.forEach((u, idx) => {
         if (u.a === undefined) u.a = 0;
         if (!u.i) u.i = idx + 1;

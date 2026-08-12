@@ -70,6 +70,10 @@ let validAttacks = [];
 let selectedTower = null;
 window.highlightedTunnelEnd = null;
 window.demolishTargets = [];
+// Zuletzt in der Oberwelt ausgewähltes Feld, gemerkt für den Kamerafokus-
+// Wechsel in die Unterwelt (Spielerwunsch, Aug 2026: "wo komme ich hier
+// eigentlich raus" — Cross-Layer-Referenzmarker, siehe setCameraFocusSlider).
+window.lastSurfaceHex = null;
 
 // === UNTERWELT (M9b) ===
 // Eigener Auswahl-/Highlight-Zustand statt Verzweigung von selectedUnit/validMoves —

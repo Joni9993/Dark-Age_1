@@ -667,6 +667,13 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
         drawHexPath(center.px, center.py);
         ctx.fillStyle = "rgba(192, 132, 252, 0.35)"; ctx.fill();
         ctx.strokeStyle = "#c084fc"; ctx.lineWidth = 2; ctx.stroke();
+    } else if (window.lastSurfaceHex && window.lastSurfaceHex.x === x && window.lastSurfaceHex.y === y) {
+        // Cross-Layer-Referenzmarker: das zuletzt in der Oberwelt ausgewählte
+        // Feld, damit man in der ungewohnten Unterwelt-Optik wiederfindet, wo
+        // man "eigentlich" steht (Spielerwunsch, Aug 2026).
+        drawHexPath(center.px, center.py);
+        ctx.fillStyle = "rgba(79, 195, 247, 0.3)"; ctx.fill();
+        ctx.strokeStyle = "#4fc3f7"; ctx.lineWidth = 2; ctx.stroke();
     }
 }
 
@@ -1036,6 +1043,10 @@ window.setCameraFocusSlider = function (rawValue) {
         if (window.cameraFocus === 2) {
             // Unterwelt: die komplette Oberflächen-Ebene ist nicht mehr anwählbar/
             // steuerbar — eine bestehende Auswahl (Boden- oder Lufteinheit) fällt weg.
+            // Vorher noch das ausgewählte Oberflächen-Feld für den Cross-Layer-
+            // Referenzmarker merken (window.lastSurfaceHex, s. drawUnderworldHex2D/
+            // render3d.js).
+            if (selectedHex) window.lastSurfaceHex = { x: selectedHex.x, y: selectedHex.y };
             selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
             window.specialActive = null; hideActionMenu();
         } else if (selectedUnit) {
