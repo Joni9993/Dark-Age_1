@@ -188,6 +188,10 @@ function handleCanvasClick(clientX, clientY) {
                     x2: clickedX, y2: clickedY,
                     r: gameState.rn + 1, o: gameState.cp, h: 13
                 });
+                // Unterwelt-Feld unter dem neuen Tunnelkopf sofort leeren, nicht erst
+                // wenn der Tunnel nächste Runde fertig ist (Spielerfeedback, s.
+                // clearUnderworldForTunnelHead, js/logic.js).
+                clearUnderworldForTunnelHead(gameState, window.tunnelStart.x, window.tunnelStart.y);
 
                 selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'cap', fx: window.tunnelStart.x, fy: window.tunnelStart.y });
                 window.specialActive = null; selectedUnit = null; validMoves = []; window.tunnelStart = null;

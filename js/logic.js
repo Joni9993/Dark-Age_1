@@ -1581,6 +1581,46 @@ function lootFundkammerAction(state, unit) {
     return loot;
 }
 
+// Räumt das Unterwelt-Feld unter einem Tunnelkopf (x,y = t.x1,t.y1) vollständig
+// frei (Korrektur August 2026, Spielerfeedback): Geröll/Kristallader dauerhaft
+// offen wie normales Graben (uw.d), eine ungeplünderte Fundkammer gilt als
+// geplündert (uw.f — gleiche "Ressource verschwindet ersatzlos"-Logik wie bei
+// der Ader, kein Bonus für den Tunnelbauer), ein Spinnennetz wird entfernt, eine
+// zufällig dort stehende NEUTRALE Kreatur auf ein freies offenes Nachbar-Hex
+// verdrängt (gegnerische SPIELER-Einheiten bleiben bewusst stehen — taktische
+// Blockade, kein Zufallshindernis). Läuft sowohl SOFORT beim Tunnelbau
+// (js/input.js, noch im selben Zug) als auch als Absicherung für bereits
+// bestehende Tunnelköpfe in bootGame() (js/main.js).
+function clearUnderworldForTunnelHead(state, x, y) {
+    if (!state.uw) state.uw = { d: [], u: [], n: [], a: {}, f: {}, w: {}, dr: {}, dy: [], c: [] };
+    if (!state.uw.d) state.uw.d = [];
+    if (!state.uw.f) state.uw.f = {};
+    if (!state.uw.w) state.uw.w = {};
+    if (!state.uw.c) state.uw.c = [];
+    if (!state.uw.u) state.uw.u = [];
+
+    const idx = y * state.bw + x;
+    if (!state.uw.d.includes(idx)) state.uw.d.push(idx);
+
+    if (isFundkammerHex(state, x, y)) {
+        const key = `${x},${y}`;
+        if (!state.uw.f[key]) state.uw.f[key] = 1;
+    }
+
+    const webKey = `${x},${y}`;
+    if (state.uw.w[webKey]) delete state.uw.w[webKey];
+
+    const blockingCreature = state.uw.c.find(c => c.h > 0 && c.x === x && c.y === y);
+    if (blockingCreature) {
+        const freeNeighbor = getNeighbors(x, y).find(n =>
+            isUnderworldOpen(state, n.x, n.y) &&
+            !state.uw.u.some(u => u.x === n.x && u.y === n.y) &&
+            !state.uw.c.some(c => c.h > 0 && c.x === n.x && c.y === n.y)
+        );
+        if (freeNeighbor) { blockingCreature.x = freeNeighbor.x; blockingCreature.y = freeNeighbor.y; }
+    }
+}
+
 // Meisterwerkzeug auf ein Bauwerk: sofort volle HP. `target` ist das Struktur-
 // Objekt (Mauer/Turm/Tunnel) mit `.h`, ODER der Spieler-State selbst fürs
 // Startdorf (`.sh`) — maxHpFor wird für alles außer dem Startdorf übergeben.

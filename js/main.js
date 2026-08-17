@@ -46,45 +46,12 @@ function bootGame() {
     if (!gameState.uw.dr) gameState.uw.dr = {};
     if (!gameState.uw.dy) gameState.uw.dy = [];
     if (!gameState.uw.c) gameState.uw.c = [];
-    // Ein fertiger Tunnelkopf (x1,y1, t.r <= rn) muss als Unterwelt-Eingang
-    // tatsächlich benutzbar sein — drei Aufräumschritte, alle bei jedem
-    // bootGame (Zugstart/Laden), ziehen also auch bereits betroffene
-    // Bestandsspielstände nach:
-    (gameState.tu || []).forEach(t => {
-        if (t.r > gameState.rn) return; // Tunnel noch im Bau
-        const key = `${t.x1},${t.y1}`;
-
-        // 1) Kristallader (Korrektur August 2026, Spielerfeedback Vincent):
-        // bisher nur ÜBER isUnderworldTunnelHead abgeleitet ("offen, solange
-        // der Tunnel steht") — wird jetzt einmalig dauerhaft in uw.d
-        // persistiert. Ohne das würde eine leergegrabene Ader nach Zerstörung
-        // des Tunnels wieder mit vollem Bestand auftauchen.
-        if (getUnderworldType(gameState, t.x1, t.y1) === UW_ADER) {
-            const idx = t.y1 * gameState.bw + t.x1;
-            if (!gameState.uw.d.includes(idx)) gameState.uw.d.push(idx);
-        }
-
-        // 2) Spinnennetz (Korrektur August 2026, Spielerfeedback): ein Netz
-        // unter dem Tunnelkopf verhinderte, dass der Arbeiter dort abtauchen
-        // konnte ("Feld blockiert"). Der Tunnelbau räumt das Netz weg.
-        if (gameState.uw.w[key]) delete gameState.uw.w[key];
-
-        // 3) Kreatur (Korrektur August 2026, Spielerfeedback): eine zufällig
-        // dort stehende, neutrale Unterwelt-Kreatur (nicht: gegnerische
-        // Spieler-Einheit — die bleibt bewusst als taktisches Hindernis
-        // stehen) blockiert sonst dauerhaft den fertigen Eingang, ohne dass
-        // der Spieler das beeinflussen könnte. Wird auf ein freies, offenes
-        // Nachbar-Hex verdrängt, falls eines existiert.
-        const blockingCreature = (gameState.uw.c || []).find(c => c.h > 0 && c.x === t.x1 && c.y === t.y1);
-        if (blockingCreature) {
-            const freeNeighbor = getNeighbors(t.x1, t.y1).find(n =>
-                isUnderworldOpen(gameState, n.x, n.y) &&
-                !gameState.uw.u.some(u => u.x === n.x && u.y === n.y) &&
-                !gameState.uw.c.some(c => c.h > 0 && c.x === n.x && c.y === n.y)
-            );
-            if (freeNeighbor) { blockingCreature.x = freeNeighbor.x; blockingCreature.y = freeNeighbor.y; }
-        }
-    });
+    // Jeder Tunnelkopf (x1,y1) räumt sein Unterwelt-Feld frei — läuft hier
+    // nochmal für ALLE Tunnel (auch noch im Bau, nicht nur t.r <= rn) als
+    // Absicherung für Bestandsspielstände, die die sofortige Räumung beim Bau
+    // (js/input.js) noch nicht kannten. Bei neu gebauten Tunneln ist das Feld
+    // an dieser Stelle bereits geräumt — der Funktionsaufruf ist dann ein No-Op.
+    (gameState.tu || []).forEach(t => clearUnderworldForTunnelHead(gameState, t.x1, t.y1));
 
     gameState.uw.u.forEach((u, idx) => {
         if (u.a === undefined) u.a = 0;
