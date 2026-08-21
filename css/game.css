@@ -1610,10 +1610,30 @@ canvas {
     text-align: left;   /* .screen-box zentriert sonst den Namen im gewachsenen Span */
 }
 
+/* Rating ist die Hauptzahl der Zeile — kräftiger als die Bilanz daneben. */
+#leaderboard-list .lb-rating {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    text-align: right;
+}
+
 #leaderboard-list .lb-wins {
     flex: 0 0 auto;
     color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.8rem;
     text-align: right;
+}
+
+/* Vorläufig: zu wenige gewertete Partien für einen echten Rang. */
+#leaderboard-list .lb-provisional {
+    opacity: 0.62;
+}
+
+#leaderboard-list .lb-provisional .lb-rating {
+    font-weight: 400;
+    font-style: italic;
 }
 
 #leaderboard-list .lb-tag {

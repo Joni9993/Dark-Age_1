@@ -444,7 +444,13 @@ async function refreshLeaderboardPanel() {
 
     const list = document.getElementById('leaderboard-list');
     list.innerHTML = '';
-    rows.forEach((row, i) => {
+
+    // Nur etablierte Spieler bekommen eine Platzziffer — bei vorläufigen ist das
+    // Rating noch zu unsicher für einen echten Rang. Der Server liefert sie
+    // bereits ans Ende sortiert.
+    let rank = 0;
+
+    rows.forEach(row => {
         const isMe = row.id === currentProfile?.id;
         const rel  = relation.get(row.id);
 
@@ -454,12 +460,18 @@ async function refreshLeaderboardPanel() {
         else if (rel === 'pending')   action = '<span class="lb-tag">Angefragt</span>';
         else action = `<button class="action-btn" onclick="addFriendFromLeaderboard('${escHtml(row.username)}')">+ Freund</button>`;
 
+        const rankLabel = row.established ? `#${++rank}` : '–';
+        const ratingTitle = row.established
+            ? `Rating ±${row.rd} · ${row.games_rated} gewertete Partien`
+            : `Vorläufig — zählt ab 5 gewerteten Partien (aktuell ${row.games_rated})`;
+
         const div = document.createElement('div');
-        div.className = 'friend-row';
-        // Name eigener Span → nur er kürzt mit Ellipse, die Siege bleiben immer sichtbar.
-        div.innerHTML = `<span class="lb-rank">#${i + 1}</span>
+        div.className = 'friend-row' + (row.established ? '' : ' lb-provisional');
+        // Name eigener Span → nur er kürzt mit Ellipse, Rating/Bilanz bleiben sichtbar.
+        div.innerHTML = `<span class="lb-rank">${rankLabel}</span>
             <span class="lb-name">${escHtml(row.username)}${isMe ? ' (Du)' : ''}</span>
-            <span class="lb-wins">${row.wins} Siege</span>
+            <span class="lb-rating" title="${escHtml(ratingTitle)}">${row.rating}${row.established ? '' : '?'}</span>
+            <span class="lb-wins" title="Siege / beendete Partien insgesamt">${row.wins}/${row.games}</span>
             ${action}`;
         list.appendChild(div);
     });

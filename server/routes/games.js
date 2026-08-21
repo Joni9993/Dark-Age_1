@@ -2,6 +2,8 @@ const router = require('express').Router();
 const { pool } = require('../db');
 const { authMiddleware } = require('../auth');
 const { notifyPlayer } = require('../push');
+const { rateFinishedGame } = require('../rating');
+const { shuffleSeats } = require('../seating');
 const LZString = require('lz-string');
 
 // Apply server-side eliminations to a parsed state object.
@@ -103,17 +105,75 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // ── POST /api/games/:id/start  — host starts game ────────────────────────────
 router.post('/:id/start', authMiddleware, async (req, res) => {
     const { seed, state_blob } = req.body;
-    const { rows: [game] } = await pool.query(
-        'SELECT * FROM games WHERE id = $1 AND host_id = $2 AND status = $3',
-        [req.params.id, req.profileId, 'lobby']
-    );
-    if (!game) return res.status(403).json({ error: 'Nicht der Host oder Spiel nicht in Lobby' });
 
-    await pool.query(
-        `UPDATE games SET status = 'active', seed = $1, state_blob = $2,
-         current_slot = 0, round = 1, updated_at = NOW() WHERE id = $3`,
-        [seed, state_blob, req.params.id]
-    );
+    // Sitzplätze mischen (Aug 2026). Vorher bekam der Host beim Anlegen fest
+    // Slot 0 und war damit in JEDER Partie zuerst am Zug — in allen 49
+    // auswertbaren 1v1-Partien saß der Host auf Slot 0. Ein Rating würde diesen
+    // strukturellen Vorteil sonst als Spielstärke verbuchen.
+    // Der Client baut state.p[] in Slot-Reihenfolge aus den Spielernamen; alles
+    // Übrige in p[i] (Startdorf, Ressourcen, Team-Zuordnung via `al`) gehört zum
+    // Sitzplatz und nicht zur Person. Es genügt daher, die Namen passend zur
+    // neuen Slot-Belegung mitzutauschen.
+    //
+    // Die Lobby-Prüfung liegt bewusst INNERHALB der Transaktion (FOR UPDATE auf
+    // der games-Zeile): zwei gleichzeitige Start-Klicks würden sonst beide
+    // durchlaufen und die Sitzplätze zweimal permutieren.
+    const client = await pool.connect();
+    let finalBlob = state_blob;
+    try {
+        await client.query('BEGIN');
+
+        const { rows: [game] } = await client.query(
+            `SELECT id FROM games
+              WHERE id = $1 AND host_id = $2 AND status = 'lobby' FOR UPDATE`,
+            [req.params.id, req.profileId]
+        );
+        if (!game) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ error: 'Nicht der Host oder Spiel nicht in Lobby' });
+        }
+
+        const { rows: seats } = await client.query(
+            `SELECT gp.slot, gp.profile_id, p.username
+             FROM game_players gp JOIN profiles p ON p.id = gp.profile_id
+             WHERE gp.game_id = $1 AND gp.profile_id IS NOT NULL
+             ORDER BY gp.slot FOR UPDATE OF gp`,
+            [req.params.id]
+        );
+
+        if (seats.length > 1) {
+            const { blob, assignments } = shuffleSeats(seats, state_blob);
+            finalBlob = blob;
+
+            // Slots umschreiben. Erst aus dem PK-Bereich schieben, sonst kollidiert
+            // PRIMARY KEY (game_id, slot) mitten in der Permutation.
+            const ids = seats.map(s => s.profile_id);
+            await client.query(
+                'UPDATE game_players SET slot = -slot - 1 WHERE game_id = $1 AND profile_id = ANY($2)',
+                [req.params.id, ids]
+            );
+            for (const a of assignments) {
+                await client.query(
+                    'UPDATE game_players SET slot = $1 WHERE game_id = $2 AND profile_id = $3',
+                    [a.slot, req.params.id, a.profile_id]
+                );
+            }
+        }
+
+        await client.query(
+            `UPDATE games SET status = 'active', seed = $1, state_blob = $2,
+             current_slot = 0, round = 1, updated_at = NOW() WHERE id = $3`,
+            [seed, finalBlob, req.params.id]
+        );
+        await client.query('COMMIT');
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Spielstart fehlgeschlagen', req.params.id, err);
+        return res.status(500).json({ error: 'Spielstart fehlgeschlagen' });
+    } finally {
+        client.release();
+    }
+
     res.json({ ok: true });
 });
 
@@ -123,7 +183,7 @@ router.post('/:id/turn', authMiddleware, async (req, res) => {
 
     // Verify it's this player's turn
     const { rows: [row] } = await pool.query(
-        `SELECT g.current_slot, g.name, gp.slot
+        `SELECT g.current_slot, g.name, g.round, gp.slot
          FROM games g JOIN game_players gp ON gp.game_id = g.id
          WHERE g.id = $1 AND gp.profile_id = $2 AND g.status = 'active'`,
         [req.params.id, req.profileId]
@@ -139,9 +199,15 @@ router.post('/:id/turn', authMiddleware, async (req, res) => {
             [req.params.id, eliminated_slots]
         );
         newlyEliminated = rows;
+        // eliminated_round: wer später ausscheidet, steht in der Partie-Rangliste
+        // besser da — daraus macht das Rating aus einer FFA-Partie eine echte
+        // Reihenfolge statt nur "einer gewinnt". COALESCE, damit ein einmal
+        // gesetzter Wert nie überschrieben wird.
         await pool.query(
-            'UPDATE game_players SET eliminated = TRUE WHERE game_id = $1 AND slot = ANY($2)',
-            [req.params.id, eliminated_slots]
+            `UPDATE game_players SET eliminated = TRUE,
+                    eliminated_round = COALESCE(eliminated_round, $3)
+               WHERE game_id = $1 AND slot = ANY($2)`,
+            [req.params.id, eliminated_slots, row.round]
         );
     }
 
@@ -191,6 +257,13 @@ router.post('/:id/turn', authMiddleware, async (req, res) => {
     const url = `${process.env.APP_URL}?game=${req.params.id}`;
 
     if (game_finished) {
+        // Glicko-2-Wertung. Läuft nach dem Schreiben der Eliminierungen, damit
+        // eliminated_round bereits steht. Idempotent (siehe rating.js) und
+        // bewusst fehlertolerant: ein Rating-Problem darf keinen Zug scheitern
+        // lassen.
+        try { await rateFinishedGame(req.params.id); }
+        catch (e) { console.error('Rating fehlgeschlagen für Spiel', req.params.id, e); }
+
         // Notify all other (non-submitter) players — but only the actual
         // winners get "gewonnen". Bugfix (Aug 2026): a Team-/Erschließungs-win
         // ends the game while a losing opponent is still `eliminated = FALSE`
@@ -296,10 +369,20 @@ router.post('/:id/abandon', authMiddleware, async (req, res) => {
         `UPDATE games SET state_blob = $1, current_slot = $2, round = $3, status = $4, winner_slots = $5, updated_at = NOW() WHERE id = $6`,
         [newBlob, nextSlot, nextRound, newStatus, winnerSlots, req.params.id]
     );
+    // left_game zählt im Rating als Niederlage gegen alle Mitspieler — bei
+    // Async-Partien über Wochen wäre "aussteigen, um das Rating zu retten" sonst
+    // die beste Strategie (siehe rankOf in rating.js).
     await pool.query(
-        'UPDATE game_players SET eliminated = TRUE, left_game = TRUE WHERE game_id = $1 AND profile_id = $2',
-        [req.params.id, req.profileId]
+        `UPDATE game_players SET eliminated = TRUE, left_game = TRUE,
+                eliminated_round = COALESCE(eliminated_round, $3)
+           WHERE game_id = $1 AND profile_id = $2`,
+        [req.params.id, req.profileId, playerRow.round]
     );
+
+    if (gameFinished) {
+        try { await rateFinishedGame(req.params.id); }
+        catch (e) { console.error('Rating fehlgeschlagen für Spiel', req.params.id, e); }
+    }
 
     const abandoningName = state.p[slot].n;
     const url = `${process.env.APP_URL}?game=${req.params.id}`;

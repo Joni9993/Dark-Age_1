@@ -89,6 +89,42 @@ async function initSchema() {
             auth       TEXT NOT NULL,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );
+
+        -- ── Glicko-2 Rating (Aug 2026) ───────────────────────────────────────
+        -- Ersetzt die reine Siegzählung im Leaderboard. Die Spalten auf profiles
+        -- sind nur ein Cache: maßgeblich ist rating_history, aus der sich der
+        -- komplette Stand jederzeit neu berechnen lässt (server/rating.js).
+        ALTER TABLE profiles ADD COLUMN IF NOT EXISTS rating        REAL NOT NULL DEFAULT 1500;
+        ALTER TABLE profiles ADD COLUMN IF NOT EXISTS rd            REAL NOT NULL DEFAULT 350;
+        ALTER TABLE profiles ADD COLUMN IF NOT EXISTS volatility    REAL NOT NULL DEFAULT 0.06;
+        ALTER TABLE profiles ADD COLUMN IF NOT EXISTS games_rated   INT  NOT NULL DEFAULT 0;
+        ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_rated_at TIMESTAMPTZ;
+
+        -- Runde, in der ein Spieler ausgeschieden ist. Macht aus einer FFA-Partie
+        -- eine vollständige Rangliste statt nur "einer gewinnt, Rest gleich" —
+        -- NULL heißt "bis zum Schluss dabei" (oder Partie von vor dieser Änderung).
+        ALTER TABLE game_players ADD COLUMN IF NOT EXISTS eliminated_round INT;
+
+        CREATE TABLE IF NOT EXISTS rating_history (
+            id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            game_id           UUID REFERENCES games(id)    ON DELETE CASCADE,
+            profile_id        UUID REFERENCES profiles(id) ON DELETE CASCADE,
+            rating_before     REAL,
+            rating_after      REAL,
+            rd_before         REAL,
+            rd_after          REAL,
+            volatility_before REAL,
+            volatility_after  REAL,
+            score             REAL,     -- erzielter gewichteter Punkteanteil
+            opponents         INT,
+            won               BOOLEAN,
+            created_at        TIMESTAMPTZ DEFAULT NOW(),
+            -- doppelte Wertung derselben Partie ausgeschlossen (Idempotenz)
+            UNIQUE (game_id, profile_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS rating_history_profile_idx
+            ON rating_history (profile_id, created_at DESC);
     `);
     console.log('DB schema ready.');
 }

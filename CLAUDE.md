@@ -38,7 +38,7 @@ Both load the real `js/mapgen.js` via `maptest/load_game.js` — no logic copies
 
 **Art editor**: `editor.html` (open directly in a browser) edits the `NEW_*` dataset — pixel sprites, 3D voxel models (layer-by-layer with onion skin), palette, player colors, terrain colors — with live 2D/3D previews. Work autosaves to localStorage; "art.js herunterladen" generates a complete replacement `js/art.js` containing the edited `NEW_*` block, the untouched `CLASSIC_*` block (passed through verbatim from the currently loaded globals — the editor never touches it), and the `DEBUG_ART` switch (round-trip and classic-passthrough both verified by test). Prefer changing pixels in the editor over hand-editing art.js.
 
-**Backend** (`server/`): Node.js + Express + PostgreSQL. Serves the frontend statically and the API under `/api/*` on the same port. JWT auth (localStorage, `js/api.js`), friends system, lobby with invite tokens, Web Push notifications (VAPID, `sw.js` — push only, no asset caching).
+**Backend** (`server/`): Node.js + Express + PostgreSQL. Serves the frontend statically and the API under `/api/*` on the same port. JWT auth (localStorage, `js/api.js`), friends system, lobby with invite tokens, Web Push notifications (VAPID, `sw.js` — push only, no asset caching), Glicko-2 player rating (`server/rating.js`, see *Rating & Leaderboard* below) and randomized seat assignment at game start (`server/seating.js`).
 
 **Server-based async multiplayer**: The full game state is JSON-serialized, LZ-compressed, and stored as `state_blob` on the server per turn (`POST /api/games/:id/turn`, see `submitTurnToServer` in `js/input.js`). Opponents load the blob when opening the game; lobbies poll via `setInterval` (`js/lobby.js`). Only the active player may interact (`currentTurnSlot === currentUserSlot`); everyone else is read-only/spectator.
 
@@ -121,6 +121,15 @@ All other bands are measured from the start village as before. Placement uses ca
 **Combat flow** (`js/input.js`): attack → damage → counter-attack after 600 ms `setTimeout` if the target survives and has the attacker in range → melee killers advance onto the target hex. Veterancy at 2 kills (+1 dmg).
 
 **Fog of war**: per player as compressed hex string (`compressFog`/`decompressFog`, `js/prng.js`). `getVisibleHexes` computes live vision (units, villages, towers, central watchtower); `updateExploration` persists it.
+
+**Rating & Leaderboard** (`server/rating.js`, Aug 2026): the leaderboard ranks by a **Glicko-2** rating instead of raw win counts. Glicko-2 rather than plain Elo because the player base is small and very unevenly active (one player with ~50 games, the median at 1–5) — plain Elo would give a one-game player a number that looks as authoritative as a veteran's. Glicko-2 additionally tracks an uncertainty (RD): few games → high RD → shown as *provisional* and sorted after established players (`PROVISIONAL_GAMES = 5`); inactivity re-inflates RD instead of freezing a stale value forever. To players it still looks like Elo — one number around 1500.
+
+- **Ratings are a pure function of game history.** `rating_history` holds every step; the columns on `profiles` are only a cache. `server/scripts/rebuild-ratings.js` replays everything (milliseconds at this data volume), so parameter changes are never a one-way door.
+- **No backfill** (decision Aug 2026): `RATING_EPOCH` in `rating.js` gates which games count — everyone starts at 1500 and the 63 pre-existing games stay unrated but untouched in the DB. Set the epoch back and rebuild to include them.
+- **Multiplayer/teams** are decomposed pairwise: `winner_slots` is the winning group, losers are ranked among themselves by `game_players.eliminated_round` (later elimination = better). Teammates in fixed-team games (`state.at === 1`, allies in `p[i].al`) are not scored against each other. Each pairing is weighted `1/opponents` so one N-player game carries one game's worth of information, not N−1.
+- **Abandoning (`left_game`) counts as a loss** against everyone — with async games running for weeks, quitting to protect a rating would otherwise be the dominant strategy.
+- **Seats are shuffled at game start** (`server/seating.js`). The host used to get slot 0 permanently and slot 0 always moves first — in all 49 resolvable 1v1 games the host sat on slot 0, a structural edge a rating would otherwise book as skill. Only the display name `p[i].n` follows the player; everything else in `state.p[i]` (`sv`, `e`, resources, `al`) belongs to the seat and stays put.
+- Tests: `node server/scripts/test-rating.js` (Glicko-2 vs. Glickman's reference example + the game→pairings translation) and `node server/scripts/test-seating.js` (name↔slot invariant). No DB needed for either.
 
 **Rendering entry point**: `renderBoard(gameState)` → active renderer. Rendering is event-driven (after actions), not per-frame; animation loops run only while animations are active.
 
