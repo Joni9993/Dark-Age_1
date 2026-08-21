@@ -70,17 +70,21 @@
     // spiegelsymmetrisch ist (180°-Rotation ergibt dasselbe Bild).
     function wallDirAngle(dx, dz) { return Math.atan2(-dz, dx); }
 
-    // Rotation eines Mauer-Hex, ausgerichtet auf seine Mauer-Nachbarn, damit
+    // Rotation eines Mauer-Hex, ausgerichtet auf seine Anschluss-Nachbarn, damit
     // aneinandergrenzende Mauersegmente sich optisch verbinden statt isoliert
     // dazustehen. Bei mehreren Nachbarn wird der Achsen-Mittelwert (doppelter
     // Winkel, um die π-Symmetrie sauber zu mitteln) verwendet — bei einer
     // geraden Linie ergibt das exakt die Verbindungsrichtung, bei einer Ecke
     // einen Kompromisswinkel zwischen beiden (kein eigenes Eck-Modell vorhanden).
-    function computeWallRotation(x, y, wallSet) {
+    // `anchorSet` enthält neben Mauern auch Türme (Spielerwunsch Aug 2026: Mauern
+    // sollen sichtbar an Türme "angebaut" wirken). Die Ausrichtung ist bewusst
+    // einseitig — nur Mauern drehen sich, Türme bleiben weltfest stehen, sonst
+    // würde ein Turm je nach Anbaurichtung schief in der Landschaft hängen.
+    function computeWallRotation(x, y, anchorSet) {
         const { wx, wz } = worldPos(x, y);
         let sx = 0, sz = 0, count = 0;
         getNeighbors(x, y).forEach(n => {
-            if (!wallSet.has(`${n.x},${n.y}`)) return;
+            if (!anchorSet.has(`${n.x},${n.y}`)) return;
             const p = worldPos(n.x, n.y);
             const a = wallDirAngle(p.wx - wx, p.wz - wz);
             sx += Math.cos(2 * a); sz += Math.sin(2 * a); count++;
@@ -1286,9 +1290,11 @@
                 });
             });
             if (state.wa) {
-                const wallSet = new Set(state.wa.map(w => `${w.x},${w.y}`));
+                // Anschlusspunkte für die Mauerausrichtung: andere Mauern + stehende Türme.
+                const anchorSet = new Set(state.wa.map(w => `${w.x},${w.y}`));
+                if (state.tw) state.tw.forEach(tw => { if (tw.h > 0) anchorSet.add(`${tw.x},${tw.y}`); });
                 state.wa.forEach(w => {
-                    if (vis.has(`${w.x},${w.y}`)) entities.push({ x: w.x, y: w.y, spriteKey: 'wall', ownerId: w.o, hp: w.h, maxHp: getWallMaxHp(state.p[w.o]), bn: w.bn, rot: computeWallRotation(w.x, w.y, wallSet) });
+                    if (vis.has(`${w.x},${w.y}`)) entities.push({ x: w.x, y: w.y, spriteKey: 'wall', ownerId: w.o, hp: w.h, maxHp: getWallMaxHp(state.p[w.o]), bn: w.bn, rot: computeWallRotation(w.x, w.y, anchorSet) });
                 });
             }
             if (state.st) state.st.forEach(s => {
