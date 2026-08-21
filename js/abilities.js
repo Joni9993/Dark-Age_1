@@ -22,6 +22,7 @@ window.useAbility = function (type) {
                     if (gameState.p[i].sh <= 0) {
                         gameState.p[i].dead = 1;
                         gameState.u = gameState.u.filter(u => u.p !== i);
+                        if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(u => u.p !== i);
                         gameState.v[`${vx},${vy}`] = gameState.cp;
                     }
                 }
@@ -146,6 +147,7 @@ window.useAbility = function (type) {
                     if (gameState.p[i].sh <= 0) {
                         gameState.p[i].dead = 1;
                         gameState.u = gameState.u.filter(un => un.p !== i);
+                        if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(un => un.p !== i);
                         gameState.v[`${t.x},${t.y}`] = gameState.cp;
                     }
                 }
@@ -335,6 +337,7 @@ window.useAbility = function (type) {
                     if (gameState.p[i].sh <= 0) {
                         gameState.p[i].dead = 1;
                         gameState.u = gameState.u.filter(un => un.p !== i);
+                        if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(un => un.p !== i);
                         gameState.v[`${t.x},${t.y}`] = i === gameState.cp ? -1 : gameState.cp;
                     } else {
                         gameState.p[i].bn = fsDmg; gameState.p[i].bo = gameState.cp;

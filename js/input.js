@@ -103,6 +103,7 @@ function handleCanvasClick(clientX, clientY) {
                         if (gameState.p[targetBuildingOwner].sh <= 0) {
                             gameState.p[targetBuildingOwner].dead = 1;
                             gameState.u = gameState.u.filter(u => u.p !== targetBuildingOwner);
+                            if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(u => u.p !== targetBuildingOwner);
                             gameState.v[`${clickedX},${clickedY}`] = gameState.cp;
                             infoPanel.innerHTML = `💀 HAUPTGEBÄUDE ZERSTÖRT! ${gameState.p[targetBuildingOwner].n} ist ausgeschieden!`;
                         } else infoPanel.innerHTML = `🗼 Turm feuert auf Hauptgebäude! (-5 HP)`;
@@ -271,7 +272,7 @@ function handleCanvasClick(clientX, clientY) {
                         if (i !== gameState.cp && gameState.p[i].dead === 0 && canAttack(i) && gameState.p[i].sv === `${ph.x},${ph.y}`) {
                             gameState.p[i].sh -= 5;
                             spawnFloatingText(ph.x, ph.y, "-5", "#ff5252");
-                            if (gameState.p[i].sh <= 0) { gameState.p[i].dead = 1; gameState.u = gameState.u.filter(un => un.p !== i); gameState.v[`${ph.x},${ph.y}`] = gameState.cp; }
+                            if (gameState.p[i].sh <= 0) { gameState.p[i].dead = 1; gameState.u = gameState.u.filter(un => un.p !== i); if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(un => un.p !== i); gameState.v[`${ph.x},${ph.y}`] = gameState.cp; }
                         }
                     }
                     if (gameState.wa) {
@@ -322,6 +323,7 @@ function handleCanvasClick(clientX, clientY) {
                         if (gameState.p[i].sh <= 0) {
                             gameState.p[i].dead = 1;
                             gameState.u = gameState.u.filter(un => un.p !== i);
+                            if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(un => un.p !== i);
                             gameState.v[`${t.x},${t.y}`] = gameState.cp;
                         }
                     }
@@ -467,6 +469,7 @@ function handleCanvasClick(clientX, clientY) {
                             if (gameState.p[i].sh <= 0) {
                                 gameState.p[i].dead = 1;
                                 gameState.u = gameState.u.filter(un => un.p !== i);
+                                if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(un => un.p !== i);
                                 gameState.v[`${clickedX},${clickedY}`] = gameState.cp;
                             }
                         }
@@ -1181,6 +1184,7 @@ function executeAttackOnTarget(clickedX, clickedY, targetAttack) {
                 if (gameState.p[targetAttack.owner].sh <= 0) {
                     gameState.p[targetAttack.owner].dead = 1;
                     gameState.u = gameState.u.filter(u => u.p !== targetAttack.owner);
+                    if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(u => u.p !== targetAttack.owner);
                     gameState.v[`${clickedX},${clickedY}`] = gameState.cp;
                     infoPanel.innerHTML = `💀 HAUPTGEBÄUDE ZERSTÖRT!\n${gameState.p[targetAttack.owner].n} ist ausgeschieden!`;
                 } else {
@@ -2503,6 +2507,7 @@ function doEndTurn() {
             if (p.sh <= 0) {
                 p.dead = 1;
                 gameState.u = gameState.u.filter(un => un.p !== i);
+                if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(un => un.p !== i);
                 gameState.v[p.sv] = -1; // ausgebranntes Hauptdorf wird neutral
             }
         }
