@@ -149,15 +149,22 @@ function handleCanvasClick(clientX, clientY) {
                 window.specialActive = 'tunnel_step2';
                 validMoves = [];
                 const explored = pState.e || [];
+                // Max. Tunnellänge ab Startpunkt, skaliert mit der Kartengröße (Korrektur
+                // August 2026, "Tunnel zu stark"): verhindert Fern-Teleports quer über die
+                // ganze Karte, die den ausbauenden Trupp nie in Reichweite des Gegners
+                // bringen mussten (Bogen=2/Tribok=3 Reichweite als untere Referenz, 3 als
+                // Boden für die kleinste Karte).
+                const maxTunnelLen = Math.max(3, Math.round(gameState.rad * 0.6));
                 for (let y = 0; y < gameState.bh; y++) {
                     for (let x = 0; x < gameState.bw; x++) {
-                        if (isInsideMap(gameState, x, y) && (x !== clickedX || y !== clickedY)) {
+                        if (isInsideMap(gameState, x, y) && (x !== clickedX || y !== clickedY) &&
+                            hexDistance({ x: clickedX, y: clickedY }, { x, y }) <= maxTunnelLen) {
                             const idx = y * gameState.bw + x;
                             if (explored.includes(idx)) validMoves.push({ x, y });
                         }
                     }
                 }
-                infoPanel.innerHTML = `🚇 Tunnel Endpunkt<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein beliebiges, bereits entdecktes Feld. Bei feindlicher Besatzung schlägt der Versuch fehl.</div>`;
+                infoPanel.innerHTML = `🚇 Tunnel Endpunkt<br><div class="info-detail" style="color: #4fc3f7;">Wähle ein bereits entdecktes Feld (max. ${maxTunnelLen} Felder entfernt). Bei feindlicher Besatzung schlägt der Versuch fehl.</div>`;
                 renderBoard(gameState);
             } else {
                 window.specialActive = null; selectedUnit = null; validMoves = []; window.tunnelStart = null; renderBoard(gameState);
@@ -187,7 +194,7 @@ function handleCanvasClick(clientX, clientY) {
                 gameState.tu.push({
                     x1: window.tunnelStart.x, y1: window.tunnelStart.y,
                     x2: clickedX, y2: clickedY,
-                    r: gameState.rn + 1, o: gameState.cp, h: 13
+                    r: gameState.rn + 1, o: gameState.cp, h: 8
                 });
                 // Unterwelt-Feld unter dem neuen Tunnelkopf sofort leeren, nicht erst
                 // wenn der Tunnel nächste Runde fertig ist (Spielerfeedback, s.

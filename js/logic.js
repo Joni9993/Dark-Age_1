@@ -122,7 +122,7 @@ const getExpectedDamage = (attackerUnit, targetType, targetOwnerId, targetUnit) 
         else if (targetType === 'building') targetMaxHp = getVillageMaxHp(gameState.p[targetOwnerId]);
         else if (targetType === 'tower') targetMaxHp = getTowerMaxHp(gameState.p[targetOwnerId]);
         else if (targetType === 'wall') targetMaxHp = getWallMaxHp(gameState.p[targetOwnerId]);
-        else if (targetType === 'tunnel') targetMaxHp = 13;
+        else if (targetType === 'tunnel') targetMaxHp = 8;
         dmg += Math.max(1, Math.round(targetMaxHp * 0.2));
     }
     if (attackerUnit.t === 9 && (targetType === 'building' || targetType === 'tunnel' || targetType === 'wall' || targetType === 'tower') && pState.u.includes(10)) dmg += 5;

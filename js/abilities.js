@@ -567,7 +567,7 @@ function handleRelicTargetClick(clickedX, clickedY, underworld) {
     let ok = false;
     if (wall) ok = applyRelicToBuilding(gameState, gameState.cp, wall, getWallMaxHp(pState));
     else if (tower) ok = applyRelicToBuilding(gameState, gameState.cp, tower, getTowerMaxHp(pState));
-    else if (tunnelEnd) ok = applyRelicToBuilding(gameState, gameState.cp, tunnelEnd, 13);
+    else if (tunnelEnd) ok = applyRelicToBuilding(gameState, gameState.cp, tunnelEnd, 8);
     else ok = applyRelicToBuilding(gameState, gameState.cp, gameState.p[gameState.cp], undefined);
     if (ok) { showToast('🔧 Bauwerk repariert!', 'gold'); turnActions.push({ x: clickedX, y: clickedY, t: 'relicuse' }); }
     renderBoard(gameState); updateUI();
