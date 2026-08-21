@@ -112,7 +112,6 @@ const getExpectedDamage = (attackerUnit, targetType, targetOwnerId, targetUnit) 
     let dmg = stats.dmg;
 
     if (pState.f.includes(1) && stats.isMelee) dmg += 1;
-    if (attackerUnit.t === 4 && (targetType === 'building' || targetType === 'tunnel') && pState.u.includes(3)) dmg += 3;
     if (attackerUnit.t === 1 && pState.u.includes(4)) dmg += 1;
     if (attackerUnit.t === 5 && pState.u.includes(5)) dmg += 1;
     if (attackerUnit.t === 6 && pState.u.includes(7)) {

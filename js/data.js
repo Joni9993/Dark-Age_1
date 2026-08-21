@@ -16,7 +16,7 @@ const upgrades = {
     0: { fac: 0, t: 1, name: "Plattenpanzer", desc: "Basis-Schwerter erhalten +5 Max HP.", g: 0, m: 7 },
     1: { fac: 0, t: 2, name: "Waffenmeister", desc: "Neu rekrutierte Einheiten starten bereits als Veteran (+1 DMG).", g: 0, m: 7 },
     2: { fac: 1, t: 1, name: "Kopfgeld", desc: "+2 Gold für jeden Kill.", g: 0, m: 7 },
-    3: { fac: 1, t: 2, name: "Brandschatzer", desc: "Berserker machen +3 DMG gegen Hauptgebäude & Tunnel.", g: 0, m: 7 },
+    3: { fac: 1, t: 2, name: "Lebensraub", desc: "Berserker heilen 50% des verursachten Schadens (abgerundet) — beim Angreifen wie beim Zurückschlagen.", g: 0, m: 7 },
     4: { fac: 2, t: 1, name: "Spähbogen", desc: "Bogenschützen erhalten +1 Schaden.", g: 0, m: 7 },
     5: { fac: 2, t: 2, name: "Schattenläufer", desc: "Assassinen erhalten +1 Bewegung und +1 Schaden.", g: 0, m: 7 },
     6: { fac: 3, t: 1, name: "Söldner-Verträge", desc: "Schwert, Bogen & Pferd kosten -1 Gold.", g: 0, m: 7 },

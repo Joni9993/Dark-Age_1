@@ -1163,6 +1163,17 @@ function executeAttackOnTarget(clickedX, clickedY, targetAttack) {
             const atkType = isIgnite ? 'fire' : (unitStats[selectedUnit.t].isMelee ? 'slash' : 'arrow');
             spawnAttackAnim(selectedUnit.x, selectedUnit.y, clickedX, clickedY, atkType);
 
+            // Lebensraub (Upgrade 3): Berserker heilen 50% des verursachten Schadens,
+            // sowohl beim eigenen Angriff (hier) als auch beim Zurückschlagen (Konter unten).
+            if (selectedUnit.t === 4 && pState.u.includes(3)) {
+                const healAmt = Math.floor(finalDmg / 2);
+                if (healAmt > 0) {
+                    const atkMaxHp = getUnitMaxHp(pState, selectedUnit.t, selectedUnit);
+                    selectedUnit.h = Math.min(atkMaxHp, selectedUnit.h + healAmt);
+                    spawnFloatingText(selectedUnit.x, selectedUnit.y, `+${healAmt}`, "#69f0ae");
+                }
+            }
+
             if (targetAttack.isBuilding) {
                 gameState.p[targetAttack.owner].sh -= finalDmg;
                 spawnFloatingText(targetAttack.x, targetAttack.y, `-${finalDmg}`, "#ff5252");
@@ -1238,6 +1249,15 @@ function executeAttackOnTarget(clickedX, clickedY, targetAttack) {
                                 spawnAttackAnim(clickedX, clickedY, attackerUnit.x, attackerUnit.y, retAtkType);
                                 attackerUnit.h -= retDmg;
                                 spawnFloatingText(attackerUnit.x, attackerUnit.y, `-${retDmg}`, "#ff5252");
+                                // Lebensraub (Upgrade 3): gilt auch beim Zurückschlagen des Berserkers.
+                                if (targetAttack.target.t === 4 && gameState.p[targetAttack.target.p].u.includes(3)) {
+                                    const retHeal = Math.floor(retDmg / 2);
+                                    if (retHeal > 0) {
+                                        const defMaxHp = getUnitMaxHp(gameState.p[targetAttack.target.p], targetAttack.target.t, targetAttack.target);
+                                        targetAttack.target.h = Math.min(defMaxHp, targetAttack.target.h + retHeal);
+                                        spawnFloatingText(targetAttack.target.x, targetAttack.target.y, `+${retHeal}`, "#69f0ae");
+                                    }
+                                }
                                 if (attackerUnit.h <= 0) {
                                     gameState.u = gameState.u.filter(u => u.i !== attackerUnit.i);
                                     infoPanel.innerHTML += `<br>Deine Einheit wurde im Gegenangriff besiegt!`;
@@ -1350,7 +1370,7 @@ function executeMoveTo(clickedX, clickedY) {
 
             let hasAbilities = false;
             if (selectedUnit.t === 3 && pState.m >= 3) hasAbilities = true;
-            if (selectedUnit.t === 4 && selectedUnit.a === 1 && !selectedUnit.br && !selectedUnit.nb && pState.m >= 2) hasAbilities = true;
+            if (selectedUnit.t === 4 && selectedUnit.a === 1 && !selectedUnit.br && !selectedUnit.nb && pState.m >= 3) hasAbilities = true;
             if (selectedUnit.t === 5 && !selectedUnit.iv && !selectedUnit.cd && pState.m >= 2) hasAbilities = true;
             if (selectedUnit.t === 6 && pState.m >= 4) hasAbilities = true;
             if (selectedUnit.t === 7) {
@@ -1636,8 +1656,8 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                 else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🌀 Rundumschlag (3🪵)</button>`;
             }
             if (clickedUnit.t === 4 && clickedUnit.a === 1 && !clickedUnit.nb) {
-                if (pState.m >= 2 && !clickedUnit.br) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #e53935;" onclick="useAbility('berserker')">🩸 Blutrausch (2🪵)</button>`;
-                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🩸 Blutrausch (2🪵)</button>`;
+                if (pState.m >= 3 && !clickedUnit.br) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #e53935;" onclick="useAbility('berserker')">🩸 Blutrausch (3🪵)</button>`;
+                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🩸 Blutrausch (3🪵)</button>`;
             }
             if (clickedUnit.t === 5 && !clickedUnit.iv && !clickedUnit.cd) {
                 if (pState.m >= 2) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #43a047;" onclick="useAbility('assassine')">🌫️ Tarnung (2🪵)</button>`;
@@ -2200,7 +2220,7 @@ function hasRemainingActions() {
         // Ritter: Rundumschlag
         if (unit.t === 3 && !unit.a && pState.m >= 3) return true;
         // Berserker: Blutrausch (noch nicht used)
-        if (unit.t === 4 && !unit.a && pState.m >= 2) return true;
+        if (unit.t === 4 && !unit.a && pState.m >= 3) return true;
         // Tribok: Spezial
         if (unit.t === 6 && !unit.a && pState.m >= 3) return true;
         // Elefant: Stampede

@@ -45,7 +45,7 @@ window.useAbility = function (type) {
         renderBoard(gameState);
     }
     else if (type === 'berserker') {
-        pState.m -= 2;
+        pState.m -= 3;
         selectedUnit.a = 0;
         selectedUnit.br = 1;
         validMoves = calculateMoves(selectedUnit); validAttacks = calculateAttacks(selectedUnit);
