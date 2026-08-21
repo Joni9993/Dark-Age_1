@@ -1693,9 +1693,10 @@ function applyMoralCollapse(state, playerId) {
 
 // === DER HERZ-SIEG: ERSCHLIESSUNG (M12, PLAN.md Abschn. 8) ===
 // Anzahl der eigenen Zugenden, die die Bedingung ununterbrochen halten muss
-// (Korrektur Juli 2026: 4 -> 5, einzige Stelle, die diese Zahl definiert —
-// js/input.js/js/ui.js/js/debug.js lesen sie von hier statt sie zu duplizieren).
-const ERSCHLIESSUNG_TARGET = 5;
+// (Korrektur Juli 2026: 4 -> 5; Korrektur August 2026: 5 -> 3, einzige Stelle,
+// die diese Zahl definiert — js/input.js/js/ui.js/js/debug.js lesen sie von
+// hier statt sie zu duplizieren).
+const ERSCHLIESSUNG_TARGET = 3;
 
 // Bedingung an EINEM Zugende: Wurm tot, eigene Einheit exakt im Herzkaverne-
 // ZENTRUM, keine nicht-verbündete fremde Tiefeneinheit irgendwo in der ganzen
