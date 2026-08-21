@@ -101,11 +101,9 @@ function handleCanvasClick(clientX, clientY) {
                     } else if (targetBuildingOwner >= 0) {
                         gameState.p[targetBuildingOwner].sh -= 5;
                         if (gameState.p[targetBuildingOwner].sh <= 0) {
-                            gameState.p[targetBuildingOwner].dead = 1;
-                            gameState.u = gameState.u.filter(u => u.p !== targetBuildingOwner);
-                            if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(u => u.p !== targetBuildingOwner);
-                            gameState.v[`${clickedX},${clickedY}`] = gameState.cp;
-                            infoPanel.innerHTML = `💀 HAUPTGEBÄUDE ZERSTÖRT! ${gameState.p[targetBuildingOwner].n} ist ausgeschieden!`;
+                            const deadName = gameState.p[targetBuildingOwner].n;
+                            killPlayer(gameState, targetBuildingOwner, gameState.cp);
+                            infoPanel.innerHTML = `💀 HAUPTGEBÄUDE ZERSTÖRT! ${deadName} ist ausgeschieden!`;
                         } else infoPanel.innerHTML = `🗼 Turm feuert auf Hauptgebäude! (-5 HP)`;
                     }
                     t.a = 1;
@@ -279,7 +277,7 @@ function handleCanvasClick(clientX, clientY) {
                         if (i !== gameState.cp && gameState.p[i].dead === 0 && canAttack(i) && gameState.p[i].sv === `${ph.x},${ph.y}`) {
                             gameState.p[i].sh -= 5;
                             spawnFloatingText(ph.x, ph.y, "-5", "#ff5252");
-                            if (gameState.p[i].sh <= 0) { gameState.p[i].dead = 1; gameState.u = gameState.u.filter(un => un.p !== i); if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(un => un.p !== i); gameState.v[`${ph.x},${ph.y}`] = gameState.cp; }
+                            if (gameState.p[i].sh <= 0) killPlayer(gameState, i, gameState.cp);
                         }
                     }
                     if (gameState.wa) {
@@ -327,12 +325,7 @@ function handleCanvasClick(clientX, clientY) {
                 for (let i = 0; i < gameState.p.length; i++) {
                     if (i !== gameState.cp && gameState.p[i].dead === 0 && canAttack(i) && gameState.p[i].sv === `${t.x},${t.y}`) {
                         gameState.p[i].sh -= t.dmg; spawnFloatingText(t.x, t.y, `-${t.dmg}`, "#ff5252");
-                        if (gameState.p[i].sh <= 0) {
-                            gameState.p[i].dead = 1;
-                            gameState.u = gameState.u.filter(un => un.p !== i);
-                            if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(un => un.p !== i);
-                            gameState.v[`${t.x},${t.y}`] = gameState.cp;
-                        }
+                        if (gameState.p[i].sh <= 0) killPlayer(gameState, i, gameState.cp);
                     }
                 }
 
@@ -473,12 +466,7 @@ function handleCanvasClick(clientX, clientY) {
                     for (let i = 0; i < gameState.p.length && !done; i++) {
                         if (i !== gameState.cp && gameState.p[i].dead === 0 && canAttack(i) && gameState.p[i].sv === `${clickedX},${clickedY}`) {
                             gameState.p[i].sh -= 9; done = true;
-                            if (gameState.p[i].sh <= 0) {
-                                gameState.p[i].dead = 1;
-                                gameState.u = gameState.u.filter(un => un.p !== i);
-                                if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(un => un.p !== i);
-                                gameState.v[`${clickedX},${clickedY}`] = gameState.cp;
-                            }
+                            if (gameState.p[i].sh <= 0) killPlayer(gameState, i, gameState.cp);
                         }
                     }
                     if (!done && gameState.tw) {
@@ -1189,11 +1177,9 @@ function executeAttackOnTarget(clickedX, clickedY, targetAttack) {
                 spawnFloatingText(targetAttack.x, targetAttack.y, `-${finalDmg}`, "#ff5252");
 
                 if (gameState.p[targetAttack.owner].sh <= 0) {
-                    gameState.p[targetAttack.owner].dead = 1;
-                    gameState.u = gameState.u.filter(u => u.p !== targetAttack.owner);
-                    if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(u => u.p !== targetAttack.owner);
-                    gameState.v[`${clickedX},${clickedY}`] = gameState.cp;
-                    infoPanel.innerHTML = `💀 HAUPTGEBÄUDE ZERSTÖRT!\n${gameState.p[targetAttack.owner].n} ist ausgeschieden!`;
+                    const deadName = gameState.p[targetAttack.owner].n;
+                    killPlayer(gameState, targetAttack.owner, gameState.cp);
+                    infoPanel.innerHTML = `💀 HAUPTGEBÄUDE ZERSTÖRT!\n${deadName} ist ausgeschieden!`;
                 } else {
                     if (isIgnite) { gameState.p[targetAttack.owner].bn = finalDmg; gameState.p[targetAttack.owner].bo = gameState.cp; }
                     infoPanel.innerHTML = isIgnite ? `🔥 Hauptgebäude brennt! (-${finalDmg} HP, brennt weiter)` : `Hauptgebäude angegriffen! (-${finalDmg} HP)`;
@@ -2025,13 +2011,7 @@ function confirmSurrender() {
     const surrenderingId = gameState.cp;
     const surrenderingName = gameState.p[surrenderingId].n;
 
-    gameState.p[surrenderingId].dead = 1;
-    gameState.u = gameState.u.filter(u => u.p !== surrenderingId);
-    if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(u => u.p !== surrenderingId);
-
-    Object.keys(gameState.v).forEach(k => {
-        if (gameState.v[k] === surrenderingId) gameState.v[k] = -1;
-    });
+    killPlayer(gameState, surrenderingId);
 
     // Siehe doEndTurn: uw.n wird durch die Marker des gerade beendeten (hier:
     // abgebrochenen) Zugs ersetzt.
@@ -2506,16 +2486,14 @@ function doEndTurn() {
 
     gameState.p.forEach((p, i) => {
         if (p.dead === 1) return;
+        const igniter = p.bo;
         const dmg = resolveBurnTick(p, i);
         if (dmg > 0) {
             p.sh -= dmg;
             const [svx, svy] = p.sv.split(',').map(Number);
             burnFloats.push({ x: svx, y: svy, val: dmg });
             if (p.sh <= 0) {
-                p.dead = 1;
-                gameState.u = gameState.u.filter(un => un.p !== i);
-                if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(un => un.p !== i);
-                gameState.v[p.sv] = -1; // ausgebranntes Hauptdorf wird neutral
+                killPlayer(gameState, i, igniter); // Hauptdorf geht an den Verursacher des Brands, Rest wird neutral
             }
         }
     });

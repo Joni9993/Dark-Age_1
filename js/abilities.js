@@ -19,12 +19,7 @@ window.useAbility = function (type) {
                 let [vx, vy] = gameState.p[i].sv.split(',').map(Number);
                 if (hexDistance({ x: vx, y: vy }, { x: selectedUnit.x, y: selectedUnit.y }) <= 1) {
                     gameState.p[i].sh -= 4; spawnFloatingText(vx, vy, "-4", "#ff5252"); dmgDone = true;
-                    if (gameState.p[i].sh <= 0) {
-                        gameState.p[i].dead = 1;
-                        gameState.u = gameState.u.filter(u => u.p !== i);
-                        if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(u => u.p !== i);
-                        gameState.v[`${vx},${vy}`] = gameState.cp;
-                    }
+                    if (gameState.p[i].sh <= 0) killPlayer(gameState, i, gameState.cp);
                 }
             }
         }
@@ -144,12 +139,7 @@ window.useAbility = function (type) {
                 if (gameState.p[i].dead === 0 && gameState.p[i].sv === `${t.x},${t.y}`) {
                     gameState.p[i].sh -= detDmg;
                     spawnFloatingText(t.x, t.y, `-${detDmg}`, "#ff5252");
-                    if (gameState.p[i].sh <= 0) {
-                        gameState.p[i].dead = 1;
-                        gameState.u = gameState.u.filter(un => un.p !== i);
-                        if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(un => un.p !== i);
-                        gameState.v[`${t.x},${t.y}`] = gameState.cp;
-                    }
+                    if (gameState.p[i].sh <= 0) killPlayer(gameState, i, gameState.cp);
                 }
             }
 
@@ -335,10 +325,7 @@ window.useAbility = function (type) {
                     gameState.p[i].sh -= fsDmg;
                     spawnFloatingText(t.x, t.y, `-${fsDmg}`, "#ff5252");
                     if (gameState.p[i].sh <= 0) {
-                        gameState.p[i].dead = 1;
-                        gameState.u = gameState.u.filter(un => un.p !== i);
-                        if (gameState.uw) gameState.uw.u = (gameState.uw.u || []).filter(un => un.p !== i);
-                        gameState.v[`${t.x},${t.y}`] = i === gameState.cp ? -1 : gameState.cp;
+                        killPlayer(gameState, i, gameState.cp);
                     } else {
                         gameState.p[i].bn = fsDmg; gameState.p[i].bo = gameState.cp;
                     }

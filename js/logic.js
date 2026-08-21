@@ -58,6 +58,23 @@ const getTowerMaxHp = (pState) => pState.ra ? 23 : 15;
 const getUnitCost = (pState, type) =>
     ([0, 1, 2].includes(type) && pState.u.includes(6)) ? unitStats[type].cost - 1 : unitStats[type].cost;
 
+// === SPIELER-TOD (Korrektur August 2026, einheitlich statt an ~8 Stellen
+// dupliziert): Einheiten (Oberfläche + Unterwelt) werden immer entfernt, ALLE
+// Dörfer des Toten (inkl. Hauptgebäude) werden neutral (-1) — außer killerId
+// ist gesetzt und != deadId, dann geht NUR das Hauptgebäude an killerId (echte
+// Eroberung durch den Angreifer). killerId weglassen/undefined (Aufgeben,
+// nicht zuordenbarer Brand-Tod) -> alles neutral, auch das Hauptgebäude.
+function killPlayer(state, deadId, killerId) {
+    const pState = state.p[deadId];
+    pState.dead = 1;
+    state.u = state.u.filter(u => u.p !== deadId);
+    if (state.uw) state.uw.u = (state.uw.u || []).filter(u => u.p !== deadId);
+    Object.keys(state.v).forEach(k => { if (state.v[k] === deadId) state.v[k] = -1; });
+    if (killerId !== undefined && killerId !== null && killerId !== deadId) {
+        state.v[pState.sv] = killerId;
+    }
+}
+
 const getUnitMove = (pState, type, unit) => {
     if (type === 11 && unit && unit.dp === 1) return 0;
     if (type === 14 && unit && unit.ld === 1) return unitStats[14].ldMove;
