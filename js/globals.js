@@ -1,7 +1,7 @@
 // === APP VERSION ===
 // Format: MAJOR.PATCH.HOTFIX — MAJOR = größeres Update/neue Implementation, PATCH = Patch, HOTFIX = Hotfix.
 // Immer nur die betroffene Stelle um 1 hochzählen. Siehe Versionierungsregel in CLAUDE.md.
-const APP_VERSION = '3.5.1';
+const APP_VERSION = '3.6.0';
 
 // === DOM REFERENCES ===
 const appVersionEl = document.getElementById('app-version');
@@ -74,6 +74,12 @@ window.demolishTargets = [];
 // Wechsel in die Unterwelt (Spielerwunsch, Aug 2026: "wo komme ich hier
 // eigentlich raus" — Cross-Layer-Referenzmarker, siehe setCameraFocusSlider).
 window.lastSurfaceHex = null;
+// Umgekehrtes Pendant (Spielerwunsch, Aug 2026): der zuletzt in der Unterwelt
+// ausgewählte Stollenkopf, gemerkt beim Zurück-Wechsel zur Oberfläche — markiert
+// dort den Stollenkopf selbst (t.x1/y1), siehe setCameraFocusSlider. Der
+// zugehörige Tunnel-Gegenpunkt (t.x2/y2) nutzt dafür window.highlightedTunnelEnd
+// mit (genau wie beim direkten Oberflächen-Klick auf einen Tunnel).
+window.lastUnderworldHex = null;
 
 // === UNTERWELT (M9b) ===
 // Eigener Auswahl-/Highlight-Zustand statt Verzweigung von selectedUnit/validMoves —

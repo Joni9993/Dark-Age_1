@@ -296,6 +296,7 @@ function drawHex(x, y, terrainType, applyShroud, isRecap) {
     if (validMoves.some(m => m.x === x && m.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(100, 255, 100, 0.3)"; ctx.fill(); }
     if (validAttacks.some(a => a.x === x && a.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }
     if (window.highlightedTunnelEnd && window.highlightedTunnelEnd.x === x && window.highlightedTunnelEnd.y === y) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(79, 195, 247, 0.45)"; ctx.fill(); ctx.strokeStyle = "#4fc3f7"; ctx.lineWidth = 2; ctx.stroke(); }
+    if (window.lastUnderworldHex && window.lastUnderworldHex.x === x && window.lastUnderworldHex.y === y) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(79, 195, 247, 0.45)"; ctx.fill(); ctx.strokeStyle = "#4fc3f7"; ctx.lineWidth = 2; ctx.stroke(); }
     if (window.demolishTargets && window.demolishTargets.some(t => t.x === x && t.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 152, 0, 0.5)"; ctx.fill(); ctx.strokeStyle = "#ff9800"; ctx.lineWidth = 2; ctx.stroke(); }
     // selectedUnderworldHex wird bewusst NICHT hier (Oberfläche) gezeichnet,
     // sondern nur in drawUnderworldHex2D — wie in 3D (!surfaceVisible-Gate).
@@ -1030,6 +1031,7 @@ window.setCameraFocusSlider = function (rawValue) {
     window.airView = v > 0;
     const newFocus = !surfaceVisible ? 2 : (window.airView ? 1 : 0);
     const focusChanged = newFocus !== window.cameraFocus;
+    const wasUnderworld = window.cameraFocus === 2;
     window.cameraFocus = newFocus;
     if (!Renderer.setCameraFocusPos && Renderer.setCameraFocus) Renderer.setCameraFocus(newFocus);
 
@@ -1049,6 +1051,21 @@ window.setCameraFocusSlider = function (rawValue) {
             if (selectedHex) window.lastSurfaceHex = { x: selectedHex.x, y: selectedHex.y };
             selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
             window.specialActive = null; hideActionMenu();
+        } else if (wasUnderworld) {
+            // Umgekehrter Cross-Layer-Referenzmarker (Spielerwunsch, Aug 2026): beim
+            // Verlassen der Unterwelt den zuletzt ausgewählten Stollenkopf an der
+            // Oberfläche markieren — nur Stollenköpfe (t.x1/y1, s. render3d.js "nur
+            // der Startpunkt hat einen Stollenkopf") haben ein Oberflächen-
+            // Gegenstück, alles andere (Fels, Ader, Einheit) hinterlässt keinen
+            // Marker. Gleicher Cyan-Ton wie der direkte Oberflächen-Klick auf einen
+            // Tunnel (highlightedTunnelEnd), hier für beide Enden gesetzt.
+            const tunnel = window.selectedUnderworldHex && gameState.tu &&
+                gameState.tu.find(t => t.x1 === window.selectedUnderworldHex.x && t.y1 === window.selectedUnderworldHex.y);
+            if (tunnel) {
+                window.lastUnderworldHex = { x: tunnel.x1, y: tunnel.y1 };
+                window.highlightedTunnelEnd = { x: tunnel.x2, y: tunnel.y2 };
+            }
+            clearUWSelection();
         } else if (selectedUnit) {
             if (!window.airView && typeof isFlying === 'function' && isFlying(selectedUnit)) {
                 // Flieger sind außerhalb der Luftansicht nicht "beachtet" — Auswahl aufheben

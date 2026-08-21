@@ -30,6 +30,7 @@ function handleCanvasClick(clientX, clientY) {
             return;
         }
         window.highlightedTunnelEnd = null;
+        window.lastUnderworldHex = null;
         const clickedX = closest.x; const clickedY = closest.y;
         const vis = getVisibleHexes(gameState.cp); const isVisible = vis.has(`${clickedX},${clickedY}`);
 
@@ -534,6 +535,7 @@ function handleCanvasClick(clientX, clientY) {
         window.specialActive = null; selectedTower = null;
         window.tunnelStart = null; window.demolishTargets = [];
         window.highlightedTunnelEnd = null;
+        window.lastUnderworldHex = null;
         window.uwSpecialActive = null;
         renderBoard(gameState);
     }
@@ -548,8 +550,12 @@ function handleUnderworldClick(clientX, clientY) {
     if (!isLegacyUrlMode && currentGameId && currentTurnSlot !== currentUserSlot) return;
     hideActionMenu();
     const closest = Renderer.pickHex(clientX, clientY);
-    if (!closest) { clearUWSelection(); renderBoard(gameState); return; }
+    if (!closest) { clearUWSelection(); window.lastSurfaceHex = null; renderBoard(gameState); return; }
     const clickedX = closest.x, clickedY = closest.y;
+    // Pendant zum Oberflächen-Reset von lastUnderworldHex (handleCanvasClick):
+    // jeder Unterwelt-Klick entmarkiert den Cross-Layer-Referenzmarker, egal
+    // welcher Zweig unten greift (Spielerwunsch, Aug 2026, "selbe Logik").
+    window.lastSurfaceHex = null;
 
     // Reliquien-Zielauswahl (M10) hat Vorrang — kann sowohl Oberflächen- als auch
     // Unterwelt-Ziele treffen, siehe handleRelicTargetClick.
