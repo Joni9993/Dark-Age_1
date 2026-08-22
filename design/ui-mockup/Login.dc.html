@@ -1,0 +1,583 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Pixelify+Sans:wght@400;500;600;700&family=Silkscreen:wght@400;700&display=swap">
+<style>
+/* ==========================================================================
+   Dark Ages · Pixel-UI · Mockup-Stylesheet
+   Farbtokens stammen 1:1 aus NEW_PAL (js/art.js) + :root (css/game.css).
+   Regeln: border-radius 0 · kein backdrop-blur · 4px-Raster · Bevel statt Blur
+   ========================================================================== */
+:root{
+  /* Grund & Panel */
+  --ink:#08070b; --ink-2:#0e0c14; --ink-3:#131019;
+  --panel:#171310; --panel-2:#1f1913; --panel-hi:#33281c; --panel-lo:#0c0907;
+  --edge:#0a0806;
+  /* Text */
+  --bone:#cabe98; --bone-hi:#eeebe8; --dim:#8a7e6e; --dim-2:#57503f;
+  /* Material */
+  --wood:#5e3a20; --wood-dk:#3a2515; --wood-hi:#8f6435; --skin:#c99361;
+  --steel:#9fabbc; --steel-dk:#2c303d; --stone:#7d838f; --stone-dk:#565f70;
+  /* Signal */
+  --gold:#c98a10; --gold-hi:#e8b84a; --gold-dk:#7a5205;
+  --fire:#e2571f; --fire-dk:#8a2c0e; --blood:#cc0000;
+  --crystal:#4fc3f7; --leaf:#5cb85c; --sun:#fff824;
+  /* Gelände */
+  --gras:#2a3627; --forest:#1c2819; --hill:#4e3e2c;
+}
+
+*{box-sizing:border-box;}
+body{margin:0;background:#08070b;}
+a{color:#e8b84a;text-decoration:none;}
+a:hover{color:#fff824;}
+
+/* --- Bühne ---------------------------------------------------------------- */
+.scr{
+  position:relative;width:390px;height:844px;overflow:hidden;
+  background:var(--ink);color:var(--bone);
+  font-family:'Pixelify Sans','Courier New',monospace;
+  font-size:14px;line-height:1.45;
+}
+.scr--wide{width:1180px;height:1660px;}
+
+/* Hintergrund-Ebenen */
+.bg-hex{position:absolute;inset:0;opacity:.10;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='58' viewBox='0 0 34 58'%3E%3Cpath d='M17 1 L33 10 L33 28 L17 37 L1 28 L1 10 Z' fill='none' stroke='%23c98a10' stroke-width='1'/%3E%3C/svg%3E");
+  background-size:34px 58px;}
+.bg-scan{position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(180deg,rgba(0,0,0,.30) 0 1px,rgba(0,0,0,0) 1px 3px);}
+.bg-vig{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(115% 60% at 50% 22%,rgba(120,80,20,.16) 0%,rgba(8,7,11,0) 62%),
+             radial-gradient(100% 100% at 50% 55%,rgba(8,7,11,0) 38%,rgba(0,0,0,.72) 100%);}
+.lay{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;padding:16px;}
+
+/* --- Rahmen / Flächen ----------------------------------------------------- */
+.pf{position:relative;background:var(--panel);border:2px solid var(--edge);
+  box-shadow:inset 2px 2px 0 var(--panel-hi),inset -2px -2px 0 var(--panel-lo),4px 4px 0 rgba(0,0,0,.55);}
+.pf--flat{box-shadow:inset 2px 2px 0 var(--panel-hi),inset -2px -2px 0 var(--panel-lo);}
+.pf--inset{background:#0d0b09;
+  box-shadow:inset 2px 2px 0 var(--panel-lo),inset -2px -2px 0 var(--panel-hi);}
+.pf--gold{background:var(--panel-2);border-color:var(--gold);
+  box-shadow:inset 2px 2px 0 var(--gold-dk),inset -2px -2px 0 var(--panel-lo),
+             0 0 0 2px var(--edge),4px 4px 0 rgba(0,0,0,.55),0 0 22px rgba(201,138,16,.22);}
+.pf--fire{background:#1b0f0a;border-color:var(--fire-dk);
+  box-shadow:inset 2px 2px 0 #4a1a08,inset -2px -2px 0 #0c0605,
+             0 0 0 2px var(--edge),4px 4px 0 rgba(0,0,0,.55),0 0 26px rgba(226,87,31,.20);}
+.pf--dead{background:#121110;border-color:#1c1917;
+  box-shadow:inset 2px 2px 0 #1c1917,inset -2px -2px 0 #0b0a09;}
+
+/* Ecknieten */
+.stud{position:absolute;width:4px;height:4px;background:var(--wood-hi);}
+.stud--tl{top:4px;left:4px}.stud--tr{top:4px;right:4px}
+.stud--bl{bottom:4px;left:4px}.stud--br{bottom:4px;right:4px}
+.pf--gold>.stud{background:var(--gold-hi);}
+
+/* --- Typografie ----------------------------------------------------------- */
+.wm{font-family:'MedievalSharp',cursive;color:var(--gold-hi);letter-spacing:4px;
+  text-shadow:0 3px 0 #000,0 0 20px rgba(232,184,74,.28);line-height:1;}
+.h1{font-family:'MedievalSharp',cursive;font-size:26px;color:var(--gold-hi);letter-spacing:2px;
+  text-shadow:0 2px 0 #000;line-height:1.1;margin:0;}
+.h2{font-family:'Pixelify Sans',monospace;font-weight:700;font-size:18px;color:var(--bone-hi);margin:0;line-height:1.2;}
+.h3{font-family:'Pixelify Sans',monospace;font-weight:600;font-size:15px;color:var(--bone-hi);margin:0;line-height:1.2;}
+.lbl{font-family:'Silkscreen',monospace;font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim);}
+.lbl--gold{color:var(--gold);}
+.body{font-family:'Pixelify Sans',monospace;font-size:13px;line-height:1.5;color:var(--bone);margin:0;}
+.micro{font-family:'Pixelify Sans',monospace;font-size:11px;line-height:1.4;color:var(--dim);margin:0;}
+.num{font-family:'Silkscreen',monospace;font-size:12px;color:var(--bone-hi);letter-spacing:.5px;}
+.num--sm{font-size:10px;}
+/* Hex-Codes NICHT in Silkscreen: dort ist "c" kaum von "0" zu unterscheiden. */
+.hex{font-family:'Pixelify Sans',monospace;font-size:12px;color:var(--bone);letter-spacing:.6px;}
+
+/* --- Buttons -------------------------------------------------------------- */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;
+  min-height:48px;padding:0 14px;width:100%;border:2px solid var(--edge);
+  font-family:'Silkscreen',monospace;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--bone-hi);background:#3a2b1c;cursor:pointer;text-align:center;
+  box-shadow:inset 2px 2px 0 rgba(201,147,97,.30),inset -2px -2px 0 rgba(0,0,0,.55),0 4px 0 var(--edge);}
+.btn--primary{color:#1c1305;background:var(--gold);
+  box-shadow:inset 2px 2px 0 #f0cf6a,inset -2px -2px 0 var(--gold-dk),0 4px 0 #3a2604;}
+.btn--danger{color:#f8e5de;background:var(--fire-dk);
+  box-shadow:inset 2px 2px 0 var(--fire),inset -2px -2px 0 #3d1205,0 4px 0 #2a0c03;}
+.btn--ghost{background:#151210;color:var(--dim);
+  box-shadow:inset 2px 2px 0 #241d16,inset -2px -2px 0 #0b0908,0 4px 0 var(--edge);}
+.btn--pressed{transform:translateY(4px);
+  box-shadow:inset 2px 2px 0 rgba(0,0,0,.55),inset -2px -2px 0 rgba(201,147,97,.16);}
+.btn--disabled{background:#141211;color:#3f3931;
+  box-shadow:inset 2px 2px 0 #1c1917,inset -2px -2px 0 #0b0a09,0 4px 0 var(--edge);cursor:not-allowed;}
+.btn--sm{min-height:36px;font-size:9px;padding:0 10px;letter-spacing:1px;}
+.btn--icon{flex-direction:column;gap:6px;min-height:64px;padding:8px 4px;font-size:8px;letter-spacing:1px;}
+
+/* --- Eingaben ------------------------------------------------------------- */
+.field{display:flex;flex-direction:column;gap:6px;}
+.input{display:flex;align-items:center;min-height:48px;padding:0 12px;background:#0d0b09;
+  border:2px solid var(--edge);color:var(--bone-hi);
+  font-family:'Pixelify Sans',monospace;font-size:15px;
+  box-shadow:inset 2px 2px 0 var(--panel-lo),inset -2px -2px 0 #241d16;}
+.input--ph{color:var(--dim-2);}
+.input--focus{border-color:var(--gold);
+  box-shadow:inset 2px 2px 0 var(--panel-lo),inset -2px -2px 0 #241d16,0 0 0 2px rgba(201,138,16,.35);}
+.caret{display:inline-block;width:2px;height:17px;background:var(--gold-hi);margin-left:1px;}
+
+/* Segmentierte Auswahl */
+.seg{display:flex;gap:6px;}
+.seg-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:10px 4px;min-height:48px;background:#131010;border:2px solid var(--edge);cursor:pointer;
+  box-shadow:inset 2px 2px 0 #241d16,inset -2px -2px 0 var(--panel-lo);}
+.seg-item--on{background:#241a0c;border-color:var(--gold);
+  box-shadow:inset 2px 2px 0 var(--gold-dk),inset -2px -2px 0 var(--panel-lo);}
+.seg-item--on .lbl{color:var(--gold-hi);}
+
+/* Pixel-Radio */
+.rad{width:16px;height:16px;flex:0 0 16px;background:#0d0b09;border:2px solid var(--edge);
+  box-shadow:inset 2px 2px 0 var(--panel-lo),inset -2px -2px 0 #241d16;}
+.rad--on{background:var(--gold);box-shadow:inset 2px 2px 0 #f0cf6a,inset -2px -2px 0 var(--gold-dk);}
+
+/* Pixel-Schalter */
+.sw{width:52px;height:26px;flex:0 0 52px;background:#0d0b09;border:2px solid var(--edge);position:relative;
+  box-shadow:inset 2px 2px 0 var(--panel-lo),inset -2px -2px 0 #241d16;}
+.sw-knob{position:absolute;top:2px;left:2px;width:20px;height:18px;background:var(--stone);
+  box-shadow:inset 2px 2px 0 var(--steel),inset -2px -2px 0 var(--steel-dk);}
+.sw--on{background:#2a1f08;}
+.sw--on .sw-knob{left:auto;right:2px;background:var(--gold);
+  box-shadow:inset 2px 2px 0 #f0cf6a,inset -2px -2px 0 var(--gold-dk);}
+
+/* --- Icons ---------------------------------------------------------------- */
+.ic{display:block;width:16px;height:16px;flex:0 0 auto;}
+.ic-12{width:12px;height:12px;}.ic-14{width:14px;height:14px;}.ic-20{width:20px;height:20px;}
+.ic-24{width:24px;height:24px;}.ic-28{width:28px;height:28px;}.ic-32{width:32px;height:32px;}
+.ic-40{width:40px;height:40px;}.ic-48{width:48px;height:48px;}.ic-64{width:64px;height:64px;}
+.ic-88{width:88px;height:88px;}
+
+/* --- Bausteine ------------------------------------------------------------ */
+.row{display:flex;align-items:center;gap:8px;}
+.col{display:flex;flex-direction:column;}
+.grow{flex:1;min-width:0;}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* Ressourcen-Chip */
+.res{display:flex;align-items:center;gap:4px;}
+.res-inc{font-family:'Silkscreen',monospace;font-size:9px;color:var(--leaf);}
+
+/* Badge */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 6px;border:2px solid var(--edge);
+  font-family:'Silkscreen',monospace;font-size:8px;letter-spacing:1px;text-transform:uppercase;}
+.badge--turn{background:var(--gold);color:#1c1305;box-shadow:inset 1px 1px 0 #f0cf6a,inset -1px -1px 0 var(--gold-dk);}
+.badge--wait{background:#1a1714;color:var(--dim);box-shadow:inset 1px 1px 0 #26211b,inset -1px -1px 0 #0b0a09;}
+.badge--lobby{background:var(--steel-dk);color:var(--steel);box-shadow:inset 1px 1px 0 #3f4557,inset -1px -1px 0 #171a22;}
+.badge--cost{background:#0d0b09;color:var(--bone);box-shadow:inset 1px 1px 0 var(--panel-lo),inset -1px -1px 0 #241d16;}
+
+/* HP-Leiste (segmentiert, keine glatte Progressbar) */
+.hp{display:flex;gap:2px;}
+.hp i{width:8px;height:10px;background:var(--blood);box-shadow:inset 1px 1px 0 #ff5a5a,inset -1px -1px 0 #6b0000;}
+.hp i.off{background:#241d1d;box-shadow:inset 1px 1px 0 #2e2626,inset -1px -1px 0 #0c0808;}
+
+/* Spielerbanner */
+.pb{width:22px;height:26px;flex:0 0 22px;border:2px solid var(--edge);position:relative;
+  box-shadow:inset 0 -4px 0 rgba(0,0,0,.45),inset 2px 2px 0 rgba(255,255,255,.28);}
+
+/* Trennlinie im Pixel-Stil */
+.sep{height:2px;background:repeating-linear-gradient(90deg,var(--panel-hi) 0 4px,transparent 4px 8px);}
+
+/* Overlay */
+.scrim{position:absolute;inset:0;background:rgba(4,3,6,.80);z-index:3;}
+.modal{position:absolute;z-index:4;}
+
+</style>
+</helmet>
+<!-- Pixel-Icon-Set · 12x12-Raster · ersetzt die Emoji der aktuellen UI -->
+<svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
+<defs>
+<symbol id="i-gold" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="2" width="4" height="1" fill="#e8b84a"/><rect x="3" y="3" width="6" height="1" fill="#e8b84a"/>
+<rect x="2" y="4" width="8" height="4" fill="#e8b84a"/><rect x="3" y="8" width="6" height="1" fill="#e8b84a"/>
+<rect x="4" y="9" width="4" height="1" fill="#e8b84a"/><rect x="7" y="4" width="3" height="4" fill="#a06c08"/>
+<rect x="6" y="8" width="3" height="1" fill="#a06c08"/><rect x="4" y="3" width="2" height="1" fill="#fff824"/>
+</g></symbol>
+
+<symbol id="i-wood" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="1" y="3" width="10" height="3" fill="#8f6435"/><rect x="1" y="3" width="2" height="3" fill="#5e3a20"/>
+<rect x="3" y="4" width="7" height="1" fill="#a8794a"/>
+<rect x="2" y="7" width="9" height="3" fill="#8f6435"/><rect x="2" y="7" width="2" height="3" fill="#5e3a20"/>
+<rect x="4" y="8" width="6" height="1" fill="#a8794a"/>
+</g></symbol>
+
+<symbol id="i-stone" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="4" width="4" height="1" fill="#9fabbc"/><rect x="3" y="5" width="6" height="1" fill="#7d838f"/>
+<rect x="2" y="6" width="8" height="3" fill="#7d838f"/><rect x="7" y="6" width="3" height="3" fill="#565f70"/>
+<rect x="6" y="5" width="3" height="1" fill="#565f70"/><rect x="4" y="4" width="2" height="1" fill="#b6c0cc"/>
+</g></symbol>
+
+<symbol id="i-crystal" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="1" width="2" height="1" fill="#4fc3f7"/><rect x="4" y="2" width="4" height="1" fill="#4fc3f7"/>
+<rect x="3" y="3" width="6" height="5" fill="#4fc3f7"/><rect x="4" y="8" width="4" height="1" fill="#4fc3f7"/>
+<rect x="5" y="9" width="2" height="1" fill="#4fc3f7"/><rect x="6" y="3" width="3" height="5" fill="#1f7fa8"/>
+<rect x="6" y="8" width="2" height="1" fill="#1f7fa8"/><rect x="4" y="3" width="1" height="4" fill="#b6e8ff"/>
+</g></symbol>
+
+<symbol id="i-sword" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="1" width="2" height="6" fill="#9fabbc"/><rect x="5" y="2" width="1" height="5" fill="#eeebe8"/>
+<rect x="3" y="7" width="6" height="1" fill="#8f6435"/><rect x="5" y="8" width="2" height="2" fill="#5e3a20"/>
+<rect x="4" y="10" width="4" height="1" fill="#c98a10"/>
+</g></symbol>
+
+<symbol id="i-shield" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="8" height="6" fill="#565f70"/><rect x="3" y="7" width="6" height="2" fill="#565f70"/>
+<rect x="4" y="9" width="4" height="1" fill="#565f70"/><rect x="5" y="10" width="2" height="1" fill="#565f70"/>
+<rect x="2" y="1" width="8" height="1" fill="#9fabbc"/><rect x="2" y="1" width="1" height="6" fill="#9fabbc"/>
+<rect x="5" y="3" width="2" height="5" fill="#c98a10"/>
+</g></symbol>
+
+<symbol id="i-crown" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="3" width="2" height="4" fill="#c98a10"/><rect x="5" y="4" width="2" height="3" fill="#c98a10"/>
+<rect x="8" y="3" width="2" height="4" fill="#c98a10"/><rect x="2" y="7" width="8" height="2" fill="#c98a10"/>
+<rect x="2" y="2" width="2" height="1" fill="#e8b84a"/><rect x="8" y="2" width="2" height="1" fill="#e8b84a"/>
+<rect x="5" y="3" width="2" height="1" fill="#e8b84a"/>
+<rect x="2" y="8" width="1" height="1" fill="#4fc3f7"/><rect x="9" y="8" width="1" height="1" fill="#4fc3f7"/>
+<rect x="5" y="7" width="2" height="1" fill="#cc0000"/>
+</g></symbol>
+
+<symbol id="i-scroll" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="8" height="2" fill="#8f6435"/><rect x="2" y="9" width="8" height="2" fill="#8f6435"/>
+<rect x="3" y="3" width="6" height="6" fill="#cabe98"/>
+<rect x="4" y="4" width="4" height="1" fill="#3a2515"/><rect x="4" y="6" width="3" height="1" fill="#3a2515"/>
+<rect x="2" y="1" width="1" height="2" fill="#5e3a20"/><rect x="9" y="1" width="1" height="2" fill="#5e3a20"/>
+<rect x="2" y="9" width="1" height="2" fill="#5e3a20"/><rect x="9" y="9" width="1" height="2" fill="#5e3a20"/>
+</g></symbol>
+
+<symbol id="i-gear" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="0" width="4" height="2" fill="#7d838f"/><rect x="0" y="4" width="2" height="4" fill="#7d838f"/>
+<rect x="10" y="4" width="2" height="4" fill="#7d838f"/><rect x="4" y="10" width="4" height="2" fill="#7d838f"/>
+<rect x="2" y="2" width="8" height="8" fill="#9fabbc"/><rect x="6" y="2" width="4" height="8" fill="#7d838f"/>
+<rect x="4" y="4" width="4" height="4" fill="#0e0c14"/>
+</g></symbol>
+
+<symbol id="i-users" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="2" width="3" height="3" fill="#c99361"/><rect x="1" y="6" width="5" height="5" fill="#5e3a20"/>
+<rect x="7" y="3" width="3" height="3" fill="#c99361"/><rect x="6" y="7" width="5" height="4" fill="#3a2515"/>
+</g></symbol>
+
+<symbol id="i-book" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="8" height="10" fill="#5e3a20"/><rect x="3" y="2" width="6" height="8" fill="#cabe98"/>
+<rect x="2" y="1" width="1" height="10" fill="#3a2515"/>
+<rect x="4" y="4" width="4" height="1" fill="#8f6435"/><rect x="4" y="6" width="4" height="1" fill="#8f6435"/>
+</g></symbol>
+
+<symbol id="i-flag" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="1" height="10" fill="#5e3a20"/><rect x="3" y="2" width="5" height="4" fill="#cc0000"/>
+<rect x="8" y="2" width="1" height="1" fill="#cc0000"/><rect x="8" y="5" width="1" height="1" fill="#cc0000"/>
+</g></symbol>
+
+<symbol id="i-plus" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="5" y="2" width="2" height="8"/><rect x="2" y="5" width="8" height="2"/>
+</g></symbol>
+
+<symbol id="i-chev-r" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="4" y="2" width="2" height="2"/><rect x="6" y="4" width="2" height="2"/><rect x="4" y="6" width="2" height="2"/>
+</g></symbol>
+
+<symbol id="i-chev-l" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="6" y="2" width="2" height="2"/><rect x="4" y="4" width="2" height="2"/><rect x="6" y="6" width="2" height="2"/>
+</g></symbol>
+
+<symbol id="i-skull" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="3" y="2" width="6" height="5" fill="#cabe98"/><rect x="4" y="4" width="1" height="2" fill="#0e0c14"/>
+<rect x="7" y="4" width="1" height="2" fill="#0e0c14"/><rect x="5" y="6" width="2" height="1" fill="#0e0c14"/>
+<rect x="4" y="7" width="4" height="2" fill="#cabe98"/>
+<rect x="5" y="8" width="1" height="1" fill="#0e0c14"/><rect x="7" y="8" width="1" height="1" fill="#0e0c14"/>
+</g></symbol>
+
+<symbol id="i-banner" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="8" height="6" fill="#5e3a20"/><rect x="3" y="7" width="6" height="2" fill="#5e3a20"/>
+<rect x="4" y="9" width="4" height="1" fill="#5e3a20"/><rect x="5" y="10" width="2" height="1" fill="#5e3a20"/>
+<rect x="5" y="2" width="2" height="6" fill="#c98a10"/><rect x="3" y="4" width="6" height="2" fill="#c98a10"/>
+</g></symbol>
+
+<symbol id="i-urn" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="1" width="4" height="1" fill="#c98a10"/><rect x="5" y="2" width="2" height="1" fill="#8f6435"/>
+<rect x="3" y="3" width="6" height="7" fill="#8f6435"/><rect x="7" y="4" width="2" height="6" fill="#5e3a20"/>
+<rect x="3" y="6" width="6" height="1" fill="#c98a10"/><rect x="4" y="10" width="4" height="1" fill="#5e3a20"/>
+</g></symbol>
+
+<symbol id="i-scales" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="2" width="2" height="8" fill="#8f6435"/><rect x="3" y="10" width="6" height="1" fill="#5e3a20"/>
+<rect x="1" y="3" width="10" height="1" fill="#8f6435"/>
+<rect x="2" y="4" width="1" height="1" fill="#8f6435"/><rect x="9" y="4" width="1" height="1" fill="#8f6435"/>
+<rect x="1" y="5" width="3" height="1" fill="#9fabbc"/><rect x="8" y="5" width="3" height="1" fill="#9fabbc"/>
+</g></symbol>
+
+<symbol id="i-hex" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="4" y="1" width="4" height="1"/><rect x="3" y="2" width="6" height="1"/>
+<rect x="2" y="3" width="8" height="6"/><rect x="3" y="9" width="6" height="1"/><rect x="4" y="10" width="4" height="1"/>
+</g></symbol>
+
+<symbol id="i-heart" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="3" y="2" width="2" height="1" fill="#cc0000"/><rect x="7" y="2" width="2" height="1" fill="#cc0000"/>
+<rect x="2" y="3" width="8" height="2" fill="#cc0000"/><rect x="3" y="5" width="6" height="1" fill="#cc0000"/>
+<rect x="4" y="6" width="4" height="1" fill="#cc0000"/><rect x="5" y="7" width="2" height="1" fill="#cc0000"/>
+<rect x="3" y="3" width="1" height="1" fill="#ff6b6b"/>
+</g></symbol>
+
+<symbol id="i-star" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="5" y="1" width="2" height="2"/><rect x="4" y="3" width="4" height="1"/><rect x="1" y="4" width="10" height="2"/>
+<rect x="3" y="6" width="6" height="1"/><rect x="3" y="7" width="2" height="1"/><rect x="7" y="7" width="2" height="1"/>
+<rect x="2" y="8" width="2" height="1"/><rect x="8" y="8" width="2" height="1"/>
+</g></symbol>
+
+<symbol id="i-eye" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="3" width="4" height="1" fill="#cabe98"/><rect x="2" y="4" width="8" height="2" fill="#cabe98"/>
+<rect x="4" y="6" width="4" height="1" fill="#cabe98"/><rect x="4" y="4" width="4" height="2" fill="#1f7fa8"/>
+<rect x="5" y="4" width="2" height="2" fill="#0e0c14"/>
+</g></symbol>
+
+<symbol id="i-pact" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="1" y="5" width="5" height="3" fill="#c99361"/><rect x="6" y="5" width="5" height="3" fill="#8f6435"/>
+<rect x="5" y="4" width="2" height="5" fill="#cabe98"/>
+</g></symbol>
+
+<symbol id="i-check" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="2" y="5" width="2" height="2"/><rect x="4" y="7" width="2" height="2"/>
+<rect x="6" y="5" width="2" height="2"/><rect x="8" y="3" width="2" height="2"/>
+</g></symbol>
+
+<symbol id="i-lock" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="1" width="4" height="1" fill="#8f6435"/><rect x="3" y="2" width="1" height="3" fill="#8f6435"/>
+<rect x="8" y="2" width="1" height="3" fill="#8f6435"/><rect x="2" y="5" width="8" height="6" fill="#c98a10"/>
+<rect x="5" y="7" width="2" height="2" fill="#3a2515"/>
+</g></symbol>
+
+<symbol id="i-menu" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="2" y="2" width="8" height="2"/><rect x="2" y="5" width="8" height="2"/><rect x="2" y="8" width="8" height="2"/>
+</g></symbol>
+
+<symbol id="i-wing" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="7" y="3" width="3" height="1" fill="#cabe98"/><rect x="5" y="4" width="5" height="1" fill="#cabe98"/>
+<rect x="3" y="5" width="7" height="1" fill="#cabe98"/><rect x="2" y="6" width="7" height="1" fill="#cabe98"/>
+<rect x="4" y="7" width="3" height="1" fill="#cabe98"/>
+<rect x="7" y="4" width="1" height="1" fill="#8f6435"/><rect x="5" y="5" width="1" height="1" fill="#8f6435"/>
+</g></symbol>
+
+<symbol id="i-pick" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="2" width="4" height="1" fill="#9fabbc"/><rect x="2" y="3" width="2" height="1" fill="#9fabbc"/>
+<rect x="8" y="3" width="2" height="1" fill="#9fabbc"/><rect x="2" y="4" width="8" height="1" fill="#7d838f"/>
+<rect x="5" y="5" width="2" height="6" fill="#5e3a20"/>
+</g></symbol>
+
+<symbol id="i-wall" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="1" y="3" width="10" height="3" fill="#7d838f"/><rect x="1" y="3" width="10" height="1" fill="#9fabbc"/>
+<rect x="5" y="3" width="1" height="3" fill="#2c303d"/>
+<rect x="1" y="7" width="10" height="3" fill="#7d838f"/><rect x="1" y="7" width="10" height="1" fill="#9fabbc"/>
+<rect x="3" y="7" width="1" height="3" fill="#2c303d"/><rect x="8" y="7" width="1" height="3" fill="#2c303d"/>
+</g></symbol>
+
+<symbol id="i-tower" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="2" height="2" fill="#9fabbc"/><rect x="5" y="1" width="2" height="2" fill="#9fabbc"/>
+<rect x="8" y="1" width="2" height="2" fill="#9fabbc"/><rect x="3" y="3" width="6" height="8" fill="#7d838f"/>
+<rect x="7" y="3" width="2" height="8" fill="#565f70"/><rect x="5" y="5" width="2" height="2" fill="#0e0c14"/>
+</g></symbol>
+
+<symbol id="i-fire" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="2" width="2" height="1" fill="#e2571f"/><rect x="4" y="3" width="4" height="1" fill="#e2571f"/>
+<rect x="3" y="4" width="6" height="5" fill="#e2571f"/><rect x="4" y="9" width="4" height="1" fill="#e2571f"/>
+<rect x="5" y="6" width="3" height="3" fill="#fff824"/><rect x="5" y="8" width="2" height="1" fill="#eeebe8"/>
+<rect x="3" y="4" width="1" height="1" fill="#8a2c0e"/>
+</g></symbol>
+
+<symbol id="i-village" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="2" width="2" height="1" fill="#8a2c0e"/><rect x="2" y="3" width="8" height="2" fill="#8a2c0e"/>
+<rect x="3" y="5" width="6" height="6" fill="#cabe98"/><rect x="7" y="5" width="2" height="6" fill="#a89878"/>
+<rect x="5" y="8" width="2" height="3" fill="#5e3a20"/>
+</g></symbol>
+
+<symbol id="i-copy" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="1" y="1" width="6" height="7" fill="#565f70"/><rect x="4" y="4" width="7" height="7" fill="#9fabbc"/>
+<rect x="6" y="6" width="3" height="3" fill="#2c303d"/>
+</g></symbol>
+
+<symbol id="i-hourglass" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="3" y="1" width="6" height="1" fill="#8f6435"/><rect x="3" y="10" width="6" height="1" fill="#8f6435"/>
+<rect x="4" y="2" width="4" height="1" fill="#cabe98"/><rect x="5" y="3" width="2" height="2" fill="#cabe98"/>
+<rect x="5" y="6" width="2" height="1" fill="#cabe98"/><rect x="4" y="7" width="4" height="1" fill="#cabe98"/>
+<rect x="4" y="8" width="4" height="2" fill="#cabe98"/><rect x="5" y="8" width="2" height="2" fill="#c98a10"/>
+</g></symbol>
+
+<symbol id="i-trash" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="4" y="1" width="4" height="1"/><rect x="1" y="2" width="10" height="2"/>
+<rect x="2" y="4" width="8" height="7"/>
+</g></symbol>
+
+<symbol id="i-move" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="5" y="0" width="2" height="12"/><rect x="0" y="5" width="12" height="2"/>
+<rect x="3" y="2" width="6" height="1"/><rect x="3" y="9" width="6" height="1"/>
+</g></symbol>
+
+<!-- ── Fähigkeiten (js/input.js Aktionsleiste) ───────────────────────────── -->
+
+<symbol id="i-whirl" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="2" width="4" height="1" fill="#9fabbc"/>
+<rect x="3" y="3" width="2" height="1" fill="#9fabbc"/><rect x="7" y="3" width="2" height="1" fill="#9fabbc"/>
+<rect x="2" y="4" width="2" height="3" fill="#9fabbc"/><rect x="8" y="4" width="2" height="3" fill="#9fabbc"/>
+<rect x="3" y="7" width="2" height="1" fill="#9fabbc"/><rect x="7" y="7" width="2" height="1" fill="#9fabbc"/>
+<rect x="4" y="8" width="4" height="1" fill="#9fabbc"/>
+<rect x="8" y="0" width="3" height="1" fill="#eeebe8"/><rect x="9" y="1" width="2" height="1" fill="#eeebe8"/>
+<rect x="10" y="2" width="1" height="1" fill="#eeebe8"/>
+</g></symbol>
+
+<symbol id="i-blood" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="1" width="2" height="1" fill="#cc0000"/><rect x="4" y="2" width="4" height="1" fill="#cc0000"/>
+<rect x="3" y="3" width="6" height="3" fill="#cc0000"/><rect x="4" y="6" width="4" height="1" fill="#cc0000"/>
+<rect x="5" y="2" width="1" height="3" fill="#ff6b6b"/>
+<rect x="2" y="8" width="1" height="1" fill="#cc0000"/><rect x="1" y="9" width="3" height="2" fill="#cc0000"/>
+<rect x="9" y="8" width="1" height="1" fill="#cc0000"/><rect x="8" y="9" width="3" height="2" fill="#cc0000"/>
+</g></symbol>
+
+<symbol id="i-cloak" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="1" width="4" height="1" fill="#2c303d"/><rect x="3" y="2" width="6" height="1" fill="#2c303d"/>
+<rect x="2" y="3" width="8" height="8" fill="#2c303d"/>
+<rect x="4" y="4" width="4" height="4" fill="#0e0c14"/>
+<rect x="4" y="5" width="1" height="1" fill="#9fabbc"/><rect x="7" y="5" width="1" height="1" fill="#9fabbc"/>
+<rect x="2" y="3" width="1" height="8" fill="#565f70"/>
+</g></symbol>
+
+<symbol id="i-elephant" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="1" y="4" width="7" height="5" fill="#7d838f"/>
+<rect x="6" y="3" width="5" height="4" fill="#9fabbc"/>
+<rect x="6" y="3" width="2" height="4" fill="#565f70"/>
+<rect x="10" y="7" width="1" height="3" fill="#9fabbc"/><rect x="9" y="10" width="2" height="1" fill="#9fabbc"/>
+<rect x="2" y="9" width="2" height="2" fill="#565f70"/><rect x="5" y="9" width="2" height="2" fill="#565f70"/>
+<rect x="9" y="6" width="1" height="1" fill="#eeebe8"/>
+<rect x="8" y="4" width="1" height="1" fill="#0e0c14"/>
+</g></symbol>
+
+<symbol id="i-bow" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="2" height="1" fill="#8f6435"/><rect x="1" y="2" width="1" height="8" fill="#8f6435"/>
+<rect x="2" y="10" width="2" height="1" fill="#8f6435"/>
+<rect x="3" y="2" width="1" height="8" fill="#cabe98"/>
+<rect x="3" y="5" width="6" height="2" fill="#5e3a20"/>
+<rect x="9" y="4" width="1" height="4" fill="#9fabbc"/><rect x="10" y="5" width="1" height="2" fill="#9fabbc"/>
+</g></symbol>
+
+<symbol id="i-jump" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="0" y="9" width="2" height="2" fill="#8f6435"/>
+<rect x="2" y="6" width="2" height="1" fill="#cabe98"/><rect x="4" y="4" width="2" height="1" fill="#cabe98"/>
+<rect x="6" y="4" width="2" height="1" fill="#cabe98"/><rect x="8" y="6" width="2" height="1" fill="#cabe98"/>
+<rect x="9" y="8" width="1" height="1" fill="#c98a10"/><rect x="8" y="9" width="4" height="2" fill="#c98a10"/>
+</g></symbol>
+
+<symbol id="i-parachute" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="8" height="1" fill="#cabe98"/><rect x="1" y="2" width="10" height="2" fill="#cabe98"/>
+<rect x="4" y="1" width="1" height="3" fill="#8f6435"/><rect x="7" y="1" width="1" height="3" fill="#8f6435"/>
+<rect x="2" y="4" width="1" height="3" fill="#8f6435"/><rect x="9" y="4" width="1" height="3" fill="#8f6435"/>
+<rect x="5" y="7" width="2" height="4" fill="#5e3a20"/>
+</g></symbol>
+
+<symbol id="i-tunnel" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="1" y="9" width="10" height="2" fill="#5e3a20"/>
+<rect x="4" y="2" width="4" height="1" fill="#7d838f"/><rect x="2" y="3" width="8" height="6" fill="#7d838f"/>
+<rect x="5" y="3" width="2" height="1" fill="#0e0c14"/><rect x="4" y="4" width="4" height="5" fill="#0e0c14"/>
+<rect x="2" y="3" width="1" height="6" fill="#9fabbc"/>
+</g></symbol>
+
+<symbol id="i-dynamite" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="3" y="5" width="5" height="6" fill="#cc0000"/>
+<rect x="3" y="6" width="5" height="1" fill="#8a2c0e"/><rect x="3" y="9" width="5" height="1" fill="#8a2c0e"/>
+<rect x="8" y="4" width="1" height="1" fill="#8f6435"/><rect x="9" y="2" width="1" height="2" fill="#8f6435"/>
+<rect x="9" y="0" width="2" height="2" fill="#fff824"/>
+</g></symbol>
+
+<symbol id="i-boom" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="0" width="2" height="4" fill="#e2571f"/><rect x="5" y="8" width="2" height="4" fill="#e2571f"/>
+<rect x="0" y="5" width="4" height="2" fill="#e2571f"/><rect x="8" y="5" width="4" height="2" fill="#e2571f"/>
+<rect x="2" y="2" width="2" height="2" fill="#e2571f"/><rect x="8" y="2" width="2" height="2" fill="#e2571f"/>
+<rect x="2" y="8" width="2" height="2" fill="#e2571f"/><rect x="8" y="8" width="2" height="2" fill="#e2571f"/>
+<rect x="3" y="3" width="6" height="6" fill="#fff824"/>
+<rect x="5" y="5" width="2" height="2" fill="#eeebe8"/>
+</g></symbol>
+
+<symbol id="i-arrow-up" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="5" y="1" width="2" height="1"/><rect x="4" y="2" width="4" height="1"/><rect x="3" y="3" width="6" height="1"/>
+<rect x="5" y="4" width="2" height="7"/>
+</g></symbol>
+
+<symbol id="i-arrow-down" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="5" y="1" width="2" height="7"/>
+<rect x="3" y="8" width="6" height="1"/><rect x="4" y="9" width="4" height="1"/><rect x="5" y="10" width="2" height="1"/>
+</g></symbol>
+</defs>
+</svg>
+
+<!-- ARTBOARD: Login / Registrierung ========================================= -->
+<div class="scr">
+  <div class="bg-hex"></div><div class="bg-vig"></div><div class="bg-scan"></div>
+
+  <div class="lay" style="gap:0;align-items:center;justify-content:center">
+
+    <!-- Wappen (Pixel-Zeichnung, ersetzt Icon.png als <img>) -->
+    <svg width="116" height="116" viewBox="0 0 24 24" shape-rendering="crispEdges"
+         style="filter:drop-shadow(0 4px 0 rgba(0,0,0,.8))">
+      <g fill="#2c303d">
+        <rect x="8" y="2" width="8" height="1"/><rect x="6" y="3" width="12" height="1"/>
+        <rect x="5" y="4" width="14" height="9"/><rect x="6" y="13" width="12" height="1"/>
+        <rect x="7" y="14" width="10" height="2"/><rect x="8" y="16" width="8" height="1"/>
+        <rect x="9" y="17" width="6" height="2"/><rect x="10" y="19" width="4" height="1"/>
+        <rect x="11" y="20" width="2" height="1"/>
+      </g>
+      <g fill="#171a22">
+        <rect x="16" y="4" width="3" height="9"/><rect x="14" y="13" width="4" height="1"/>
+        <rect x="13" y="14" width="4" height="2"/><rect x="13" y="16" width="3" height="1"/>
+      </g>
+      <g fill="#9fabbc">
+        <rect x="8" y="2" width="8" height="1"/><rect x="6" y="3" width="2" height="1"/>
+        <rect x="5" y="4" width="1" height="9"/>
+      </g>
+      <g fill="#c98a10">
+        <rect x="11" y="5" width="2" height="10"/><rect x="8" y="10" width="8" height="1"/>
+        <rect x="10" y="15" width="4" height="1"/>
+      </g>
+      <g fill="#e8b84a">
+        <rect x="11" y="4" width="2" height="1"/><rect x="11" y="6" width="1" height="7"/>
+      </g>
+    </svg>
+
+    <div class="wm" style="font-size:36px;margin-top:18px">DARK AGES</div>
+    <div class="lbl" style="margin-top:10px">Hex-Strategie · Zug um Zug · Asynchron</div>
+
+    <div class="pf col" style="width:100%;margin-top:34px;padding:16px;gap:14px">
+      <span class="stud stud--tl"></span><span class="stud stud--tr"></span>
+      <span class="stud stud--bl"></span><span class="stud stud--br"></span>
+
+      <div class="field">
+        <span class="lbl">Ingame-Name</span>
+        <div class="input input--focus">Jonathan<span class="caret"></span></div>
+      </div>
+
+      <div class="field">
+        <span class="lbl">Passwort</span>
+        <div class="input row" style="gap:8px">
+          <svg class="ic-14"><use href="#i-lock"></use></svg>
+          <span class="input--ph" style="letter-spacing:3px">••••••••</span>
+        </div>
+      </div>
+
+      <button class="btn btn--primary" style="margin-top:2px">Einloggen</button>
+    </div>
+
+    <p class="micro" style="margin-top:16px;text-align:center;max-width:300px">
+      Neu hier? Wähle einen Namen und ein Passwort —<br>dein Account wird automatisch erstellt.
+    </p>
+
+  </div>
+
+  <div style="position:absolute;right:16px;bottom:14px;z-index:3">
+    <span class="lbl" style="color:#3f3931">v3.7.0</span>
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>

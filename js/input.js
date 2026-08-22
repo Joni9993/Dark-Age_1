@@ -706,13 +706,22 @@ function showUnderworldTileUI(clickedX, clickedY) {
         const maxHp = getUnitMaxHp(gameState.p[unit.p], unit.t, unit);
         const ownerName = formatOwnerName(unit.p, gameState.cp);
         const ownerColor = getEntityColor(unit.p);
-        const crText = unit.cr ? ` | 💎 trägt ${unit.cr}/3` : '';
-        const vetText = unit.vet ? ' | ★ Veteran (+1 DMG)' : '';
+        const badges = [
+            unit.vet && { text: 'Veteran', cls: 'ip-badge-gold' },
+            unit.cr && { text: `Kristalle ${unit.cr}/3`, cls: 'ip-badge-cyan' },
+        ];
         let expectedDmgText = '';
         if (prevSelectedUnit && prevSelectedUnit.p === gameState.cp && unit.p !== gameState.cp && prevValidAttacks.some(a => a.x === clickedX && a.y === clickedY)) {
             expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${getExpectedDamageUW(prevSelectedUnit, unit)} DMG</span>`;
         }
-        infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} ${unitStats[unit.t].name} (${unit.h}/${maxHp} HP)</span><div class="info-detail">Bewegung: ${getUnitMove(gameState.p[unit.p], unit.t, unit)} | Angriff: ${getUnitAttack(gameState.p[unit.p], unit.t)}${vetText}${crText}</div>${expectedDmgText}` + extra;
+        infoPanel.innerHTML = infoHead({
+            icon: unitRoleIcon(unit.t), name: `${ownerName} ${unitStats[unit.t].name}`,
+            color: ownerColor, cur: unit.h, max: maxHp,
+            tone: unit.p === gameState.cp ? '' : 'foe', badges,
+        }) + infoStats([
+            ['sword', getUnitAttack(gameState.p[unit.p], unit.t)],
+            ['move', getUnitMove(gameState.p[unit.p], unit.t, unit)],
+        ]) + expectedDmgText + extra;
     } else if (creature) {
         const cStats = uwCreatureStats[creature.t];
         let expectedDmgText = '';
@@ -730,7 +739,12 @@ function showUnderworldTileUI(clickedX, clickedY) {
                 telegraphSelfText = `<div class="info-detail" style="color:#ff5252;">🎯 Bereitet Angriff vor — trifft ${atkHexes.length} Feld${atkHexes.length === 1 ? '' : 'er'} am Rundenende (${cStats.dmg} DMG je Treffer). Markierte Felder rechtzeitig verlassen!</div>`;
             }
         }
-        infoPanel.innerHTML = `<span style="color:#e57373">${cStats.name} (${creature.h}/${cStats.hp} HP)</span><div class="info-detail">Kreatur, neutral · ⚔️${cStats.dmg} DMG</div>${telegraphSelfText}${expectedDmgText}` + extra;
+        infoPanel.innerHTML = infoHead({
+            icon: 'skull', name: cStats.name, color: '#e57373',
+            cur: creature.h, max: cStats.hp, tone: 'foe',
+            badges: [{ text: 'neutral', cls: '' }],
+        }) + infoStats([['sword', cStats.dmg]])
+            + telegraphSelfText + expectedDmgText + extra;
     } else if (!uwKnown) {
         // Oberflächen-Parität: ein nie erkundetes Hex verrät weder Typ (Fels/
         // Kaverne/Ader/Ruine/Herz) noch offen-Status — genau die Info, die das
@@ -791,11 +805,11 @@ function showUnderworldTileUI(clickedX, clickedY) {
         // Einheit steht AUF dem Fundkammer-Hex, Plündern verbraucht die
         // restlichen Aktionen des Zuges (aus a=0 ODER a=2, `selectable` oben).
         if (isFundkammerHex(gameState, clickedX, clickedY) && !(gameState.uw && gameState.uw.f && gameState.uw.f[`${clickedX},${clickedY}`])) {
-            menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #8c6d2f;" onclick="window.startUWLootFundkammer()">🏺 Fundkammer plündern</button>`;
+            menuHtml += `<button class="action-btn act-gold" style="padding: 8px; font-size: 0.9rem;" onclick="window.startUWLootFundkammer()">${icon('urn', 'ic-14')} Fundkammer plündern</button>`;
         }
         if (unit.t === 7 && stollenOwner === gameState.cp) {
             const surfaceFree = !groundUnitAt(clickedX, clickedY) && gameState.v[`${clickedX},${clickedY}`] === undefined;
-            if (surfaceFree) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #6d4c41;" onclick="window.uwAscend()">🕳 Aufsteigen</button>`;
+            if (surfaceFree) menuHtml += `<button class="action-btn act-earth" style="padding: 8px; font-size: 0.9rem;" onclick="window.uwAscend()">${icon('arrow-up', 'ic-14')} Aufsteigen</button>`;
         }
         // Dynamit + Stollenbruch (Sprengmeister 18 exklusiv). Dynamit ersetzt seit
         // Juli 2026 die Unterminierung — wirkt nur innerhalb der Unterwelt, nie auf
@@ -804,11 +818,11 @@ function showUnderworldTileUI(clickedX, clickedY) {
             const dynamiteTargets = calculateDynamiteTargetsUW(unit);
             if (dynamiteTargets.length > 0) {
                 const afford = pState.m >= 1;
-                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #d84315; ${afford ? '' : 'opacity:0.5;'}" ${afford ? `onclick="window.startUWDynamite()"` : 'disabled'}>🧨 Dynamit legen (1🪵)</button>`;
+                menuHtml += `<button class="action-btn act-fire" style="padding: 8px; font-size: 0.9rem;" ${afford ? `onclick="window.startUWDynamite()"` : 'disabled'}>${icon('dynamite', 'ic-14')} Dynamit legen (1${icon('wood', 'ic-14')})</button>`;
             }
             const collapseTargets = calculateStollenbruchTargetsUW(unit);
             if (collapseTargets.length > 0) {
-                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4e342e;" onclick="window.startUWCollapse()">💥 Stollenbruch</button>`;
+                menuHtml += `<button class="action-btn act-earth" style="padding: 8px; font-size: 0.9rem;" onclick="window.startUWCollapse()">${icon('boom', 'ic-14')} Stollenbruch</button>`;
             }
         }
         // Sprung (Horcher 21 exklusiv, Korrektur Juli 2026, ersetzt die permanente
@@ -817,7 +831,7 @@ function showUnderworldTileUI(clickedX, clickedY) {
         if (unit.t === 21) {
             const jumpTargets = calculateHorcherJumpTargetsUW(unit);
             if (jumpTargets.length > 0) {
-                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #5e35b1;" onclick="window.startUWJump()">🦘 Sprung (2 Felder)</button>`;
+                menuHtml += `<button class="action-btn act-earth" style="padding: 8px; font-size: 0.9rem;" onclick="window.startUWJump()">${icon('jump', 'ic-14')} Sprung (2 Felder)</button>`;
             }
         }
         const hint = unit.t === 22 && unit.a === 0 ? ' (2 Grabungen möglich)'
@@ -851,7 +865,7 @@ function showUnderworldTileUI(clickedX, clickedY) {
         const uwMkBtn = (t, icon) => {
             const cost = getUnitCost(pState, t);
             const afford = pState.g >= cost;
-            return `<button class="action-btn" style="padding: 6px 8px; font-size: 0.9rem; display:flex; flex-direction:column; align-items:center; gap:4px; ${afford ? '' : 'opacity:0.5;'}" ${afford ? `onclick="window.buyUWUnit(${t})"` : 'disabled'}>
+            return `<button class="action-btn" style="padding: 6px 8px; font-size: 0.9rem; display:flex; flex-direction:column; align-items:center; gap:4px;" ${afford ? `onclick="window.buyUWUnit(${t})"` : 'disabled'}>
                 <div>${icon} ${unitStats[t].name} (${cost}G)</div>
                 <div style="font-size: 0.65rem; color: #b0bec5; display:flex; gap:8px;"><span>❤️${getUnitMaxHp(pState, t, null)}</span><span>⚔️${getUnitAttack(pState, t)}</span><span>👟${getUnitMove(pState, t, null)}</span></div>
             </button>`;
@@ -1557,18 +1571,27 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
             expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${expDmg} DMG</span>`;
         }
 
-        let vetText = clickedUnit.vet ? ' | <span style="color:var(--gold)">★ Veteran (+1 DMG)</span>' : '';
-        let burnText = clickedUnit.bn ? ' | <span style="color:#ff7043">🔥 brennt (-4 nächste Runde)</span>' : '';
-        let airText = '';
-        if (unitStats[clickedUnit.t].isAir) {
-            airText = isFlying(clickedUnit)
-                ? ' | <span style="color:#4fc3f7">✈ fliegt</span>'
-                : ' | <span style="color:#a1887f">🪂 gelandet</span>';
-        }
-        let weightText = '';
-        if (unitStats[clickedUnit.t].heavy) weightText = ' | <span style="color:#ff8a65">🐘 Schwer</span>';
-        else if (unitStats[clickedUnit.t].light || clickedUnit.light) weightText = ' | <span style="color:#a5d6a7">🪶 Leicht</span>';
-        infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} ${unitStats[clickedUnit.t].name} (${clickedUnit.h}/${maxHp} HP)</span><div class="info-detail">Bewegung: ${moveStat} | Angriff: ${atkDmg}${vetText}${airText}${weightText}${burnText}</div>${expectedDmgText}`;
+        // Zustände laufen als Marken in der Kopfzeile statt als "|"-Kette
+        const st = unitStats[clickedUnit.t];
+        const badges = [
+            clickedUnit.vet && { text: 'Veteran', cls: 'ip-badge-gold' },
+            st.isAir && (isFlying(clickedUnit)
+                ? { text: 'fliegt', cls: 'ip-badge-cyan' }
+                : { text: 'gelandet', cls: '' }),
+            st.heavy ? { text: 'Schwer', cls: 'ip-badge-fire' }
+                : (st.light || clickedUnit.light) ? { text: 'Leicht', cls: 'ip-badge-green' } : null,
+            clickedUnit.bn && { text: 'brennt', cls: 'ip-badge-fire' },
+        ];
+        infoPanel.innerHTML = infoHead({
+            icon: unitRoleIcon(clickedUnit.t), name: `${ownerName} ${st.name}`,
+            color: ownerColor, cur: clickedUnit.h, max: maxHp,
+            tone: clickedUnit.p === gameState.cp ? '' : 'foe', badges,
+        }) + infoStats([
+            ['sword', atkDmg],
+            ['move', moveStat],
+            clickedUnit.k ? ['star', `${clickedUnit.k} Kills`] : null,
+        ]) + (clickedUnit.bn ? '<div class="info-detail">Brennt — verliert 4 HP zu Rundenbeginn.</div>' : '')
+            + expectedDmgText;
 
     } else if (isStart && isVisible) {
         const ownerName = formatOwnerName(svOwner, gameState.cp);
@@ -1581,14 +1604,23 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
             expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${expDmg} DMG</span>`;
         }
 
-        infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} Hauptgebäude (${svHp}/30 HP)</span><div class="info-detail">${extraInfo}</div>${expectedDmgText}`;
+        infoPanel.innerHTML = infoHead({
+            icon: 'village', name: `${ownerName} Hauptgebäude`, color: ownerColor,
+            // Maximum aus der Logik holen statt fest 30: die Reliquie
+            // "Bollwerk des Bergvolks" (pState.ra) hebt es auf 45.
+            cur: svHp, max: getVillageMaxHp(gameState.p[svOwner]),
+            tone: svOwner === gameState.cp ? '' : 'foe',
+        }) + `<div class="info-detail">${extraInfo}</div>${expectedDmgText}`;
     } else if (villageOwner !== undefined) {
         if (villageOwner === -1) {
-            infoPanel.innerHTML = `Neutrales Dorf<div class="info-detail">Einnehmen für +2 Gold & +1 Holz pro Runde</div>`;
+            infoPanel.innerHTML = infoHead({ icon: 'village', name: 'Neutrales Dorf' })
+                + `<div class="info-detail">Einnehmen für +2 Gold & +1 Holz pro Runde</div>`;
         } else {
             const ownerName = formatOwnerName(villageOwner, gameState.cp);
             const ownerColor = getEntityColor(villageOwner);
-            infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} Dorf</span><div class="info-detail">Produziert +2 Gold & +1 Holz pro Runde</div>`;
+            infoPanel.innerHTML = infoHead({
+                icon: 'village', name: `${ownerName} Dorf`, color: ownerColor,
+            }) + `<div class="info-detail">Produziert +2 Gold & +1 Holz pro Runde</div>`;
         }
     } else {
         let tunnel = gameState.tu ? gameState.tu.find(t => (t.x1 === clickedX && t.y1 === clickedY) || (t.x2 === clickedX && t.y2 === clickedY)) : null;
@@ -1601,7 +1633,11 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                 expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${expDmg} DMG</span>`;
             }
             window.highlightedTunnelEnd = { x: tunnel.x1 === clickedX ? tunnel.x2 : tunnel.x1, y: tunnel.y1 === clickedY ? tunnel.y2 : tunnel.y1 };
-            infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} Tunnel (${tunnel.h}/13 HP)${tunnel.r > gameState.rn ? " [Im Bau]" : ""}</span>${expectedDmgText}`;
+            infoPanel.innerHTML = infoHead({
+                icon: 'tunnel', name: `${ownerName} Tunnel`, color: ownerColor,
+                cur: tunnel.h, max: 8, tone: tunnel.o === gameState.cp ? '' : 'foe',
+                badges: [tunnel.r > gameState.rn && { text: 'Im Bau', cls: '' }],
+            }) + expectedDmgText;
         } else if (gameState.wa && gameState.wa.some(w => w.x === clickedX && w.y === clickedY)) {
             const wall = gameState.wa.find(w => w.x === clickedX && w.y === clickedY);
             const ownerName = formatOwnerName(wall.o, gameState.cp);
@@ -1611,7 +1647,11 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                 const expDmg = getExpectedDamage(selectedUnit, 'wall', wall.o);
                 expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${expDmg} DMG</span>`;
             }
-            infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} Palisade (${wall.h}/10 HP)</span>${expectedDmgText}`;
+            infoPanel.innerHTML = infoHead({
+                icon: 'wall', name: `${ownerName} Palisade`, color: ownerColor,
+                cur: wall.h, max: getWallMaxHp(gameState.p[wall.o]),
+                tone: wall.o === gameState.cp ? '' : 'foe',
+            }) + expectedDmgText;
         } else if (gameState.st && gameState.st.some(s => s.x === clickedX && s.y === clickedY && s.h > 0) && isVisible) {
             const st = gameState.st.find(s => s.x === clickedX && s.y === clickedY);
             infoPanel.innerHTML = `Steinvorkommen (${st.h}/40)<div class="info-detail">Benötigt Arbeiter zum Abbau</div>`;
@@ -1619,7 +1659,10 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
             const ctOwnerName = gameState.ct.ctrl === -1 ? "Neutraler" : formatOwnerName(gameState.ct.ctrl, gameState.cp);
             const ctOwnerColor = getEntityColor(gameState.ct.ctrl);
             const ctRange = Math.ceil(gameState.rad * 0.7);
-            infoPanel.innerHTML = `<span style="color:${ctOwnerColor}">🗼 ${ctOwnerName} Wachturm</span><div class="info-detail">Kartenzentrum · gewährt ${ctRange} Felder Sichtweite</div>`;
+            infoPanel.innerHTML = infoHead({
+                icon: 'tower', name: `${ctOwnerName} Wachturm`, color: ctOwnerColor,
+            }) + infoStats([['eye', ctRange]])
+                + `<div class="info-detail">Kartenzentrum — gewährt ${ctRange} Felder Sichtweite</div>`;
         } else if (gameState.tw && gameState.tw.some(tw => tw.x === clickedX && tw.y === clickedY && tw.h > 0) && isVisible) {
             const tw = gameState.tw.find(tw => tw.x === clickedX && tw.y === clickedY);
             const ownerName = formatOwnerName(tw.o, gameState.cp);
@@ -1629,7 +1672,11 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                 const expDmg = getExpectedDamage(selectedUnit, 'tower', tw.o);
                 expectedDmgText = `<br><span style="color:#ff1744">Angriff: ~${expDmg} DMG</span>`;
             }
-            infoPanel.innerHTML = `<span style="color:${ownerColor}">${ownerName} Turm (${tw.h}/15 HP)</span><div class="info-detail">Range 2 | 5 DMG</div>${expectedDmgText}`;
+            infoPanel.innerHTML = infoHead({
+                icon: 'tower', name: `${ownerName} Turm`, color: ownerColor,
+                cur: tw.h, max: getTowerMaxHp(gameState.p[tw.o]),
+                tone: tw.o === gameState.cp ? '' : 'foe',
+            }) + infoStats([['sword', 5], ['eye', 2]]) + expectedDmgText;
         } else {
             let tType = getTerrainType(gameState, clickedX, clickedY);
             let tName = tType === 'forest' ? 'Wald' : tType === 'hill' ? 'Hügel' : 'Grasland';
@@ -1655,69 +1702,69 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
             let menuHtml = '';
 
             if (clickedUnit.t === 3 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
-                if (pState.m >= 3) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #3949ab;" onclick="useAbility('ritter')">🌀 Rundumschlag (3🪵)</button>`;
-                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🌀 Rundumschlag (3🪵)</button>`;
+                if (pState.m >= 3) menuHtml += `<button class="action-btn act-fire" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('ritter')">${icon('whirl', 'ic-14')} Rundumschlag (3${icon('wood', 'ic-14')})</button>`;
+                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" disabled>${icon('whirl', 'ic-14')} Rundumschlag (3${icon('wood', 'ic-14')})</button>`;
             }
             if (clickedUnit.t === 4 && clickedUnit.a === 1 && !clickedUnit.nb) {
-                if (pState.m >= 3 && !clickedUnit.br) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #e53935;" onclick="useAbility('berserker')">🩸 Blutrausch (3🪵)</button>`;
-                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🩸 Blutrausch (3🪵)</button>`;
+                if (pState.m >= 3 && !clickedUnit.br) menuHtml += `<button class="action-btn act-fire" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('berserker')">${icon('blood', 'ic-14')} Blutrausch (3${icon('wood', 'ic-14')})</button>`;
+                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" disabled>${icon('blood', 'ic-14')} Blutrausch (3${icon('wood', 'ic-14')})</button>`;
             }
             if (clickedUnit.t === 5 && !clickedUnit.iv && !clickedUnit.cd) {
-                if (pState.m >= 2) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #43a047;" onclick="useAbility('assassine')">🌫️ Tarnung (2🪵)</button>`;
-                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🌫️ Tarnung (2🪵)</button>`;
+                if (pState.m >= 2) menuHtml += `<button class="action-btn act-shadow" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('assassine')">${icon('cloak', 'ic-14')} Tarnung (2${icon('wood', 'ic-14')})</button>`;
+                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" disabled>${icon('cloak', 'ic-14')} Tarnung (2${icon('wood', 'ic-14')})</button>`;
             }
             if (clickedUnit.t === 6 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
-                if (pState.m >= 3) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #fb8c00;" onclick="useAbility('tribok')">🔥 Flächenbrand (3🪵)</button>`;
-                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🔥 Flächenbrand (3🪵)</button>`;
+                if (pState.m >= 3) menuHtml += `<button class="action-btn act-fire" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('tribok')">${icon('fire', 'ic-14')} Flächenbrand (3${icon('wood', 'ic-14')})</button>`;
+                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" disabled>${icon('fire', 'ic-14')} Flächenbrand (3${icon('wood', 'ic-14')})</button>`;
             }
             if (clickedUnit.t === 9 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
-                if (pState.m >= 3) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #5d4037;" onclick="useAbility('elefant')">🐘 Stampede (3🪵)</button>`;
-                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🐘 Stampede (3🪵)</button>`;
+                if (pState.m >= 3) menuHtml += `<button class="action-btn act-fire" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('elefant')">${icon('elephant', 'ic-14')} Stampede (3${icon('wood', 'ic-14')})</button>`;
+                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" disabled>${icon('elephant', 'ic-14')} Stampede (3${icon('wood', 'ic-14')})</button>`;
             }
             if (clickedUnit.t === 10 && (clickedUnit.a === 0 || clickedUnit.a === 2) && !clickedUnit.ps) {
                 const kCost = pState.u.includes(8) ? 0 : 1;
-                if (pState.m >= kCost) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #e65100;" onclick="useAbility('kamel')">🏹 Parthershot (${kCost}🪵)</button>`;
-                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🏹 Parthershot (${kCost}🪵)</button>`;
+                if (pState.m >= kCost) menuHtml += `<button class="action-btn act-fire" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('kamel')">${icon('bow', 'ic-14')} Parthershot (${kCost}${icon('wood', 'ic-14')})</button>`;
+                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" disabled>${icon('bow', 'ic-14')} Parthershot (${kCost}${icon('wood', 'ic-14')})</button>`;
             }
             if (clickedUnit.t === 10 && clickedUnit.ps) {
-                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #bf360c;" disabled>🏹 Parthershot aktiv – Greif an!</button>`;
+                menuHtml += `<button class="action-btn act-fire" style="padding: 8px; font-size: 0.9rem;" disabled>${icon('bow', 'ic-14')} Parthershot aktiv – Greif an!</button>`;
             }
 
             if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
                 const stones = pState.s || 0;
-                if (stones >= 1) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #795548;" onclick="useAbility('wall')">🧱 Mauer (1🪨)</button>`;
-                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🧱 Mauer (1🪨)</button>`;
+                if (stones >= 1) menuHtml += `<button class="action-btn act-build" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('wall')">${icon('wall', 'ic-14')} Mauer (1${icon('stone', 'ic-14')})</button>`;
+                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" disabled>${icon('wall', 'ic-14')} Mauer (1${icon('stone', 'ic-14')})</button>`;
 
-                if (stones >= 4) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #5d4037;" onclick="useAbility('tunnel')">🚇 Tunnel (4🪨)</button>`;
-                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🚇 Tunnel (4🪨)</button>`;
+                if (stones >= 4) menuHtml += `<button class="action-btn act-build" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('tunnel')">${icon('tunnel', 'ic-14')} Tunnel (4${icon('stone', 'ic-14')})</button>`;
+                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" disabled>${icon('tunnel', 'ic-14')} Tunnel (4${icon('stone', 'ic-14')})</button>`;
 
-                if (stones >= 5) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #37474f;" onclick="useAbility('tower')">🗼 Turm (5🪨)</button>`;
-                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🗼 Turm (5🪨)</button>`;
+                if (stones >= 5) menuHtml += `<button class="action-btn act-build" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('tower')">${icon('tower', 'ic-14')} Turm (5${icon('stone', 'ic-14')})</button>`;
+                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" disabled>${icon('tower', 'ic-14')} Turm (5${icon('stone', 'ic-14')})</button>`;
             }
 
             if (clickedUnit.t === 11 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
                 const label = clickedUnit.dp === 1 ? '🐎 Abbauen' : '⛺ Aufschlagen';
-                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #263238;" onclick="toggleDeploy()">${label}</button>`;
+                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" onclick="toggleDeploy()">${label}</button>`;
             }
             if (clickedUnit.t === 15 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
                 const fsCost = unitStats[15].fsCost;
-                if (pState.m >= fsCost) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #bf360c;" onclick="useAbility('feuersturm')">🌋 Feuersturm (${fsCost}🪵)</button>`;
-                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; opacity: 0.5;" disabled>🌋 Feuersturm (${fsCost}🪵)</button>`;
+                if (pState.m >= fsCost) menuHtml += `<button class="action-btn act-fire" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('feuersturm')">${icon('fire', 'ic-14')} Feuersturm (${fsCost}${icon('wood', 'ic-14')})</button>`;
+                else menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" disabled>${icon('fire', 'ic-14')} Feuersturm (${fsCost}${icon('wood', 'ic-14')})</button>`;
             }
             if (clickedUnit.t === 12 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
                 if (clickedUnit.cg) {
-                    menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #00695c;" onclick="useAbility('absetzen')">⬇️ ${unitStats[clickedUnit.cg.t].name} absetzen</button>`;
+                    menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('absetzen')">${icon('arrow-down', 'ic-14')} ${unitStats[clickedUnit.cg.t].name} absetzen</button>`;
                 } else {
                     const candidates = [{ x: clickedUnit.x, y: clickedUnit.y }, ...getNeighbors(clickedUnit.x, clickedUnit.y)];
                     const hasCargoTarget = candidates.some(c => { const g = groundUnitAt(c.x, c.y); return g && g.p === gameState.cp && !isHeavyUnit(g); });
-                    if (hasCargoTarget) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #00695c;" onclick="useAbility('aufladen')">🚁 Aufladen</button>`;
+                    if (hasCargoTarget) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('aufladen')">${icon('arrow-up', 'ic-14')} Aufladen</button>`;
                 }
             }
             if (clickedUnit.t === 13 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
-                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #b71c1c;" onclick="useAbility('sturzangriff')">💥 Sturzangriff</button>`;
+                menuHtml += `<button class="action-btn act-fire" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('sturzangriff')">${icon('boom', 'ic-14')} Sturzangriff</button>`;
             }
             if (clickedUnit.t === 14 && isFlying(clickedUnit) && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
-                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #283593;" onclick="useAbility('absprung')">🪂 Absprung</button>`;
+                menuHtml += `<button class="action-btn act-shadow" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('absprung')">${icon('parachute', 'ic-14')} Absprung</button>`;
             }
 
             if (gameState.tu && !isFlying(clickedUnit)) {
@@ -1735,10 +1782,10 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                     // der Arbeiter, der beide Wege nutzen darf.
                     const isTunnelStart = onTunnel.x1 === clickedUnit.x && onTunnel.y1 === clickedUnit.y;
                     if (clickedUnit.t === 7 && isTunnelStart && onTunnel.o === gameState.cp && onTunnel.r <= gameState.rn && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
-                        menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4527a0;" onclick="window.uwDescend()">🕳 Abtauchen</button>`;
+                        menuHtml += `<button class="action-btn act-shadow" style="padding: 8px; font-size: 0.9rem;" onclick="window.uwDescend()">${icon('arrow-down', 'ic-14')} Abtauchen</button>`;
                     }
                     if (onTunnel.r <= gameState.rn && (clickedUnit.a === 0 || clickedUnit.a === 2) && !isHeavyUnit(clickedUnit)) {
-                        menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #8d6e63;" onclick="useTunnel()">🚇 Durch Tunnel gehen</button>`;
+                        menuHtml += `<button class="action-btn act-build" style="padding: 8px; font-size: 0.9rem;" onclick="useTunnel()">${icon('tunnel', 'ic-14')} Durch Tunnel gehen</button>`;
                     }
                 }
                 if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
@@ -1746,12 +1793,12 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                         hexDistance({ x: t.x1, y: t.y1 }, { x: clickedUnit.x, y: clickedUnit.y }) === 1 ||
                         hexDistance({ x: t.x2, y: t.y2 }, { x: clickedUnit.x, y: clickedUnit.y }) === 1
                     ));
-                    if (hasAdjTunnel) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4e342e;" onclick="startDemolishTunnel()">🚇 Tunnel abreißen (+2🪨)</button>`;
+                    if (hasAdjTunnel) menuHtml += `<button class="action-btn act-build" style="padding: 8px; font-size: 0.9rem;" onclick="startDemolishTunnel()">${icon('tunnel', 'ic-14')} Tunnel abreißen (+2${icon('stone', 'ic-14')})</button>`;
                 }
             }
             if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2) && gameState.wa) {
                 const hasAdjWall = gameState.wa.some(w => w.o === gameState.cp && hexDistance({ x: w.x, y: w.y }, { x: clickedUnit.x, y: clickedUnit.y }) === 1);
-                if (hasAdjWall) menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #4e342e;" onclick="startDemolishWall()">🧱 Mauer abreißen</button>`;
+                if (hasAdjWall) menuHtml += `<button class="action-btn act-build" style="padding: 8px; font-size: 0.9rem;" onclick="startDemolishWall()">${icon('wall', 'ic-14')} Mauer abreißen</button>`;
             }
 
             const canCapture = (villageOwner === -1)
@@ -1759,10 +1806,10 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                 : (clickedUnit.a === 0);
 
             if (!isFlying(clickedUnit) && villageOwner !== undefined && villageOwner !== gameState.cp && !isStart && canCapture && !(pState.al && pState.al.includes(villageOwner)) && !(pState.tc && pState.tc.includes(villageOwner))) {
-                menuHtml += `<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #ff1744;" onclick="startCapture()">Dorf einnehmen</button>`;
+                menuHtml += `<button class="action-btn act-fire" style="padding: 8px; font-size: 0.9rem;" onclick="startCapture()">Dorf einnehmen</button>`;
             }
 
-            if (clickedUnit.t === 8 && (clickedUnit.a === 0 || clickedUnit.a === 2)) { menuHtml += '<button class="action-btn" style="padding: 8px; font-size: 0.9rem; background: #d84315;" onclick="useAbility(\'detonate\')">💥 Sprengen</button>'; }
+            if (clickedUnit.t === 8 && (clickedUnit.a === 0 || clickedUnit.a === 2)) { menuHtml += `<button class="action-btn act-fire" style="padding: 8px; font-size: 0.9rem;" onclick="useAbility('detonate')">${icon('boom', 'ic-14')} Sprengen</button>`; }
 
             unitMenuHtml = menuHtml;
             infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Einheit ausgewählt. Ziel oder Aktion wählen.</div>`;
@@ -2153,12 +2200,12 @@ function confirmSurrender() {
     const nextPlayer = gameState.p[gameState.cp];
     if (teamWinners) {
         if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true, teamWinners);
-        showWin(`${teamWinners.map(p => p.n).join(' & ')} gewinnen gemeinsam!`);
+        showWin(`${teamWinners.map(p => p.n).join(' & ')} gewinnen gemeinsam!`, teamWinners);
         return;
     }
     if (alivePlayers.length === 1) {
         if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true, alivePlayers);
-        showWin(`${alivePlayers[0].n} hat als Letzter überlebt! (${surrenderingName} hat aufgegeben)`);
+        showWin(`${alivePlayers[0].n} hat als Letzter überlebt! (${surrenderingName} hat aufgegeben)`, [alivePlayers[0]]);
         return;
     }
     if (!isLegacyUrlMode && currentGameId) {
@@ -2652,17 +2699,17 @@ function doEndTurn() {
 
     if (teamWinners2) {
         if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true, teamWinners2);
-        showWin(`${teamWinners2.map(p => p.n).join(' & ')} gewinnen gemeinsam!`);
+        showWin(`${teamWinners2.map(p => p.n).join(' & ')} gewinnen gemeinsam!`, teamWinners2);
         return;
     }
     if (erschlWinners) {
         if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true, erschlWinners);
-        showWin(`${erschlWinners.map(p => p.n).join(' & ')} haben das Herz der Tiefe erschlossen — wer das Fundament des Landes hält, dem beugt sich die Oberfläche!`);
+        showWin(`${erschlWinners.map(p => p.n).join(' & ')} haben das Herz der Tiefe erschlossen — wer das Fundament des Landes hält, dem beugt sich die Oberfläche!`, erschlWinners);
         return;
     }
     if (alivePlayers.length === 1) {
         if (!isLegacyUrlMode && currentGameId) submitTurnToServer(encodedState, null, true, alivePlayers);
-        showWin(`${alivePlayers[0].n} hat als Letzter überlebt!`);
+        showWin(`${alivePlayers[0].n} hat als Letzter überlebt!`, [alivePlayers[0]]);
         return;
     }
     if (!isLegacyUrlMode && currentGameId) {

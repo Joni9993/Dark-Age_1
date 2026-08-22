@@ -31,12 +31,12 @@ window.RadialMenu = (function () {
     // Reihenfolge bestimmt die Position im Kreis (erster Eintrag oben, dann im
     // Uhrzeigersinn) — rein kosmetisch, hat keine funktionale Bedeutung.
     const ITEMS = [
-        { key: 'research', icon: '📜', label: 'Forschung' },
-        { key: 'faction', icon: '⚜️', label: 'Fraktion' },
-        { key: 'diplomacy', icon: '🤝', label: 'Diplomatie' },
-        { key: 'relics', icon: '🏺', label: 'Reliquien' },
-        { key: 'trade', icon: '⚖️', label: 'Handel' },
-        { key: 'endturn', icon: '🏁', label: 'Zug beenden' },
+        { key: 'research', icon: 'scroll', label: 'Forschung' },
+        { key: 'faction', icon: 'banner', label: 'Fraktion' },
+        { key: 'diplomacy', icon: 'pact', label: 'Diplomatie' },
+        { key: 'relics', icon: 'urn', label: 'Reliquien' },
+        { key: 'trade', icon: 'scales', label: 'Handel' },
+        { key: 'endturn', icon: 'flag', label: 'Zug beenden' },
     ];
     const RADIUS = 95;          // Abstand Kreis-Mittelpunkt <-> Druckpunkt, siehe CLAUDE.md-Auftrag (~90-100px)
     const CIRCLE_SIZE = 64;
@@ -123,7 +123,7 @@ window.RadialMenu = (function () {
                 + (def.key === 'faction' && factionAffordable ? ' affordable' : '');
             el.style.left = cx + 'px';
             el.style.top = cy + 'px';
-            el.innerHTML = `<span class="radial-icon">${def.icon}</span><span class="radial-label">${def.label}</span>`;
+            el.innerHTML = `<span class="radial-icon">${icon(def.icon, 'ic-24')}</span><span class="radial-label">${def.label}</span>`;
             overlay.appendChild(el);
             return { key: def.key, cx, cy, el, disabled: disabled[def.key] };
         });

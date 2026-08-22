@@ -143,6 +143,19 @@
     const raycaster = new THREE.Raycaster();
     const texCache = {};
 
+    // Webfonts sind beim ersten Zeichnen einer Textur oft noch nicht geladen —
+    // die Textur würde dann dauerhaft mit der Ersatzschrift im Cache liegen.
+    // Deshalb den Cache leeren, sobald die Schriften da sind, und neu zeichnen.
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => {
+            for (const k of Object.keys(texCache)) {
+                texCache[k].dispose();
+                delete texCache[k];
+            }
+            if (typeof gameState !== 'undefined' && gameState) renderBoard(gameState);
+        });
+    }
+
     function baseDist() {
         // Distanz, bei der 1 Welteinheit ≈ 1 CSS-Pixel entspricht (Parität zu camScale=1)
         const h = canvas3d ? canvas3d.clientHeight : 800;
@@ -1131,12 +1144,16 @@
         // "1/5", "💎12") mitsamt Umriss-Stroke ins quadratische 64px-Canvas passen —
         // sonst schneidet der Sprite links/rechts ab, da die Sprite-Geometrie immer
         // quadratisch skaliert wird (addIcon/addHpText: scale.set(size, size, 1)).
+        // Silkscreen statt Courier: die Zahlen auf der Karte sollen zur
+        // Pixel-UI passen. Schrittweite 8 statt 2, weil Silkscreen auf einem
+        // 8px-Raster gezeichnet ist und nur bei Vielfachen davon scharf bleibt.
         let fontSize = 40;
-        g.font = `bold ${fontSize}px 'Courier New', monospace`;
+        const setFont = () => { g.font = `${fontSize}px 'Silkscreen', monospace`; };
+        setFont();
         const maxWidth = 46;
         while (fontSize > 16 && g.measureText(text).width > maxWidth) {
-            fontSize -= 2;
-            g.font = `bold ${fontSize}px 'Courier New', monospace`;
+            fontSize -= 8;
+            setFont();
         }
         g.textAlign = 'center'; g.textBaseline = 'middle';
         g.lineWidth = Math.max(4, fontSize / 5); g.strokeStyle = '#000';
@@ -1144,6 +1161,12 @@
         g.fillStyle = color;
         g.fillText(text, 32, 34);
         const tex = new THREE.CanvasTexture(c);
+        // Ohne NearestFilter interpoliert die GPU beim Skalieren des Sprites und
+        // die Pixelkanten verwaschen — genau das, was die Pixelschrift vermeiden
+        // soll.
+        tex.magFilter = THREE.NearestFilter;
+        tex.minFilter = THREE.NearestFilter;
+        tex.generateMipmaps = false;
         texCache[key] = tex;
         return tex;
     }

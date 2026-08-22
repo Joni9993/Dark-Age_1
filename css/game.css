@@ -1,26 +1,91 @@
+/* ==========================================================================
+   Dark Ages · Pixel-UI
+   Alle Farben stammen aus NEW_PAL (js/art.js) — UI und Spielfläche teilen sich
+   damit eine Palette. Formregeln, die überall gelten:
+     · border-radius: 0 (global im Reset erzwungen)
+     · kein backdrop-filter — Tiefe kommt aus 2px-Bevels, nicht aus Blur
+     · Rahmen 2px, Bevel 2px, Abstände in Vielfachen von 4
+     · Trefferflächen ≥ 44px (Regel steht unten bei "Mobile / Responsive")
+   ========================================================================== */
 :root {
-    --bg-deep: #0a0a0f;
-    --bg-panel: rgba(22, 20, 16, 0.92);
-    --bg-card: rgba(38, 34, 28, 0.95);
-    --border: rgba(180, 150, 100, 0.3);
-    --border-bright: rgba(212, 175, 120, 0.55);
-    --text: #e8d8c0;
+    /* Grund & Panel */
+    --ink: #08070b;
+    --panel-hi: #33281c;          /* Bevel oben/links */
+    --panel-lo: #0c0907;          /* Bevel unten/rechts */
+    --edge: #0a0806;              /* harte Außenkante */
+
+    /* Bestehende Tokennamen — auf die Pixel-Palette umgehängt, damit alle
+       Regeln weiter greifen, die sie schon benutzen. */
+    --bg-deep: #08070b;
+    --bg-panel: #171310;          /* jetzt deckend: der Blur dahinter ist weg */
+    --bg-card: #1f1913;
+    --border: #33281c;
+    --border-bright: #8f6435;
+    --text: #cabe98;              /* pal 18 */
+    --text-bright: #eeebe8;       /* pal 22 */
     --text-dim: #8a7e6e;
+    --text-faint: #57503f;
     --gold: #e8b84a;
-    --red: #ff3355;
+    --gold-mid: #c98a10;          /* pal 7 */
+    --gold-dk: #7a5205;
+    --red: #cc0000;               /* pal 23 */
+    --fire: #e2571f;              /* pal 8 */
+    --fire-dk: #8a2c0e;           /* pal 16 */
     --green: #5cb85c;
     --blue: #4fc3f7;
+
+    /* Material */
+    --wood: #5e3a20;              /* pal 4 */
+    --wood-dk: #3a2515;           /* pal 10 */
+    --wood-hi: #8f6435;           /* pal 14 */
+    --steel: #9fabbc;             /* pal 3 */
+    --steel-dk: #2c303d;          /* pal 6 */
+    --stone: #7d838f;             /* pal 5 */
+    --stone-dk: #565f70;
+
+    /* Wiederverwendbare Schatten-Rezepte */
+    --bevel: inset 2px 2px 0 var(--panel-hi), inset -2px -2px 0 var(--panel-lo);
+    --bevel-in: inset 2px 2px 0 var(--panel-lo), inset -2px -2px 0 #241d16;
+    --drop: 4px 4px 0 rgba(0, 0, 0, 0.55);
+
+    /* Schriften
+       ------------------------------------------------------------------
+       WICHTIG — Pixelschriften sind nur auf ihrem eigenen Raster scharf.
+       Jede andere Größe lässt der Browser weichzeichnen, und dann sieht die
+       Schrift aus wie eine normale Schrift mit eckigen Buchstaben:
+
+         Jersey 15   scharf bei  15px und 30px
+         Silkscreen  scharf bei   8px, 12px und 16px
+         MedievalSharp ist KEIN Pixelfont — beliebige Größen, bewusst weich
+                     (Kontrast für Wortmarke und Screen-Titel)
+
+       Neue Regeln bitte an diese Werte halten. Einzige bewusste Ausnahme:
+       Eingabefelder stehen auf 16px, weil iOS sonst beim Fokussieren
+       hineinzoomt — dort ist die leichte Unschärfe der kleinere Übel. */
+    /* Jersey 15: kompakt genug für lange deutsche Wörter UND mit eindeutigen
+       Ziffern — anders als die meisten runden Pixel-Fonts, bei denen 5/S und
+       2/8 kollidieren. Zahlen in Labels laufen zusätzlich in Silkscreen. */
+    --font-body: 'Jersey 15', 'Courier New', Courier, monospace;
+    --font-ui: 'Silkscreen', 'Courier New', monospace;
+    --font-display: 'MedievalSharp', cursive;
 }
 
 * {
     box-sizing: border-box;
+    /* Pixel-Look: keine Rundungen, nirgends. Bewusst global statt in jeder
+       Regel einzeln — so kann sie auch niemand versehentlich wieder einführen. */
+    border-radius: 0;
 }
 
 body {
     margin: 0;
-    background: radial-gradient(ellipse at 50% 40%, #1a1510 0%, #0d0b08 50%, #050505 100%);
+    background:
+        repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.30) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='58' viewBox='0 0 34 58'%3E%3Cpath d='M17 1 L33 10 L33 28 L17 37 L1 28 L1 10 Z' fill='none' stroke='%23c98a10' stroke-opacity='0.10' stroke-width='1'/%3E%3C/svg%3E"),
+        radial-gradient(115% 60% at 50% 22%, rgba(120, 80, 20, 0.16) 0%, rgba(8, 7, 11, 0) 62%),
+        var(--ink);
     color: var(--text);
-    font-family: 'Courier New', Courier, monospace;
+    font-family: var(--font-body);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -38,35 +103,33 @@ input, textarea {
 
 h2 {
     margin-top: 5px;
-    font-family: 'MedievalSharp', cursive;
+    font-family: var(--font-display);
     font-size: 2rem;
-    letter-spacing: 3px;
+    letter-spacing: 4px;
     color: var(--gold);
-    text-shadow: 0 0 20px rgba(232, 184, 74, 0.3);
+    text-shadow: 0 3px 0 #000, 0 0 20px rgba(232, 184, 74, 0.28);
 }
 
 #app-version {
     position: fixed;
     right: 10px;
     bottom: 8px;
-    font-size: 0.7rem;
-    color: var(--text-dim);
-    opacity: 0.6;
-    letter-spacing: 0.5px;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    color: var(--text-faint);
+    letter-spacing: 1.5px;
     z-index: 500;
     pointer-events: none;
 }
 
+/* Panel: harte Kante außen, 2px-Bevel innen, harter Schlagschatten. */
 .screen-box {
     display: flex;
     flex-direction: column;
     gap: 15px;
     background: var(--bg-panel);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
     padding: 28px;
-    border: 1px solid var(--border);
-    border-radius: 16px;
+    border: 2px solid var(--edge);
     width: 100%;
     max-width: 420px;
     text-align: center;
@@ -75,8 +138,8 @@ h2 {
     margin-top: 20px;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    animation: fadeInUp 0.6s ease;
+    box-shadow: var(--bevel), var(--drop);
+    animation: fadeInUp 0.4s ease;
 }
 
 .screen-box::-webkit-scrollbar {
@@ -88,41 +151,197 @@ h2 {
 }
 
 .screen-box::-webkit-scrollbar-thumb {
-    background: rgba(180, 150, 100, 0.3);
-    border-radius: 3px;
+    background: var(--wood-hi);
 }
 
 .setup-group {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
     text-align: left;
 }
 
 .setup-group label {
-    font-size: 0.85rem;
+    font-family: var(--font-ui);
+    font-size: 8px;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.6px;
     color: var(--text-dim);
 }
 
+/* ── Ecknieten ────────────────────────────────────────────────────────────
+   Markieren genau EINE Sache pro Screen: die, die gerade dran ist. Das
+   Elternelement braucht position: relative. */
+.stud {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: var(--wood-hi);
+    pointer-events: none;
+}
+
+.stud--tl { top: 4px; left: 4px; }
+.stud--tr { top: 4px; right: 4px; }
+.stud--bl { bottom: 4px; left: 4px; }
+.stud--br { bottom: 4px; right: 4px; }
+
+/* ── Kachel-Auswahl (js/segmented.js) ─────────────────────────────────────
+   Ersetzt die <select>-Dropdowns im Setup-Screen. Das native <select> bleibt
+   im DOM und ist weiterhin die Datenquelle — nur unsichtbar. */
+.seg-native {
+    display: none;
+}
+
+.seg {
+    display: flex;
+    gap: 6px;
+}
+
+.seg-col {
+    flex-direction: column;
+}
+
+.seg-item {
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 10px 4px;
+    background: #131010;
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 #241d16, inset -2px -2px 0 var(--panel-lo);
+    color: var(--text-dim);
+    font-family: var(--font-body);
+    cursor: pointer;
+    text-align: center;
+}
+
+/* Teams: Icon links, Text rechts — die Beschreibungen brauchen die Breite. */
+.seg-col .seg-item {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    text-align: left;
+}
+
+.seg-col .seg-item .seg-title,
+.seg-col .seg-item .seg-sub {
+    text-align: left;
+}
+
+.seg-col .seg-item .seg-title {
+    flex: 0 0 auto;
+}
+
+.seg-item-on {
+    background: #241a0c;
+    box-shadow: inset 2px 2px 0 var(--gold-dk), inset -2px -2px 0 var(--panel-lo), 0 0 0 2px var(--gold-mid);
+    color: var(--text-bright);
+}
+
+.seg-item-off {
+    background: #121110;
+    color: #3f3931;
+    cursor: not-allowed;
+    box-shadow: inset 2px 2px 0 #1c1917, inset -2px -2px 0 #0b0a09;
+}
+
+/* Die Icons haben eigene Farben und wirkten auf gesperrten Kacheln sonst
+   voll aktiv, obwohl der Text daneben schon ausgegraut war. */
+.seg-item-off .ic {
+    filter: grayscale(1);
+    opacity: 0.35;
+}
+
+.seg-item:not(.seg-item-on):not(.seg-item-off):hover {
+    background: #1d1815;
+}
+
+.seg-title {
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+}
+
+.seg-item-on .seg-title { color: var(--gold); }
+
+.seg-sub {
+    font-size: 15px;
+    line-height: 1.3;
+    color: var(--text-dim);
+}
+
+.seg-col .seg-sub { font-size: 15px; }
+.seg-item-off .seg-sub { color: #3f3931; }
+
+/* Spielerzahl: die Ziffer ist das Element, nicht die Beschriftung. */
+.seg-big {
+    font-family: var(--font-ui);
+    font-size: 16px;
+    color: var(--text-bright);
+}
+
+.seg-item-on .seg-big { color: var(--gold); }
+
+/* Wenn Icon + Titel + Text in einer Zeile stehen, soll der Text den Rest
+   füllen und der Titel darüber stehen — dafür eine kleine innere Spalte. */
+.seg-col .seg-item {
+    flex-wrap: wrap;
+}
+
+.seg-col .seg-item .seg-sub {
+    flex: 1 1 100%;
+    margin-left: 30px;
+    margin-top: -3px;
+}
+
+/* ── Pixel-Icons (js/icons.js) ────────────────────────────────────────────
+   Größen als Klassen statt Inline-Style, damit sie überall gleich sind.
+   vertical-align hält sie auf der Grundlinie, wenn sie mitten im Text stehen;
+   in Flex-Zeilen (HUD, Buttons) ist das wirkungslos. */
+.ic {
+    display: inline-block;
+    vertical-align: -0.15em;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+}
+
+.ic-12 { width: 12px; height: 12px; }
+.ic-14 { width: 14px; height: 14px; }
+.ic-20 { width: 20px; height: 20px; }
+.ic-24 { width: 24px; height: 24px; }
+.ic-32 { width: 32px; height: 32px; }
+.ic-40 { width: 40px; height: 40px; }
+.ic-48 { width: 48px; height: 48px; }
+
+/* Eingaben sind EINGESENKT — Bevel invertiert gegenüber Panels/Buttons. */
 input,
-select {
+select,
+textarea {
     padding: 10px 14px;
-    background: rgba(10, 10, 10, 0.7);
-    color: var(--text);
-    border: 1px solid rgba(180, 150, 100, 0.2);
-    border-radius: 8px;
-    font-family: inherit;
+    background: #0d0b09;
+    color: var(--text-bright);
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel-in);
+    font-family: var(--font-body);
     font-size: 1rem;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
     outline: none;
 }
 
 input:focus,
-select:focus {
-    border-color: var(--gold);
-    box-shadow: 0 0 12px rgba(232, 184, 74, 0.15);
+select:focus,
+textarea:focus {
+    border-color: var(--gold-mid);
+    box-shadow: var(--bevel-in), 0 0 0 2px rgba(201, 138, 16, 0.35);
 }
 
 /* ── Gift/Resource-Transfer Slider (Diplomatie) ─────────────────────────── */
@@ -136,7 +355,7 @@ select:focus {
 .gift-label {
     flex: 0 0 auto;
     min-width: 46px;
-    font-size: 0.72rem;
+    font-size: 15px;
     color: var(--text-dim);
     white-space: nowrap;
     text-align: left;
@@ -167,7 +386,6 @@ select:focus {
 
 .gift-slider::-webkit-slider-runnable-track {
     height: 4px;
-    border-radius: 2px;
     background: linear-gradient(to right,
         var(--gold) 0%, var(--gold) var(--fill),
         rgba(180, 150, 100, 0.25) var(--fill), rgba(180, 150, 100, 0.25) 100%);
@@ -176,117 +394,191 @@ select:focus {
 .gift-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 18px;
+    width: 14px;
     height: 18px;
-    margin-top: -7px;
-    border-radius: 50%;
-    background: var(--gold);
+    margin-top: -8px;
+    background: var(--gold-mid);
+    border: 2px solid var(--edge);
     cursor: pointer;
-    box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+    box-shadow: inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 var(--gold-dk);
 }
 
 .gift-slider::-moz-range-track {
     height: 4px;
-    border-radius: 2px;
     background: rgba(180, 150, 100, 0.25);
 }
 
 .gift-slider::-moz-range-progress {
     height: 4px;
-    border-radius: 2px;
     background: var(--gold);
 }
 
 .gift-slider::-moz-range-thumb {
-    width: 18px;
+    width: 14px;
     height: 18px;
-    border: none;
-    border-radius: 50%;
-    background: var(--gold);
+    border: 2px solid var(--edge);
+    background: var(--gold-mid);
     cursor: pointer;
-    box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+    box-shadow: inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 var(--gold-dk);
 }
 
+/* Button-Anatomie (siehe Design-System, Abschnitt 04):
+   Fläche + Bevel oben/links hell + Bevel unten/rechts dunkel + 4px-Sockel.
+   Beim Drücken fährt der Knopf um genau diese 4px nach unten und der Sockel
+   verschwindet — die Bewegung ersetzt jeden Hover-Effekt (Touch hat keinen). */
 .action-btn {
     margin-top: 4px;
-    padding: 8px 14px;
-    background: linear-gradient(180deg, #4a3d2e 0%, #342a1e 100%);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-weight: 700;
-    font-size: 0.82rem;
+    padding: 10px 14px;
+    background: #3a2b1c;
+    color: var(--text-bright);
+    border: 2px solid var(--edge);
+    font-weight: 400;
+    font-size: 12px;
     cursor: pointer;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    transition: all 0.25s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-    font-family: 'MedievalSharp', cursive;
+    letter-spacing: 1.2px;
+    transition: none;
+    box-shadow:
+        inset 2px 2px 0 rgba(201, 147, 97, 0.30),
+        inset -2px -2px 0 rgba(0, 0, 0, 0.55),
+        0 4px 0 var(--edge);
+    font-family: var(--font-ui);
     position: relative;
-    overflow: hidden;
 }
 
 /* In-game action buttons are even more compact */
 #ui-container .action-btn {
     margin-top: 0;
-    padding: 6px 10px;
-    font-size: 0.75rem;
+    padding: 8px 10px;
+    font-size: 8px;
     letter-spacing: 0.5px;
 }
 
-.action-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
-    transition: left 0.5s ease;
-}
-
-.action-btn:hover::before {
-    left: 100%;
-}
-
 .action-btn:hover {
-    border-color: var(--border-bright);
-    box-shadow: 0 4px 16px rgba(232, 184, 74, 0.15);
-    transform: translateY(-1px);
+    background: #46351f;
 }
 
 .action-btn:active {
-    background: linear-gradient(180deg, #2e2518 0%, #1a1510 100%);
-    transform: translateY(1px);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    transform: translateY(4px);
+    box-shadow:
+        inset 2px 2px 0 rgba(0, 0, 0, 0.55),
+        inset -2px -2px 0 rgba(201, 147, 97, 0.16);
 }
 
 .action-btn:disabled {
-    background: #151210;
-    color: #3a3530;
-    border-color: #1a1815;
+    background: #141211;
+    color: #3f3931;
     cursor: not-allowed;
-    box-shadow: none;
     transform: none;
+    box-shadow:
+        inset 2px 2px 0 #1c1917,
+        inset -2px -2px 0 #0b0a09,
+        0 4px 0 var(--edge);
 }
 
-.action-btn:disabled::before {
-    display: none;
+/* Primäraktion: die eine Sache, die auf dem Screen als nächstes dran ist.
+   js/ui.js + index.html vergeben .primary bewusst sparsam. */
+.action-btn.primary {
+    background: var(--gold-mid);
+    color: #1c1305;
+    box-shadow:
+        inset 2px 2px 0 #f0cf6a,
+        inset -2px -2px 0 var(--gold-dk),
+        0 4px 0 #3a2604;
+}
+
+.action-btn.primary:hover { background: #dd9a17; }
+
+.action-btn.primary:active {
+    transform: translateY(4px);
+    box-shadow:
+        inset 2px 2px 0 var(--gold-dk),
+        inset -2px -2px 0 #f0cf6a;
+}
+
+/* ── Aktionsfarben ────────────────────────────────────────────────────────
+   Fünf Familien statt der früher ~20 fest im JS verdrahteten Material-Farben
+   (js/input.js). Zugeordnet wird nach Bedeutung der Aktion, damit man die Art
+   einer Fähigkeit an der Farbe erkennt, bevor man den Text gelesen hat. */
+.action-btn.act-fire {                                  /* Kampf & Feuer */
+    background: var(--fire-dk);
+    color: #f8e5de;
+    box-shadow: inset 2px 2px 0 var(--fire), inset -2px -2px 0 #3d1205, 0 4px 0 #2a0c03;
+}
+.action-btn.act-fire:hover  { background: #a4360f; }
+
+.action-btn.act-build {                                 /* Bau & Stein */
+    background: var(--stone-dk);
+    color: #eef2f7;
+    box-shadow: inset 2px 2px 0 var(--steel), inset -2px -2px 0 #262c37, 0 4px 0 #171a22;
+}
+.action-btn.act-build:hover { background: #66707f; }
+
+.action-btn.act-gold {                                  /* Gold & Handel */
+    background: var(--gold-mid);
+    color: #1c1305;
+    box-shadow: inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 var(--gold-dk), 0 4px 0 #3a2604;
+}
+.action-btn.act-gold:hover  { background: #dd9a17; }
+
+.action-btn.act-shadow {                                /* Schatten & Spionage */
+    background: var(--steel-dk);
+    color: #c8d2e0;
+    box-shadow: inset 2px 2px 0 var(--stone-dk), inset -2px -2px 0 #14171e, 0 4px 0 #0d0f14;
+}
+.action-btn.act-shadow:hover { background: #3a4052; }
+
+.action-btn.act-earth {                                 /* Erde & Unterwelt */
+    background: var(--wood-dk);
+    color: #d8c3a8;
+    box-shadow: inset 2px 2px 0 var(--wood-hi), inset -2px -2px 0 #1a0f08, 0 4px 0 #120a05;
+}
+.action-btn.act-earth:hover { background: #4c3220; }
+
+.action-btn.act-ally {                                  /* Bündnis / Zustimmung */
+    background: #2c6b2c;
+    color: #e6f7e6;
+    box-shadow: inset 2px 2px 0 #5cb85c, inset -2px -2px 0 #133a13, 0 4px 0 #0c260c;
+}
+.action-btn.act-ally:hover { background: #357f35; }
+
+/* Gedrückt-Zustand ist für alle Familien gleich: Sockel weg, Bevel invertiert. */
+.action-btn.act-ally:active,
+.action-btn.act-fire:active,
+.action-btn.act-build:active,
+.action-btn.act-gold:active,
+.action-btn.act-shadow:active,
+.action-btn.act-earth:active {
+    transform: translateY(4px);
+    box-shadow: var(--bevel-in);
+}
+
+/* Nicht bezahlbar: :disabled gewinnt über die Familienfarbe. */
+.action-btn.act-ally:disabled,
+.action-btn.act-fire:disabled,
+.action-btn.act-build:disabled,
+.action-btn.act-gold:disabled,
+.action-btn.act-shadow:disabled,
+.action-btn.act-earth:disabled {
+    background: #141211;
+    color: #3f3931;
+    box-shadow: inset 2px 2px 0 #1c1917, inset -2px -2px 0 #0b0a09, 0 4px 0 var(--edge);
 }
 
 .wa-btn {
-    background: linear-gradient(180deg, #2db555 0%, #1a8a42 100%);
-    border-color: rgba(37, 211, 102, 0.4);
-    color: white;
+    background: #1a8a42;
+    color: #eafff1;
+    box-shadow:
+        inset 2px 2px 0 #3ddb79,
+        inset -2px -2px 0 #0b4a22,
+        0 4px 0 #063015;
 }
 
-.wa-btn:hover {
-    background: linear-gradient(180deg, #35c760 0%, #209a4d 100%);
-    border-color: rgba(37, 211, 102, 0.6);
-}
+.wa-btn:hover { background: #1f9e4d; }
 
 .wa-btn:active {
-    background: linear-gradient(180deg, #1a8a42 0%, #128C7E 100%);
+    transform: translateY(4px);
+    box-shadow: inset 2px 2px 0 #0b4a22, inset -2px -2px 0 #3ddb79;
 }
 
 /* === UNIFIED TOP HUD === */
@@ -298,15 +590,13 @@ select:focus {
     display: none;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 10px;
-    padding-top: calc(4px + env(safe-area-inset-top));
-    background: linear-gradient(to bottom, rgba(10, 10, 15, 0.92) 0%, rgba(10, 10, 15, 0.75) 100%);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--border);
+    padding: 6px 10px 10px;
+    padding-top: calc(6px + env(safe-area-inset-top));
+    background: linear-gradient(to bottom, rgba(8, 7, 11, 0.96) 0%, rgba(8, 7, 11, 0.70) 62%, rgba(8, 7, 11, 0) 100%);
     z-index: 150;
-    font-size: 0.75rem;
-    font-weight: bold;
-    text-shadow: 1px 1px 3px #000;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    text-shadow: 1px 1px 0 #000;
     pointer-events: auto;
     gap: clamp(3px, 1.5vw, 6px);
 }
@@ -329,12 +619,28 @@ select:focus {
     flex-shrink: 0;
 }
 
+/* Eine Ressource = Icon + Zahl + optionales Einkommen, als eigene Gruppe.
+   Die früheren "|"-Trennstriche entfallen — die Gruppen trennt jetzt der
+   gap von #resource-hud (js/ui.js updateHUD baut das Markup). */
+.res {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.res b {
+    font-weight: 400;
+    color: var(--text-bright);
+}
+
 .income-text {
-    font-size: 0.82em;
+    font-size: 8px;
     color: var(--green);
     font-weight: normal;
 }
 
+/* Rangliste-Trigger sitzt als eigene eingesenkte Platte in der HUD-Zeile,
+   damit er als antippbar lesbar ist statt als loser Text. */
 #scoreboard {
     display: flex;
     align-items: center;
@@ -343,13 +649,21 @@ select:focus {
     min-width: 0;
     cursor: pointer;
     position: relative;
+    padding: 0 7px;
+    background: #141110;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
     /* #game-hud zentriert seine Kinder vertikal (align-items:center) statt sie
        zu strecken — ohne stretch wäre #scoreboard nur so hoch wie die kleine
        Punktzahl-Badge und läge dadurch mittig IN der HUD-Zeile. #scoreboard-
        popup hängt sich aber per top:100% relativ an DIESES Element — ohne
        stretch würde das Dropdown mitten in der HUD-Leiste beginnen statt
-       sauber darunter (genau das von Jonathan gemeldete Überlappen). */
-    align-self: stretch;
+       sauber darunter (genau das von Jonathan gemeldete Überlappen).
+       Seit dem Pixel-Umbau hat #scoreboard einen eigenen Rahmen und ist als
+       Platte erkennbar — gestreckt würde sie die durch den Fade gewachsene
+       HUD-Höhe mitfüllen und unnötig hoch wirken. Das Dropdown hängt jetzt
+       stattdessen mit festem Abstand an der PLATTE (margin-top unten). */
+    align-self: center;
 }
 
 .score-compact {
@@ -371,7 +685,6 @@ select:focus {
 .score-badge .score-dot {
     width: 6px;
     height: 6px;
-    border-radius: 50%;
     display: inline-block;
     flex-shrink: 0;
 }
@@ -381,7 +694,7 @@ select:focus {
    Chevron sähe die HUD-Zeile aus wie EIN Spielerscore statt "Platz 1 von N,
    antippen für alle". */
 .score-compact-chevron {
-    font-size: 0.55rem;
+    font-size: 8px;
     color: var(--text-dim);
     opacity: 0.8;
 }
@@ -427,7 +740,7 @@ canvas {
 .float-text {
     position: absolute;
     transform: translate(-50%, -100%);
-    font: bold 24px 'Courier New', monospace;
+    font: 24px var(--font-ui);
     -webkit-text-stroke: 4px #000;
     paint-order: stroke fill;
     white-space: nowrap;
@@ -452,13 +765,22 @@ canvas {
     pointer-events: auto;
 }
 
+/* Der Inhalt wird auf Lesebreite begrenzt und zentriert: das Panel selbst ist
+   so breit wie der Bildschirm, aber auf dem Desktop lagen Name (links) und
+   HP-Zahl (rechts) sonst fast einen Meter auseinander. */
+#info-panel > * {
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 #info-panel {
-    padding: 6px 10px;
+    padding: 8px 10px;
     background: var(--bg-panel);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--border);
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
     text-align: center;
-    font-weight: bold;
+    font-weight: 400;
     white-space: pre-line;
     min-height: 16px;
     /* War fix 70px — das reicht für Titel + zwei Detailzeilen, aber viele
@@ -467,12 +789,12 @@ canvas {
        koppeln, damit auf normalen Handys praktisch alles komplett passt. */
     max-height: clamp(70px, 26vh, 200px);
     overflow-y: auto;
-    text-shadow: 1px 1px 3px #000;
-    border-radius: 8px;
+    text-shadow: 1px 1px 0 #000;
     pointer-events: none;
-    font-family: 'MedievalSharp', cursive;
-    font-size: 0.78rem;
-    line-height: 1.25;
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.35;
+    color: var(--text-bright);
 }
 
 /* Boden/Luft/Turm-Auswahlkarten brauchen mehr Platz als reiner Text —
@@ -504,16 +826,120 @@ canvas {
 
 #info-panel::-webkit-scrollbar-thumb {
     background: rgba(180, 150, 100, 0.3);
-    border-radius: 2px;
+}
+
+/* ── Info-Panel-Kopfzeile (js/ui.js infoHead / infoStats) ─────────────────
+   Name links, Zustandsmarken daneben, HP rechts — darunter die HP-Leiste.
+   Die HP steht bewusst NUR hier als Zahl; die Leiste wiederholt sie grafisch,
+   im Namen taucht sie nicht mehr auf. */
+.ip-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    text-align: left;
+}
+
+.ip-name {
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--text-bright);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.ip-hp {
+    margin-left: auto;
+    flex: 0 0 auto;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-bright);
+}
+
+.ip-hp-max { color: var(--text-dim); }
+
+.ip-badge {
+    flex: 0 0 auto;
+    padding: 3px 5px;
+    background: #241d16;
+    border: 2px solid var(--edge);
+    box-shadow: inset 1px 1px 0 var(--panel-hi), inset -1px -1px 0 var(--panel-lo);
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+
+.ip-badge-gold  { background: #241a0c; color: var(--gold); box-shadow: inset 1px 1px 0 var(--gold-dk), inset -1px -1px 0 var(--panel-lo); }
+.ip-badge-fire  { background: #2a1008; color: #ff9d7d; box-shadow: inset 1px 1px 0 var(--fire-dk), inset -1px -1px 0 #120503; }
+.ip-badge-cyan  { background: #0d2530; color: #7fe3ff; box-shadow: inset 1px 1px 0 #1f5f78, inset -1px -1px 0 #06131a; }
+.ip-badge-green { background: #16210f; color: #8fd98f; box-shadow: inset 1px 1px 0 #2c4020, inset -1px -1px 0 #070c05; }
+
+.ip-stats {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 2px;
+}
+
+.ip-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-bright);
+}
+
+/* Segmentierte HP-Leiste (js/ui.js hpBar) — bewusst kein glatter Balken:
+   ein Block je HP zeigt, wie viele Treffer die Einheit noch aushält. */
+.hp-bar {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+    margin: 5px 0 3px;
+}
+
+/* flex-shrink statt einer festen Blockzahl: hohe Maxima (Hauptgebäude 30,
+   Alter Wurm 24) passen dadurch vollständig ins Panel, ohne dass die Leiste
+   Blöcke zusammenfassen und damit die Zahl verfälschen müsste. */
+.hp-bar i {
+    flex: 0 1 7px;
+    width: 7px;
+    min-width: 2px;
+    height: 10px;
+    background: var(--green);
+    box-shadow: inset 1px 1px 0 #8fd98f, inset -1px -1px 0 #2a5c2a;
+}
+
+.hp-bar-foe i {
+    background: var(--red);
+    box-shadow: inset 1px 1px 0 #ff6b6b, inset -1px -1px 0 #6b0000;
+}
+
+.hp-bar i.off {
+    background: #241d1d;
+    box-shadow: inset 1px 1px 0 #2e2626, inset -1px -1px 0 #0c0808;
+}
+
+/* Bonus-HP über dem Maximum (Ereignis "Kriegslust" hebt Einheiten auf max+2):
+   eigene Farbe, damit man sieht, dass diese Blöcke nicht nachwachsen. */
+.hp-bar i.over {
+    background: var(--gold);
+    box-shadow: inset 1px 1px 0 #fff3c4, inset -1px -1px 0 var(--gold-dk);
 }
 
 .info-detail {
-    font-size: 0.68rem;
+    font-size: 15px;
     color: var(--text-dim);
     font-weight: normal;
-    margin-top: 2px;
-    font-family: 'Courier New', monospace;
-    line-height: 1.2;
+    margin-top: 3px;
+    font-family: var(--font-body);
+    line-height: 1.3;
 }
 
 #action-menu {
@@ -567,12 +993,12 @@ canvas {
     flex: 1 1 0;
     max-width: 220px;
     min-height: 44px;
-    padding: 6px 10px;
-    background: rgba(0, 0, 0, 0.35);
-    border: 1.5px solid var(--border);
-    border-radius: 8px;
+    padding: 8px 10px;
+    background: #241d16;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: none;
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -585,12 +1011,11 @@ canvas {
 }
 
 .stack-card:hover {
-    background: rgba(255, 255, 255, 0.08);
-    transform: translateY(-1px);
+    background: #33281c;
 }
 
 .stack-card:active {
-    transform: translateY(1px);
+    box-shadow: var(--bevel-in);
 }
 
 #link-box {
@@ -599,7 +1024,6 @@ canvas {
     background: rgba(10, 10, 10, 0.8);
     color: var(--green);
     border: 1px solid rgba(79, 195, 247, 0.3);
-    border-radius: 8px;
     font-family: monospace;
     word-break: break-all;
     resize: none;
@@ -619,19 +1043,24 @@ canvas {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(5, 5, 5, 0.95);
-    backdrop-filter: blur(4px);
+    background: rgba(4, 3, 6, 0.94);
     z-index: 100;
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
     padding: 20px;
+    /* #game-hud liegt mit z-index 150 UEBER diesen Overlays (Absicht: man soll
+       beim Forschen/Fraktion-Waehlen seine Ressourcen sehen). Ohne diesen
+       Freiraum schoben sich Titel und Karten unter die Leiste. */
+    padding-top: calc(68px + env(safe-area-inset-top));
     overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
-/* Forschungs-Screen dockt unten an, statt oben mit Leerraum darunter zu starten */
+/* Forschung dockt oben an (Jonathans Wunsch): unten angedockt sprangen die
+   Karten je nach Anzahl der Forschungen an eine andere Hoehe. */
 #research-overlay {
-    justify-content: flex-end;
+    justify-content: flex-start;
 }
 
 .cards-container {
@@ -646,8 +1075,7 @@ canvas {
 
 .card {
     background: var(--bg-card);
-    border: 1px solid rgba(212, 196, 168, 0.35);
-    border-radius: 8px;
+    border: 2px solid var(--edge);
     padding: 12px;
     flex: 1 1 45%;
     cursor: pointer;
@@ -655,57 +1083,147 @@ canvas {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    transition: all 0.2s ease;
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+    transition: none;
+    box-shadow: var(--bevel), var(--drop);
 }
 
 .card:hover {
-    border-color: rgba(212, 196, 168, 0.6);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    background: #2a2219;
 }
 
 .card:active {
-    transform: scale(0.97);
-    border-color: var(--blue);
+    box-shadow: var(--bevel-in);
 }
 
+/* Gesperrt: bleibt als Platte stehen, verliert nur Farbe — ein reines
+   opacity-Absenken ließ die Karte auf dem dunklen Overlay verschwinden. */
 .card.disabled {
-    opacity: 0.4;
+    background: #121110;
+    border-color: #1c1917;
+    color: #4f4941;
     cursor: not-allowed;
-    border-color: rgba(100, 90, 80, 0.2);
-    transform: none;
-    box-shadow: none;
+    box-shadow: inset 2px 2px 0 #1c1917, inset -2px -2px 0 #0b0a09;
 }
+
+.card.disabled h3 { color: #6d6558; }
 
 .card.bought {
-    border-color: rgba(92, 184, 92, 0.5);
-    background: rgba(20, 40, 25, 0.8);
+    background: #16210f;
+    box-shadow:
+        inset 2px 2px 0 #2c4020,
+        inset -2px -2px 0 #070c05,
+        0 0 0 2px var(--green);
     cursor: default;
 }
 
 .card h3 {
     margin: 0;
     color: var(--gold);
-    border-bottom: 1px solid rgba(180, 150, 100, 0.2);
-    padding-bottom: 5px;
-    font-size: 0.95rem;
-    font-family: 'MedievalSharp', cursive;
+    border-bottom: 2px solid var(--panel-hi);
+    padding-bottom: 6px;
+    font-size: 15px;
+    font-family: var(--font-body);
 }
 
 .card p {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: 15px;
     flex-grow: 1;
     color: var(--text-dim);
-    line-height: 1.3;
+    line-height: 1.4;
 }
 
+/* ── Fraktionskarten (Draft + Übersicht) ──────────────────────────────────
+   Aufbau wie im Design-Guide: Icon + Name, Trennlinie, Passive, Beschriftung
+   "Spezial", Einheitenliste, Kostenchips unten. */
+.fac-card {
+    text-align: left;
+    gap: 8px;
+}
+
+.fac-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fac-head h3 {
+    margin: 0;
+    border: none;
+    padding: 0;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--text-bright);
+}
+
+.fac-sep {
+    height: 2px;
+    background: repeating-linear-gradient(90deg, var(--panel-hi) 0 4px, transparent 4px 8px);
+}
+
+.fac-card p {
+    color: #a2917a;
+    text-align: left;
+    flex-grow: 0;
+}
+
+.fac-label {
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+.fac-special {
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--text-dim);
+}
+
+.fac-cost {
+    display: flex;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 4px;
+}
+
+.badge-cost {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    background: #0d0b09;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel-in);
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1px;
+    color: var(--text);
+}
+
+.fac-upgrade {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    color: var(--text-dim);
+}
+
+.fac-upgrade-none { color: var(--text-faint); }
+
+/* Kosten als eingesenkter Chip statt als bunte Textzeile */
 .card .cost {
-    font-weight: bold;
-    color: var(--blue);
-    font-size: 0.8rem;
-    margin-top: 3px;
+    align-self: center;
+    padding: 3px 8px;
+    background: #0d0b09;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel-in);
+    font-family: var(--font-ui);
+    color: var(--text);
+    font-size: 8px;
+    letter-spacing: 1px;
+    margin-top: 4px;
 }
 
 /* Fraktions-Fenster (window.openFactionOverview, js/ui.js): Zeile mit dem
@@ -715,7 +1233,7 @@ canvas {
 .passive-value {
     color: var(--gold);
     font-weight: bold;
-    font-size: 0.78rem;
+    font-size: 15px;
     text-align: left;
 }
 
@@ -725,7 +1243,7 @@ canvas {
 .crystal-header {
     color: #7fe3ff;
     font-weight: bold;
-    font-size: 1rem;
+    font-size: 15px;
     text-align: center;
     margin-bottom: 10px;
 }
@@ -735,7 +1253,7 @@ canvas {
    (Korrektur Juli 2026, Jonathans Feedback: Dropdowns wirkten "clunky"). */
 .trade-section-label {
     color: var(--text-dim);
-    font-size: 0.8rem;
+    font-size: 15px;
     margin-bottom: 6px;
 }
 
@@ -748,28 +1266,35 @@ canvas {
 .trade-chip {
     flex: 1 1 64px;
     min-width: 64px;
+    min-height: 48px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
     padding: 10px 6px;
-    background: rgba(10, 10, 10, 0.7);
-    border: 1px solid rgba(180, 150, 100, 0.2);
-    border-radius: 8px;
+    background: #131010;
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 #241d16, inset -2px -2px 0 var(--panel-lo);
     color: var(--text-dim);
-    font-size: 0.7rem;
-    font-family: inherit;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
     cursor: pointer;
-    transition: border-color 0.2s ease, background 0.2s ease;
+    transition: none;
 }
 
+/* Enthält seit dem Pixel-Umbau ein <svg> statt eines Emoji — die frühere
+   font-size steuerte dessen Größe, die Größe kommt jetzt aus der ic-Klasse. */
 .trade-chip-icon {
-    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .trade-chip.selected {
-    border-color: var(--gold);
-    background: rgba(232, 184, 74, 0.12);
+    background: #241a0c;
+    box-shadow: inset 2px 2px 0 var(--gold-dk), inset -2px -2px 0 var(--panel-lo), 0 0 0 2px var(--gold-mid);
     color: var(--gold);
 }
 
@@ -780,19 +1305,46 @@ canvas {
     text-align: center;
     color: var(--gold);
     font-weight: bold;
-    font-size: 0.95rem;
+    font-size: 15px;
     margin-top: -6px;
+}
+
+/* Wappen auf dem Login-Screen (index.html, Pixel-SVG statt Icon.png) */
+.game-crest {
+    width: 104px;
+    height: 104px;
+    margin: 4px auto 0;
+    display: block;
+    filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.8));
+}
+
+.login-wordmark {
+    margin: 14px 0 0;
+    font-family: var(--font-display);
+    font-size: 2rem;
+    letter-spacing: 4px;
+    color: var(--gold);
+    text-shadow: 0 3px 0 #000, 0 0 20px rgba(232, 184, 74, 0.28);
+}
+
+.login-tagline {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--text-dim);
 }
 
 /* === LOGO === */
 .game-logo {
-    width: 110px;
-    height: 110px;
-    border-radius: 50%;
-    border: 2px solid rgba(212, 175, 120, 0.3);
+    width: 104px;
+    height: 104px;
+    border: 2px solid var(--edge);
     margin: 0 auto 5px;
-    box-shadow: 0 0 30px rgba(232, 184, 74, 0.15);
+    box-shadow: var(--bevel), var(--drop);
     object-fit: cover;
+    image-rendering: pixelated;
 }
 
 /* === TOAST NOTIFICATIONS === */
@@ -809,39 +1361,40 @@ canvas {
 }
 
 .toast {
-    padding: 10px 24px;
+    padding: 10px 20px;
     background: var(--bg-panel);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-weight: bold;
+    border: 2px solid var(--edge);
+    font-weight: 400;
     text-align: center;
-    animation: toastIn 0.35s ease, toastOut 0.35s ease 2.2s forwards;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+    animation: toastIn 0.2s ease, toastOut 0.3s ease 2.2s forwards;
+    box-shadow: var(--bevel), var(--drop);
     white-space: nowrap;
-    font-family: 'MedievalSharp', cursive;
-    font-size: 0.9rem;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--text-bright);
+    position: relative;
 }
 
-.toast.error {
-    border-color: rgba(255, 51, 85, 0.5);
-    color: #ff5555;
+/* Zustandsfarbe sitzt als 4px-Kante links statt als Rahmenfarbe — auf dem
+   2px-Pixelrahmen wäre eine Einfärbung kaum zu sehen. */
+.toast::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--gold-mid);
 }
 
-.toast.success {
-    border-color: rgba(92, 184, 92, 0.5);
-    color: #5cb85c;
-}
-
-.toast.info {
-    border-color: rgba(79, 195, 247, 0.5);
-    color: var(--blue);
-}
-
-.toast.gold {
-    border-color: rgba(232, 184, 74, 0.5);
-    color: var(--gold);
-}
+.toast.error::before   { background: var(--fire); }
+.toast.error           { color: #ff9d7d; }
+.toast.success::before { background: var(--green); }
+.toast.success         { color: #8fd98f; }
+.toast.info::before    { background: var(--blue); }
+.toast.info            { color: #9adcf7; }
+.toast.gold::before    { background: var(--gold); }
+.toast.gold            { color: var(--gold); }
 
 /* === EVENT OVERLAY === */
 #event-overlay {
@@ -860,33 +1413,72 @@ canvas {
 }
 
 .event-card {
-    background: var(--bg-panel);
-    border: 1px solid rgba(232, 184, 74, 0.4);
-    border-radius: 12px;
-    padding: 20px 18px;
+    background: #1b0f0a;
+    border: 2px solid var(--fire-dk);
+    padding: 22px 18px;
     max-width: 300px;
     text-align: center;
-    box-shadow: 0 0 40px rgba(232, 184, 74, 0.1), 0 12px 30px rgba(0, 0, 0, 0.5);
+    box-shadow:
+        inset 2px 2px 0 #4a1a08,
+        inset -2px -2px 0 #0c0605,
+        0 0 0 2px var(--edge),
+        var(--drop),
+        0 0 26px rgba(226, 87, 31, 0.20);
     animation: fadeInUp 0.5s ease 0.15s both;
 }
 
-.event-card .event-icon {
-    font-size: 2rem;
-    margin-bottom: 8px;
+.event-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
 }
 
+.event-card .event-icon {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0;
+    filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.8));
+}
+
+/* Runde + "Ereignis" als Kopfzeile — ordnet die Karte zeitlich ein, statt
+   sie kontextlos aufpoppen zu lassen. */
+.event-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--fire);
+}
+
+.event-meta-sep {
+    width: 2px;
+    height: 10px;
+    background: #4a1a08;
+}
+
+.event-meta-kind { color: var(--text-dim); }
+
+.event-card .stud { background: var(--fire); }
+
 .event-card h2 {
-    color: var(--gold);
-    margin: 0 0 8px;
-    font-size: 1.1rem;
-    letter-spacing: 1px;
+    color: var(--fire);
+    margin: 0 0 10px;
+    font-size: 1.6rem;
+    letter-spacing: 2px;
+    font-family: var(--font-display);
+    text-shadow: 0 3px 0 #000, 0 0 24px rgba(226, 87, 31, 0.4);
 }
 
 .event-card p {
-    color: var(--text-dim);
-    margin: 0 0 14px;
-    line-height: 1.4;
-    font-size: 0.8rem;
+    color: #e0cfc0;
+    margin: 0 0 16px;
+    line-height: 1.5;
+    font-size: 15px;
 }
 
 /* === SCOREBOARD (now inside #game-hud) === */
@@ -905,10 +1497,10 @@ canvas {
     padding: 10px 12px;
     margin-bottom: 8px;
     background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
     text-align: left;
-    transition: border-color 0.15s ease;
+    transition: none;
 }
 
 .score-card:not(.score-dead) {
@@ -916,21 +1508,21 @@ canvas {
 }
 
 .score-card:not(.score-dead):hover {
-    border-color: var(--border-bright);
+    background: #2a2219;
 }
 
 .score-card-header {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.9rem;
+    font-size: 15px;
     min-width: 0;
 }
 
 .score-rank {
     flex: 0 0 auto;
     color: var(--text-dim);
-    font-size: 0.8rem;
+    font-size: 15px;
     min-width: 16px;
 }
 
@@ -965,7 +1557,7 @@ canvas {
     flex: 0 0 auto;
     white-space: nowrap;
     color: var(--blue);
-    font-size: 0.78rem;
+    font-size: 15px;
 }
 
 .score-total {
@@ -978,7 +1570,7 @@ canvas {
 .score-chevron {
     flex: 0 0 auto;
     color: var(--text-dim);
-    font-size: 0.7rem;
+    font-size: 12px;
     transition: transform 0.2s ease;
     flex-shrink: 0;
 }
@@ -1001,7 +1593,7 @@ canvas {
 }
 
 .score-subrow {
-    font-size: 0.75rem;
+    font-size: 15px;
     color: var(--text-dim);
     line-height: 1.4;
 }
@@ -1012,18 +1604,21 @@ canvas {
 
 .score-legend {
     margin-top: 2px;
-    font-size: 0.7rem;
+    font-size: 15px;
     color: var(--text-dim);
     text-align: center;
     opacity: 0.7;
 }
 
+/* Spielerfarbe: als kleines Banner auf dunkler Platte statt als leuchtender
+   Punkt — die Spielerfarben (#00e5ff …) sind Neon und kippen den Screen,
+   sobald sie ohne dunkle Fassung auftreten. */
 .score-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
+    width: 9px;
+    height: 11px;
     display: inline-block;
-    box-shadow: 0 0 4px currentColor;
+    border: 1px solid var(--edge);
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.45), inset 1px 1px 0 rgba(255, 255, 255, 0.30);
     flex-shrink: 0;
 }
 
@@ -1038,7 +1633,7 @@ canvas {
 /* === VETERAN STAR === */
 .vet-star {
     color: var(--gold);
-    font-size: 0.7rem;
+    font-size: 12px;
 }
 
 /* === ANIMATIONS === */
@@ -1089,38 +1684,116 @@ canvas {
 }
 
 @keyframes pulseGlow {
-
-    0%,
-    100% {
-        box-shadow: 0 0 8px rgba(232, 184, 74, 0.15);
-    }
-
-    50% {
-        box-shadow: 0 0 25px rgba(232, 184, 74, 0.4);
-    }
+    0%, 100% { text-shadow: 0 4px 0 #000, 0 0 20px rgba(232, 184, 74, 0.30); }
+    50%      { text-shadow: 0 4px 0 #000, 0 0 40px rgba(232, 184, 74, 0.65); }
 }
 
-#win-screen h1 {
-    font-family: 'MedievalSharp', cursive;
-    text-shadow: 0 0 30px rgba(232, 184, 74, 0.5);
+@keyframes crownGlow {
+    0%, 100% { filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.85)) drop-shadow(0 0 10px rgba(232, 184, 74, 0.45)); }
+    50%      { filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.85)) drop-shadow(0 0 26px rgba(232, 184, 74, 0.95)); }
+}
+
+/* Strahlenkranz: liegt hinter allem, deshalb bekommt der restliche Inhalt
+   z-index 1. Der Kranz geht ueber die Panelkanten hinaus — .screen-box
+   schneidet ihn ab (overflow), das ist gewollt. */
+.win-rays {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    opacity: 0.28;
+    pointer-events: none;
+}
+
+#win-screen > *:not(.win-rays) {
+    position: relative;
+    z-index: 1;
+}
+
+.win-crown {
+    width: 88px;
+    height: 88px;
+    margin: 6px auto 0;
+    display: block;
+    animation: crownGlow 2.4s ease infinite;
+}
+
+.win-title {
+    margin: 14px 0 0;
+    font-family: var(--font-display);
+    font-size: 3rem;
+    letter-spacing: 8px;
+    color: var(--gold);
     animation: pulseGlow 2s ease infinite;
+}
+
+.win-msg {
+    margin: 6px 0 0;
+    font-size: 15px;
+    color: #a2917a;
+    line-height: 1.5;
+}
+
+/* Endstand-Leiste im Siegbildschirm (js/diplomacy.js showWin) */
+.win-stats {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--bg-card);
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
+}
+
+.win-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+}
+
+.win-stat-value {
+    font-family: var(--font-ui);
+    font-size: 16px;
+    color: var(--gold);
+}
+
+.win-stat-label {
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+.win-stat-sep {
+    width: 2px;
+    background: var(--panel-hi);
+    flex: 0 0 2px;
 }
 
 /* === AUFGEBEN BUTTON === */
 #menu-btn {
-    padding: 4px 9px;
-    background: linear-gradient(180deg, #1e1e2a 0%, #13131c 100%);
-    color: #c8b89a;
-    border: 1px solid rgba(200, 184, 154, 0.3);
-    border-radius: 6px;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: #3a2b1c;
+    color: var(--text);
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 rgba(201, 147, 97, 0.30), inset -2px -2px 0 rgba(0, 0, 0, 0.55);
     font-size: 1rem;
     cursor: pointer;
-    transition: all 0.2s ease;
     flex-shrink: 0;
     line-height: 1;
 }
-#menu-btn:hover { background: linear-gradient(180deg, #2a2a3a 0%, #1a1a28 100%); border-color: rgba(200, 184, 154, 0.6); }
-#menu-btn:active { transform: scale(0.95); }
+#menu-btn:hover  { background: #46351f; }
+#menu-btn:active { box-shadow: var(--bevel-in); }
 
 /* Kamerafokus-Schieberegler: stufenloser, rein manueller Regler unten rechts
    am Bildschirmrand statt des früheren Drei-Zustands-Buttons. Oben (Wert
@@ -1155,10 +1828,10 @@ canvas {
     flex-direction: column;
     align-items: center;
     gap: 6px;
-    padding: 8px 6px;
-    background: linear-gradient(180deg, rgba(10, 10, 14, 0.6) 0%, rgba(10, 10, 14, 0.4) 100%);
-    border: 1px solid rgba(200, 184, 154, 0.25);
-    border-radius: 10px;
+    padding: 9px 6px;
+    background: rgba(8, 7, 11, 0.88);
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
 }
 
 .cfs-label {
@@ -1209,37 +1882,33 @@ canvas {
    direction:rtl (min unten, max oben). */
 #camera-focus-slider::-webkit-slider-runnable-track {
     width: 8px;
-    border-radius: 4px;
-    background: linear-gradient(180deg, #1a3a5c 0%, #1e1e2a 50%, #3a1a4a 100%);
-    border: 1px solid rgba(200, 184, 154, 0.3);
+    background: linear-gradient(180deg, #1a3a5c 0%, #0d0b09 50%, #3a1a4a 100%);
+    border: 2px solid var(--edge);
 }
 #camera-focus-slider::-moz-range-track {
     width: 8px;
-    border-radius: 4px;
-    background: linear-gradient(180deg, #1a3a5c 0%, #1e1e2a 50%, #3a1a4a 100%);
-    border: 1px solid rgba(200, 184, 154, 0.3);
+    background: linear-gradient(180deg, #1a3a5c 0%, #0d0b09 50%, #3a1a4a 100%);
+    border: 2px solid var(--edge);
 }
 
 #camera-focus-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 22px;
-    height: 22px;
+    height: 16px;
     /* exakt mittig auf dem 8px-Track: (22 - 8) / 2 */
     margin-left: -7px;
-    border-radius: 50%;
-    background: linear-gradient(180deg, #e8c85a 0%, #b8923a 100%);
-    border: 2px solid #3a2a12;
-    box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+    background: var(--stone);
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 var(--steel), inset -2px -2px 0 var(--steel-dk);
     pointer-events: auto;
     cursor: pointer;
 }
 #camera-focus-slider::-moz-range-thumb {
     width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: linear-gradient(180deg, #e8c85a 0%, #b8923a 100%);
-    border: 2px solid #3a2a12;
-    box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+    height: 16px;
+    background: var(--stone);
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 var(--steel), inset -2px -2px 0 var(--steel-dk);
     pointer-events: auto;
     cursor: pointer;
 }
@@ -1249,10 +1918,9 @@ canvas {
     top: calc(36px + env(safe-area-inset-top));
     right: 10px;
     z-index: 300;
-    background: linear-gradient(180deg, #1a1a24 0%, #111118 100%);
-    border: 1px solid rgba(200, 184, 154, 0.25);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    background: var(--bg-panel);
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel), var(--drop);
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -1260,19 +1928,25 @@ canvas {
     min-width: 170px;
 }
 #game-menu-popup button {
-    padding: 9px 14px;
-    background: rgba(255,255,255,0.05);
-    color: #d4c4a8;
-    border: 1px solid rgba(200, 184, 154, 0.15);
-    border-radius: 7px;
-    font-size: 0.85rem;
+    min-height: 44px;
+    padding: 10px 14px;
+    background: #241d16;
+    color: var(--text);
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
+    font-size: 15px;
     cursor: pointer;
     text-align: left;
-    transition: background 0.15s ease;
-    font-family: inherit;
+    font-family: var(--font-body);
 }
-#game-menu-popup button:hover:not(:disabled) { background: rgba(255,255,255,0.1); border-color: rgba(200,184,154,0.35); }
-#game-menu-popup button:disabled { opacity: 0.35; cursor: default; }
+#game-menu-popup button:hover:not(:disabled) { background: #33281c; }
+#game-menu-popup button:active:not(:disabled) { box-shadow: var(--bevel-in); }
+#game-menu-popup button:disabled {
+    background: #141211;
+    color: #3f3931;
+    cursor: default;
+    box-shadow: inset 2px 2px 0 #1c1917, inset -2px -2px 0 #0b0a09;
+}
 
 /* Rangliste-Dropdown (#scoreboard-popup, js/ui.js toggleScoreboard): hängt
    direkt unter dem #scoreboard-Trigger links (position:absolute relativ zu
@@ -1285,33 +1959,31 @@ canvas {
     position: absolute;
     top: 100%;
     left: 0;
-    margin-top: 6px;
+    margin-top: 10px;
     z-index: 300;
     width: 260px;
     max-width: calc(100vw - 20px);
     max-height: 70vh;
     overflow-y: auto;
-    background: linear-gradient(180deg, rgba(26, 26, 36, 0.97) 0%, rgba(17, 17, 24, 0.97) 100%);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(200, 184, 154, 0.25);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    background: var(--bg-panel);
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel), var(--drop);
     padding: 10px;
 }
 
 .scoreboard-popup-header {
-    font-family: 'MedievalSharp', cursive;
+    font-family: var(--font-ui);
     color: var(--gold);
-    font-size: 0.9rem;
-    letter-spacing: 0.5px;
+    font-size: 8px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
     text-align: center;
-    padding-bottom: 6px;
-    margin-bottom: 6px;
-    border-bottom: 1px solid rgba(200, 184, 154, 0.2);
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 2px solid var(--panel-hi);
 }
-#menu-surrender-item { color: #ff8a80; border-color: rgba(255,80,80,0.2); }
-#menu-surrender-item:hover { background: rgba(255,50,50,0.12) !important; }
+#menu-surrender-item { color: #ff9d7d; }
+#menu-surrender-item:hover:not(:disabled) { background: #33160c !important; }
 
 /* === AUFGEBEN BESTÄTIGUNGS-OVERLAY === */
 #surrender-overlay {
@@ -1322,7 +1994,6 @@ canvas {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.88);
-    backdrop-filter: blur(6px);
     z-index: 400;
     justify-content: center;
     align-items: center;
@@ -1334,14 +2005,17 @@ canvas {
 }
 
 .surrender-card {
-    background: var(--bg-panel);
-    border: 1px solid rgba(255, 51, 85, 0.4);
-    border-radius: 14px;
-    padding: 28px 24px;
+    background: #1b0f0a;
+    border: 2px solid var(--fire-dk);
+    padding: 26px 22px;
     max-width: 300px;
     width: 90%;
     text-align: center;
-    box-shadow: 0 0 40px rgba(255, 51, 85, 0.12), 0 12px 30px rgba(0, 0, 0, 0.6);
+    box-shadow:
+        inset 2px 2px 0 #4a1a08,
+        inset -2px -2px 0 #0c0605,
+        0 0 0 2px var(--edge),
+        var(--drop);
     animation: fadeInUp 0.3s ease;
     display: flex;
     flex-direction: column;
@@ -1354,16 +2028,17 @@ canvas {
 
 .surrender-card h3 {
     margin: 0;
-    font-family: 'MedievalSharp', cursive;
-    color: #ff6666;
-    font-size: 1.1rem;
-    letter-spacing: 1px;
+    font-family: var(--font-display);
+    color: var(--fire);
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 0 #000;
 }
 
 .surrender-card p {
     margin: 0;
     color: var(--text-dim);
-    font-size: 0.8rem;
+    font-size: 15px;
     line-height: 1.45;
 }
 
@@ -1373,42 +2048,39 @@ canvas {
     justify-content: center;
 }
 
+/* Teilen sich das Button-Rezept mit .action-btn — nur die Fläche wechselt. */
+.btn-confirm-surrender,
+.btn-cancel-surrender,
+.btn-confirm-end-turn,
+.btn-cancel-end-turn {
+    min-height: 44px;
+    padding: 10px 18px;
+    border: 2px solid var(--edge);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
 .btn-confirm-surrender {
-    padding: 9px 18px;
-    background: linear-gradient(180deg, #8b1a1a 0%, #5a0f0f 100%);
-    color: #ffaaaa;
-    border: 1px solid rgba(255, 51, 85, 0.5);
-    border-radius: 7px;
-    font-family: 'MedievalSharp', cursive;
-    font-size: 0.8rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    letter-spacing: 0.5px;
+    background: var(--fire-dk);
+    color: #f8e5de;
+    box-shadow: inset 2px 2px 0 var(--fire), inset -2px -2px 0 #3d1205, 0 4px 0 #2a0c03;
 }
+.btn-confirm-surrender:hover  { background: #a4360f; }
+.btn-confirm-surrender:active { transform: translateY(4px); box-shadow: inset 2px 2px 0 #3d1205, inset -2px -2px 0 var(--fire); }
 
-.btn-confirm-surrender:hover {
-    background: linear-gradient(180deg, #a82020 0%, #6e1010 100%);
-    border-color: rgba(255, 51, 85, 0.75);
+.btn-cancel-surrender,
+.btn-cancel-end-turn {
+    background: #241d16;
+    color: var(--text-dim);
+    box-shadow: inset 2px 2px 0 var(--panel-hi), inset -2px -2px 0 var(--panel-lo), 0 4px 0 var(--edge);
 }
-
-.btn-cancel-surrender {
-    padding: 9px 18px;
-    background: linear-gradient(180deg, #2a2520 0%, #1a1510 100%);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    font-family: 'MedievalSharp', cursive;
-    font-size: 0.8rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    letter-spacing: 0.5px;
-}
-
-.btn-cancel-surrender:hover {
-    border-color: var(--border-bright);
-}
+.btn-cancel-surrender:hover,
+.btn-cancel-end-turn:hover { background: #33281c; color: var(--text); }
+.btn-cancel-surrender:active,
+.btn-cancel-end-turn:active { transform: translateY(4px); box-shadow: var(--bevel-in); }
 
 /* === ZUG BEENDEN BESTÄTIGUNGS-OVERLAY === */
 #end-turn-confirm-overlay {
@@ -1419,7 +2091,6 @@ canvas {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.88);
-    backdrop-filter: blur(6px);
     z-index: 400;
     justify-content: center;
     align-items: center;
@@ -1431,14 +2102,17 @@ canvas {
 }
 
 .end-turn-confirm-card {
-    background: var(--bg-panel);
-    border: 1px solid rgba(255, 200, 50, 0.4);
-    border-radius: 14px;
-    padding: 28px 24px;
+    background: #1f1913;
+    border: 2px solid var(--gold-mid);
+    padding: 26px 22px;
     max-width: 300px;
     width: 90%;
     text-align: center;
-    box-shadow: 0 0 40px rgba(255, 200, 50, 0.12), 0 12px 30px rgba(0, 0, 0, 0.6);
+    box-shadow:
+        inset 2px 2px 0 var(--gold-dk),
+        inset -2px -2px 0 var(--panel-lo),
+        0 0 0 2px var(--edge),
+        var(--drop);
     animation: fadeInUp 0.3s ease;
     display: flex;
     flex-direction: column;
@@ -1451,16 +2125,17 @@ canvas {
 
 .end-turn-confirm-card h3 {
     margin: 0;
-    font-family: 'MedievalSharp', cursive;
-    color: #ffd54f;
-    font-size: 1.1rem;
-    letter-spacing: 1px;
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 0 #000;
 }
 
 .end-turn-confirm-card p {
     margin: 0;
     color: var(--text-dim);
-    font-size: 0.8rem;
+    font-size: 15px;
     line-height: 1.45;
 }
 
@@ -1471,41 +2146,12 @@ canvas {
 }
 
 .btn-confirm-end-turn {
-    padding: 9px 18px;
-    background: linear-gradient(180deg, #5a4200 0%, #3a2a00 100%);
-    color: #ffd54f;
-    border: 1px solid rgba(255, 200, 50, 0.5);
-    border-radius: 7px;
-    font-family: 'MedievalSharp', cursive;
-    font-size: 0.8rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    letter-spacing: 0.5px;
+    background: var(--gold-mid);
+    color: #1c1305;
+    box-shadow: inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 var(--gold-dk), 0 4px 0 #3a2604;
 }
-
-.btn-confirm-end-turn:hover {
-    background: linear-gradient(180deg, #7a5c00 0%, #4d3800 100%);
-    border-color: rgba(255, 200, 50, 0.75);
-}
-
-.btn-cancel-end-turn {
-    padding: 9px 18px;
-    background: linear-gradient(180deg, #2a2520 0%, #1a1510 100%);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    font-family: 'MedievalSharp', cursive;
-    font-size: 0.8rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    letter-spacing: 0.5px;
-}
-
-.btn-cancel-end-turn:hover {
-    border-color: var(--border-bright);
-}
+.btn-confirm-end-turn:hover  { background: #dd9a17; }
+.btn-confirm-end-turn:active { transform: translateY(4px); box-shadow: inset 2px 2px 0 var(--gold-dk), inset -2px -2px 0 #f0cf6a; }
 
 /* ── Login / Auth ─────────────────────────────────────────────────────────── */
 #login-screen,
@@ -1522,7 +2168,7 @@ canvas {
 }
 
 .login-hint {
-    font-size: 0.8rem;
+    font-size: 15px;
     color: var(--text-dim);
     text-align: center;
 }
@@ -1532,7 +2178,7 @@ canvas {
     border: none;
     color: var(--gold);
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 15px;
     padding: 0;
     text-decoration: underline;
 }
@@ -1542,6 +2188,66 @@ canvas {
     gap: 14px;
 }
 
+/* Kopfleiste des Home-Screens (index.html, gefüllt in js/lobby.js) */
+.home-banner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 11px;
+    width: 100%;
+    padding: 13px 12px;
+    background: var(--bg-panel);
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
+}
+
+.home-banner-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    text-align: left;
+}
+
+.home-banner-title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    letter-spacing: 3px;
+    color: var(--gold);
+    text-shadow: 0 2px 0 #000;
+}
+
+.home-banner-sub {
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Absolut positioniert, damit die Wortmarke mittig bleibt, egal ob ein
+   Rating da ist (im Debug-Modus gibt es keinen Account und keins). */
+.home-banner-rating {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 auto;
+    padding: 6px 8px;
+    background: #0d0b09;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel-in);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--gold);
+}
+
 .home-header {
     display: flex;
     justify-content: space-between;
@@ -1549,15 +2255,54 @@ canvas {
     width: 100%;
 }
 
+/* Steht die Überschrift allein (Bestenliste), gehört sie in die Mitte —
+   space-between hat sie sonst an den linken Rand geklebt. */
+.home-header:has(> h3:only-child) {
+    justify-content: center;
+}
+
 .home-header h3 {
     margin: 0;
-    font-family: 'MedievalSharp', cursive;
+    font-family: var(--font-display);
     color: var(--gold);
     font-size: 1.1rem;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+/* Titel von Screens und Modals — ersetzt die früheren Inline-Schriftangaben
+   in index.html, damit sie dem Token folgen statt jede für sich. */
+.screen-title {
+    margin: 0;
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1.25rem;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 0 #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Titel der Vollbild-Overlays (Forschung, Fraktion, Reliquien, Handel).
+   Kleiner als die globale h2-Regel: auf dem Handy fraß der 2rem-Titel sonst
+   ein Drittel der Höhe, bevor die erste Karte kam. */
+.overlay-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 0 0 18px;
+    font-size: 1.5rem;
+    text-align: center;
+    text-wrap: balance;
 }
 
 #home-username {
-    font-size: 0.8rem;
+    font-size: 15px;
     color: var(--text-dim);
 }
 
@@ -1622,7 +2367,7 @@ canvas {
     flex: 0 0 auto;
     color: var(--text-dim);
     font-variant-numeric: tabular-nums;
-    font-size: 0.8rem;
+    font-size: 15px;
     text-align: right;
 }
 
@@ -1638,7 +2383,7 @@ canvas {
 
 #leaderboard-list .lb-tag {
     flex: 0 0 auto;
-    font-size: 0.72rem;
+    font-size: 15px;
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--text-dim);
@@ -1649,27 +2394,50 @@ canvas {
     flex-shrink: 0;
     margin-top: 0;
     padding: 6px 10px;
-    font-size: 0.72rem;
+    font-size: 12px;
 }
 
 .game-card {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 14px;
+    padding: 12px 14px;
     background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
     cursor: pointer;
-    transition: border-color 0.2s, transform 0.15s;
+    transition: none;
     gap: 8px;
 }
 
-.game-card:hover { border-color: var(--border-bright); transform: translateY(-1px); }
-.game-card-active { border-color: rgba(232,184,74,0.45); }
+.game-card:hover  { background: #2a2219; }
+.game-card:active { box-shadow: var(--bevel-in); }
+
+/* "Du bist dran": die eine Karte pro Screen, die Gold UND Ecknieten bekommt. */
+.game-card-active {
+    background: #241a0c;
+    box-shadow:
+        inset 2px 2px 0 var(--gold-dk),
+        inset -2px -2px 0 var(--panel-lo),
+        0 0 0 2px var(--gold-mid);
+    position: relative;
+}
+
+.game-card-active::before,
+.game-card-active::after {
+    content: "";
+    position: absolute;
+    top: 4px;
+    width: 4px;
+    height: 4px;
+    background: var(--gold);
+}
+
+.game-card-active::before { left: 4px; }
+.game-card-active::after  { right: 4px; }
 
 .game-card-name {
-    font-size: 0.9rem;
+    font-size: 15px;
     font-weight: bold;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1677,18 +2445,18 @@ canvas {
 }
 
 .game-badge {
-    font-size: 0.7rem;
-    font-weight: bold;
-    padding: 3px 8px;
-    border-radius: 10px;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    padding: 4px 6px;
     white-space: nowrap;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
     text-transform: uppercase;
+    border: 2px solid var(--edge);
 }
-.turn-badge     { background: rgba(92,184,92,0.25); color: var(--green); border: 1px solid rgba(92,184,92,0.4); }
-.wait-badge     { background: rgba(60,60,60,0.4);   color: var(--text-dim); }
-.lobby-badge    { background: rgba(79,195,247,0.2);  color: var(--blue); border: 1px solid rgba(79,195,247,0.3); }
-.spectator-badge { background: rgba(180,100,200,0.2); color: #ce93d8; border: 1px solid rgba(180,100,200,0.3); }
+.turn-badge      { background: var(--gold-mid); color: #1c1305; box-shadow: inset 1px 1px 0 #f0cf6a, inset -1px -1px 0 var(--gold-dk); }
+.wait-badge      { background: #1a1714; color: var(--text-dim); box-shadow: inset 1px 1px 0 #26211b, inset -1px -1px 0 #0b0a09; }
+.lobby-badge     { background: var(--steel-dk); color: var(--steel); box-shadow: inset 1px 1px 0 #3f4557, inset -1px -1px 0 #171a22; }
+.spectator-badge { background: #2a1633; color: #ce93d8; box-shadow: inset 1px 1px 0 #43254f, inset -1px -1px 0 #140a18; }
 
 .game-delete-btn {
     background: transparent;
@@ -1696,12 +2464,11 @@ canvas {
     cursor: pointer;
     font-size: 1rem;
     padding: 4px 6px;
-    border-radius: 4px;
     opacity: 0.6;
     transition: opacity 0.15s;
     flex-shrink: 0;
 }
-.game-delete-btn:hover { opacity: 1; background: rgba(220,50,50,0.15); }
+.game-delete-btn:hover { opacity: 1; background: #33160c; }
 
 /* ── Lobby Screen ─────────────────────────────────────────────────────────── */
 #lobby-screen { gap: 12px; }
@@ -1716,7 +2483,7 @@ canvas {
 }
 
 #lobby-player-count {
-    font-size: 0.8rem;
+    font-size: 15px;
     color: var(--text-dim);
 }
 
@@ -1728,20 +2495,25 @@ canvas {
 }
 
 .player-slot {
-    padding: 8px 12px;
+    padding: 12px;
     background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 0.9rem;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
+    font-size: 15px;
 }
+
+/* Freier Platz: Schraffur statt gestricheltem Rand — eine gestrichelte Linie
+   gibt es im Pixel-Raster nicht, die Diagonalstreifen lesen sich als "leer". */
 .player-slot-empty {
-    color: var(--text-dim);
-    font-style: italic;
-    border-style: dashed;
+    color: var(--text-faint);
+    font-style: normal;
+    background: repeating-linear-gradient(45deg, #121010 0 6px, #161311 6px 12px);
+    border-color: #221c16;
+    box-shadow: none;
 }
 
 .invite-section { width: 100%; }
-.invite-section p { margin: 0 0 4px; font-size: 0.8rem; color: var(--text-dim); }
+.invite-section p { margin: 0 0 4px; font-size: 15px; color: var(--text-dim); }
 
 .link-row {
     display: flex;
@@ -1756,17 +2528,21 @@ canvas {
 }
 
 .link-row button {
+    min-height: 44px;
     padding: 8px 12px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--gold);
+    background: #3a2b1c;
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 rgba(201, 147, 97, 0.30), inset -2px -2px 0 rgba(0, 0, 0, 0.55), 0 4px 0 var(--edge);
+    color: var(--text-bright);
     cursor: pointer;
-    font-size: 0.8rem;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
     white-space: nowrap;
-    transition: border-color 0.2s;
 }
-.link-row button:hover { border-color: var(--border-bright); }
+.link-row button:hover  { background: #46351f; }
+.link-row button:active { transform: translateY(4px); box-shadow: var(--bevel-in); }
 
 #lobby-friend-invite {
     flex-direction: column;
@@ -1781,7 +2557,8 @@ canvas {
    fremde Bündnisse (.dip-card-enemy, EINE Karte pro Team statt einer pro
    Mitglied) und unverbündete Einzelspieler (.dip-card-neutral). */
 .dip-section-title {
-    font-size: 0.72rem;
+    font-family: var(--font-ui);
+    font-size: 8px;
     color: var(--text-dim);
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -1797,21 +2574,18 @@ canvas {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 8px 10px;
+    padding: 10px;
     margin-bottom: 8px;
     background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
     text-align: left;
 }
 
-.dip-card-ally {
-    border-color: rgba(105, 240, 174, 0.3);
-}
-
-.dip-card-enemy {
-    border-color: rgba(255, 82, 82, 0.25);
-}
+/* Verhältnis als 4px-Kante links: eine Einfärbung des 2px-Pixelrahmens wäre
+   zu schwach, um Bündnis und Feind auf einen Blick zu trennen. */
+.dip-card-ally  { border-left: 4px solid var(--green); }
+.dip-card-enemy { border-left: 4px solid var(--fire); }
 
 .dip-card-header {
     display: flex;
@@ -1826,7 +2600,7 @@ canvas {
 }
 
 .dip-badge {
-    font-size: 0.78rem;
+    font-size: 15px;
     font-weight: bold;
     white-space: nowrap;
 }
@@ -1836,7 +2610,7 @@ canvas {
 }
 
 .dip-team-names {
-    font-size: 0.72rem;
+    font-size: 15px;
     color: var(--text-dim);
 }
 
@@ -1863,7 +2637,7 @@ canvas {
 
 .dip-action-btn {
     padding: 4px 8px;
-    font-size: 0.8rem;
+    font-size: 12px;
     margin-top: 0;
 }
 
@@ -1874,10 +2648,10 @@ canvas {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
+    padding: 10px 12px;
     background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
     gap: 8px;
 }
 
@@ -1890,13 +2664,17 @@ canvas {
 }
 
 .action-btn.secondary {
-    background: transparent;
-    border-color: var(--border);
+    background: #1a1613;
     color: var(--text-dim);
+    box-shadow: inset 2px 2px 0 #241d16, inset -2px -2px 0 #0b0908, 0 4px 0 var(--edge);
 }
 .action-btn.secondary:hover {
-    border-color: var(--border-bright);
+    background: #241d16;
     color: var(--text);
+}
+.action-btn.secondary:active {
+    transform: translateY(4px);
+    box-shadow: var(--bevel-in);
 }
 
 /* ── Friend Picker Overlay ───────────────────────────────────────────────── */
@@ -1904,8 +2682,6 @@ canvas {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
     z-index: 300;
     display: flex;
     justify-content: center;
@@ -1936,40 +2712,40 @@ canvas {
     align-items: center;
     padding: 12px 14px;
     background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
     cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
+    transition: none;
     user-select: none;
     min-height: 48px;
-    font-size: 0.95rem;
+    font-size: 15px;
 }
 
-.friend-picker-row:hover  { border-color: var(--border-bright); }
-.friend-picker-row:active { transform: scale(0.98); }
+.friend-picker-row:hover  { background: #2a2219; }
+.friend-picker-row:active { box-shadow: var(--bevel-in); }
 
 .friend-picker-row.selected {
-    border-color: var(--gold);
-    background: rgba(232, 184, 74, 0.08);
+    background: #241a0c;
+    box-shadow: inset 2px 2px 0 var(--gold-dk), inset -2px -2px 0 var(--panel-lo), 0 0 0 2px var(--gold-mid);
 }
 
 .picker-check {
-    width: 22px;
-    height: 22px;
-    border: 2px solid var(--border);
-    border-radius: 5px;
+    width: 20px;
+    height: 20px;
+    background: #0d0b09;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel-in);
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s;
-    font-size: 0.85rem;
+    font-size: 12px;
     color: #1a1510;
 }
 
 .friend-picker-row.selected .picker-check {
-    background: var(--gold);
-    border-color: var(--gold);
+    background: var(--gold-mid);
+    box-shadow: inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 var(--gold-dk);
 }
 
 .friend-picker-row.selected .picker-check::after {
@@ -2001,7 +2777,6 @@ textarea {
         width: calc(100% - 16px);
         max-width: none;
         max-height: calc(100dvh - 16px);
-        border-radius: 12px;
     }
 
     .game-logo {
@@ -2016,7 +2791,6 @@ textarea {
 
     .modal-box {
         max-height: 90dvh;
-        border-radius: 16px 16px 12px 12px;
     }
 }
 
@@ -2071,19 +2845,18 @@ body {
     height: 64px;
     margin-left: -32px;
     margin-top: -32px;
-    border-radius: 50%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 2px;
-    background: var(--bg-card);
-    border: 2px solid var(--border-bright);
+    background: var(--bg-panel);
+    border: 2px solid var(--edge);
     color: var(--text);
-    font-family: 'MedievalSharp', cursive;
+    font-family: var(--font-ui);
     transform: scale(0.4);
     opacity: 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--bevel), var(--drop);
     transition: transform 150ms ease, opacity 150ms ease, box-shadow 120ms ease, border-color 120ms ease;
 }
 /* Einblend-Animation: erst NACH dem Einfügen ins DOM wird diese Klasse per
@@ -2102,12 +2875,10 @@ body {
    Spezifität, falls beide Klassen gleichzeitig anliegen. */
 @keyframes radialAffordablePulse {
     0%, 100% {
-        border-color: rgba(90, 214, 130, 0.55);
-        box-shadow: 0 0 8px 1px rgba(90, 214, 130, 0.35);
+        box-shadow: var(--bevel), 0 0 0 2px rgba(92, 184, 92, 0.55);
     }
     50% {
-        border-color: rgba(120, 255, 160, 1);
-        box-shadow: 0 0 20px 6px rgba(90, 214, 130, 0.85);
+        box-shadow: var(--bevel), 0 0 0 2px #78ffa0, 0 0 18px 4px rgba(92, 184, 92, 0.65);
     }
 }
 .radial-circle.affordable {
@@ -2119,8 +2890,13 @@ body {
    die Mitte/Abbrechen-Zone, kein Kreis wird hervorgehoben. */
 .radial-circle.active {
     transform: scale(1.18);
-    border-color: var(--gold);
-    box-shadow: 0 0 18px 4px rgba(232, 184, 74, 0.75);
+    background: var(--gold-mid);
+    color: #1c1305;
+    box-shadow:
+        inset 2px 2px 0 #f0cf6a,
+        inset -2px -2px 0 var(--gold-dk),
+        0 0 0 2px var(--gold),
+        var(--drop);
 }
 
 /* Deaktiviert (Zustand wird beim Öffnen einmalig berechnet, ändert sich
@@ -2132,17 +2908,24 @@ body {
 }
 
 .radial-icon { font-size: 1.4rem; line-height: 1; }
-.radial-label { font-size: 0.55rem; line-height: 1.1; text-align: center; max-width: 56px; }
+.radial-label {
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    line-height: 1.2;
+    text-align: center;
+    max-width: 58px;
+}
 
 .radial-center-dot {
     position: absolute;
-    width: 14px;
-    height: 14px;
-    margin-left: -7px;
-    margin-top: -7px;
-    border-radius: 50%;
-    background: rgba(200, 184, 154, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    margin-top: -6px;
+    background: var(--gold);
+    border: 2px solid var(--edge);
     opacity: 0;
     transition: opacity 150ms ease;
 }
@@ -2157,8 +2940,8 @@ body {
     width: 100%;
     padding: 12px 14px;
     background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
     min-height: 48px;
 }
 
@@ -2169,13 +2952,13 @@ body {
 }
 
 .settings-label {
-    font-size: 0.95rem;
+    font-size: 15px;
     color: var(--text);
     white-space: nowrap;
 }
 
 .settings-status {
-    font-size: 0.8rem;
+    font-size: 15px;
     color: var(--text-dim);
     line-height: 1.4;
 }
@@ -2196,32 +2979,31 @@ body {
 .toggle-knob {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--border);
-    border-radius: 13px;
-    transition: background 0.2s, border-color 0.2s;
+    background: #0d0b09;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel-in);
 }
 
 .toggle-knob::before {
-    content: '';
+    content: "";
     position: absolute;
     width: 18px;
     height: 18px;
-    border-radius: 50%;
-    top: 3px;
-    left: 4px;
-    background: var(--text-dim);
-    transition: transform 0.2s, background 0.2s;
+    top: 2px;
+    left: 2px;
+    background: var(--stone);
+    box-shadow: inset 2px 2px 0 var(--steel), inset -2px -2px 0 var(--steel-dk);
+    transition: transform 0.12s steps(3);
 }
 
 .toggle-switch input:checked + .toggle-knob {
-    background: rgba(232, 184, 74, 0.15);
-    border-color: var(--gold);
+    background: #2a1f08;
 }
 
 .toggle-switch input:checked + .toggle-knob::before {
-    transform: translateX(21px);
-    background: var(--gold);
+    transform: translateX(22px);
+    background: var(--gold-mid);
+    box-shadow: inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 var(--gold-dk);
 }
 
 /* Lautstärke-Slider — Element bleibt 44px hoch (Touch-Target-Regel unten),
@@ -2241,32 +3023,32 @@ body {
 }
 
 #settings-music-vol::-webkit-slider-runnable-track {
-    height: 6px;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--border);
-    border-radius: 3px;
+    height: 10px;
+    background: #0d0b09;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel-in);
 }
 #settings-music-vol::-moz-range-track {
-    height: 6px;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--border);
-    border-radius: 3px;
+    height: 10px;
+    background: #0d0b09;
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel-in);
 }
 
 #settings-music-vol::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 18px;
-    height: 18px;
-    margin-top: -7px; /* mittig auf dem 6px-Track: (18 - 6) / 2 + Trackrand */
-    border-radius: 50%;
-    background: var(--gold);
-    border: 1px solid rgba(0, 0, 0, 0.5);
+    width: 16px;
+    height: 20px;
+    margin-top: -7px; /* mittig auf dem 10px-Track inkl. 2px-Rand */
+    background: var(--gold-mid);
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 var(--gold-dk);
 }
 #settings-music-vol::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--gold);
-    border: 1px solid rgba(0, 0, 0, 0.5);
+    width: 16px;
+    height: 20px;
+    background: var(--gold-mid);
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 var(--gold-dk);
 }

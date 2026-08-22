@@ -108,7 +108,8 @@ function updateScoreboard() {
     // Jonathans Vorschlag hier gebündelt, weil dafür schon Platz ist, ohne
     // etwas anderes zu verdrängen (siehe #resource-hud in game.css).
     const popupHeader = document.getElementById('scoreboard-popup-header');
-    if (popupHeader) popupHeader.textContent = `🏆 Rangliste · Runde ${gameState.rn}`;
+    // innerHTML statt textContent: die Kopfzeile trägt ein Icon, kein Emoji
+    if (popupHeader) popupHeader.innerHTML = `${icon('crown', 'ic-14')} Rangliste · Runde ${gameState.rn}`;
 
     const modalContent = document.getElementById('scoreboard-modal-content');
     if (modalContent) {
@@ -120,7 +121,7 @@ function updateScoreboard() {
             // per Klick auf die Karte auf-/zugeklappt — Chevron zeigt an, dass da
             // mehr ist. Jonathans Feedback: die volle Aufschlüsselung für JEDEN
             // Spieler auf einmal "verliert seinen Charme" / wirkt überladen).
-            const facIcons = (s.p.f || []).map(fid => factions[fid].name.split(' ')[0]).join(' ');
+            const facIcons = (s.p.f || []).map(fid => icon(factions[fid].ic, 'ic-12')).join('');
             // Erschließungs-Status (M12, war früher in der oberen HUD-Zeile,
             // s.o.): "volle Information, kein heimlicher Sieg" heißt, er muss
             // weiter auf den ersten Blick sichtbar sein — also auch hier in
@@ -173,7 +174,11 @@ function updateUI() {
     // entstandene Platzbedarf ist der Grund, warum die Punktzahl-Anzeige
     // links (score-compact, s.o.) jetzt nur noch den Spitzenreiter statt
     // einer Badge pro Spieler zeigt.
-    resourceHud.innerHTML = `💰 ${pState.g} <span class="income-text">(+${income.g})</span> | 🪵 ${pState.m} <span class="income-text">(+${income.m})</span> | 🪨 ${pState.s || 0} | 💎 ${pState.k || 0}`;
+    resourceHud.innerHTML =
+        `<span class="res">${icon('gold', 'ic-14')}<b>${pState.g}</b><span class="income-text">+${income.g}</span></span>` +
+        `<span class="res">${icon('wood', 'ic-14')}<b>${pState.m}</b><span class="income-text">+${income.m}</span></span>` +
+        `<span class="res">${icon('stone', 'ic-14')}<b>${pState.s || 0}</b></span>` +
+        `<span class="res">${icon('crystal', 'ic-14')}<b>${pState.k || 0}</b></span>`;
     // Erschließungs-Countdown (M12) stand früher zusätzlich hier in der HUD-
     // Zeile ("| 🌍 Name n/TARGET") — bei langen Spielernamen reichte selbst
     // Kürzen per Ellipsis nicht, weil Leader-Badge + alle vier Ressourcen +
@@ -225,6 +230,101 @@ window.getKulturStatus = function () {
 };
 
 // === ACTION MENU ===
+/**
+ * Rollen-Icon einer Einheit. Bewusst nach ROLLE statt je Einheitentyp: das
+ * sagt beim Antippen mehr aus als ein Porträt und kommt ohne ein eigenes Icon
+ * für jede der 16 Einheiten aus.
+ */
+function unitRoleIcon(type) {
+    const st = unitStats[type] || {};
+    if (st.isAir) return 'wing';
+    if (type === 7) return 'pick';          // Arbeiter
+    if (st.isMelee === false || st.range > 1) return 'bow';
+    return 'sword';
+}
+
+/**
+ * Kopfzeile fürs Info-Panel: Icon, Name, Marken, HP rechts — darunter die
+ * segmentierte HP-Leiste.
+ *
+ * Existiert als EIN Baustein, weil die Info-Panels an zehn Stellen gebaut
+ * werden (Oberfläche, Unterwelt, Kreatur, Hauptgebäude, Dorf, neutrales Dorf,
+ * Palisade, Turm, Tunnel, Wachturm) und genau deshalb auseinandergelaufen
+ * waren: die Unterwelt hatte eine HP-Leiste, die Oberfläche nicht. Wer eine
+ * neue Info-Zeile ergänzt, nimmt diese Funktion.
+ *
+ * @param {object} o
+ * @param {string} o.icon   Icon-Name (js/icons.js)
+ * @param {string} o.name   Anzeigename
+ * @param {string} [o.color] Farbe des Namens (Besitzerfarbe)
+ * @param {number} [o.cur]  aktuelle HP — zusammen mit max weglassen bei
+ *                          Objekten ohne Trefferpunkte (Dorf, Wachturm)
+ * @param {number} [o.max]  maximale HP
+ * @param {string} [o.tone] 'foe' färbt die HP-Leiste rot
+ * @param {Array}  [o.badges] [{text, cls}] — Veteran, fliegt, brennt …
+ */
+function infoHead(o) {
+    const badges = (o.badges || []).filter(Boolean)
+        .map(b => `<span class="ip-badge ${b.cls || ''}">${b.text}</span>`).join('');
+    const name = o.color
+        ? `<span class="ip-name" style="color:${o.color}">${o.name}</span>`
+        : `<span class="ip-name">${o.name}</span>`;
+    const hp = o.max
+        ? `<span class="ip-hp">${o.cur}<span class="ip-hp-max">/${o.max}</span></span>`
+        : '';
+    return `<div class="ip-head">${icon(o.icon, 'ic-20')}${name}${badges}${hp}</div>`
+        + (o.max ? hpBar(o.cur, o.max, o.tone) : '');
+}
+
+/** Statistik-Zeile mit Icons statt "Bewegung: 1 | Angriff: 5". */
+function infoStats(pairs) {
+    return '<div class="ip-stats">' + pairs.filter(Boolean)
+        .map(([ic, val]) => `<span class="ip-stat">${icon(ic, 'ic-12')}${val}</span>`).join('')
+        + '</div>';
+}
+
+/**
+ * Segmentierte HP-Leiste fuers Info-Panel: **ein Block = ein HP**. Man soll die
+ * Bloecke abzaehlen koennen ("haelt noch drei Treffer aus") - deshalb wird die
+ * Anzahl nicht skaliert.
+ *
+ * Eine fruehere Fassung fasste ab 20 Bloecken zusammen, damit die Leiste nicht
+ * aus dem Panel laeuft. Das war falsch: das Hauptgebaeude (30 HP) und der Alte
+ * Wurm (24 HP) zeigten dadurch dauerhaft zu wenige Bloecke. Dass es passt,
+ * loest jetzt das Layout - die Bloecke schrumpfen per flex-shrink
+ * (css/game.css), statt dass die Zahl verfaelscht wird.
+ *
+ * HP_BAR_LIMIT ist nur eine Notbremse gegen absurd viele DOM-Knoten; bis dahin
+ * stimmt die Anzahl exakt.
+ *
+ * @param {number} cur  aktuelle HP
+ * @param {number} max  maximale HP
+ * @param {string} [tone] 'foe' faerbt die Leiste in Gegnerfarbe
+ */
+const HP_BAR_LIMIT = 60;
+function hpBar(cur, max, tone) {
+    max = Math.max(1, max | 0);
+    cur = Math.max(0, cur | 0);
+    // Bewusst NICHT nach oben geklemmt: das Ereignis "Kriegslust" hebt Einheiten
+    // auf max+2. Geklemmt haette die Leiste dann volle Bloecke gezeigt, waehrend
+    // die Zahl daneben "12/10" sagt — die Bonus-HP waeren unsichtbar gewesen.
+    const over = Math.max(0, cur - max);
+    const base = Math.min(cur, max);
+
+    const slots = Math.min(max, HP_BAR_LIMIT);
+    const overSlots = Math.min(over, Math.max(0, HP_BAR_LIMIT - slots));
+    const filled = slots === max
+        ? base
+        : (base === 0 ? 0 : Math.max(1, Math.round(base / max * slots)));
+
+    const title = `${cur}/${max} HP` + (over ? ` (+${over} Bonus)` : '');
+    let html = `<span class="hp-bar${tone === 'foe' ? ' hp-bar-foe' : ''}" title="${title}">`;
+    for (let i = 0; i < slots; i++) html += `<i${i < filled ? '' : ' class="off"'}></i>`;
+    for (let i = 0; i < overSlots; i++) html += '<i class="over"></i>';
+    return html + '</span>';
+}
+
+
 function hideActionMenu() { actionMenu.style.display = 'none'; actionMenu.innerHTML = ''; }
 function showActionMenu(html) {
     actionMenu.innerHTML = html;
@@ -262,7 +362,15 @@ function openDraft(cost) {
     draftCardsContainer.innerHTML = '';
     options.forEach(id => {
         const fac = factions[id];
-        draftCardsContainer.innerHTML += `<div class="card" onclick="selectFaction(${id}, ${cost})"><h3>${fac.name}</h3><p style="white-space: pre-line;">${fac.desc}</p></div>`;
+        draftCardsContainer.innerHTML += `<div class="card fac-card" onclick="selectFaction(${id}, ${cost})">
+            <div class="fac-head">${icon(fac.ic, 'ic-24')}<h3>${fac.name}</h3></div>
+            <div class="fac-sep"></div>
+            <p>${fac.passive}</p>
+            <span class="fac-label">Spezial</span>
+            <span class="fac-special">${fac.special}</span>
+            <div class="fac-cost"><span class="badge-cost">${icon('gold', 'ic-12')} ${cost}</span>
+                <span class="badge-cost">${icon('village', 'ic-12')} ${fac.reqV}</span></div>
+        </div>`;
     });
     draftOverlay.style.display = 'flex';
 }
@@ -282,7 +390,7 @@ window.openResearch = function () {
             const isBought = pState.u.includes(id); const canAfford = pState.g >= upg.g && pState.m >= upg.m;
             let cls = "card"; let onClick = "";
             if (isBought) { cls += " bought"; } else if (!canAfford) { cls += " disabled"; } else { onClick = `onclick="buyUpgrade(${id})"`; }
-            researchCardsContainer.innerHTML += `<div class="${cls}" ${onClick}><h3>${upg.name}</h3><p>${upg.desc}</p><div class="cost">${isBought ? "Gekauft" : `🪵 ${upg.m} Holz`}</div></div>`;
+            researchCardsContainer.innerHTML += `<div class="${cls}" ${onClick}><h3>${upg.name}</h3><p>${upg.desc}</p><div class="cost">${isBought ? "Gekauft" : `${icon('wood', 'ic-12')} ${upg.m} Holz`}</div></div>`;
         }
     });
     researchOverlay.style.display = 'flex';
@@ -340,14 +448,18 @@ window.openFactionOverview = function () {
 
         const boughtUpgrades = Object.entries(upgrades).filter(([id, u]) => u.fac === facId && pState.u.includes(parseInt(id)));
         const upgradeLines = boughtUpgrades.length
-            ? boughtUpgrades.map(([, u]) => `<div style="font-size:0.7rem; color: var(--text-dim);">✅ ${u.name}</div>`).join('')
-            : `<div style="font-size:0.7rem; color: var(--text-dim);">Noch keine Forschung gekauft.</div>`;
+            ? boughtUpgrades.map(([, u]) => `<div class="fac-upgrade">${icon('check', 'ic-12')} ${u.name}</div>`).join('')
+            : `<div class="fac-upgrade fac-upgrade-none">Noch keine Forschung gekauft.</div>`;
 
-        html += `<div class="card" style="flex:1 1 100%; text-align:left; cursor:default;">
-            <h3>${fac.name}</h3>
-            <p style="white-space:pre-line;">${fac.desc}</p>
+        html += `<div class="card fac-card" style="flex:1 1 100%; cursor:default;">
+            <div class="fac-head">${icon(fac.ic, 'ic-24')}<h3>${fac.name}</h3></div>
+            <div class="fac-sep"></div>
+            <p>${fac.passive}</p>
             <div class="passive-value">${passiveValue}</div>
-            <div style="margin-top:6px; border-top:1px solid rgba(180,150,100,0.2); padding-top:6px;">${upgradeLines}</div>
+            <span class="fac-label">Spezial</span>
+            <span class="fac-special">${fac.special}</span>
+            <div class="fac-sep"></div>
+            ${upgradeLines}
         </div>`;
     });
 
@@ -355,14 +467,14 @@ window.openFactionOverview = function () {
     if (status.stage !== null) {
         if (status.canBuy) {
             html += `<div class="card" style="flex:1 1 100%;" onclick="window.handleFactionBuyClick(${status.cost})">
-                <h3>✨ ${status.stage}. Kultur wählen (${status.cost} Holz)</h3>
+                <h3>${status.stage}. Kultur wählen</h3><div class="fac-cost"><span class="badge-cost">${icon('wood', 'ic-12')} ${status.cost} Holz</span></div>
             </div>`;
         } else {
             const missing = [];
-            if (status.villages < status.reqVillages) missing.push(`🏘️ ${status.reqVillages - status.villages} Dörfer`);
-            if (status.wood < status.cost) missing.push(`🪵 ${status.cost - status.wood} Holz`);
+            if (status.villages < status.reqVillages) missing.push(`${status.reqVillages - status.villages} Dörfer`);
+            if (status.wood < status.cost) missing.push(`${status.cost - status.wood} Holz`);
             html += `<div class="card disabled" style="flex:1 1 100%;">
-                <h3>✨ ${status.stage}. Kultur wählen (${status.cost} Holz)</h3>
+                <h3>${status.stage}. Kultur wählen</h3><div class="fac-cost"><span class="badge-cost">${icon('wood', 'ic-12')} ${status.cost} Holz</span></div>
                 <p>Fehlt: ${missing.join(', ')}</p>
             </div>`;
         }
@@ -476,7 +588,7 @@ window.openRelicShop = function () {
 function buildRelicShopContent() {
     const pState = gameState.p[gameState.cp];
     const crystals = pState.k || 0;
-    let html = `<div class="crystal-header">💎 ${crystals} Kristalle</div>`;
+    let html = `<div class="crystal-header">${icon('crystal', 'ic-20')} ${crystals} Kristalle</div>`;
     if (crystals === 0) {
         html += `<div style="text-align:center; color: var(--text-dim); font-size:0.8rem; margin-bottom:10px;">Kristalle entstehen durch Abbau an Kristalladern in der Unterwelt.</div>`;
     }
@@ -544,11 +656,13 @@ window.handleRelicEquipClick = function (key) {
 // "clunky" auf Touch-Geräten): Ressourcen-Wahl als große Chip-Buttons statt
 // <select>, Menge als Slider (`.gift-slider`-Muster von Diplomatie/sendResources
 // wiederverwendet) statt Zahlenfeld — beides deutlich größere Touch-Ziele.
+// `ic` ist der Icon-NAME (js/icons.js), nicht fertiges Markup: die drei
+// Verwendungsstellen unten brauchen unterschiedliche Groessen.
 const TRADE_RESOURCES = {
-    g: { label: 'Gold', icon: '💰' },
-    m: { label: 'Holz', icon: '🪵' },
-    s: { label: 'Stein', icon: '🪨' },
-    k: { label: 'Kristalle', icon: '💎' },
+    g: { label: 'Gold', ic: 'gold' },
+    m: { label: 'Holz', ic: 'wood' },
+    s: { label: 'Stein', ic: 'stone' },
+    k: { label: 'Kristalle', ic: 'crystal' },
 };
 
 let tradeSellKey = 'g';
@@ -567,11 +681,12 @@ function buildTradeShopContent() {
     if (tradeBuyKey === tradeSellKey || tradeBuyKey === 'k') {
         tradeBuyKey = Object.keys(TRADE_RESOURCES).find(k => k !== 'k' && k !== tradeSellKey);
     }
-    const balanceLine = Object.entries(TRADE_RESOURCES).map(([key, r]) => `${r.icon} ${pState[key] || 0}`).join(' &nbsp;|&nbsp; ');
+    const balanceLine = Object.entries(TRADE_RESOURCES)
+        .map(([key, r]) => `<span class="res">${icon(r.ic, 'ic-14')}<b>${pState[key] || 0}</b></span>`).join('');
     const chipRow = (selectedKey, keys, handlerName) => keys.map(key => {
         const r = TRADE_RESOURCES[key];
         const cls = 'trade-chip' + (key === selectedKey ? ' selected' : '');
-        return `<button class="${cls}" onclick="${handlerName}('${key}')"><span class="trade-chip-icon">${r.icon}</span>${r.label}</button>`;
+        return `<button class="${cls}" onclick="${handlerName}('${key}')"><span class="trade-chip-icon">${icon(r.ic, 'ic-24')}</span>${r.label}</button>`;
     }).join('');
     const sellKeys = Object.keys(TRADE_RESOURCES);
     const buyKeys = Object.keys(TRADE_RESOURCES).filter(k => k !== 'k' && k !== tradeSellKey);
@@ -586,7 +701,7 @@ function buildTradeShopContent() {
                 <div class="trade-section-label">Verkaufen</div>
                 <div class="trade-chip-row">${chipRow(tradeSellKey, sellKeys, 'window.selectTradeSell')}</div>
             </div>
-            <div class="trade-rate">${TRADE_RESOURCES[tradeSellKey].icon} 1 &nbsp;→&nbsp; ${rate} ${TRADE_RESOURCES[tradeBuyKey].icon}</div>
+            <div class="trade-rate">${icon(TRADE_RESOURCES[tradeSellKey].ic, 'ic-20')} 1 &nbsp;→&nbsp; ${rate} ${icon(TRADE_RESOURCES[tradeBuyKey].ic, 'ic-20')}</div>
             <div>
                 <div class="trade-section-label">Kaufen</div>
                 <div class="trade-chip-row">${chipRow(tradeBuyKey, buyKeys, 'window.selectTradeBuy')}</div>
@@ -620,7 +735,8 @@ window.updateTradePreview = function () {
     document.getElementById('trade-amount-out').textContent = amount;
     amountEl.style.setProperty('--fill', (max > min ? (amount - min) / (max - min) * 100 : 0) + '%');
     const rate = tradeSellKey === 'k' ? 3 : 1;
-    document.getElementById('trade-preview').textContent = `Du erhältst: ${TRADE_RESOURCES[tradeBuyKey].icon} ${amount * rate}`;
+    // textContent, kein innerHTML: hier kann kein Icon-Markup stehen -> Klartext.
+    document.getElementById('trade-preview').textContent = `Du erhältst: ${amount * rate} ${TRADE_RESOURCES[tradeBuyKey].label}`;
 };
 
 window.handleTradeClick = function () {
@@ -644,7 +760,7 @@ window.executeTrade = function () {
     pState[to] = (pState[to] || 0) + amount * rate;
     const [svx, svy] = (pState.sv || '0,0').split(',').map(Number);
     turnActions.push({ x: svx, y: svy, t: 'trade' });
-    showToast(`Verkauft: ${TRADE_RESOURCES[from].icon} ${amount} → Gekauft: ${TRADE_RESOURCES[to].icon} ${amount * rate}`, 'gold');
+    showToast(`Verkauft: ${amount} ${TRADE_RESOURCES[from].label} → Gekauft: ${amount * rate} ${TRADE_RESOURCES[to].label}`, 'gold');
     buildTradeShopContent(); // Bestand geändert — Fenster bleibt offen, Muster wie handleRelicBuyClick
     updateUI();
 };

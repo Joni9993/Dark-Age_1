@@ -18,6 +18,11 @@ function updateTeamModeOptions() {
         if (opt) opt.disabled = !allowed;
     }
     if (teamModeSelect.selectedOptions[0]?.disabled) teamModeSelect.value = 'ffa';
+    // Die Kacheln (js/segmented.js) spiegeln das <select> — sie müssen die
+    // gerade geänderten disabled-Zustände und ggf. den Rückfall auf 'ffa'
+    // mitbekommen. Optional aufgerufen: ohne das Modul läuft alles weiter
+    // über die (dann sichtbaren) nativen Dropdowns.
+    window.Segmented?.refreshAll();
 }
 
 playerCountSelect.addEventListener('change', () => { renderNameInputs(); updateTeamModeOptions(); });

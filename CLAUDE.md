@@ -32,7 +32,7 @@ Both load the real `js/mapgen.js` via `maptest/load_game.js` — no logic copies
 
 ## Architecture
 
-**Frontend**: Vanilla JS + Canvas/WebGL, no framework, no build step, no npm. `index.html` loads `js/*.js` as classic scripts — **load order matters** (globals → art → data → prng → hex → logic → render → render3d → events → abilities → ui → diplomacy → input → mapgen → config → api → auth → settings → lobby → debug → main). External libs via CDN: `lz-string`, `three.js` (pinned ≤ r152 — newer releases dropped the UMD build).
+**Frontend**: Vanilla JS + Canvas/WebGL, no framework, no build step, no npm. `index.html` loads `js/*.js` as classic scripts — **load order matters** (globals → art → icons → data → prng → hex → logic → render → render3d → events → abilities → ui → diplomacy → input → radialmenu → segmented → mapgen → config → api → auth → settings → lobby → debug → main). Two ordering constraints that are easy to break: `icons.js` must precede every module that builds markup with `icon()` (ui, input, radialmenu, segmented), and `segmented.js` must precede `mapgen.js`, which calls `updateTeamModeOptions()` at load time and expects the tiles to already exist. External libs via CDN: `lz-string`, `three.js` (pinned ≤ r152 — newer releases dropped the UMD build). Fonts via Google Fonts: MedievalSharp (wordmark/titles), Jersey 15 (body), Silkscreen (labels/numbers).
 
 **Art datasets**: `js/art.js` holds TWO complete datasets — `NEW_*` (the dark-fantasy design, **live for everyone since v3.0.0**) and `CLASSIC_*` (the pre-redesign look, kept frozen as an archive, never hand-edited). The `DEBUG_ART` flag that used to gate the redesign behind `?debug=1` is now hard-coded to `true` (in both `js/art.js` and the editor's generated output); it still picks which set is exposed as the actual `pal`/`pixelSprites`/`terrainColors`/`voxelModels` globals, so flipping it back to an expression would restore the old gate if ever needed.
 
@@ -62,8 +62,99 @@ Both load the real `js/mapgen.js` via `maptest/load_game.js` — no logic copies
 | `js/mapgen.js` | Initial state + map generation (`buildInitialGameState`, `SPAWN_BUDGETS`) |
 | `js/api.js`, `js/auth.js`, `js/lobby.js`, `js/config.js` | Server mode: fetch wrapper with JWT, login, home/lobby screens, game list, friends, push registration |
 | `js/settings.js` | Background music via the Web Audio API (`AudioBufferSourceNode.loop`, not the native `<audio loop>` — that element cannot loop gaplessly regardless of file quality, confirmed against current best-practice sources). Audio data comes from `audio/theme_song_data.js` (a base64 blob, loaded via `<script>` — deliberately not `fetch()`, which fails under `file://` when `index.html?debug=1` is opened directly). Built from the raw recording via `node audio/build_loop.js`: crossfades head/tail in raw PCM for a seamless content-level seam, then encodes to FLAC (no MP3/LAME encoder-delay padding) before base64-embedding. Tunable params at the top of that file — **must be re-run after editing them, it does not auto-rebuild**. Settings modal: music on/off, volume, 2D/3D renderer toggle (`da_renderer`, mirrors `?r2d=1`, reloads to apply), end-turn confirmation dialog on/off (`da_endturn_confirm`, read in `js/input.js` `endTurnBtn` click handler), push notification status/activation, logout. All prefs in localStorage, per device |
+| `js/icons.js` | Pixel-Icon-Set: `<symbol>`-Sprite (12×12-Raster, `crispEdges`) + `icon(name, cls)` für JS-erzeugtes Markup. **Generiert** aus `design/ui-mockup/parts/sprite.html` — dort bearbeiten, nicht hier |
+| `js/segmented.js` | Kachel-Auswahl im Setup-Screen (Kartengröße/Spielerzahl/Teams). Die `<select>` bleiben im DOM (`.seg-native`, per CSS versteckt) und sind weiterhin die Datenquelle — alle bestehenden Leser (`mapSizeSelect.value` usw.) sind unverändert |
 | `js/debug.js` | `?debug=1` test mode (hotseat, click tools, scenarios) |
 | `js/main.js` | `bootGame()` (state normalization + recap + events), calls `initApp()` |
+
+## Pixel-UI (css/game.css)
+
+Die Menü- und HUD-Oberfläche folgt einem eigenen Formkanon. Entwurf und
+Bauanleitung liegen als Design-Canvas unter `design/ui-mockup/` (Quelldateien
+in `src/*.body.html`, `node parts/gen_map.mjs && node build.mjs` baut die
+Artboards neu). Regeln, die in `css/game.css` gelten:
+
+- **`border-radius: 0` überall** — global im `*`-Reset erzwungen, damit die
+  Regel nicht versehentlich wieder aufweicht.
+- **Kein `backdrop-filter`.** Tiefe entsteht aus 2px-Bevels
+  (`--bevel` / `--bevel-in` / `--drop`), nicht aus Blur. Panels sind deckend.
+- **Rahmen 2px** in `--edge`, Abstände in Vielfachen von 4, Trefferflächen
+  ≥ 44px.
+- **Buttons** haben einen 4px-Sockel (`0 4px 0`), der beim `:active` durch
+  `translateY(4px)` verschwindet — diese Bewegung ersetzt Hover-Effekte, die
+  auf Touch ohnehin nicht greifen.
+- **Farben kommen aus `NEW_PAL`** (js/art.js); die alten Tokennamen
+  (`--gold`, `--bg-panel`, …) existieren weiter, zeigen aber auf die neue
+  Palette, damit bestehende Regeln nicht angefasst werden mussten.
+- **Aktionsfarben** statt Inline-Hex: `.act-fire` (Kampf), `.act-build`
+  (Stein), `.act-gold` (Ökonomie), `.act-shadow` (Spionage), `.act-earth`
+  (Unterwelt), `.act-ally` (Bündnis/Zustimmung). Die ~25 fest verdrahteten
+  Material-Farben in `js/input.js` und `js/diplomacy.js` sind dadurch
+  verschwunden — **keine neuen Inline-Farben dort einführen**.
+- **Emoji nur noch in Fließtext.** Buttons, Ressourcen und Statusmarken nutzen
+  `icon()` aus `js/icons.js`. Emoji bleiben in Strings, die auch als
+  `textContent`/`title` oder in Server-Nachrichten landen (Toasts,
+  `unitStats`-Namen in `js/data.js`) — dort wäre Markup sichtbarer Quelltext.
+- **HP** wird segmentiert dargestellt (`hpBar()` in `js/ui.js`): **ein Block
+  = ein HP**, nie zusammengefasst — man soll die Blöcke abzählen können. Dass
+  lange Leisten passen, löst `flex-shrink`, nicht eine kleinere Blockzahl (ein
+  früherer 20er-Deckel ließ das Hauptgebäude mit 30 HP zu wenige Blöcke
+  zeigen). Die Zahl steht **nur** rechts in der Kopfzeile, nicht zusätzlich im
+  Namen.
+- **Maximal-HP nie fest verdrahten.** Die Reliquie „Bollwerk des Bergvolks"
+  (`pState.ra`) hebt mehrere Maxima an — dafür gibt es `getVillageMaxHp`,
+  `getWallMaxHp`, `getTowerMaxHp` und `getUnitMaxHp` (js/logic.js). Fest
+  eingetragene 30/15/10 in einer Anzeige sind still falsch, sobald jemand die
+  Reliquie hat.
+- **HP über dem Maximum sind möglich**: das Ereignis „Kriegslust" hebt
+  Einheiten auf `max+2`. `hpBar()` klemmt deshalb bewusst nicht nach oben,
+  sondern hängt Bonus-Blöcke in Gold an (`.hp-bar i.over`).
+- **Info-Panel-Kopfzeilen laufen über `infoHead()`/`infoStats()`** (js/ui.js).
+  Das Panel wird an sechs Stellen gebaut (Oberfläche, Unterwelt, Kreatur,
+  Hauptgebäude, Palisade, Turm) und war genau deshalb auseinandergelaufen —
+  die Unterwelt hatte eine HP-Leiste, die Oberfläche nicht. Neue Info-Zeilen
+  bitte über diese Bausteine, nicht per eigenem Markup.
+- **Overlays** (`.overlay`) lassen oben `68px + safe-area` frei: `#game-hud`
+  liegt mit z-index 150 bewusst darüber, damit die Ressourcen beim Forschen
+  und Fraktion-Wählen sichtbar bleiben.
+
+**Fraktionsdaten** (`js/data.js`) tragen `name`, `ic` (Icon-Name), `passive`
+und `special` getrennt — früher steckte alles als ein
+`"Passive: …\nSpezial: …"`-Block in `desc`. Die Kartenlayouts setzen die Teile
+einzeln (Trennlinie, Beschriftung „Spezial", Kostenchips), das geht mit einem
+Textblob nicht.
+- **Spielerfarben** (`playerColors`, Neon) bleiben unverändert, damit sie auf
+  der Karte lesbar sind — in der UI aber nur als Bannerfläche auf dunkler
+  Platte (`.score-dot`), nie als Textfarbe.
+
+**Schriften.** `--font-display` MedievalSharp (Wortmarke/Titel),
+`--font-body` Jersey 15 (Fließtext), `--font-ui` Silkscreen (Labels, Zahlen,
+Buttons).
+
+> **Pixelschriften sind nur auf ihrem eigenen Raster scharf.** Jede andere
+> Größe lässt der Browser weichzeichnen — die Schrift sieht dann aus wie eine
+> gewöhnliche Schrift mit eckigen Buchstaben, und genau so wirkte die UI beim
+> ersten Anlauf. Erlaubte Größen:
+>
+> | Schrift | scharf bei |
+> |---|---|
+> | Jersey 15 | **15px**, 30px |
+> | Silkscreen | **8px**, 12px, 16px |
+> | MedievalSharp | beliebig (kein Pixelfont, bewusst weich) |
+>
+> Einzige bewusste Ausnahme: Eingabefelder stehen auf 16px, weil iOS sonst
+> beim Fokussieren hineinzoomt.
+
+Auch die HP-Zahlen auf der Karte (`textTexture` in `js/render3d.js`) laufen in
+Silkscreen — in Schritten von 8px und mit `NearestFilter`, sonst interpoliert
+die GPU die Sprite-Textur und die Pixelkanten verwaschen.
+
+Die Schriftwahl selbst ist nicht beliebig: Pixelify Sans war zuerst gesetzt und
+wurde verworfen, weil seine Ziffern mehrdeutig sind (die `5` ist von einem `S`
+nicht zu unterscheiden, `2`/`8` verschwimmen bei 11px) — in einem Spiel voller
+Kosten- und Rundenzahlen ein Ausschlusskriterium. Umgekehrt ist in Silkscreen
+das `c` kaum von der `0` zu trennen, es taugt deshalb nicht für Hex-Codes oder
+Fließtext.
 
 ## Renderer Facade (important)
 

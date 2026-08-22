@@ -4,11 +4,35 @@
 const getEntityColor = (id) => id === -1 ? "#888888" : playerColors[id];
 
 // === FACTIONS ===
+// `passive` und `special` stehen getrennt (statt wie früher als ein
+// "Passive: …\nSpezial: …"-Textblock in `desc`), damit die Fraktionskarten sie
+// eigenständig setzen können — Beschriftung, Trennlinie und Einheitenliste sind
+// im Kartenlayout eigene Elemente. `ic` ist der Icon-Name aus js/icons.js.
 const factions = {
-    0: { name: "🏰 Feudalismus", desc: "Passive: Neu rekrutierte Einheiten erhalten +1 Max-HP pro 3 Dörfer, die du beim Rekrutieren besitzt.\nSpezial: 🛡️ Ritter, 🏹 Kamelreiter, 🚁 Luftschraube & ⚔ Grubenritter", cost: 10, reqV: 2 },
-    1: { name: "🩸 Plünderer", desc: "Passive: +1 DMG für Nahkämpfer.\nSpezial: 🪓 Berserker, 💥 Saboteur, 🛩️ Gleiter & 🪙 Beutegräber", cost: 10, reqV: 2 },
-    2: { name: "👁️ Spionage", desc: "Passive: +1 Sichtweite.\nSpezial: 🗡️ Assassine, 🐘 Elefant, 🪂 Fallschirmspringer & 👂 Horcher", cost: 10, reqV: 2 },
-    3: { name: "⚖️ Gilden", desc: "Passive: +1 Gold pro 2 Dörfer.\nSpezial: 🏗️ Tribok, 🚚 Wagenburg, 🎈 Bombenballon & ⚙ Bohrwagen", cost: 10, reqV: 2 }
+    0: {
+        name: "Feudalismus", ic: 'shield',
+        passive: "Neu rekrutierte Einheiten erhalten +1 Max-HP pro 3 Dörfer, die du beim Rekrutieren besitzt.",
+        special: "Ritter · Kamelreiter · Luftschraube · Grubenritter",
+        cost: 10, reqV: 2
+    },
+    1: {
+        name: "Plünderer", ic: 'blood',
+        passive: "+1 DMG für Nahkämpfer.",
+        special: "Berserker · Saboteur · Gleiter · Beutegräber",
+        cost: 10, reqV: 2
+    },
+    2: {
+        name: "Spionage", ic: 'eye',
+        passive: "+1 Sichtweite.",
+        special: "Assassine · Elefant · Fallschirmspringer · Horcher",
+        cost: 10, reqV: 2
+    },
+    3: {
+        name: "Gilden", ic: 'scales',
+        passive: "+1 Gold pro 2 Dörfer.",
+        special: "Tribok · Wagenburg · Bombenballon · Bohrwagen",
+        cost: 10, reqV: 2
+    }
 };
 
 // === UPGRADES ===

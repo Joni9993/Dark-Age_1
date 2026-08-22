@@ -48,7 +48,7 @@ async function refreshGameList() {
             const canDelete = row.status === 'lobby' ? row.slot === 0 : row.status === 'active';
             const deleteTitle = row.status === 'lobby' ? 'Lobby löschen' : 'Spiel aufgeben';
             const deleteBtn = canDelete
-                ? `<button class="game-delete-btn" title="${deleteTitle}" onclick="event.stopPropagation();deleteGame('${escHtml(row.id)}','${escHtml(row.status)}')">🗑️</button>`
+                ? `<button class="game-delete-btn" title="${deleteTitle}" onclick="event.stopPropagation();deleteGame('${escHtml(row.id)}','${escHtml(row.status)}')">${icon('trash', 'ic-14')}</button>`
                 : '';
 
             const card = document.createElement('div');
@@ -394,7 +394,7 @@ async function refreshFriendsPanel() {
             const div = document.createElement('div');
             div.className = 'friend-row';
             div.innerHTML = `<span>${escHtml(otherName)}</span>
-                <button class="game-delete-btn" title="Freund entfernen" onclick="removeFriend('${otherId}','${escHtml(otherName)}')">🗑️</button>`;
+                <button class="game-delete-btn" title="Freund entfernen" onclick="removeFriend('${otherId}','${escHtml(otherName)}')">${icon('trash', 'ic-14')}</button>`;
             friendList.appendChild(div);
         }
     }
@@ -477,6 +477,32 @@ async function refreshLeaderboardPanel() {
     });
     if (!list.children.length)
         list.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">Noch keine Spieler.</p>';
+
+    // Kopfleiste des Home-Screens: eigener Rang + Rating. Die Zeile steht schon
+    // in der Liste — hier wird sie nur nach oben gespiegelt, damit man den
+    // eigenen Stand sieht, ohne die Bestenliste durchzuscrollen.
+    const me = rows.find(r => r.id === currentProfile?.id);
+    const subEl = document.getElementById('home-banner-sub');
+    const ratingBox = document.getElementById('home-banner-rating');
+    const ratingVal = document.getElementById('home-banner-rating-value');
+    if (subEl) {
+        if (me) {
+            const myRank = me.established
+                ? rows.filter(r => r.established).findIndex(r => r.id === me.id) + 1
+                : null;
+            subEl.textContent = me.username + (myRank ? ` · Rang ${myRank}` : ' · vorläufig');
+        } else {
+            subEl.textContent = currentProfile?.username || '';
+        }
+    }
+    if (ratingBox && ratingVal) {
+        if (me) {
+            ratingVal.textContent = me.rating + (me.established ? '' : '?');
+            ratingBox.style.display = 'flex';
+        } else {
+            ratingBox.style.display = 'none';
+        }
+    }
 }
 
 async function addFriendFromLeaderboard(username) {

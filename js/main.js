@@ -65,13 +65,13 @@ function bootGame() {
     });
     const alivePlayers = gameState.p.filter(p => p.dead !== 1);
     const teamWinnersB = checkTeamWin(alivePlayers);
-    if (teamWinnersB) { showWin(`${teamWinnersB.map(p => p.n).join(' & ')} gewinnen gemeinsam!`); return; }
-    if (alivePlayers.length <= 1) { showWin(`${alivePlayers[0].n} hat als Letzter überlebt!`); return; }
+    if (teamWinnersB) { showWin(`${teamWinnersB.map(p => p.n).join(' & ')} gewinnen gemeinsam!`, teamWinnersB); return; }
+    if (alivePlayers.length <= 1) { showWin(`${alivePlayers[0].n} hat als Letzter überlebt!`, [alivePlayers[0]]); return; }
     // Herz-Sieg (M12): muss auch beim Laden geprüft werden, nicht nur direkt nach
     // doEndTurn — sonst sehen alle anderen Clients (die den bereits gewonnenen
     // Blob erst beim Öffnen laden) nie den Sieg-Screen, obwohl uw.hz.n schon das Ziel erreicht hat.
     const erschlWinnersB = checkErschliessungWin(gameState);
-    if (erschlWinnersB) { showWin(`${erschlWinnersB.map(p => p.n).join(' & ')} haben das Herz der Tiefe erschlossen — wer das Fundament des Landes hält, dem beugt sich die Oberfläche!`); return; }
+    if (erschlWinnersB) { showWin(`${erschlWinnersB.map(p => p.n).join(' & ')} haben das Herz der Tiefe erschlossen — wer das Fundament des Landes hält, dem beugt sich die Oberfläche!`, erschlWinnersB); return; }
 
     // Erschließungs-Reminder (Korrektur Juli 2026, Bugfix — PLAN.md Abschn. 8
     // verlangt "alle erfahren es"): der Toast in doEndTurn (js/input.js) feuert

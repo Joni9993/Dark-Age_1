@@ -13,7 +13,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <!-- Three.js: Version ≤ r152 gepinnt — neuere Releases liefern kein klassisches UMD-Build mehr -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.152.2/three.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+    <!-- MedievalSharp = Wortmarke/Titel, Jersey 15 = Fließtext, Silkscreen = Labels & Zahlen.
+         Jersey statt eines runderen Pixel-Fonts wegen der Ziffern: in Pixelify Sans
+         ist die 5 nicht vom S zu unterscheiden und 2/8 verschwimmen bei 11px —
+         in einem Spiel voller Kosten- und Rundenzahlen ein Ausschlusskriterium. -->
+    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Jersey+15&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/game.css">
 </head>
 
@@ -27,8 +31,34 @@
 
     <!-- ── Login Screen ──────────────────────────────────────────────────── -->
     <div id="login-screen" class="screen-box" style="display:none;">
-        <img src="Icon.png" alt="Dark Ages" class="game-logo">
-        <h3 style="margin:0;font-family:'MedievalSharp',cursive;color:var(--gold);">Dark Ages</h3>
+        <!-- Wappen als Pixel-SVG statt Icon.png: skaliert scharf auf jedem
+             Display und liegt in derselben Palette wie der Rest der UI. -->
+        <svg class="game-crest" viewBox="0 0 24 24" shape-rendering="crispEdges" role="img" aria-label="Dark Ages">
+            <g fill="#2c303d">
+                <rect x="8" y="2" width="8" height="1"/><rect x="6" y="3" width="12" height="1"/>
+                <rect x="5" y="4" width="14" height="9"/><rect x="6" y="13" width="12" height="1"/>
+                <rect x="7" y="14" width="10" height="2"/><rect x="8" y="16" width="8" height="1"/>
+                <rect x="9" y="17" width="6" height="2"/><rect x="10" y="19" width="4" height="1"/>
+                <rect x="11" y="20" width="2" height="1"/>
+            </g>
+            <g fill="#171a22">
+                <rect x="16" y="4" width="3" height="9"/><rect x="14" y="13" width="4" height="1"/>
+                <rect x="13" y="14" width="4" height="2"/><rect x="13" y="16" width="3" height="1"/>
+            </g>
+            <g fill="#9fabbc">
+                <rect x="8" y="2" width="8" height="1"/><rect x="6" y="3" width="2" height="1"/>
+                <rect x="5" y="4" width="1" height="9"/>
+            </g>
+            <g fill="#c98a10">
+                <rect x="11" y="5" width="2" height="10"/><rect x="8" y="10" width="8" height="1"/>
+                <rect x="10" y="15" width="4" height="1"/>
+            </g>
+            <g fill="#e8b84a">
+                <rect x="11" y="4" width="2" height="1"/><rect x="11" y="6" width="1" height="7"/>
+            </g>
+        </svg>
+        <h3 class="login-wordmark">Dark Ages</h3>
+        <p class="login-tagline">Hex-Strategie · Zug um Zug · Asynchron</p>
         <div class="setup-group">
             <label>Ingame-Name</label>
             <input type="text" id="login-username-input" placeholder="DeinName" maxlength="20" autocomplete="username">
@@ -37,31 +67,48 @@
             <label>Passwort</label>
             <input type="password" id="login-password-input" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="current-password">
         </div>
-        <button id="login-btn" class="action-btn" onclick="handleLogin()">Einloggen</button>
+        <button id="login-btn" class="action-btn primary" onclick="handleLogin()">Einloggen</button>
         <p class="login-hint">Neu hier? Wähle einen Namen und ein Passwort — dein Account wird automatisch erstellt.</p>
     </div>
 
     <!-- ── Home Screen ────────────────────────────────────────────────────── -->
     <div id="home-screen" class="screen-box" style="display:none;">
+        <!-- Kopfleiste aus dem Design-Guide: Wappen, Wortmarke, eigener Rang
+             und Rating. Wird in refreshLeaderboardPanel (js/lobby.js) gefüllt. -->
+        <div class="home-banner">
+            <span class="stud stud--tl"></span><span class="stud stud--tr"></span>
+            <span class="stud stud--bl"></span><span class="stud stud--br"></span>
+            <svg class="ic ic-32"><use href="#i-banner"></use></svg>
+            <div class="home-banner-text">
+                <span class="home-banner-title">Dark Ages</span>
+                <span class="home-banner-sub" id="home-banner-sub"></span>
+            </div>
+            <div class="home-banner-rating" id="home-banner-rating" style="display:none;">
+                <svg class="ic ic-14"><use href="#i-crown"></use></svg>
+                <span id="home-banner-rating-value"></span>
+            </div>
+        </div>
         <div class="home-header">
-            <h3>🏆 Bestenliste</h3>
+            <h3><svg class="ic ic-20"><use href="#i-crown"></use></svg> Bestenliste</h3>
         </div>
         <div id="leaderboard-list"></div>
         <div class="home-header" style="margin-top:4px;">
             <h3>Meine Spiele</h3>
-            <span id="home-username"></span>
         </div>
+        <!-- Nutzername steht seit dem Pixel-Umbau in .home-banner; das Element
+             bleibt, damit js/lobby.js:23 unverändert weiterschreiben kann. -->
+        <span id="home-username" hidden></span>
         <div id="game-list"></div>
-        <button class="action-btn" onclick="showCreateGameModal()">+ Neues Spiel</button>
-        <button class="action-btn secondary" onclick="showFriendsPanel()">👥 Freunde</button>
-        <button class="action-btn secondary" onclick="window.open('darkages_guide.html','_blank')">📖 Anleitung</button>
-        <button class="action-btn secondary" onclick="openSettings()">⚙️ Einstellungen</button>
+        <button class="action-btn primary" onclick="showCreateGameModal()"><svg class="ic ic-14"><use href="#i-plus"></use></svg> Neues Spiel</button>
+        <button class="action-btn secondary" onclick="showFriendsPanel()"><svg class="ic ic-14"><use href="#i-users"></use></svg> Freunde</button>
+        <button class="action-btn secondary" onclick="window.open('darkages_guide.html','_blank')"><svg class="ic ic-14"><use href="#i-book"></use></svg> Anleitung</button>
+        <button class="action-btn secondary" onclick="openSettings()"><svg class="ic ic-14"><use href="#i-gear"></use></svg> Einstellungen</button>
     </div>
 
     <!-- ── Lobby Screen ───────────────────────────────────────────────────── -->
     <div id="lobby-screen" class="screen-box" style="display:none;">
         <div class="lobby-header">
-            <h3 id="lobby-title" style="margin:0;font-family:'MedievalSharp',cursive;color:var(--gold);font-size:1.1rem;">Lobby</h3>
+            <h3 id="lobby-title" class="screen-title">Lobby</h3>
             <span id="lobby-player-count" style="font-size:0.8rem;color:var(--text-dim);">0 / 2</span>
         </div>
         <span id="lobby-team-mode" style="font-size:0.8rem;color:var(--text-dim);"></span>
@@ -74,15 +121,15 @@
             </div>
         </div>
         <div id="lobby-friend-invite" style="display:none;width:100%;">
-            <button class="action-btn" style="width:100%;" onclick="openFriendsPicker()">&#128101; Freunde einladen</button>
+            <button class="action-btn" style="width:100%;" onclick="openFriendsPicker()"><svg class="ic ic-14"><use href="#i-users"></use></svg> Freunde einladen</button>
         </div>
-        <button id="lobby-start-btn" class="action-btn" style="display:none;" onclick="handleStartGame()">Spiel starten</button>
+        <button id="lobby-start-btn" class="action-btn primary" style="display:none;" onclick="handleStartGame()">Spiel starten</button>
         <button class="action-btn secondary" onclick="showHomeScreen()">← Zurück</button>
     </div>
 
     <!-- ── Friends Panel ─────────────────────────────────────────────────── -->
     <div id="friends-panel" class="screen-box" style="display:none;">
-        <h3 style="margin:0;font-family:'MedievalSharp',cursive;color:var(--gold);font-size:1.1rem;">Freunde</h3>
+        <h3 class="screen-title">Freunde</h3>
         <div class="setup-group" style="width:100%;">
             <label>Spieler suchen & hinzufügen</label>
             <div class="link-row">
@@ -99,26 +146,24 @@
         <div id="scoreboard" onclick="toggleScoreboard()">
             <div class="score-compact" id="score-compact"></div>
             <div id="scoreboard-popup" style="display:none;" onclick="event.stopPropagation()">
-                <div class="scoreboard-popup-header" id="scoreboard-popup-header">🏆 Rangliste</div>
+                <div class="scoreboard-popup-header" id="scoreboard-popup-header"><svg class="ic ic-14"><use href="#i-crown"></use></svg> Rangliste</div>
                 <div id="scoreboard-modal-content"></div>
             </div>
         </div>
-        <div id="resource-hud">💰 0 <span class="income-text">(+0)</span> | 🪵 0 <span class="income-text">(+0)</span> |
-            🪨 0
-        </div>
-        <button id="menu-btn" onclick="toggleGameMenu()">☰</button>
+        <div id="resource-hud"></div>
+        <button id="menu-btn" onclick="toggleGameMenu()"><svg class="ic ic-20"><use href="#i-menu"></use></svg></button>
     </div>
 
     <div id="game-menu-popup" style="display:none;">
         <button id="menu-undo-item" onclick="undoLastAction(); closeGameMenu()" disabled>↩ Rückgängig</button>
-        <button id="menu-surrender-item" onclick="openSurrenderDialog(); closeGameMenu()">🏳 Aufgeben</button>
-        <button onclick="openSettings(); closeGameMenu()">⚙️ Einstellungen</button>
+        <button id="menu-surrender-item" onclick="openSurrenderDialog(); closeGameMenu()"><svg class="ic ic-14"><use href="#i-flag"></use></svg> Aufgeben</button>
+        <button onclick="openSettings(); closeGameMenu()"><svg class="ic ic-14"><use href="#i-gear"></use></svg> Einstellungen</button>
         <button onclick="showHomeScreen(); closeGameMenu()">← Hauptmenü</button>
     </div>
 
     <div id="surrender-overlay">
         <div class="surrender-card">
-            <div class="surrender-icon">🏳️</div>
+            <div class="surrender-icon"><svg class="ic ic-48"><use href="#i-flag"></use></svg></div>
             <h3>Aufgeben?</h3>
             <p id="surrender-msg">Bist du sicher? Alle deine Einheiten und Dörfer gehen verloren. Diese Aktion kann
                 nicht rückgängig gemacht werden.</p>
@@ -132,7 +177,7 @@
     <!-- ── Zug beenden Bestätigungs-Overlay ─────────────────────────────────── -->
     <div id="end-turn-confirm-overlay">
         <div class="end-turn-confirm-card">
-            <div class="end-turn-confirm-icon">⚔️</div>
+            <div class="end-turn-confirm-icon"><svg class="ic ic-48"><use href="#i-sword"></use></svg></div>
             <h3>Zug wirklich beenden?</h3>
             <p id="end-turn-confirm-msg">Du hast noch Aktionen die du ausführen könntest.</p>
             <div class="end-turn-confirm-actions">
@@ -145,7 +190,7 @@
 
     <div id="setup-screen" class="screen-box" style="display:none;">
         <img src="Icon.png" alt="Dark Ages" class="game-logo">
-        <h3 style="margin-top: 0; font-family: 'MedievalSharp', cursive; font-size: 1.3rem; color: var(--gold);">Spiel
+        <h3 class="screen-title">Spiel
             erstellen</h3>
         <div class="setup-group">
             <label>Spielname:</label>
@@ -180,9 +225,9 @@
         </div>
         <div id="player-names-container"></div>
         <!-- Legacy mode button (URL play without server) -->
-        <button id="start-game-btn" class="action-btn" style="display:none;">Welt generieren & Starten</button>
+        <button id="start-game-btn" class="action-btn primary" style="display:none;">Welt generieren & Starten</button>
         <!-- Server mode button -->
-        <button id="create-game-confirm-btn" class="action-btn" style="display:none;" onclick="handleCreateGame()">Spiel erstellen</button>
+        <button id="create-game-confirm-btn" class="action-btn primary" style="display:none;" onclick="handleCreateGame()">Spiel erstellen</button>
         <button id="setup-back-btn" class="action-btn secondary" style="display:none;" onclick="showHomeScreen()">← Zurück</button>
     </div>
 
@@ -195,9 +240,24 @@
     </div>
 
     <div id="win-screen" class="screen-box">
-        <h1 style="color: #fff176; margin-top: 0; font-size: 2.5rem;">SIEG!</h1>
-        <p id="win-msg" style="font-size: 1.2rem; font-weight: bold;"></p>
-        <button class="action-btn" onclick="showHomeScreen ? showHomeScreen() : (window.location.href=window.location.href.split('?')[0])">Zur Spielübersicht</button>
+        <!-- Strahlenkranz hinter dem Inhalt (z-index 0, Rest liegt darüber) -->
+        <svg class="win-rays" viewBox="0 0 420 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <g fill="var(--gold-mid)" transform="translate(210 120)">
+                <polygon points="0,0 -300,-90 -300,-58" /><polygon points="0,0 300,-90 300,-58" />
+                <polygon points="0,0 -300,-14 -300,16" /><polygon points="0,0 300,-14 300,16" />
+                <polygon points="0,0 -240,150 -215,178" /><polygon points="0,0 240,150 215,178" />
+                <polygon points="0,0 -110,300 -70,300" /><polygon points="0,0 110,300 70,300" />
+                <polygon points="0,0 -26,-300 6,-300" />
+            </g>
+        </svg>
+        <svg class="win-crown"><use href="#i-crown"></use></svg>
+        <!-- Ohne Ausrufezeichen: in MedievalSharp ist das "!" ein senkrechter
+             Strich und "SIEG!" liest sich als "SIEGI". -->
+        <h1 class="win-title">SIEG</h1>
+        <p id="win-msg" class="win-msg"></p>
+        <!-- Endstand-Leiste, gefüllt in showWin (js/diplomacy.js) -->
+        <div id="win-stats" class="win-stats" style="display:none;"></div>
+        <button class="action-btn primary" onclick="showHomeScreen ? showHomeScreen() : (window.location.href=window.location.href.split('?')[0])">Zur Spielübersicht</button>
     </div>
 
     <!-- ── Defeat Banner (spectator / eliminated) ─────────────────────────────── -->
@@ -211,14 +271,14 @@
     </div>
 
     <div id="draft-overlay" class="overlay">
-        <h2 style="color: #d4c4a8; text-align: center; margin-bottom: 20px;">Wähle deinen Kultur-Pfeiler</h2>
+        <h2 class="overlay-title">Wähle deinen Kultur-Pfeiler</h2>
         <div class="cards-container" id="draft-cards"></div>
         <button class="action-btn"
             onclick="document.getElementById('draft-overlay').style.display='none'">Abbrechen</button>
     </div>
 
     <div id="research-overlay" class="overlay">
-        <h2 style="color: #d4c4a8; text-align: center; margin-bottom: 20px;">📜 Forschung</h2>
+        <h2 class="overlay-title"><svg class="ic ic-24"><use href="#i-scroll"></use></svg> Forschung</h2>
         <div class="cards-container" id="research-cards"></div>
         <button class="action-btn"
             onclick="document.getElementById('research-overlay').style.display='none'">Schließen</button>
@@ -226,7 +286,7 @@
 
     <!-- Fraktions-Fenster (Radialmenü "⚜️ Fraktion", window.openFactionOverview, js/ui.js) -->
     <div id="faction-overlay" class="overlay">
-        <h2 style="color: #d4c4a8; text-align: center; margin-bottom: 20px;">⚜️ Fraktionen</h2>
+        <h2 class="overlay-title"><svg class="ic ic-24"><use href="#i-banner"></use></svg> Fraktionen</h2>
         <div class="cards-container" id="faction-cards" style="max-width: 600px;"></div>
         <button class="action-btn"
             onclick="document.getElementById('faction-overlay').style.display='none'">Schließen</button>
@@ -235,7 +295,7 @@
     <!-- Reliquien-Fenster (Radialmenü "🏺 Reliquien", window.openRelicShop, js/ui.js) — ersetzt den
          ehemaligen Reliquien-Shop-Block im Dorf-Menü (js/input.js), fürs Hauptgebäude war kein Platz mehr. -->
     <div id="relic-overlay" class="overlay">
-        <h2 style="color: #d4c4a8; text-align: center; margin-bottom: 20px;">🏺 Reliquien</h2>
+        <h2 class="overlay-title"><svg class="ic ic-24"><use href="#i-urn"></use></svg> Reliquien</h2>
         <div id="relic-cards" style="width: 100%; max-width: 600px; display: flex; flex-direction: column; align-items: center;"></div>
         <button class="action-btn"
             onclick="document.getElementById('relic-overlay').style.display='none'">Schließen</button>
@@ -244,7 +304,7 @@
     <!-- Handel-Fenster (Radialmenü "⚖️ Handel", window.openTradeShop, js/ui.js) — Tausch von
          Gold/Holz/Stein 1:1, Kristalle nur einseitig 1:3 verkaufbar. -->
     <div id="trade-overlay" class="overlay">
-        <h2 style="color: #d4c4a8; text-align: center; margin-bottom: 20px;">⚖️ Handel</h2>
+        <h2 class="overlay-title"><svg class="ic ic-24"><use href="#i-scales"></use></svg> Handel</h2>
         <div id="trade-cards" style="width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; gap: 14px;"></div>
         <button class="action-btn"
             onclick="document.getElementById('trade-overlay').style.display='none'">Schließen</button>
@@ -252,7 +312,7 @@
 
     <div id="dip-overlay" class="modal-backdrop" style="display: none;">
         <div class="screen-box modal-box" style="min-width: 300px;">
-            <h3 style="margin-top: 0; font-family: 'MedievalSharp', cursive; color: var(--gold);">Diplomatie</h3>
+            <h3 class="screen-title">Diplomatie</h3>
             <div id="dip-content" style="display: flex; flex-direction: column; gap: 10px;"></div>
             <button class="action-btn" style="margin-top: 15px;"
                 onclick="document.getElementById('dip-overlay').style.display='none'">Schließen</button>
@@ -261,50 +321,57 @@
 
     <div id="event-overlay">
         <div class="event-card" id="event-card">
+            <span class="stud stud--tl"></span><span class="stud stud--tr"></span>
+            <span class="stud stud--bl"></span><span class="stud stud--br"></span>
+            <div class="event-meta">
+                <span id="event-round">Runde 1</span>
+                <span class="event-meta-sep"></span>
+                <span class="event-meta-kind">Ereignis</span>
+            </div>
             <div class="event-icon" id="event-icon"></div>
             <h2 id="event-title"></h2>
             <p id="event-desc"></p>
-            <button class="action-btn" onclick="dismissEvent()">Weiter</button>
+            <button class="action-btn act-fire" onclick="dismissEvent()">Weiter</button>
         </div>
     </div>
 
     <!-- ── Einstellungen (js/settings.js) ────────────────────────────────────── -->
     <div id="settings-overlay" class="modal-backdrop" style="display:none;">
         <div class="screen-box modal-box">
-            <h3 style="margin:0;font-family:'MedievalSharp',cursive;color:var(--gold);font-size:1.1rem;">⚙️ Einstellungen</h3>
+            <h3 class="screen-title"><svg class="ic ic-20"><use href="#i-gear"></use></svg> Einstellungen</h3>
             <div class="settings-row">
-                <span class="settings-label">🎵 Musik</span>
+                <span class="settings-label">Musik</span>
                 <label class="toggle-switch">
                     <input type="checkbox" id="settings-music-toggle" onchange="setMusicEnabled(this.checked)">
                     <span class="toggle-knob"></span>
                 </label>
             </div>
             <div class="settings-row">
-                <span class="settings-label">🔊 Lautstärke</span>
+                <span class="settings-label">Lautstärke</span>
                 <input type="range" id="settings-music-vol" min="0" max="100" step="1"
                     oninput="setMusicVolume(parseInt(this.value,10))">
             </div>
             <div class="settings-row">
-                <span class="settings-label">🧊 3D-Ansicht</span>
+                <span class="settings-label">3D-Ansicht</span>
                 <label class="toggle-switch">
                     <input type="checkbox" id="settings-renderer-toggle" onchange="setRenderer3D(this.checked)">
                     <span class="toggle-knob"></span>
                 </label>
             </div>
             <div class="settings-row">
-                <span class="settings-label">⚔️ Zug-beenden-Bestätigung</span>
+                <span class="settings-label">Zug-beenden-Bestätigung</span>
                 <label class="toggle-switch">
                     <input type="checkbox" id="settings-endturn-toggle" onchange="setEndTurnConfirmEnabled(this.checked)">
                     <span class="toggle-knob"></span>
                 </label>
             </div>
             <div class="settings-row settings-row-col">
-                <span class="settings-label">🔔 Push-Benachrichtigungen</span>
+                <span class="settings-label">Push-Benachrichtigungen</span>
                 <span id="settings-push-status" class="settings-status"></span>
                 <button id="settings-push-btn" class="action-btn secondary" style="display:none;"
-                    onclick="handleSettingsEnablePush()">🔔 Jetzt aktivieren</button>
+                    onclick="handleSettingsEnablePush()">Jetzt aktivieren</button>
             </div>
-            <button id="settings-logout-btn" class="action-btn secondary" style="display:none;" onclick="handleLogout()">🚪 Abmelden</button>
+            <button id="settings-logout-btn" class="action-btn secondary" style="display:none;" onclick="handleLogout()">Abmelden</button>
             <button class="action-btn" onclick="closeSettings()">Schließen</button>
         </div>
     </div>
@@ -312,7 +379,7 @@
     <!-- ── Friend Picker Overlay ─────────────────────────────────────────────── -->
     <div id="friend-picker-overlay" class="modal-backdrop" style="display:none;">
         <div class="screen-box modal-box">
-            <h3 style="margin:0;font-family:'MedievalSharp',cursive;color:var(--gold);font-size:1.1rem;">&#128101; Freunde einladen</h3>
+            <h3 class="screen-title"><svg class="ic ic-20"><use href="#i-users"></use></svg> Freunde einladen</h3>
             <p style="margin:0;font-size:0.8rem;color:var(--text-dim);">Tippe auf einen Freund um ihn auszuwählen.</p>
             <div id="friend-picker-list"></div>
             <button id="friend-picker-invite-btn" class="action-btn" onclick="inviteSelectedFriends()">Einladen</button>
@@ -334,10 +401,10 @@
         <button id="end-turn-btn" class="action-btn" style="display:none;"></button>
 
         <div id="camera-focus-slider-wrap" title="Kamerafokus: oben Luftansicht, unten Unterwelt, Mitte Standard">
-            <span class="cfs-label cfs-label-air">🪽</span>
+            <span class="cfs-label cfs-label-air"><svg class="ic ic-14"><use href="#i-wing"></use></svg></span>
             <input type="range" id="camera-focus-slider" min="-100" max="100" value="0" step="1"
                 oninput="setCameraFocusSlider(this.value)">
-            <span class="cfs-label cfs-label-underworld">⛏️</span>
+            <span class="cfs-label cfs-label-underworld"><svg class="ic ic-14"><use href="#i-pick"></use></svg></span>
         </div>
     </div>
 
@@ -349,6 +416,7 @@
 
     <script src="js/globals.js"></script>
     <script src="js/art.js"></script>
+    <script src="js/icons.js"></script>
     <script src="js/data.js"></script>
     <script src="js/prng.js"></script>
     <script src="js/hex.js"></script>
@@ -361,6 +429,7 @@
     <script src="js/diplomacy.js"></script>
     <script src="js/input.js"></script>
     <script src="js/radialmenu.js"></script>
+    <script src="js/segmented.js"></script>
     <script src="js/mapgen.js"></script>
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>

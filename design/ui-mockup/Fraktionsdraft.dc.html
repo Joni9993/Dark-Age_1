@@ -1,0 +1,1131 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Pixelify+Sans:wght@400;500;600;700&family=Silkscreen:wght@400;700&display=swap">
+<style>
+/* ==========================================================================
+   Dark Ages · Pixel-UI · Mockup-Stylesheet
+   Farbtokens stammen 1:1 aus NEW_PAL (js/art.js) + :root (css/game.css).
+   Regeln: border-radius 0 · kein backdrop-blur · 4px-Raster · Bevel statt Blur
+   ========================================================================== */
+:root{
+  /* Grund & Panel */
+  --ink:#08070b; --ink-2:#0e0c14; --ink-3:#131019;
+  --panel:#171310; --panel-2:#1f1913; --panel-hi:#33281c; --panel-lo:#0c0907;
+  --edge:#0a0806;
+  /* Text */
+  --bone:#cabe98; --bone-hi:#eeebe8; --dim:#8a7e6e; --dim-2:#57503f;
+  /* Material */
+  --wood:#5e3a20; --wood-dk:#3a2515; --wood-hi:#8f6435; --skin:#c99361;
+  --steel:#9fabbc; --steel-dk:#2c303d; --stone:#7d838f; --stone-dk:#565f70;
+  /* Signal */
+  --gold:#c98a10; --gold-hi:#e8b84a; --gold-dk:#7a5205;
+  --fire:#e2571f; --fire-dk:#8a2c0e; --blood:#cc0000;
+  --crystal:#4fc3f7; --leaf:#5cb85c; --sun:#fff824;
+  /* Gelände */
+  --gras:#2a3627; --forest:#1c2819; --hill:#4e3e2c;
+}
+
+*{box-sizing:border-box;}
+body{margin:0;background:#08070b;}
+a{color:#e8b84a;text-decoration:none;}
+a:hover{color:#fff824;}
+
+/* --- Bühne ---------------------------------------------------------------- */
+.scr{
+  position:relative;width:390px;height:844px;overflow:hidden;
+  background:var(--ink);color:var(--bone);
+  font-family:'Pixelify Sans','Courier New',monospace;
+  font-size:14px;line-height:1.45;
+}
+.scr--wide{width:1180px;height:1660px;}
+
+/* Hintergrund-Ebenen */
+.bg-hex{position:absolute;inset:0;opacity:.10;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='58' viewBox='0 0 34 58'%3E%3Cpath d='M17 1 L33 10 L33 28 L17 37 L1 28 L1 10 Z' fill='none' stroke='%23c98a10' stroke-width='1'/%3E%3C/svg%3E");
+  background-size:34px 58px;}
+.bg-scan{position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(180deg,rgba(0,0,0,.30) 0 1px,rgba(0,0,0,0) 1px 3px);}
+.bg-vig{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(115% 60% at 50% 22%,rgba(120,80,20,.16) 0%,rgba(8,7,11,0) 62%),
+             radial-gradient(100% 100% at 50% 55%,rgba(8,7,11,0) 38%,rgba(0,0,0,.72) 100%);}
+.lay{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;padding:16px;}
+
+/* --- Rahmen / Flächen ----------------------------------------------------- */
+.pf{position:relative;background:var(--panel);border:2px solid var(--edge);
+  box-shadow:inset 2px 2px 0 var(--panel-hi),inset -2px -2px 0 var(--panel-lo),4px 4px 0 rgba(0,0,0,.55);}
+.pf--flat{box-shadow:inset 2px 2px 0 var(--panel-hi),inset -2px -2px 0 var(--panel-lo);}
+.pf--inset{background:#0d0b09;
+  box-shadow:inset 2px 2px 0 var(--panel-lo),inset -2px -2px 0 var(--panel-hi);}
+.pf--gold{background:var(--panel-2);border-color:var(--gold);
+  box-shadow:inset 2px 2px 0 var(--gold-dk),inset -2px -2px 0 var(--panel-lo),
+             0 0 0 2px var(--edge),4px 4px 0 rgba(0,0,0,.55),0 0 22px rgba(201,138,16,.22);}
+.pf--fire{background:#1b0f0a;border-color:var(--fire-dk);
+  box-shadow:inset 2px 2px 0 #4a1a08,inset -2px -2px 0 #0c0605,
+             0 0 0 2px var(--edge),4px 4px 0 rgba(0,0,0,.55),0 0 26px rgba(226,87,31,.20);}
+.pf--dead{background:#121110;border-color:#1c1917;
+  box-shadow:inset 2px 2px 0 #1c1917,inset -2px -2px 0 #0b0a09;}
+
+/* Ecknieten */
+.stud{position:absolute;width:4px;height:4px;background:var(--wood-hi);}
+.stud--tl{top:4px;left:4px}.stud--tr{top:4px;right:4px}
+.stud--bl{bottom:4px;left:4px}.stud--br{bottom:4px;right:4px}
+.pf--gold>.stud{background:var(--gold-hi);}
+
+/* --- Typografie ----------------------------------------------------------- */
+.wm{font-family:'MedievalSharp',cursive;color:var(--gold-hi);letter-spacing:4px;
+  text-shadow:0 3px 0 #000,0 0 20px rgba(232,184,74,.28);line-height:1;}
+.h1{font-family:'MedievalSharp',cursive;font-size:26px;color:var(--gold-hi);letter-spacing:2px;
+  text-shadow:0 2px 0 #000;line-height:1.1;margin:0;}
+.h2{font-family:'Pixelify Sans',monospace;font-weight:700;font-size:18px;color:var(--bone-hi);margin:0;line-height:1.2;}
+.h3{font-family:'Pixelify Sans',monospace;font-weight:600;font-size:15px;color:var(--bone-hi);margin:0;line-height:1.2;}
+.lbl{font-family:'Silkscreen',monospace;font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim);}
+.lbl--gold{color:var(--gold);}
+.body{font-family:'Pixelify Sans',monospace;font-size:13px;line-height:1.5;color:var(--bone);margin:0;}
+.micro{font-family:'Pixelify Sans',monospace;font-size:11px;line-height:1.4;color:var(--dim);margin:0;}
+.num{font-family:'Silkscreen',monospace;font-size:12px;color:var(--bone-hi);letter-spacing:.5px;}
+.num--sm{font-size:10px;}
+/* Hex-Codes NICHT in Silkscreen: dort ist "c" kaum von "0" zu unterscheiden. */
+.hex{font-family:'Pixelify Sans',monospace;font-size:12px;color:var(--bone);letter-spacing:.6px;}
+
+/* --- Buttons -------------------------------------------------------------- */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;
+  min-height:48px;padding:0 14px;width:100%;border:2px solid var(--edge);
+  font-family:'Silkscreen',monospace;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--bone-hi);background:#3a2b1c;cursor:pointer;text-align:center;
+  box-shadow:inset 2px 2px 0 rgba(201,147,97,.30),inset -2px -2px 0 rgba(0,0,0,.55),0 4px 0 var(--edge);}
+.btn--primary{color:#1c1305;background:var(--gold);
+  box-shadow:inset 2px 2px 0 #f0cf6a,inset -2px -2px 0 var(--gold-dk),0 4px 0 #3a2604;}
+.btn--danger{color:#f8e5de;background:var(--fire-dk);
+  box-shadow:inset 2px 2px 0 var(--fire),inset -2px -2px 0 #3d1205,0 4px 0 #2a0c03;}
+.btn--ghost{background:#151210;color:var(--dim);
+  box-shadow:inset 2px 2px 0 #241d16,inset -2px -2px 0 #0b0908,0 4px 0 var(--edge);}
+.btn--pressed{transform:translateY(4px);
+  box-shadow:inset 2px 2px 0 rgba(0,0,0,.55),inset -2px -2px 0 rgba(201,147,97,.16);}
+.btn--disabled{background:#141211;color:#3f3931;
+  box-shadow:inset 2px 2px 0 #1c1917,inset -2px -2px 0 #0b0a09,0 4px 0 var(--edge);cursor:not-allowed;}
+.btn--sm{min-height:36px;font-size:9px;padding:0 10px;letter-spacing:1px;}
+.btn--icon{flex-direction:column;gap:6px;min-height:64px;padding:8px 4px;font-size:8px;letter-spacing:1px;}
+
+/* --- Eingaben ------------------------------------------------------------- */
+.field{display:flex;flex-direction:column;gap:6px;}
+.input{display:flex;align-items:center;min-height:48px;padding:0 12px;background:#0d0b09;
+  border:2px solid var(--edge);color:var(--bone-hi);
+  font-family:'Pixelify Sans',monospace;font-size:15px;
+  box-shadow:inset 2px 2px 0 var(--panel-lo),inset -2px -2px 0 #241d16;}
+.input--ph{color:var(--dim-2);}
+.input--focus{border-color:var(--gold);
+  box-shadow:inset 2px 2px 0 var(--panel-lo),inset -2px -2px 0 #241d16,0 0 0 2px rgba(201,138,16,.35);}
+.caret{display:inline-block;width:2px;height:17px;background:var(--gold-hi);margin-left:1px;}
+
+/* Segmentierte Auswahl */
+.seg{display:flex;gap:6px;}
+.seg-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:10px 4px;min-height:48px;background:#131010;border:2px solid var(--edge);cursor:pointer;
+  box-shadow:inset 2px 2px 0 #241d16,inset -2px -2px 0 var(--panel-lo);}
+.seg-item--on{background:#241a0c;border-color:var(--gold);
+  box-shadow:inset 2px 2px 0 var(--gold-dk),inset -2px -2px 0 var(--panel-lo);}
+.seg-item--on .lbl{color:var(--gold-hi);}
+
+/* Pixel-Radio */
+.rad{width:16px;height:16px;flex:0 0 16px;background:#0d0b09;border:2px solid var(--edge);
+  box-shadow:inset 2px 2px 0 var(--panel-lo),inset -2px -2px 0 #241d16;}
+.rad--on{background:var(--gold);box-shadow:inset 2px 2px 0 #f0cf6a,inset -2px -2px 0 var(--gold-dk);}
+
+/* Pixel-Schalter */
+.sw{width:52px;height:26px;flex:0 0 52px;background:#0d0b09;border:2px solid var(--edge);position:relative;
+  box-shadow:inset 2px 2px 0 var(--panel-lo),inset -2px -2px 0 #241d16;}
+.sw-knob{position:absolute;top:2px;left:2px;width:20px;height:18px;background:var(--stone);
+  box-shadow:inset 2px 2px 0 var(--steel),inset -2px -2px 0 var(--steel-dk);}
+.sw--on{background:#2a1f08;}
+.sw--on .sw-knob{left:auto;right:2px;background:var(--gold);
+  box-shadow:inset 2px 2px 0 #f0cf6a,inset -2px -2px 0 var(--gold-dk);}
+
+/* --- Icons ---------------------------------------------------------------- */
+.ic{display:block;width:16px;height:16px;flex:0 0 auto;}
+.ic-12{width:12px;height:12px;}.ic-14{width:14px;height:14px;}.ic-20{width:20px;height:20px;}
+.ic-24{width:24px;height:24px;}.ic-28{width:28px;height:28px;}.ic-32{width:32px;height:32px;}
+.ic-40{width:40px;height:40px;}.ic-48{width:48px;height:48px;}.ic-64{width:64px;height:64px;}
+.ic-88{width:88px;height:88px;}
+
+/* --- Bausteine ------------------------------------------------------------ */
+.row{display:flex;align-items:center;gap:8px;}
+.col{display:flex;flex-direction:column;}
+.grow{flex:1;min-width:0;}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* Ressourcen-Chip */
+.res{display:flex;align-items:center;gap:4px;}
+.res-inc{font-family:'Silkscreen',monospace;font-size:9px;color:var(--leaf);}
+
+/* Badge */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 6px;border:2px solid var(--edge);
+  font-family:'Silkscreen',monospace;font-size:8px;letter-spacing:1px;text-transform:uppercase;}
+.badge--turn{background:var(--gold);color:#1c1305;box-shadow:inset 1px 1px 0 #f0cf6a,inset -1px -1px 0 var(--gold-dk);}
+.badge--wait{background:#1a1714;color:var(--dim);box-shadow:inset 1px 1px 0 #26211b,inset -1px -1px 0 #0b0a09;}
+.badge--lobby{background:var(--steel-dk);color:var(--steel);box-shadow:inset 1px 1px 0 #3f4557,inset -1px -1px 0 #171a22;}
+.badge--cost{background:#0d0b09;color:var(--bone);box-shadow:inset 1px 1px 0 var(--panel-lo),inset -1px -1px 0 #241d16;}
+
+/* HP-Leiste (segmentiert, keine glatte Progressbar) */
+.hp{display:flex;gap:2px;}
+.hp i{width:8px;height:10px;background:var(--blood);box-shadow:inset 1px 1px 0 #ff5a5a,inset -1px -1px 0 #6b0000;}
+.hp i.off{background:#241d1d;box-shadow:inset 1px 1px 0 #2e2626,inset -1px -1px 0 #0c0808;}
+
+/* Spielerbanner */
+.pb{width:22px;height:26px;flex:0 0 22px;border:2px solid var(--edge);position:relative;
+  box-shadow:inset 0 -4px 0 rgba(0,0,0,.45),inset 2px 2px 0 rgba(255,255,255,.28);}
+
+/* Trennlinie im Pixel-Stil */
+.sep{height:2px;background:repeating-linear-gradient(90deg,var(--panel-hi) 0 4px,transparent 4px 8px);}
+
+/* Overlay */
+.scrim{position:absolute;inset:0;background:rgba(4,3,6,.80);z-index:3;}
+.modal{position:absolute;z-index:4;}
+
+</style>
+</helmet>
+<!-- Pixel-Icon-Set · 12x12-Raster · ersetzt die Emoji der aktuellen UI -->
+<svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
+<defs>
+<symbol id="i-gold" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="2" width="4" height="1" fill="#e8b84a"/><rect x="3" y="3" width="6" height="1" fill="#e8b84a"/>
+<rect x="2" y="4" width="8" height="4" fill="#e8b84a"/><rect x="3" y="8" width="6" height="1" fill="#e8b84a"/>
+<rect x="4" y="9" width="4" height="1" fill="#e8b84a"/><rect x="7" y="4" width="3" height="4" fill="#a06c08"/>
+<rect x="6" y="8" width="3" height="1" fill="#a06c08"/><rect x="4" y="3" width="2" height="1" fill="#fff824"/>
+</g></symbol>
+
+<symbol id="i-wood" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="1" y="3" width="10" height="3" fill="#8f6435"/><rect x="1" y="3" width="2" height="3" fill="#5e3a20"/>
+<rect x="3" y="4" width="7" height="1" fill="#a8794a"/>
+<rect x="2" y="7" width="9" height="3" fill="#8f6435"/><rect x="2" y="7" width="2" height="3" fill="#5e3a20"/>
+<rect x="4" y="8" width="6" height="1" fill="#a8794a"/>
+</g></symbol>
+
+<symbol id="i-stone" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="4" width="4" height="1" fill="#9fabbc"/><rect x="3" y="5" width="6" height="1" fill="#7d838f"/>
+<rect x="2" y="6" width="8" height="3" fill="#7d838f"/><rect x="7" y="6" width="3" height="3" fill="#565f70"/>
+<rect x="6" y="5" width="3" height="1" fill="#565f70"/><rect x="4" y="4" width="2" height="1" fill="#b6c0cc"/>
+</g></symbol>
+
+<symbol id="i-crystal" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="1" width="2" height="1" fill="#4fc3f7"/><rect x="4" y="2" width="4" height="1" fill="#4fc3f7"/>
+<rect x="3" y="3" width="6" height="5" fill="#4fc3f7"/><rect x="4" y="8" width="4" height="1" fill="#4fc3f7"/>
+<rect x="5" y="9" width="2" height="1" fill="#4fc3f7"/><rect x="6" y="3" width="3" height="5" fill="#1f7fa8"/>
+<rect x="6" y="8" width="2" height="1" fill="#1f7fa8"/><rect x="4" y="3" width="1" height="4" fill="#b6e8ff"/>
+</g></symbol>
+
+<symbol id="i-sword" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="1" width="2" height="6" fill="#9fabbc"/><rect x="5" y="2" width="1" height="5" fill="#eeebe8"/>
+<rect x="3" y="7" width="6" height="1" fill="#8f6435"/><rect x="5" y="8" width="2" height="2" fill="#5e3a20"/>
+<rect x="4" y="10" width="4" height="1" fill="#c98a10"/>
+</g></symbol>
+
+<symbol id="i-shield" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="8" height="6" fill="#565f70"/><rect x="3" y="7" width="6" height="2" fill="#565f70"/>
+<rect x="4" y="9" width="4" height="1" fill="#565f70"/><rect x="5" y="10" width="2" height="1" fill="#565f70"/>
+<rect x="2" y="1" width="8" height="1" fill="#9fabbc"/><rect x="2" y="1" width="1" height="6" fill="#9fabbc"/>
+<rect x="5" y="3" width="2" height="5" fill="#c98a10"/>
+</g></symbol>
+
+<symbol id="i-crown" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="3" width="2" height="4" fill="#c98a10"/><rect x="5" y="4" width="2" height="3" fill="#c98a10"/>
+<rect x="8" y="3" width="2" height="4" fill="#c98a10"/><rect x="2" y="7" width="8" height="2" fill="#c98a10"/>
+<rect x="2" y="2" width="2" height="1" fill="#e8b84a"/><rect x="8" y="2" width="2" height="1" fill="#e8b84a"/>
+<rect x="5" y="3" width="2" height="1" fill="#e8b84a"/>
+<rect x="2" y="8" width="1" height="1" fill="#4fc3f7"/><rect x="9" y="8" width="1" height="1" fill="#4fc3f7"/>
+<rect x="5" y="7" width="2" height="1" fill="#cc0000"/>
+</g></symbol>
+
+<symbol id="i-scroll" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="8" height="2" fill="#8f6435"/><rect x="2" y="9" width="8" height="2" fill="#8f6435"/>
+<rect x="3" y="3" width="6" height="6" fill="#cabe98"/>
+<rect x="4" y="4" width="4" height="1" fill="#3a2515"/><rect x="4" y="6" width="3" height="1" fill="#3a2515"/>
+<rect x="2" y="1" width="1" height="2" fill="#5e3a20"/><rect x="9" y="1" width="1" height="2" fill="#5e3a20"/>
+<rect x="2" y="9" width="1" height="2" fill="#5e3a20"/><rect x="9" y="9" width="1" height="2" fill="#5e3a20"/>
+</g></symbol>
+
+<symbol id="i-gear" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="0" width="4" height="2" fill="#7d838f"/><rect x="0" y="4" width="2" height="4" fill="#7d838f"/>
+<rect x="10" y="4" width="2" height="4" fill="#7d838f"/><rect x="4" y="10" width="4" height="2" fill="#7d838f"/>
+<rect x="2" y="2" width="8" height="8" fill="#9fabbc"/><rect x="6" y="2" width="4" height="8" fill="#7d838f"/>
+<rect x="4" y="4" width="4" height="4" fill="#0e0c14"/>
+</g></symbol>
+
+<symbol id="i-users" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="2" width="3" height="3" fill="#c99361"/><rect x="1" y="6" width="5" height="5" fill="#5e3a20"/>
+<rect x="7" y="3" width="3" height="3" fill="#c99361"/><rect x="6" y="7" width="5" height="4" fill="#3a2515"/>
+</g></symbol>
+
+<symbol id="i-book" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="8" height="10" fill="#5e3a20"/><rect x="3" y="2" width="6" height="8" fill="#cabe98"/>
+<rect x="2" y="1" width="1" height="10" fill="#3a2515"/>
+<rect x="4" y="4" width="4" height="1" fill="#8f6435"/><rect x="4" y="6" width="4" height="1" fill="#8f6435"/>
+</g></symbol>
+
+<symbol id="i-flag" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="1" height="10" fill="#5e3a20"/><rect x="3" y="2" width="5" height="4" fill="#cc0000"/>
+<rect x="8" y="2" width="1" height="1" fill="#cc0000"/><rect x="8" y="5" width="1" height="1" fill="#cc0000"/>
+</g></symbol>
+
+<symbol id="i-plus" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="5" y="2" width="2" height="8"/><rect x="2" y="5" width="8" height="2"/>
+</g></symbol>
+
+<symbol id="i-chev-r" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="4" y="2" width="2" height="2"/><rect x="6" y="4" width="2" height="2"/><rect x="4" y="6" width="2" height="2"/>
+</g></symbol>
+
+<symbol id="i-chev-l" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="6" y="2" width="2" height="2"/><rect x="4" y="4" width="2" height="2"/><rect x="6" y="6" width="2" height="2"/>
+</g></symbol>
+
+<symbol id="i-skull" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="3" y="2" width="6" height="5" fill="#cabe98"/><rect x="4" y="4" width="1" height="2" fill="#0e0c14"/>
+<rect x="7" y="4" width="1" height="2" fill="#0e0c14"/><rect x="5" y="6" width="2" height="1" fill="#0e0c14"/>
+<rect x="4" y="7" width="4" height="2" fill="#cabe98"/>
+<rect x="5" y="8" width="1" height="1" fill="#0e0c14"/><rect x="7" y="8" width="1" height="1" fill="#0e0c14"/>
+</g></symbol>
+
+<symbol id="i-banner" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="8" height="6" fill="#5e3a20"/><rect x="3" y="7" width="6" height="2" fill="#5e3a20"/>
+<rect x="4" y="9" width="4" height="1" fill="#5e3a20"/><rect x="5" y="10" width="2" height="1" fill="#5e3a20"/>
+<rect x="5" y="2" width="2" height="6" fill="#c98a10"/><rect x="3" y="4" width="6" height="2" fill="#c98a10"/>
+</g></symbol>
+
+<symbol id="i-urn" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="1" width="4" height="1" fill="#c98a10"/><rect x="5" y="2" width="2" height="1" fill="#8f6435"/>
+<rect x="3" y="3" width="6" height="7" fill="#8f6435"/><rect x="7" y="4" width="2" height="6" fill="#5e3a20"/>
+<rect x="3" y="6" width="6" height="1" fill="#c98a10"/><rect x="4" y="10" width="4" height="1" fill="#5e3a20"/>
+</g></symbol>
+
+<symbol id="i-scales" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="2" width="2" height="8" fill="#8f6435"/><rect x="3" y="10" width="6" height="1" fill="#5e3a20"/>
+<rect x="1" y="3" width="10" height="1" fill="#8f6435"/>
+<rect x="2" y="4" width="1" height="1" fill="#8f6435"/><rect x="9" y="4" width="1" height="1" fill="#8f6435"/>
+<rect x="1" y="5" width="3" height="1" fill="#9fabbc"/><rect x="8" y="5" width="3" height="1" fill="#9fabbc"/>
+</g></symbol>
+
+<symbol id="i-hex" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="4" y="1" width="4" height="1"/><rect x="3" y="2" width="6" height="1"/>
+<rect x="2" y="3" width="8" height="6"/><rect x="3" y="9" width="6" height="1"/><rect x="4" y="10" width="4" height="1"/>
+</g></symbol>
+
+<symbol id="i-heart" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="3" y="2" width="2" height="1" fill="#cc0000"/><rect x="7" y="2" width="2" height="1" fill="#cc0000"/>
+<rect x="2" y="3" width="8" height="2" fill="#cc0000"/><rect x="3" y="5" width="6" height="1" fill="#cc0000"/>
+<rect x="4" y="6" width="4" height="1" fill="#cc0000"/><rect x="5" y="7" width="2" height="1" fill="#cc0000"/>
+<rect x="3" y="3" width="1" height="1" fill="#ff6b6b"/>
+</g></symbol>
+
+<symbol id="i-star" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="5" y="1" width="2" height="2"/><rect x="4" y="3" width="4" height="1"/><rect x="1" y="4" width="10" height="2"/>
+<rect x="3" y="6" width="6" height="1"/><rect x="3" y="7" width="2" height="1"/><rect x="7" y="7" width="2" height="1"/>
+<rect x="2" y="8" width="2" height="1"/><rect x="8" y="8" width="2" height="1"/>
+</g></symbol>
+
+<symbol id="i-eye" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="3" width="4" height="1" fill="#cabe98"/><rect x="2" y="4" width="8" height="2" fill="#cabe98"/>
+<rect x="4" y="6" width="4" height="1" fill="#cabe98"/><rect x="4" y="4" width="4" height="2" fill="#1f7fa8"/>
+<rect x="5" y="4" width="2" height="2" fill="#0e0c14"/>
+</g></symbol>
+
+<symbol id="i-pact" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="1" y="5" width="5" height="3" fill="#c99361"/><rect x="6" y="5" width="5" height="3" fill="#8f6435"/>
+<rect x="5" y="4" width="2" height="5" fill="#cabe98"/>
+</g></symbol>
+
+<symbol id="i-check" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="2" y="5" width="2" height="2"/><rect x="4" y="7" width="2" height="2"/>
+<rect x="6" y="5" width="2" height="2"/><rect x="8" y="3" width="2" height="2"/>
+</g></symbol>
+
+<symbol id="i-lock" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="1" width="4" height="1" fill="#8f6435"/><rect x="3" y="2" width="1" height="3" fill="#8f6435"/>
+<rect x="8" y="2" width="1" height="3" fill="#8f6435"/><rect x="2" y="5" width="8" height="6" fill="#c98a10"/>
+<rect x="5" y="7" width="2" height="2" fill="#3a2515"/>
+</g></symbol>
+
+<symbol id="i-menu" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="2" y="2" width="8" height="2"/><rect x="2" y="5" width="8" height="2"/><rect x="2" y="8" width="8" height="2"/>
+</g></symbol>
+
+<symbol id="i-wing" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="7" y="3" width="3" height="1" fill="#cabe98"/><rect x="5" y="4" width="5" height="1" fill="#cabe98"/>
+<rect x="3" y="5" width="7" height="1" fill="#cabe98"/><rect x="2" y="6" width="7" height="1" fill="#cabe98"/>
+<rect x="4" y="7" width="3" height="1" fill="#cabe98"/>
+<rect x="7" y="4" width="1" height="1" fill="#8f6435"/><rect x="5" y="5" width="1" height="1" fill="#8f6435"/>
+</g></symbol>
+
+<symbol id="i-pick" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="2" width="4" height="1" fill="#9fabbc"/><rect x="2" y="3" width="2" height="1" fill="#9fabbc"/>
+<rect x="8" y="3" width="2" height="1" fill="#9fabbc"/><rect x="2" y="4" width="8" height="1" fill="#7d838f"/>
+<rect x="5" y="5" width="2" height="6" fill="#5e3a20"/>
+</g></symbol>
+
+<symbol id="i-wall" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="1" y="3" width="10" height="3" fill="#7d838f"/><rect x="1" y="3" width="10" height="1" fill="#9fabbc"/>
+<rect x="5" y="3" width="1" height="3" fill="#2c303d"/>
+<rect x="1" y="7" width="10" height="3" fill="#7d838f"/><rect x="1" y="7" width="10" height="1" fill="#9fabbc"/>
+<rect x="3" y="7" width="1" height="3" fill="#2c303d"/><rect x="8" y="7" width="1" height="3" fill="#2c303d"/>
+</g></symbol>
+
+<symbol id="i-tower" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="2" height="2" fill="#9fabbc"/><rect x="5" y="1" width="2" height="2" fill="#9fabbc"/>
+<rect x="8" y="1" width="2" height="2" fill="#9fabbc"/><rect x="3" y="3" width="6" height="8" fill="#7d838f"/>
+<rect x="7" y="3" width="2" height="8" fill="#565f70"/><rect x="5" y="5" width="2" height="2" fill="#0e0c14"/>
+</g></symbol>
+
+<symbol id="i-fire" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="2" width="2" height="1" fill="#e2571f"/><rect x="4" y="3" width="4" height="1" fill="#e2571f"/>
+<rect x="3" y="4" width="6" height="5" fill="#e2571f"/><rect x="4" y="9" width="4" height="1" fill="#e2571f"/>
+<rect x="5" y="6" width="3" height="3" fill="#fff824"/><rect x="5" y="8" width="2" height="1" fill="#eeebe8"/>
+<rect x="3" y="4" width="1" height="1" fill="#8a2c0e"/>
+</g></symbol>
+
+<symbol id="i-village" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="2" width="2" height="1" fill="#8a2c0e"/><rect x="2" y="3" width="8" height="2" fill="#8a2c0e"/>
+<rect x="3" y="5" width="6" height="6" fill="#cabe98"/><rect x="7" y="5" width="2" height="6" fill="#a89878"/>
+<rect x="5" y="8" width="2" height="3" fill="#5e3a20"/>
+</g></symbol>
+
+<symbol id="i-copy" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="1" y="1" width="6" height="7" fill="#565f70"/><rect x="4" y="4" width="7" height="7" fill="#9fabbc"/>
+<rect x="6" y="6" width="3" height="3" fill="#2c303d"/>
+</g></symbol>
+
+<symbol id="i-hourglass" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="3" y="1" width="6" height="1" fill="#8f6435"/><rect x="3" y="10" width="6" height="1" fill="#8f6435"/>
+<rect x="4" y="2" width="4" height="1" fill="#cabe98"/><rect x="5" y="3" width="2" height="2" fill="#cabe98"/>
+<rect x="5" y="6" width="2" height="1" fill="#cabe98"/><rect x="4" y="7" width="4" height="1" fill="#cabe98"/>
+<rect x="4" y="8" width="4" height="2" fill="#cabe98"/><rect x="5" y="8" width="2" height="2" fill="#c98a10"/>
+</g></symbol>
+
+<symbol id="i-trash" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="4" y="1" width="4" height="1"/><rect x="1" y="2" width="10" height="2"/>
+<rect x="2" y="4" width="8" height="7"/>
+</g></symbol>
+
+<symbol id="i-move" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="5" y="0" width="2" height="12"/><rect x="0" y="5" width="12" height="2"/>
+<rect x="3" y="2" width="6" height="1"/><rect x="3" y="9" width="6" height="1"/>
+</g></symbol>
+
+<!-- ── Fähigkeiten (js/input.js Aktionsleiste) ───────────────────────────── -->
+
+<symbol id="i-whirl" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="2" width="4" height="1" fill="#9fabbc"/>
+<rect x="3" y="3" width="2" height="1" fill="#9fabbc"/><rect x="7" y="3" width="2" height="1" fill="#9fabbc"/>
+<rect x="2" y="4" width="2" height="3" fill="#9fabbc"/><rect x="8" y="4" width="2" height="3" fill="#9fabbc"/>
+<rect x="3" y="7" width="2" height="1" fill="#9fabbc"/><rect x="7" y="7" width="2" height="1" fill="#9fabbc"/>
+<rect x="4" y="8" width="4" height="1" fill="#9fabbc"/>
+<rect x="8" y="0" width="3" height="1" fill="#eeebe8"/><rect x="9" y="1" width="2" height="1" fill="#eeebe8"/>
+<rect x="10" y="2" width="1" height="1" fill="#eeebe8"/>
+</g></symbol>
+
+<symbol id="i-blood" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="1" width="2" height="1" fill="#cc0000"/><rect x="4" y="2" width="4" height="1" fill="#cc0000"/>
+<rect x="3" y="3" width="6" height="3" fill="#cc0000"/><rect x="4" y="6" width="4" height="1" fill="#cc0000"/>
+<rect x="5" y="2" width="1" height="3" fill="#ff6b6b"/>
+<rect x="2" y="8" width="1" height="1" fill="#cc0000"/><rect x="1" y="9" width="3" height="2" fill="#cc0000"/>
+<rect x="9" y="8" width="1" height="1" fill="#cc0000"/><rect x="8" y="9" width="3" height="2" fill="#cc0000"/>
+</g></symbol>
+
+<symbol id="i-cloak" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="4" y="1" width="4" height="1" fill="#2c303d"/><rect x="3" y="2" width="6" height="1" fill="#2c303d"/>
+<rect x="2" y="3" width="8" height="8" fill="#2c303d"/>
+<rect x="4" y="4" width="4" height="4" fill="#0e0c14"/>
+<rect x="4" y="5" width="1" height="1" fill="#9fabbc"/><rect x="7" y="5" width="1" height="1" fill="#9fabbc"/>
+<rect x="2" y="3" width="1" height="8" fill="#565f70"/>
+</g></symbol>
+
+<symbol id="i-elephant" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="1" y="4" width="7" height="5" fill="#7d838f"/>
+<rect x="6" y="3" width="5" height="4" fill="#9fabbc"/>
+<rect x="6" y="3" width="2" height="4" fill="#565f70"/>
+<rect x="10" y="7" width="1" height="3" fill="#9fabbc"/><rect x="9" y="10" width="2" height="1" fill="#9fabbc"/>
+<rect x="2" y="9" width="2" height="2" fill="#565f70"/><rect x="5" y="9" width="2" height="2" fill="#565f70"/>
+<rect x="9" y="6" width="1" height="1" fill="#eeebe8"/>
+<rect x="8" y="4" width="1" height="1" fill="#0e0c14"/>
+</g></symbol>
+
+<symbol id="i-bow" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="2" height="1" fill="#8f6435"/><rect x="1" y="2" width="1" height="8" fill="#8f6435"/>
+<rect x="2" y="10" width="2" height="1" fill="#8f6435"/>
+<rect x="3" y="2" width="1" height="8" fill="#cabe98"/>
+<rect x="3" y="5" width="6" height="2" fill="#5e3a20"/>
+<rect x="9" y="4" width="1" height="4" fill="#9fabbc"/><rect x="10" y="5" width="1" height="2" fill="#9fabbc"/>
+</g></symbol>
+
+<symbol id="i-jump" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="0" y="9" width="2" height="2" fill="#8f6435"/>
+<rect x="2" y="6" width="2" height="1" fill="#cabe98"/><rect x="4" y="4" width="2" height="1" fill="#cabe98"/>
+<rect x="6" y="4" width="2" height="1" fill="#cabe98"/><rect x="8" y="6" width="2" height="1" fill="#cabe98"/>
+<rect x="9" y="8" width="1" height="1" fill="#c98a10"/><rect x="8" y="9" width="4" height="2" fill="#c98a10"/>
+</g></symbol>
+
+<symbol id="i-parachute" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="2" y="1" width="8" height="1" fill="#cabe98"/><rect x="1" y="2" width="10" height="2" fill="#cabe98"/>
+<rect x="4" y="1" width="1" height="3" fill="#8f6435"/><rect x="7" y="1" width="1" height="3" fill="#8f6435"/>
+<rect x="2" y="4" width="1" height="3" fill="#8f6435"/><rect x="9" y="4" width="1" height="3" fill="#8f6435"/>
+<rect x="5" y="7" width="2" height="4" fill="#5e3a20"/>
+</g></symbol>
+
+<symbol id="i-tunnel" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="1" y="9" width="10" height="2" fill="#5e3a20"/>
+<rect x="4" y="2" width="4" height="1" fill="#7d838f"/><rect x="2" y="3" width="8" height="6" fill="#7d838f"/>
+<rect x="5" y="3" width="2" height="1" fill="#0e0c14"/><rect x="4" y="4" width="4" height="5" fill="#0e0c14"/>
+<rect x="2" y="3" width="1" height="6" fill="#9fabbc"/>
+</g></symbol>
+
+<symbol id="i-dynamite" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="3" y="5" width="5" height="6" fill="#cc0000"/>
+<rect x="3" y="6" width="5" height="1" fill="#8a2c0e"/><rect x="3" y="9" width="5" height="1" fill="#8a2c0e"/>
+<rect x="8" y="4" width="1" height="1" fill="#8f6435"/><rect x="9" y="2" width="1" height="2" fill="#8f6435"/>
+<rect x="9" y="0" width="2" height="2" fill="#fff824"/>
+</g></symbol>
+
+<symbol id="i-boom" viewBox="0 0 12 12"><g shape-rendering="crispEdges">
+<rect x="5" y="0" width="2" height="4" fill="#e2571f"/><rect x="5" y="8" width="2" height="4" fill="#e2571f"/>
+<rect x="0" y="5" width="4" height="2" fill="#e2571f"/><rect x="8" y="5" width="4" height="2" fill="#e2571f"/>
+<rect x="2" y="2" width="2" height="2" fill="#e2571f"/><rect x="8" y="2" width="2" height="2" fill="#e2571f"/>
+<rect x="2" y="8" width="2" height="2" fill="#e2571f"/><rect x="8" y="8" width="2" height="2" fill="#e2571f"/>
+<rect x="3" y="3" width="6" height="6" fill="#fff824"/>
+<rect x="5" y="5" width="2" height="2" fill="#eeebe8"/>
+</g></symbol>
+
+<symbol id="i-arrow-up" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="5" y="1" width="2" height="1"/><rect x="4" y="2" width="4" height="1"/><rect x="3" y="3" width="6" height="1"/>
+<rect x="5" y="4" width="2" height="7"/>
+</g></symbol>
+
+<symbol id="i-arrow-down" viewBox="0 0 12 12"><g shape-rendering="crispEdges" fill="currentColor">
+<rect x="5" y="1" width="2" height="7"/>
+<rect x="3" y="8" width="6" height="1"/><rect x="4" y="9" width="4" height="1"/><rect x="5" y="10" width="2" height="1"/>
+</g></symbol>
+</defs>
+</svg>
+
+<!-- ARTBOARD: Fraktions-Draft (Overlay) ==================================== -->
+<div class="scr">
+
+  <div style="position:absolute;inset:0;z-index:1"><svg class="map" width="390" height="844" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
+<rect width="390" height="844" fill="#050505"/>
+<defs>
+<polygon id="hx" points="0,-40 34.641016,-20 34.641016,20 0,40 -34.641016,20 -34.641016,-20"/>
+<polygon id="hxs" points="-34.641016,20 0,40 34.641016,20 34.641016,30 0,50 -34.641016,30"/>
+</defs>
+<g transform="translate(34.6 0.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#283425" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(103.9 0.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#1c2819" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(173.2 0.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#4f3f2d" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(242.5 0.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#4f3f2d" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(311.8 0.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2a3627" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(381.1 0.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#263223" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(69.3 60.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#4d3d2b" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(138.6 60.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#182415" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(207.8 60.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#273324" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(277.1 60.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#4e3e2c" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(346.4 60.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#293526" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(415.7 60.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#273324" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(34.6 120.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#182415" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(103.9 120.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2b3728" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(173.2 120.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#253122" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(242.5 120.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#192516" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(311.8 120.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#263223" stroke="#0d1310" stroke-width="1"/>
+<g shape-rendering="crispEdges" transform="translate(0 -6)">
+        <rect x="-16" y="-2" width="32" height="22" fill="#cabe98"/>
+        <rect x="6" y="-2" width="10" height="22" fill="#a89878"/>
+        <polygon points="0,-18 20,-2 -20,-2" fill="#8a2c0e"/>
+        <polygon points="0,-18 6,-2 -20,-2" fill="#a53a13"/>
+        <rect x="-4" y="8" width="8" height="12" fill="#5e3a20"/>
+        <rect x="-22" y="-26" width="4" height="18" fill="#3a2515"/>
+        <rect x="-18" y="-26" width="12" height="9" fill="#ff1744"/>
+      </g>
+</g>
+<g transform="translate(381.1 120.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2a3627" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(69.3 180.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#1e2a1b" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(138.6 180.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2e3a2b" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(207.8 180.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#1f2b1c" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(277.1 180.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#4f3f2d" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(346.4 180.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2d392a" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(415.7 180.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#283425" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(34.6 240.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2e3a2b" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(103.9 240.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2c3829" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(173.2 240.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#283425" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(242.5 240.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#212d1e" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(311.8 240.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#4a3a28" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(381.1 240.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#283425" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(69.3 300.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#273324" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(138.6 300.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#4e3e2c" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(207.8 300.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#263223" stroke="#0d1310" stroke-width="1"/>
+<g shape-rendering="crispEdges" transform="translate(0 -6)">
+        <rect x="-16" y="-2" width="32" height="22" fill="#cabe98"/>
+        <rect x="6" y="-2" width="10" height="22" fill="#a89878"/>
+        <polygon points="0,-18 20,-2 -20,-2" fill="#8a2c0e"/>
+        <polygon points="0,-18 6,-2 -20,-2" fill="#a53a13"/>
+        <rect x="-4" y="8" width="8" height="12" fill="#5e3a20"/>
+        <rect x="-22" y="-26" width="4" height="18" fill="#3a2515"/>
+        <rect x="-18" y="-26" width="12" height="9" fill="#00e5ff"/>
+      </g>
+</g>
+<g transform="translate(277.1 300.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2a3627" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(346.4 300.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#4f3f2d" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(415.7 300.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#182415" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(34.6 360.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2f3b2c" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(103.9 360.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#1a2617" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+<use href="#hx" fill="#e8b84a" opacity=".16"/>
+<use href="#hx" fill="none" stroke="#e8b84a" stroke-width="2" opacity=".55"/>
+</g>
+<g transform="translate(173.2 360.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#1b2718" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+<use href="#hx" fill="#e8b84a" opacity=".16"/>
+<use href="#hx" fill="none" stroke="#e8b84a" stroke-width="2" opacity=".55"/>
+</g>
+<g transform="translate(242.5 360.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2b3728" stroke="#0d1310" stroke-width="1"/>
+<g shape-rendering="crispEdges" transform="translate(0 -4)">
+      <ellipse cx="0" cy="14" rx="16" ry="5" fill="#000" opacity=".45"/>
+      <rect x="-6" y="-26" width="12" height="5" fill="#ff1744"/>
+      <rect x="-5" y="-21" width="10" height="8" fill="#c99361"/>
+      <rect x="-3" y="-19" width="2" height="2" fill="#0e0c14"/>
+      <rect x="1" y="-19" width="2" height="2" fill="#0e0c14"/>
+      <rect x="-8" y="-13" width="16" height="14" fill="#ff1744"/>
+      <rect x="-8" y="-13" width="16" height="3" fill="#0e0c14" opacity=".35"/>
+      <rect x="-7" y="1" width="5" height="10" fill="#3a2515"/>
+      <rect x="2" y="1" width="5" height="10" fill="#3a2515"/>
+      <rect x="9" y="-24" width="3" height="20" fill="#9fabbc"/>
+      <rect x="6" y="-6" width="9" height="3" fill="#8f6435"/>
+      
+    </g>
+</g>
+<g transform="translate(311.8 360.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#273324" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(381.1 360.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2a3627" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(69.3 420.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#202c1d" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(138.6 420.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#493927" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+<use href="#hx" fill="#e8b84a" opacity=".16"/>
+<use href="#hx" fill="none" stroke="#e8b84a" stroke-width="2" opacity=".55"/>
+</g>
+<g transform="translate(207.8 420.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#1f2b1c" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+<g shape-rendering="crispEdges" transform="translate(0 -4)">
+      <ellipse cx="0" cy="14" rx="16" ry="5" fill="#000" opacity=".45"/>
+      <rect x="-6" y="-26" width="12" height="5" fill="#00e5ff"/>
+      <rect x="-5" y="-21" width="10" height="8" fill="#c99361"/>
+      <rect x="-3" y="-19" width="2" height="2" fill="#0e0c14"/>
+      <rect x="1" y="-19" width="2" height="2" fill="#0e0c14"/>
+      <rect x="-8" y="-13" width="16" height="14" fill="#00e5ff"/>
+      <rect x="-8" y="-13" width="16" height="3" fill="#0e0c14" opacity=".35"/>
+      <rect x="-7" y="1" width="5" height="10" fill="#3a2515"/>
+      <rect x="2" y="1" width="5" height="10" fill="#3a2515"/>
+      <rect x="9" y="-24" width="3" height="20" fill="#9fabbc"/>
+      <rect x="6" y="-6" width="9" height="3" fill="#8f6435"/>
+      <rect x="-9" y="-14" width="18" height="1" fill="#e8b84a"/>
+    </g>
+<use href="#hx" fill="none" stroke="#e8b84a" stroke-width="3"/>
+<use href="#hx" fill="none" stroke="#fff824" stroke-width="1" opacity=".7"/>
+</g>
+<g transform="translate(277.1 420.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#1e2a1b" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+<use href="#hx" fill="#e8b84a" opacity=".16"/>
+<use href="#hx" fill="none" stroke="#e8b84a" stroke-width="2" opacity=".55"/>
+</g>
+<g transform="translate(346.4 420.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#4c3c2a" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(415.7 420.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#212d1e" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(34.6 480.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#4a3a28" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(103.9 480.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#1e2a1b" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+<g shape-rendering="crispEdges" transform="translate(0 -4)">
+      <ellipse cx="0" cy="14" rx="16" ry="5" fill="#000" opacity=".45"/>
+      <rect x="-6" y="-26" width="12" height="5" fill="#00e5ff"/>
+      <rect x="-5" y="-21" width="10" height="8" fill="#c99361"/>
+      <rect x="-3" y="-19" width="2" height="2" fill="#0e0c14"/>
+      <rect x="1" y="-19" width="2" height="2" fill="#0e0c14"/>
+      <rect x="-8" y="-13" width="16" height="14" fill="#00e5ff"/>
+      <rect x="-8" y="-13" width="16" height="3" fill="#0e0c14" opacity=".35"/>
+      <rect x="-7" y="1" width="5" height="10" fill="#3a2515"/>
+      <rect x="2" y="1" width="5" height="10" fill="#3a2515"/>
+      <rect x="9" y="-24" width="3" height="20" fill="#9fabbc"/>
+      <rect x="6" y="-6" width="9" height="3" fill="#8f6435"/>
+      
+    </g>
+</g>
+<g transform="translate(173.2 480.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#4c3c2a" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+<use href="#hx" fill="#e8b84a" opacity=".16"/>
+<use href="#hx" fill="none" stroke="#e8b84a" stroke-width="2" opacity=".55"/>
+</g>
+<g transform="translate(242.5 480.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2b3728" stroke="#0d1310" stroke-width="1"/>
+<use href="#hx" fill="#e8b84a" opacity=".16"/>
+<use href="#hx" fill="none" stroke="#e8b84a" stroke-width="2" opacity=".55"/>
+</g>
+<g transform="translate(311.8 480.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#202c1d" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(381.1 480.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#1f2b1c" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(69.3 540.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2e3a2b" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(138.6 540.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#283425" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(207.8 540.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#51412f" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(277.1 540.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#212d1e" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(346.4 540.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2f3b2c" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(415.7 540.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#1e2a1b" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(34.6 600.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#253122" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(103.9 600.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#1e2a1b" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(173.2 600.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2b3728" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(242.5 600.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#1f2b1c" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(311.8 600.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#293526" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(381.1 600.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#202c1d" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(69.3 660.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#293526" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(138.6 660.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#4f3f2d" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(207.8 660.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2b3728" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(277.1 660.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#273324" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(346.4 660.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2f3b2c" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(415.7 660.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2e3a2b" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(34.6 720.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#293526" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(103.9 720.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#1d291a" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(173.2 720.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#273324" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(242.5 720.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#273324" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(311.8 720.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#263223" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(381.1 720.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#192516" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(69.3 780.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2b3728" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(138.6 780.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#524230" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(207.8 780.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#293526" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(277.1 780.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2e3a2b" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(346.4 780.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#4e3e2c" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(415.7 780.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2c3829" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(34.6 840.0)">
+<use href="#hxs" fill="#0f1710"/>
+<use href="#hx" fill="#192516" stroke="#0d1310" stroke-width="1"/>
+<g transform="translate(-14 8) scale(0.85)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(12 2) scale(0.7)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g><g transform="translate(0 16) scale(0.95)" shape-rendering="crispEdges"><rect x="-2" y="2" width="4" height="7" fill="#3a2515"/><polygon points="0,-16 9,2 -9,2" fill="#16240f"/><polygon points="0,-16 3,2 -9,2" fill="#22331d"/><polygon points="0,-9 7,4 -7,4" fill="#1b2b14"/><polygon points="0,-9 2,4 -7,4" fill="#27391f"/></g>
+</g>
+<g transform="translate(103.9 840.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2c3829" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(173.2 840.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2a3627" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(242.5 840.0)">
+<use href="#hxs" fill="#33271b"/>
+<use href="#hx" fill="#524230" stroke="#0d1310" stroke-width="1"/>
+<polygon points="-20,10 -8,-8 8,-8 20,10" fill="#5c4a34"/>
+<polygon points="-8,-8 8,-8 14,2 -14,2" fill="#6b573d"/>
+<polygon points="-20,10 -14,2 14,2 20,10" fill="#3f3223"/>
+</g>
+<g transform="translate(311.8 840.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2b3728" stroke="#0d1310" stroke-width="1"/>
+</g>
+<g transform="translate(381.1 840.0)">
+<use href="#hxs" fill="#19221a"/>
+<use href="#hx" fill="#2d392a" stroke="#0d1310" stroke-width="1"/>
+</g>
+<defs><radialGradient id="fog" cx="50%" cy="52%" r="62%">
+  <stop offset="55%" stop-color="#050505" stop-opacity="0"/>
+  <stop offset="100%" stop-color="#050505" stop-opacity=".95"/>
+</radialGradient></defs>
+<rect width="390" height="844" fill="url(#fog)"/>
+</svg></div>
+  <div class="scrim" style="background:rgba(4,3,6,.72)"></div>
+  <div class="bg-scan" style="z-index:3;opacity:.45"></div>
+
+  <div class="lay" style="z-index:4;gap:12px;padding:18px 14px 14px">
+
+    <div class="col" style="align-items:center;gap:6px">
+      <svg class="ic-32"><use href="#i-banner"></use></svg>
+      <span class="h1" style="font-size:22px;text-align:center">Wähle deinen<br>Kultur-Pfeiler</span>
+      <span class="micro" style="text-align:center">Du besitzt 2 Dörfer — genug für den ersten Pfeiler.</span>
+      <span class="row" style="gap:5px;padding:4px 8px;margin-top:2px;background:#0d0b09;border:2px solid #0a0806;
+            box-shadow:inset 2px 2px 0 #0c0907, inset -2px -2px 0 #241d16;">
+        <svg class="ic-14"><use href="#i-gold"></use></svg><span class="num">24</span>
+        <span class="lbl" style="margin-left:2px">verfügbar</span>
+      </span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+
+      <!-- gewählt -->
+      <div class="pf pf--gold col" style="padding:12px;gap:8px;min-height:222px">
+        <span class="stud stud--tl"></span><span class="stud stud--tr"></span>
+        <span class="stud stud--bl"></span><span class="stud stud--br"></span>
+        <div class="row" style="gap:7px">
+          <svg class="ic-24"><use href="#i-shield"></use></svg>
+          <span class="h3" style="font-size:14px">Feudalismus</span>
+        </div>
+        <span class="sep"></span>
+        <span class="micro" style="color:#a2917a">Neu rekrutierte Einheiten: +1 Max-HP je 3 eigene Dörfer.</span>
+        <span class="lbl" style="margin-top:2px">Spezial</span>
+        <span class="micro" style="color:#8a7e6e">Ritter · Kamelreiter · Luftschraube · Grubenritter</span>
+        <span class="row" style="gap:6px;margin-top:auto">
+          <span class="badge badge--turn"><svg class="ic-12"><use href="#i-check"></use></svg>Gewählt</span>
+          <span class="badge badge--cost"><svg class="ic-12"><use href="#i-gold"></use></svg>10</span>
+        </span>
+      </div>
+
+      <div class="pf col" style="padding:12px;gap:8px;min-height:222px">
+        <div class="row" style="gap:7px">
+          <svg class="ic-24"><use href="#i-fire"></use></svg>
+          <span class="h3" style="font-size:14px">Plünderer</span>
+        </div>
+        <span class="sep"></span>
+        <span class="micro" style="color:#a2917a">+1 Schaden für alle Nahkämpfer.</span>
+        <span class="lbl" style="margin-top:2px">Spezial</span>
+        <span class="micro" style="color:#8a7e6e">Berserker · Saboteur · Gleiter · Beutegräber</span>
+        <span class="row" style="gap:6px;margin-top:auto">
+          <span class="badge badge--cost"><svg class="ic-12"><use href="#i-gold"></use></svg>10</span>
+          <span class="badge badge--cost"><svg class="ic-12"><use href="#i-village"></use></svg>2</span>
+        </span>
+      </div>
+
+      <div class="pf col" style="padding:12px;gap:8px;min-height:222px">
+        <div class="row" style="gap:7px">
+          <svg class="ic-24"><use href="#i-eye"></use></svg>
+          <span class="h3" style="font-size:14px">Spionage</span>
+        </div>
+        <span class="sep"></span>
+        <span class="micro" style="color:#a2917a">+1 Sichtweite für alle Einheiten.</span>
+        <span class="lbl" style="margin-top:2px">Spezial</span>
+        <span class="micro" style="color:#8a7e6e">Assassine · Elefant · Fallschirmspringer · Horcher</span>
+        <span class="row" style="gap:6px;margin-top:auto">
+          <span class="badge badge--cost"><svg class="ic-12"><use href="#i-gold"></use></svg>10</span>
+          <span class="badge badge--cost"><svg class="ic-12"><use href="#i-village"></use></svg>2</span>
+        </span>
+      </div>
+
+      <div class="pf col" style="padding:12px;gap:8px;min-height:222px">
+        <div class="row" style="gap:7px">
+          <svg class="ic-24"><use href="#i-scales"></use></svg>
+          <span class="h3" style="font-size:14px">Gilden</span>
+        </div>
+        <span class="sep"></span>
+        <span class="micro" style="color:#a2917a">+1 Gold pro 2 eigene Dörfer und Runde.</span>
+        <span class="lbl" style="margin-top:2px">Spezial</span>
+        <span class="micro" style="color:#8a7e6e">Tribok · Wagenburg · Bombenballon · Bohrwagen</span>
+        <span class="row" style="gap:6px;margin-top:auto">
+          <span class="badge badge--cost"><svg class="ic-12"><use href="#i-gold"></use></svg>10</span>
+          <span class="badge badge--cost"><svg class="ic-12"><use href="#i-village"></use></svg>2</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="col" style="gap:8px;margin-top:auto">
+      <button class="btn btn--primary"><svg class="ic-14"><use href="#i-check"></use></svg>Feudalismus wählen</button>
+      <button class="btn btn--ghost btn--sm">Später entscheiden</button>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>

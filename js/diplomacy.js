@@ -7,11 +7,34 @@ function checkTeamWin(alivePlayers) {
     return null;
 }
 
-function showWin(msg) {
+// `winners` ist optional (Array der Sieger-Spielerobjekte). Fehlt es, bleibt die
+// Statistikleiste leer — alle Aufrufer reichen es durch, aber showWin soll auch
+// ohne funktionieren, falls später ein Siegpfad dazukommt.
+function showWin(msg, winners) {
     canvasWrapper.style.display = 'none';
     uiContainer.style.display = 'none';
     gameHud.style.display = 'none';
     document.getElementById('win-msg').innerText = msg;
+
+    const statsEl = document.getElementById('win-stats');
+    if (statsEl) {
+        const ids = (winners || []).map(p => gameState.p.indexOf(p)).filter(i => i >= 0);
+        if (ids.length) {
+            const villages = Object.values(gameState.v || {}).filter(o => ids.includes(o)).length;
+            const units = (gameState.u || []).filter(u => ids.includes(u.p)).length;
+            const cell = (value, label) =>
+                `<span class="win-stat"><span class="win-stat-value">${value}</span><span class="win-stat-label">${label}</span></span>`;
+            statsEl.innerHTML = cell(gameState.rn, 'Runden')
+                + '<span class="win-stat-sep"></span>'
+                + cell(villages, villages === 1 ? 'Dorf' : 'Dörfer')
+                + '<span class="win-stat-sep"></span>'
+                + cell(units, units === 1 ? 'Einheit' : 'Einheiten');
+            statsEl.style.display = 'flex';
+        } else {
+            statsEl.style.display = 'none';
+        }
+    }
+
     winScreen.style.display = 'flex';
 }
 
@@ -44,7 +67,7 @@ function giftForm(i) {
             ${giftSliderRow('g', '💰', i, pState.g)}
             ${giftSliderRow('m', '🪵', i, pState.m)}
             ${giftSliderRow('s', '🪨', i, pState.s)}
-            <button class="action-btn" style="margin-top: 2px; padding: 6px 8px; font-size: 0.78rem;" onclick="sendResources(${i})">🎁 Senden</button>
+            <button class="action-btn" style="margin-top: 2px; padding: 6px 8px; font-size: 0.78rem;" onclick="sendResources(${i})">Senden</button>
         </div>
     `;
 }
@@ -95,14 +118,14 @@ function renderDipActionRow(id, pState, maxReached) {
     const p = gameState.p[id];
     let actionBtn;
     if (pState.req && pState.req.includes(id)) {
-        actionBtn = `<button class="action-btn dip-action-btn" style="background: #43a047;" onclick="acceptAlliance(${id})">🤝 Annehmen (5💰 5🪵)</button>
-                     <button class="action-btn dip-action-btn" style="background: #888;" onclick="rejectAlliance(${id})">❌ Ablehnen</button>`;
+        actionBtn = `<button class="action-btn dip-action-btn act-ally" onclick="acceptAlliance(${id})">${icon('check', 'ic-12')} Annehmen (5${icon('gold', 'ic-12')} 5${icon('wood', 'ic-12')})</button>
+                     <button class="action-btn dip-action-btn" onclick="rejectAlliance(${id})">× Ablehnen</button>`;
     } else if (p.req && p.req.includes(gameState.cp)) {
-        actionBtn = `<button class="action-btn dip-action-btn" style="background: #e53935;" onclick="withdrawAlliance(${id})">❌ Zurückziehen</button>`;
+        actionBtn = `<button class="action-btn dip-action-btn" onclick="withdrawAlliance(${id})">× Zurückziehen</button>`;
     } else if (maxReached) {
-        actionBtn = `<button class="action-btn dip-action-btn" style="opacity: 0.5;" disabled>✉️ Anfragen (5💰 5🪵)</button>`;
+        actionBtn = `<button class="action-btn dip-action-btn" disabled>${icon('pact', 'ic-12')} Anfragen (5${icon('gold', 'ic-12')} 5${icon('wood', 'ic-12')})</button>`;
     } else {
-        actionBtn = `<button class="action-btn dip-action-btn" style="background: #3949ab;" onclick="sendAlliance(${id})">✉️ Anfragen (5💰 5🪵)</button>`;
+        actionBtn = `<button class="action-btn dip-action-btn act-ally" onclick="sendAlliance(${id})">${icon('pact', 'ic-12')} Anfragen (5${icon('gold', 'ic-12')} 5${icon('wood', 'ic-12')})</button>`;
     }
     return `
         <div class="dip-card-header">
@@ -158,7 +181,7 @@ window.openDiplomacy = function () {
             content.innerHTML += `<div class="dip-card dip-card-ally">
                 <div class="dip-card-header">
                     <span class="dip-name" style="color: ${playerColors[id]}">${gameState.p[id].n}</span>
-                    <button class="action-btn dip-action-btn" style="background: #e53935;" onclick="breakAlliance(${id})">💔 Brechen</button>
+                    <button class="action-btn dip-action-btn act-fire" onclick="breakAlliance(${id})">Brechen</button>
                 </div>
                 ${giftForm(id)}
             </div>`;

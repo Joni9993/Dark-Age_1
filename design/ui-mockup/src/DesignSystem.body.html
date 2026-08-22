@@ -1,0 +1,401 @@
+<!-- ARTBOARD: Design-System-Tafel ========================================== -->
+<div class="scr" style="width:1180px;height:2960px">
+  <div class="bg-hex" style="opacity:.06"></div>
+  <div class="bg-scan" style="opacity:.35"></div>
+
+  <div class="lay" style="padding:32px;gap:24px">
+
+    <!-- Kopf -->
+    <div class="pf row" style="padding:20px 24px;gap:20px">
+      <span class="stud stud--tl"></span><span class="stud stud--tr"></span>
+      <span class="stud stud--bl"></span><span class="stud stud--br"></span>
+      <svg class="ic-48"><use href="#i-banner"></use></svg>
+      <div class="col grow" style="gap:6px">
+        <span class="wm" style="font-size:28px">DARK AGES · PIXEL-UI</span>
+        <span class="micro">Bausteine für <span style="color:#cabe98">css/game.css</span> · Farben 1:1 aus
+          <span style="color:#cabe98">NEW_PAL</span> (js/art.js) · mobile-first</span>
+      </div>
+      <div class="col" style="gap:6px;align-items:flex-end">
+        <span class="lbl lbl--gold">Grundregeln</span>
+        <span class="micro" style="text-align:right">border-radius 0 · Rahmen 2px · Raster 4px<br>
+          Bevel statt Blur · Trefferfläche ≥ 48px</span>
+      </div>
+    </div>
+
+    <!-- ── Farbtokens ─────────────────────────────────────────────────── -->
+    <div class="pf col" style="padding:20px 24px;gap:16px">
+      <div class="row" style="gap:8px"><svg class="ic-14"><use href="#i-crystal"></use></svg>
+        <span class="lbl lbl--gold">01 · Farbtokens</span><span class="sep grow"></span></div>
+
+      <span class="lbl">Grund &amp; Panel</span>
+      <div class="row" style="gap:10px;flex-wrap:wrap">
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#08070b;border:2px solid #0a0806;box-shadow:inset 2px 2px 0 rgba(255,255,255,.05)"></div><span class="hex">#08070b</span><span class="lbl" style="font-size:8px">--ink</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#0e0c14;border:2px solid #0a0806;box-shadow:inset 2px 2px 0 rgba(255,255,255,.05)"></div><span class="hex">#0e0c14</span><span class="lbl" style="font-size:8px">--ink-2 · pal 1</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#171310;border:2px solid #0a0806;box-shadow:inset 2px 2px 0 rgba(255,255,255,.05)"></div><span class="hex">#171310</span><span class="lbl" style="font-size:8px">--panel</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#1f1913;border:2px solid #0a0806;box-shadow:inset 2px 2px 0 rgba(255,255,255,.05)"></div><span class="hex">#1f1913</span><span class="lbl" style="font-size:8px">--panel-2</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#33281c;border:2px solid #0a0806"></div><span class="hex">#33281c</span><span class="lbl" style="font-size:8px">--panel-hi</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#0c0907;border:2px solid #0a0806;box-shadow:inset 2px 2px 0 rgba(255,255,255,.05)"></div><span class="hex">#0c0907</span><span class="lbl" style="font-size:8px">--panel-lo</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#0a0806;border:2px solid #241d16"></div><span class="hex">#0a0806</span><span class="lbl" style="font-size:8px">--edge</span></div>
+      </div>
+
+      <span class="lbl" style="margin-top:4px">Text</span>
+      <div class="row" style="gap:10px;flex-wrap:wrap">
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#eeebe8;border:2px solid #0a0806"></div><span class="hex">#eeebe8</span><span class="lbl" style="font-size:8px">--bone-hi · pal 22</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#cabe98;border:2px solid #0a0806"></div><span class="hex">#cabe98</span><span class="lbl" style="font-size:8px">--bone · pal 18</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#8a7e6e;border:2px solid #0a0806"></div><span class="hex">#8a7e6e</span><span class="lbl" style="font-size:8px">--dim</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#57503f;border:2px solid #0a0806"></div><span class="hex">#57503f</span><span class="lbl" style="font-size:8px">--dim-2</span></div>
+      </div>
+
+      <span class="lbl" style="margin-top:4px">Material — Holz, Haut, Stahl, Stein</span>
+      <div class="row" style="gap:10px;flex-wrap:wrap">
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#3a2515;border:2px solid #0a0806"></div><span class="hex">#3a2515</span><span class="lbl" style="font-size:8px">--wood-dk · pal 10</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#5e3a20;border:2px solid #0a0806"></div><span class="hex">#5e3a20</span><span class="lbl" style="font-size:8px">--wood · pal 4</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#8f6435;border:2px solid #0a0806"></div><span class="hex">#8f6435</span><span class="lbl" style="font-size:8px">--wood-hi · pal 14</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#c99361;border:2px solid #0a0806"></div><span class="hex">#c99361</span><span class="lbl" style="font-size:8px">--skin · pal 2</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#2c303d;border:2px solid #0a0806"></div><span class="hex">#2c303d</span><span class="lbl" style="font-size:8px">--steel-dk · pal 6</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#565f70;border:2px solid #0a0806"></div><span class="hex">#565f70</span><span class="lbl" style="font-size:8px">--stone-dk</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#7d838f;border:2px solid #0a0806"></div><span class="hex">#7d838f</span><span class="lbl" style="font-size:8px">--stone · pal 5</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#9fabbc;border:2px solid #0a0806"></div><span class="hex">#9fabbc</span><span class="lbl" style="font-size:8px">--steel · pal 3</span></div>
+      </div>
+
+      <span class="lbl" style="margin-top:4px">Signal — sparsam, nie als Fläche über ganze Screens</span>
+      <div class="row" style="gap:10px;flex-wrap:wrap">
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#7a5205;border:2px solid #0a0806"></div><span class="hex">#7a5205</span><span class="lbl" style="font-size:8px">--gold-dk</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#c98a10;border:2px solid #0a0806"></div><span class="hex">#c98a10</span><span class="lbl" style="font-size:8px">--gold · pal 7</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#e8b84a;border:2px solid #0a0806"></div><span class="hex">#e8b84a</span><span class="lbl" style="font-size:8px">--gold-hi</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#fff824;border:2px solid #0a0806"></div><span class="hex">#fff824</span><span class="lbl" style="font-size:8px">--sun · pal 24</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#8a2c0e;border:2px solid #0a0806"></div><span class="hex">#8a2c0e</span><span class="lbl" style="font-size:8px">--fire-dk · pal 16</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#e2571f;border:2px solid #0a0806"></div><span class="hex">#e2571f</span><span class="lbl" style="font-size:8px">--fire · pal 8</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#cc0000;border:2px solid #0a0806"></div><span class="hex">#cc0000</span><span class="lbl" style="font-size:8px">--blood · pal 23</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#4fc3f7;border:2px solid #0a0806"></div><span class="hex">#4fc3f7</span><span class="lbl" style="font-size:8px">--crystal</span></div>
+        <div class="col" style="gap:5px;width:104px"><div style="height:44px;background:#5cb85c;border:2px solid #0a0806"></div><span class="hex">#5cb85c</span><span class="lbl" style="font-size:8px">--leaf</span></div>
+      </div>
+
+      <div class="row" style="gap:32px;margin-top:4px;align-items:flex-start">
+        <div class="col" style="gap:8px">
+          <span class="lbl">Gelände (aus NEW_TERRAIN_COLORS)</span>
+          <div class="row" style="gap:10px">
+            <div class="col" style="gap:5px;width:104px"><div style="height:36px;background:#2a3627;border:2px solid #0a0806"></div><span class="hex">#2a3627</span><span class="lbl" style="font-size:8px">Gras</span></div>
+            <div class="col" style="gap:5px;width:104px"><div style="height:36px;background:#1c2819;border:2px solid #0a0806"></div><span class="hex">#1c2819</span><span class="lbl" style="font-size:8px">Wald</span></div>
+            <div class="col" style="gap:5px;width:104px"><div style="height:36px;background:#4e3e2c;border:2px solid #0a0806"></div><span class="hex">#4e3e2c</span><span class="lbl" style="font-size:8px">Hügel</span></div>
+          </div>
+        </div>
+        <div class="col grow" style="gap:8px">
+          <span class="lbl">Spielerfarben — bleiben wie sie sind (Lesbarkeit auf der Karte)</span>
+          <div class="row" style="gap:10px">
+            <span class="pb" style="width:44px;height:52px;flex:0 0 44px;background:#00e5ff"></span>
+            <span class="pb" style="width:44px;height:52px;flex:0 0 44px;background:#ff1744"></span>
+            <span class="pb" style="width:44px;height:52px;flex:0 0 44px;background:#00e676"></span>
+            <span class="pb" style="width:44px;height:52px;flex:0 0 44px;background:#ffea00"></span>
+            <span class="pb" style="width:44px;height:52px;flex:0 0 44px;background:#d500f9"></span>
+            <span class="pb" style="width:44px;height:52px;flex:0 0 44px;background:#ff9100"></span>
+            <span class="micro" style="max-width:340px">In der UI nur als <span style="color:#cabe98">Bannerfläche auf dunkler Platte</span>
+              — nie als Textfarbe, sonst kippt der Screen ins Neon.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Typografie + Raster ────────────────────────────────────────── -->
+    <div class="row" style="gap:24px;align-items:stretch">
+
+      <div class="pf col grow" style="padding:20px 24px;gap:14px">
+        <div class="row" style="gap:8px"><svg class="ic-14"><use href="#i-book"></use></svg>
+          <span class="lbl lbl--gold">02 · Typografie</span><span class="sep grow"></span></div>
+
+        <div class="row" style="gap:16px;align-items:baseline">
+          <span class="wm" style="font-size:34px">DARK AGES</span>
+          <span class="micro">MedievalSharp · nur Wortmarke &amp; Screen-Titel</span>
+        </div>
+        <span class="sep"></span>
+        <div class="row" style="gap:16px;align-items:baseline">
+          <span class="h1" style="font-size:26px">Forschung</span>
+          <span class="micro">MedievalSharp 26 / ls 2 · Overlay-Titel</span>
+        </div>
+        <div class="row" style="gap:16px;align-items:baseline">
+          <span class="h2">Waffenmeister</span>
+          <span class="micro">Pixelify Sans 700 · 18 · Karten-Titel</span>
+        </div>
+        <div class="row" style="gap:16px;align-items:baseline">
+          <span class="h3">Ritter</span>
+          <span class="micro">Pixelify Sans 600 · 15 · Zeilen-Titel</span>
+        </div>
+        <div class="row" style="gap:16px;align-items:baseline">
+          <span class="body">Neu rekrutierte Einheiten starten als Veteran.</span>
+          <span class="micro">Pixelify Sans 400 · 13/1.5 · Fließtext</span>
+        </div>
+        <div class="row" style="gap:16px;align-items:baseline">
+          <span class="micro">Braucht Stufe 2 · Runde 14 · 4 Spieler</span>
+          <span class="micro" style="color:#57503f">Pixelify Sans 400 · 11 · Nebentext</span>
+        </div>
+        <div class="row" style="gap:16px;align-items:baseline">
+          <span class="lbl">Kartengröße</span>
+          <span class="micro">Silkscreen 9 / ls 1.6 / uppercase · Labels</span>
+        </div>
+        <div class="row" style="gap:16px;align-items:baseline">
+          <span class="num" style="font-size:16px">1512 · 24 · 12/15</span>
+          <span class="micro">Silkscreen · alle Zahlen &amp; Buttons</span>
+        </div>
+        <span class="micro" style="color:#57503f;margin-top:2px">
+          Courier New bleibt Fallback — Silkscreen/Pixelify laden über Google Fonts,
+          MedievalSharp ist bereits eingebunden.</span>
+      </div>
+
+      <div class="pf col" style="width:360px;flex:0 0 360px;padding:20px 24px;gap:14px">
+        <div class="row" style="gap:8px"><svg class="ic-14" style="color:#9fabbc"><use href="#i-move"></use></svg>
+          <span class="lbl lbl--gold">03 · Raster &amp; Abstände</span><span class="sep grow"></span></div>
+        <span class="micro">Alle Abstände sind Vielfache von 4. Rahmen immer 2px, Bevel immer 2px.</span>
+        <div class="col" style="gap:8px">
+          <div class="row" style="gap:10px"><span style="width:4px;height:14px;background:#c98a10"></span><span class="num num--sm">4</span><span class="micro">Icon ↔ Zahl</span></div>
+          <div class="row" style="gap:10px"><span style="width:8px;height:14px;background:#c98a10"></span><span class="num num--sm">8</span><span class="micro">Elemente in einer Zeile</span></div>
+          <div class="row" style="gap:10px"><span style="width:12px;height:14px;background:#c98a10"></span><span class="num num--sm">12</span><span class="micro">Karten untereinander</span></div>
+          <div class="row" style="gap:10px"><span style="width:16px;height:14px;background:#c98a10"></span><span class="num num--sm">16</span><span class="micro">Screen-Rand, Blockabstand</span></div>
+          <div class="row" style="gap:10px"><span style="width:24px;height:14px;background:#c98a10"></span><span class="num num--sm">24</span><span class="micro">Abschnitte</span></div>
+          <div class="row" style="gap:10px"><span style="width:32px;height:14px;background:#c98a10"></span><span class="num num--sm">32</span><span class="micro">Hero-Abstand</span></div>
+        </div>
+        <span class="sep" style="margin-top:2px"></span>
+        <span class="lbl">Trefferflächen</span>
+        <div class="col" style="gap:6px">
+          <div class="row" style="gap:10px"><span style="width:60px;height:48px;background:#241d16;border:2px solid #0a0806"></span><span class="micro">48px — Standard-Button, Eingabefeld, Listenzeile</span></div>
+          <div class="row" style="gap:10px"><span style="width:60px;height:64px;background:#241d16;border:2px solid #0a0806"></span><span class="micro">64px — Icon-Button mit Beschriftung</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Buttons + Formularelemente ─────────────────────────────────── -->
+    <div class="row" style="gap:24px;align-items:stretch">
+
+      <div class="pf col grow" style="padding:20px 24px;gap:14px">
+        <div class="row" style="gap:8px"><svg class="ic-14"><use href="#i-sword"></use></svg>
+          <span class="lbl lbl--gold">04 · Buttons &amp; Zustände</span><span class="sep grow"></span></div>
+
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">
+          <div class="col" style="gap:6px"><span class="lbl">Primär</span><button class="btn btn--primary">Spiel starten</button></div>
+          <div class="col" style="gap:6px"><span class="lbl">Standard</span><button class="btn">Freunde</button></div>
+          <div class="col" style="gap:6px"><span class="lbl">Gefahr</span><button class="btn btn--danger">Aufgeben</button></div>
+          <div class="col" style="gap:6px"><span class="lbl">Zurückhaltend</span><button class="btn btn--ghost">Schließen</button></div>
+
+          <div class="col" style="gap:6px"><span class="lbl">Gedrückt</span><div style="padding-top:0"><button class="btn btn--primary btn--pressed">Spiel starten</button></div></div>
+          <div class="col" style="gap:6px"><span class="lbl">Deaktiviert</span><button class="btn btn--disabled">Spiel starten</button></div>
+          <div class="col" style="gap:6px"><span class="lbl">Klein</span><button class="btn btn--sm">Erforschen</button></div>
+          <div class="col" style="gap:6px"><span class="lbl">Icon-Button</span><button class="btn btn--icon"><svg class="ic-20"><use href="#i-gear"></use></svg>Einstellungen</button></div>
+        </div>
+
+        <span class="sep"></span>
+        <span class="lbl">Anatomie</span>
+        <div class="row" style="gap:20px;align-items:center">
+          <button class="btn btn--primary" style="width:220px">Spiel starten</button>
+          <div class="col" style="gap:3px">
+            <span class="micro"><span style="color:#e8b84a">1</span> Fläche: --gold</span>
+            <span class="micro"><span style="color:#e8b84a">2</span> Bevel oben/links: inset 2px 2px 0 #f0cf6a</span>
+            <span class="micro"><span style="color:#e8b84a">3</span> Bevel unten/rechts: inset -2px -2px 0 --gold-dk</span>
+            <span class="micro"><span style="color:#e8b84a">4</span> Sockel: 0 4px 0 #3a2604 — beim Drücken translateY(4px)</span>
+            <span class="micro"><span style="color:#e8b84a">5</span> Rahmen: 2px solid --edge · kein Radius, kein Blur</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pf col" style="width:360px;flex:0 0 360px;padding:20px 24px;gap:14px">
+        <div class="row" style="gap:8px"><svg class="ic-14"><use href="#i-scroll"></use></svg>
+          <span class="lbl lbl--gold">05 · Eingaben</span><span class="sep grow"></span></div>
+
+        <div class="field"><span class="lbl">Ruhend</span><div class="input input--ph">DeinName</div></div>
+        <div class="field"><span class="lbl">Fokus</span><div class="input input--focus">Jonathan<span class="caret"></span></div></div>
+
+        <span class="lbl">Segmentierte Auswahl</span>
+        <div class="seg">
+          <div class="seg-item" style="min-height:44px;justify-content:center"><span class="num">2</span></div>
+          <div class="seg-item seg-item--on" style="min-height:44px;justify-content:center"><span class="num" style="color:#e8b84a">4</span></div>
+          <div class="seg-item" style="min-height:44px;justify-content:center"><span class="num">6</span></div>
+        </div>
+
+        <span class="lbl">Auswahl &amp; Schalter</span>
+        <div class="row" style="gap:20px">
+          <span class="row" style="gap:8px"><span class="rad rad--on"></span><span class="micro">aktiv</span></span>
+          <span class="row" style="gap:8px"><span class="rad"></span><span class="micro">inaktiv</span></span>
+          <span class="row" style="gap:8px"><span class="sw sw--on"><span class="sw-knob"></span></span><span class="micro">an</span></span>
+          <span class="row" style="gap:8px"><span class="sw"><span class="sw-knob"></span></span><span class="micro">aus</span></span>
+        </div>
+
+        <span class="lbl">Schieberegler</span>
+        <div style="height:12px;background:#0d0b09;position:relative;
+             box-shadow:inset 2px 2px 0 #0c0907, inset -2px -2px 0 #241d16;">
+          <span style="position:absolute;left:0;top:0;bottom:0;width:62%;background:#c98a10;
+                box-shadow:inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 #7a5205;"></span>
+          <span style="position:absolute;left:calc(62% - 9px);top:-5px;width:18px;height:22px;background:#7d838f;
+                box-shadow:inset 2px 2px 0 #9fabbc, inset -2px -2px 0 #2c303d;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Flächen + Bausteine ────────────────────────────────────────── -->
+    <div class="row" style="gap:24px;align-items:stretch">
+
+      <div class="pf col grow" style="padding:20px 24px;gap:14px">
+        <div class="row" style="gap:8px"><svg class="ic-14"><use href="#i-wall"></use></svg>
+          <span class="lbl lbl--gold">06 · Flächen &amp; Rahmen</span><span class="sep grow"></span></div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px">
+          <div class="col" style="gap:6px"><span class="lbl">.pf — Panel</span>
+            <div class="pf" style="height:70px"></div></div>
+          <div class="col" style="gap:6px"><span class="lbl">.pf--inset — eingesenkt</span>
+            <div class="pf pf--inset" style="height:70px"></div></div>
+          <div class="col" style="gap:6px"><span class="lbl">.pf--gold — hervorgehoben</span>
+            <div class="pf pf--gold" style="height:70px">
+              <span class="stud stud--tl"></span><span class="stud stud--tr"></span>
+              <span class="stud stud--bl"></span><span class="stud stud--br"></span></div></div>
+          <div class="col" style="gap:6px"><span class="lbl">.pf--dead — erledigt / gesperrt</span>
+            <div class="pf pf--dead" style="height:70px"></div></div>
+        </div>
+        <span class="micro" style="color:#57503f">Ecknieten (.stud) markieren genau eine Sache pro Screen:
+          das, was gerade dran ist.</span>
+      </div>
+
+      <div class="pf col" style="width:520px;flex:0 0 520px;padding:20px 24px;gap:14px">
+        <div class="row" style="gap:8px"><svg class="ic-14"><use href="#i-heart"></use></svg>
+          <span class="lbl lbl--gold">07 · Bausteine</span><span class="sep grow"></span></div>
+
+        <span class="lbl">Ressourcen-Zeile (ersetzt 💰 🪵 🪨 💎)</span>
+        <div class="row" style="gap:14px;padding:8px 12px;background:#0d0b09;border:2px solid #0a0806">
+          <span class="res"><svg class="ic-14"><use href="#i-gold"></use></svg><span class="num">24</span><span class="res-inc">+6</span></span>
+          <span class="res"><svg class="ic-14"><use href="#i-wood"></use></svg><span class="num">11</span><span class="res-inc">+3</span></span>
+          <span class="res"><svg class="ic-14"><use href="#i-stone"></use></svg><span class="num">4</span></span>
+          <span class="res"><svg class="ic-14"><use href="#i-crystal"></use></svg><span class="num">1</span></span>
+        </div>
+
+        <span class="lbl">Statusmarken</span>
+        <div class="row" style="gap:8px;flex-wrap:wrap">
+          <span class="badge badge--turn"><svg class="ic-12"><use href="#i-sword"></use></svg>Du bist dran</span>
+          <span class="badge badge--wait"><svg class="ic-12"><use href="#i-hourglass"></use></svg>Lukas</span>
+          <span class="badge badge--lobby">Lobby</span>
+          <span class="badge badge--cost"><svg class="ic-12"><use href="#i-wood"></use></svg>7 Holz</span>
+        </div>
+
+        <span class="lbl">HP — segmentiert, nie als glatter Balken</span>
+        <div class="col" style="gap:6px">
+          <div class="hp"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="off"></i><i class="off"></i><i class="off"></i></div>
+          <div class="hp"><i></i><i></i><i></i><i></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i></div>
+        </div>
+
+        <span class="lbl">Spielerbanner in Listen</span>
+        <div class="row" style="gap:10px">
+          <span class="row" style="gap:8px"><span class="pb" style="width:14px;height:17px;flex:0 0 14px;background:#00e5ff"></span><span class="body">Jonathan</span></span>
+          <span class="row" style="gap:8px"><span class="pb" style="width:14px;height:17px;flex:0 0 14px;background:#ff1744"></span><span class="body">Lukas</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Icons ──────────────────────────────────────────────────────── -->
+    <div class="pf col" style="padding:20px 24px;gap:14px">
+      <div class="row" style="gap:8px"><svg class="ic-14"><use href="#i-star"></use></svg>
+        <span class="lbl lbl--gold">08 · Icon-Set — Pixel-SVG statt Emoji</span><span class="sep grow"></span></div>
+      <span class="micro">12×12-Raster, <span style="color:#cabe98">shape-rendering="crispEdges"</span>, als
+        &lt;symbol&gt;-Sprite einmal im DOM. Emoji sehen auf jedem Betriebssystem anders aus und brechen den Stil.</span>
+      <div style="display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:14px">
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-gold"></use></svg><span class="lbl" style="font-size:8px">Gold</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-wood"></use></svg><span class="lbl" style="font-size:8px">Holz</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-stone"></use></svg><span class="lbl" style="font-size:8px">Stein</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-crystal"></use></svg><span class="lbl" style="font-size:8px">Kristall</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-sword"></use></svg><span class="lbl" style="font-size:8px">Angriff</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-shield"></use></svg><span class="lbl" style="font-size:8px">Ritter</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-crown"></use></svg><span class="lbl" style="font-size:8px">Rang</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-scroll"></use></svg><span class="lbl" style="font-size:8px">Forschung</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-banner"></use></svg><span class="lbl" style="font-size:8px">Fraktion</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-pact"></use></svg><span class="lbl" style="font-size:8px">Diplomatie</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-urn"></use></svg><span class="lbl" style="font-size:8px">Reliquie</span></div>
+
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-scales"></use></svg><span class="lbl" style="font-size:8px">Handel</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-flag"></use></svg><span class="lbl" style="font-size:8px">Zug Ende</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-village"></use></svg><span class="lbl" style="font-size:8px">Dorf</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-wall"></use></svg><span class="lbl" style="font-size:8px">Mauer</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-tower"></use></svg><span class="lbl" style="font-size:8px">Turm</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-fire"></use></svg><span class="lbl" style="font-size:8px">Feuer</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-heart"></use></svg><span class="lbl" style="font-size:8px">HP</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32" style="color:#e8b84a"><use href="#i-star"></use></svg><span class="lbl" style="font-size:8px">Veteran</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-eye"></use></svg><span class="lbl" style="font-size:8px">Sicht</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-skull"></use></svg><span class="lbl" style="font-size:8px">Pest</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-users"></use></svg><span class="lbl" style="font-size:8px">Freunde</span></div>
+
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-book"></use></svg><span class="lbl" style="font-size:8px">Anleitung</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-gear"></use></svg><span class="lbl" style="font-size:8px">Optionen</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-lock"></use></svg><span class="lbl" style="font-size:8px">Gesperrt</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-hourglass"></use></svg><span class="lbl" style="font-size:8px">Warten</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-copy"></use></svg><span class="lbl" style="font-size:8px">Kopieren</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-wing"></use></svg><span class="lbl" style="font-size:8px">Luft</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32"><use href="#i-pick"></use></svg><span class="lbl" style="font-size:8px">Unterwelt</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32" style="color:#cabe98"><use href="#i-hex"></use></svg><span class="lbl" style="font-size:8px">Feld</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32" style="color:#5cb85c"><use href="#i-check"></use></svg><span class="lbl" style="font-size:8px">Erledigt</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32" style="color:#cabe98"><use href="#i-menu"></use></svg><span class="lbl" style="font-size:8px">Menü</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32" style="color:#cabe98"><use href="#i-move"></use></svg><span class="lbl" style="font-size:8px">Bewegung</span></div>
+        <div class="col" style="align-items:center;gap:6px"><svg class="ic-32" style="color:#8a7e6e"><use href="#i-trash"></use></svg><span class="lbl" style="font-size:8px">Löschen</span></div>
+      </div>
+    </div>
+
+    <!-- ── Aktionsfarben + Regeln ─────────────────────────────────────── -->
+    <div class="row" style="gap:24px;align-items:stretch">
+
+      <div class="pf col grow" style="padding:20px 24px;gap:14px">
+        <div class="row" style="gap:8px"><svg class="ic-14"><use href="#i-fire"></use></svg>
+          <span class="lbl lbl--gold">09 · Aktionsfarben — weg von den Inline-Farben</span><span class="sep grow"></span></div>
+        <span class="micro">Die Fähigkeits-Buttons in <span style="color:#cabe98">js/input.js</span> tragen heute
+          rund 15 fest verdrahtete Material-Farben. Ersetzt durch fünf semantische Familien aus NEW_PAL:</span>
+
+        <div class="col" style="gap:10px">
+          <div class="row" style="gap:12px">
+            <span class="row" style="gap:3px"><span style="width:22px;height:22px;background:#e53935"></span><span style="width:22px;height:22px;background:#fb8c00"></span><span style="width:22px;height:22px;background:#bf360c"></span></span>
+            <svg class="ic-14" style="color:#57503f"><use href="#i-chev-r"></use></svg>
+            <button class="btn btn--sm" style="width:150px;background:#8a2c0e;color:#f8e5de;box-shadow:inset 2px 2px 0 #e2571f, inset -2px -2px 0 #3d1205, 0 4px 0 #2a0c03">Feuersturm</button>
+            <span class="micro grow">Kampf &amp; Feuer — Rundumschlag, Blutrausch, Flächenbrand, Dynamit</span>
+          </div>
+          <div class="row" style="gap:12px">
+            <span class="row" style="gap:3px"><span style="width:22px;height:22px;background:#795548"></span><span style="width:22px;height:22px;background:#37474f"></span></span>
+            <svg class="ic-14" style="color:#57503f"><use href="#i-chev-r"></use></svg>
+            <button class="btn btn--sm" style="width:150px;background:#565f70;color:#eef2f7;box-shadow:inset 2px 2px 0 #9fabbc, inset -2px -2px 0 #262c37, 0 4px 0 #171a22">Turm bauen</button>
+            <span class="micro grow">Bau &amp; Stein — Mauer, Turm, Tunnel</span>
+          </div>
+          <div class="row" style="gap:12px">
+            <span class="row" style="gap:3px"><span style="width:22px;height:22px;background:#8c6d2f"></span></span>
+            <svg class="ic-14" style="color:#57503f"><use href="#i-chev-r"></use></svg>
+            <button class="btn btn--sm" style="width:150px;background:#c98a10;color:#1c1305;box-shadow:inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 #7a5205, 0 4px 0 #3a2604">Plündern</button>
+            <span class="micro grow">Gold &amp; Handel — Fundkammer, Handel, Reliquien</span>
+          </div>
+          <div class="row" style="gap:12px">
+            <span class="row" style="gap:3px"><span style="width:22px;height:22px;background:#43a047"></span><span style="width:22px;height:22px;background:#3949ab"></span></span>
+            <svg class="ic-14" style="color:#57503f"><use href="#i-chev-r"></use></svg>
+            <button class="btn btn--sm" style="width:150px;background:#2c303d;color:#c8d2e0;box-shadow:inset 2px 2px 0 #565f70, inset -2px -2px 0 #14171e, 0 4px 0 #0d0f14">Tarnung</button>
+            <span class="micro grow">Schatten &amp; Spionage — Tarnung, Horchen, Sabotage</span>
+          </div>
+          <div class="row" style="gap:12px">
+            <span class="row" style="gap:3px"><span style="width:22px;height:22px;background:#6d4c41"></span><span style="width:22px;height:22px;background:#4e342e"></span><span style="width:22px;height:22px;background:#5e35b1"></span></span>
+            <svg class="ic-14" style="color:#57503f"><use href="#i-chev-r"></use></svg>
+            <button class="btn btn--sm" style="width:150px;background:#3a2515;color:#d8c3a8;box-shadow:inset 2px 2px 0 #8f6435, inset -2px -2px 0 #1a0f08, 0 4px 0 #120a05">Aufsteigen</button>
+            <span class="micro grow">Erde &amp; Unterwelt — Stollenbruch, Sprung, Aufsteigen</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pf col" style="width:420px;flex:0 0 420px;padding:20px 24px;gap:12px">
+        <div class="row" style="gap:8px"><svg class="ic-14" style="color:#5cb85c"><use href="#i-check"></use></svg>
+          <span class="lbl lbl--gold">10 · Regeln</span><span class="sep grow"></span></div>
+
+        <div class="col" style="gap:8px">
+          <span class="row" style="gap:8px;align-items:flex-start"><svg class="ic-14" style="color:#5cb85c;margin-top:2px"><use href="#i-check"></use></svg><span class="micro" style="color:#cabe98">border-radius überall 0 — Rundungen brechen den Pixel-Look sofort.</span></span>
+          <span class="row" style="gap:8px;align-items:flex-start"><svg class="ic-14" style="color:#5cb85c;margin-top:2px"><use href="#i-check"></use></svg><span class="micro" style="color:#cabe98">Tiefe kommt aus 2px-Bevels, nicht aus weichen Schatten.</span></span>
+          <span class="row" style="gap:8px;align-items:flex-start"><svg class="ic-14" style="color:#5cb85c;margin-top:2px"><use href="#i-check"></use></svg><span class="micro" style="color:#cabe98">Icons als Pixel-SVG-Sprite — ein Set, überall dasselbe.</span></span>
+          <span class="row" style="gap:8px;align-items:flex-start"><svg class="ic-14" style="color:#5cb85c;margin-top:2px"><use href="#i-check"></use></svg><span class="micro" style="color:#cabe98">Auswahl statt Dropdown: Kartengröße, Spielerzahl und Teams als Kacheln.</span></span>
+          <span class="row" style="gap:8px;align-items:flex-start"><svg class="ic-14" style="color:#5cb85c;margin-top:2px"><use href="#i-check"></use></svg><span class="micro" style="color:#cabe98">Pro Screen genau eine Sache mit Gold + Nieten hervorheben.</span></span>
+        </div>
+
+        <span class="sep" style="margin:4px 0"></span>
+
+        <div class="col" style="gap:8px">
+          <span class="row" style="gap:8px;align-items:flex-start"><span style="color:#e2571f;font-family:'Silkscreen',monospace;font-size:12px;margin-top:1px">×</span><span class="micro">backdrop-filter: blur() — sitzt heute in .screen-box, #game-hud und #info-panel; kostet auf Handys Bilder und passt nicht zum Stil.</span></span>
+          <span class="row" style="gap:8px;align-items:flex-start"><span style="color:#e2571f;font-family:'Silkscreen',monospace;font-size:12px;margin-top:1px">×</span><span class="micro">Material-Farben in Inline-Styles (js/input.js, js/ui.js).</span></span>
+          <span class="row" style="gap:8px;align-items:flex-start"><span style="color:#e2571f;font-family:'Silkscreen',monospace;font-size:12px;margin-top:1px">×</span><span class="micro">Emoji als Icon — plattformabhängig, nicht einfärbbar, springt in der Höhe.</span></span>
+          <span class="row" style="gap:8px;align-items:flex-start"><span style="color:#e2571f;font-family:'Silkscreen',monospace;font-size:12px;margin-top:1px">×</span><span class="micro">Glatte Fortschrittsbalken — HP und Forschung laufen segmentiert.</span></span>
+          <span class="row" style="gap:8px;align-items:flex-start"><span style="color:#e2571f;font-family:'Silkscreen',monospace;font-size:12px;margin-top:1px">×</span><span class="micro">Spielerfarben als Textfarbe.</span></span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,40 @@
+<!-- ARTBOARD: Ereignis-Karte (Overlay) ===================================== -->
+<div class="scr">
+
+  <div style="position:absolute;inset:0;z-index:1"><!--MAP--></div>
+  <div class="scrim" style="background:rgba(10,2,2,.80)"></div>
+  <div class="bg-scan" style="z-index:3;opacity:.5"></div>
+
+  <div style="position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div class="pf pf--fire col" style="width:100%;padding:22px 18px;gap:14px;align-items:center">
+      <span class="stud stud--tl" style="background:#e2571f"></span>
+      <span class="stud stud--tr" style="background:#e2571f"></span>
+      <span class="stud stud--bl" style="background:#e2571f"></span>
+      <span class="stud stud--br" style="background:#e2571f"></span>
+
+      <div class="row" style="gap:8px">
+        <span class="lbl" style="color:#e2571f">Runde 14</span>
+        <span style="width:2px;height:10px;background:#4a1a08"></span>
+        <span class="lbl" style="color:#8a7e6e">Ereignis</span>
+      </div>
+
+      <svg class="ic-88" style="filter:drop-shadow(0 4px 0 rgba(0,0,0,.8))"><use href="#i-skull"></use></svg>
+
+      <div class="h1" style="font-size:34px;color:#e2571f;text-shadow:0 3px 0 #000,0 0 24px rgba(226,87,31,.4)">Pest</div>
+
+      <p class="body" style="text-align:center;color:#e0cfc0;max-width:270px">
+        Eine Seuche breitet sich aus!<br>Alle Einheiten verlieren 1 HP.
+      </p>
+
+      <div class="row" style="gap:8px;padding:7px 12px;background:#120806;border:2px solid #0a0806;
+           box-shadow:inset 2px 2px 0 #2a0f06, inset -2px -2px 0 #080403;">
+        <svg class="ic-14"><use href="#i-heart"></use></svg>
+        <span class="num" style="color:#ff6b6b">−1</span>
+        <span class="lbl">alle Einheiten · alle Spieler</span>
+      </div>
+
+      <button class="btn btn--danger" style="margin-top:4px">Weiter</button>
+    </div>
+  </div>
+
+</div>

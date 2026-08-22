@@ -1,0 +1,29 @@
+{
+  "artboards": [
+    { "file": "Login.dc.html",          "x": 0,    "y": 0,    "w": 390,  "h": 844 },
+    { "file": "Main.dc.html",           "x": 470,  "y": 0,    "w": 390,  "h": 844, "title": "Home / Bestenliste" },
+    { "file": "SpielErstellen.dc.html", "x": 940,  "y": 0,    "w": 390,  "h": 844 },
+    { "file": "Lobby.dc.html",          "x": 1410, "y": 0,    "w": 390,  "h": 844 },
+
+    { "file": "HUD.dc.html",            "x": 0,    "y": 964,  "w": 390,  "h": 844, "title": "In-Game HUD" },
+    { "file": "Radialmenue.dc.html",    "x": 470,  "y": 964,  "w": 390,  "h": 844, "title": "Radialmenü" },
+
+    { "file": "Fraktionsdraft.dc.html", "x": 0,    "y": 1928, "w": 390,  "h": 844 },
+    { "file": "Forschung.dc.html",      "x": 470,  "y": 1928, "w": 390,  "h": 844 },
+    { "file": "Ereigniskarte.dc.html",  "x": 940,  "y": 1928, "w": 390,  "h": 844 },
+    { "file": "Siegbildschirm.dc.html", "x": 1410, "y": 1928, "w": 390,  "h": 844 },
+
+    { "file": "DesignSystem.dc.html",   "x": 0,    "y": 2892, "w": 1180, "h": 2960, "title": "Design-System" }
+  ],
+  "annotations": [
+    { "id": "row-menue",    "x": 0, "y": -132, "w": 620,
+      "text": "MENÜ-SCHIRME\nLogin → Home → Spiel erstellen → Lobby. Dropdowns sind durch Kacheln mit Kartenvorschau ersetzt." },
+    { "id": "row-ingame",   "x": 0, "y": 856, "w": 620,
+      "text": "IM SPIEL\nKopfleiste, Info-Panel und Aktionsleiste. Das Auswahlrad hat \"Zug beenden\" jetzt oben auf 12 Uhr — die restliche Reihenfolge entspricht js/radialmenu.js." },
+    { "id": "row-overlays", "x": 0, "y": 1806, "w": 620,
+      "text": "OVERLAYS & KARTEN\nFraktions-Draft, Forschung, Ereigniskarte, Sieg. Texte und Werte stammen aus js/data.js bzw. js/events.js." },
+    { "id": "row-system",   "x": 0, "y": 2770, "w": 620,
+      "text": "DESIGN-SYSTEM\nTokens, Typo, Buttons, Icons und Regeln — als Bauanleitung für css/game.css." }
+  ],
+  "launch": { "view": "canvas" }
+}
