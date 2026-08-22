@@ -13,13 +13,15 @@ async function showHomeScreen() {
     document.getElementById('lobby-screen').style.display   = 'none';
     document.getElementById('friends-panel').style.display  = 'none';
     setupScreen.style.display                               = 'none';
-    canvasWrapper.style.display                             = 'none';
+    canvasWrapper.style.display                             = 'none'; document.body.classList.remove('in-game');
     uiContainer.style.display                               = 'none';
     gameHud.style.display                                   = 'none';
     intermissionScreen.style.display                        = 'none';
     winScreen.style.display                                 = 'none';
     closeGameMenu();
     document.getElementById('home-screen').style.display    = 'flex';
+    // Vollhöhen-Layout ohne Seiten-Scroll (css/game.css, body.home-view)
+    document.body.classList.add('home-view');
     document.getElementById('home-username').textContent    = currentProfile?.username ?? '';
     await refreshGameList();
     await refreshLeaderboardPanel();
@@ -68,7 +70,7 @@ async function refreshGameList() {
 // ── Create Game ───────────────────────────────────────────────────────────────
 
 function showCreateGameModal() {
-    document.getElementById('home-screen').style.display = 'none';
+    document.getElementById('home-screen').style.display = 'none'; document.body.classList.remove('home-view');
     document.getElementById('player-names-container').style.display = 'none';
     document.getElementById('start-game-btn').style.display = 'none';
     document.getElementById('setup-back-btn').style.display = 'block';
@@ -102,7 +104,7 @@ async function handleCreateGame() {
 
 async function openLobbyScreen(gameId) {
     currentGameId = gameId;
-    document.getElementById('home-screen').style.display = 'none';
+    document.getElementById('home-screen').style.display = 'none'; document.body.classList.remove('home-view');
     setupScreen.style.display = 'none';
 
     try {
@@ -306,7 +308,7 @@ async function openGame(gameId) {
         }
 
         window.history.replaceState({}, '', `?game=${gameId}`);
-        document.getElementById('home-screen').style.display = 'none';
+        document.getElementById('home-screen').style.display = 'none'; document.body.classList.remove('home-view');
         bootGame();
 
         if (isSpectator) {
@@ -363,7 +365,7 @@ async function joinLobbyByToken(token) {
 // ── Friends ───────────────────────────────────────────────────────────────────
 
 async function showFriendsPanel() {
-    document.getElementById('home-screen').style.display = 'none';
+    document.getElementById('home-screen').style.display = 'none'; document.body.classList.remove('home-view');
     document.getElementById('friends-panel').style.display = 'flex';
     await refreshFriendsPanel();
 }
@@ -482,17 +484,21 @@ async function refreshLeaderboardPanel() {
     // in der Liste — hier wird sie nur nach oben gespiegelt, damit man den
     // eigenen Stand sieht, ohne die Bestenliste durchzuscrollen.
     const me = rows.find(r => r.id === currentProfile?.id);
+    const nameEl = document.getElementById('home-banner-name');
     const subEl = document.getElementById('home-banner-sub');
     const ratingBox = document.getElementById('home-banner-rating');
     const ratingVal = document.getElementById('home-banner-rating-value');
+
+    if (nameEl) nameEl.textContent = currentProfile?.username || '—';
     if (subEl) {
-        if (me) {
-            const myRank = me.established
-                ? rows.filter(r => r.established).findIndex(r => r.id === me.id) + 1
-                : null;
-            subEl.textContent = me.username + (myRank ? ` · Rang ${myRank}` : ' · vorläufig');
+        if (me && me.established) {
+            const myRank = rows.filter(r => r.established).findIndex(r => r.id === me.id) + 1;
+            subEl.textContent = `Rang ${myRank} · ${me.wins}/${me.games} Siege`;
+        } else if (me) {
+            // Vorläufig = noch zu wenige gewertete Partien für einen echten Rang
+            subEl.textContent = `Vorläufig · ${me.wins}/${me.games} Siege`;
         } else {
-            subEl.textContent = currentProfile?.username || '';
+            subEl.textContent = '';
         }
     }
     if (ratingBox && ratingVal) {
@@ -516,7 +522,7 @@ async function addFriendFromLeaderboard(username) {
 // ── Server Intermission ───────────────────────────────────────────────────────
 
 function showServerIntermission(nextPlayerName) {
-    canvasWrapper.style.display = 'none';
+    canvasWrapper.style.display = 'none'; document.body.classList.remove('in-game');
     uiContainer.style.display = 'none';
     gameHud.style.display = 'none';
     document.getElementById('intermission-msg').textContent = `Zug abgeschickt! ${nextPlayerName} ist dran.`;

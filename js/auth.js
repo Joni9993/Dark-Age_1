@@ -51,7 +51,7 @@ async function initApp() {
 
 function showLoginScreen() {
     document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('home-screen').style.display  = 'none';
+    document.getElementById('home-screen').style.display  = 'none'; document.body.classList.remove('home-view');
 }
 
 async function handleLogin() {

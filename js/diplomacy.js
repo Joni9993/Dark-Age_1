@@ -11,7 +11,7 @@ function checkTeamWin(alivePlayers) {
 // Statistikleiste leer — alle Aufrufer reichen es durch, aber showWin soll auch
 // ohne funktionieren, falls später ein Siegpfad dazukommt.
 function showWin(msg, winners) {
-    canvasWrapper.style.display = 'none';
+    canvasWrapper.style.display = 'none'; document.body.classList.remove('in-game');
     uiContainer.style.display = 'none';
     gameHud.style.display = 'none';
     document.getElementById('win-msg').innerText = msg;
@@ -43,10 +43,12 @@ function isMyActiveTurn() {
     return isLegacyUrlMode || !currentGameId || currentTurnSlot === currentUserSlot;
 }
 
-function giftSliderRow(res, icon, i, max) {
+// Parameter heisst bewusst `ic` und nicht `icon`: sonst verdeckt er die
+// globale icon()-Funktion aus js/icons.js innerhalb dieser Funktion.
+function giftSliderRow(res, ic, i, max) {
     return `
         <div class="gift-row">
-            <span class="gift-label">${icon} <b id="gift-${res}-out-${i}">0</b>/${max}</span>
+            <span class="gift-label">${icon(ic, 'ic-14')} <b id="gift-${res}-out-${i}">0</b>/${max}</span>
             <input type="range" class="gift-slider" id="gift-${res}-${i}" min="0" max="${max}" value="0" step="1" style="--fill: 0%"
                 oninput="document.getElementById('gift-${res}-out-${i}').textContent=this.value; this.style.setProperty('--fill', (${max} > 0 ? this.value / ${max} * 100 : 0) + '%')">
         </div>
@@ -57,16 +59,16 @@ function giftForm(i) {
     if (!isMyActiveTurn()) {
         return `
             <div style="width: 100%; margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 0.72rem; color: var(--text-dim); text-align: left;">
-                🔒 Ressourcen senden geht nur während deines eigenen Zuges.
+                Ressourcen senden geht nur während deines eigenen Zuges.
             </div>
         `;
     }
     const pState = gameState.p[gameState.cp];
     return `
         <div style="display: flex; flex-direction: column; gap: 3px; margin-top: 5px; padding-top: 5px; width: 100%; border-top: 1px solid rgba(255,255,255,0.08);">
-            ${giftSliderRow('g', '💰', i, pState.g)}
-            ${giftSliderRow('m', '🪵', i, pState.m)}
-            ${giftSliderRow('s', '🪨', i, pState.s)}
+            ${giftSliderRow('g', 'gold', i, pState.g)}
+            ${giftSliderRow('m', 'wood', i, pState.m)}
+            ${giftSliderRow('s', 'stone', i, pState.s)}
             <button class="action-btn" style="margin-top: 2px; padding: 6px 8px; font-size: 0.78rem;" onclick="sendResources(${i})">Senden</button>
         </div>
     `;
@@ -144,7 +146,7 @@ window.openDiplomacy = function () {
     if (gameState.at) {
         if (myTeam.length) {
             const names = myTeam.map(id => gameState.p[id].n).join(', ');
-            content.innerHTML += `<div class="dip-section-title">🤝 Dein Team</div>`;
+            content.innerHTML += `<div class="dip-section-title">${icon('pact', 'ic-12')} Dein Team</div>`;
             content.innerHTML += `<div class="dip-card dip-card-ally">
                 <div class="dip-team-names">Gemeinsam mit ${names}</div>
                 ${myTeam.map(id => `

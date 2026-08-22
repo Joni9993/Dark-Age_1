@@ -10,37 +10,53 @@
 :root {
     /* Grund & Panel */
     --ink: #08070b;
-    --panel-hi: #33281c;          /* Bevel oben/links */
-    --panel-lo: #0c0907;          /* Bevel unten/rechts */
-    --edge: #0a0806;              /* harte Außenkante */
+    --panel-hi: #33281c;
+    /* Bevel oben/links */
+    --panel-lo: #0c0907;
+    /* Bevel unten/rechts */
+    --edge: #0a0806;
+    /* harte Außenkante */
 
     /* Bestehende Tokennamen — auf die Pixel-Palette umgehängt, damit alle
        Regeln weiter greifen, die sie schon benutzen. */
     --bg-deep: #08070b;
-    --bg-panel: #171310;          /* jetzt deckend: der Blur dahinter ist weg */
+    --bg-panel: #171310;
+    /* jetzt deckend: der Blur dahinter ist weg */
     --bg-card: #1f1913;
     --border: #33281c;
     --border-bright: #8f6435;
-    --text: #cabe98;              /* pal 18 */
-    --text-bright: #eeebe8;       /* pal 22 */
+    --text: #cabe98;
+    /* pal 18 */
+    --text-bright: #eeebe8;
+    /* pal 22 */
     --text-dim: #8a7e6e;
     --text-faint: #57503f;
     --gold: #e8b84a;
-    --gold-mid: #c98a10;          /* pal 7 */
+    --gold-mid: #c98a10;
+    /* pal 7 */
     --gold-dk: #7a5205;
-    --red: #cc0000;               /* pal 23 */
-    --fire: #e2571f;              /* pal 8 */
-    --fire-dk: #8a2c0e;           /* pal 16 */
+    --red: #cc0000;
+    /* pal 23 */
+    --fire: #e2571f;
+    /* pal 8 */
+    --fire-dk: #8a2c0e;
+    /* pal 16 */
     --green: #5cb85c;
     --blue: #4fc3f7;
 
     /* Material */
-    --wood: #5e3a20;              /* pal 4 */
-    --wood-dk: #3a2515;           /* pal 10 */
-    --wood-hi: #8f6435;           /* pal 14 */
-    --steel: #9fabbc;             /* pal 3 */
-    --steel-dk: #2c303d;          /* pal 6 */
-    --stone: #7d838f;             /* pal 5 */
+    --wood: #5e3a20;
+    /* pal 4 */
+    --wood-dk: #3a2515;
+    /* pal 10 */
+    --wood-hi: #8f6435;
+    /* pal 14 */
+    --steel: #9fabbc;
+    /* pal 3 */
+    --steel-dk: #2c303d;
+    /* pal 6 */
+    --stone: #7d838f;
+    /* pal 5 */
     --stone-dk: #565f70;
 
     /* Wiederverwendbare Schatten-Rezepte */
@@ -79,9 +95,11 @@
 
 body {
     margin: 0;
+    /* Das Wabenmuster steckt NICHT mehr hier, sondern in #menu-bg — eine
+       Hintergrundfläche kann nicht zwei Reihen in verschiedene Richtungen
+       bewegen. Hier bleiben nur Scanlines, Lichtschein und Grundfarbe. */
     background:
         repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.30) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='58' viewBox='0 0 34 58'%3E%3Cpath d='M17 1 L33 10 L33 28 L17 37 L1 28 L1 10 Z' fill='none' stroke='%23c98a10' stroke-opacity='0.10' stroke-width='1'/%3E%3C/svg%3E"),
         radial-gradient(115% 60% at 50% 22%, rgba(120, 80, 20, 0.16) 0%, rgba(8, 7, 11, 0) 62%),
         var(--ink);
     color: var(--text);
@@ -96,9 +114,76 @@ body {
     -webkit-user-select: none;
 }
 
-input, textarea {
+input,
+textarea {
     user-select: text;
     -webkit-user-select: text;
+}
+
+/* ── Animierter Wabenhintergrund (Menüs) ──────────────────────────────────
+   Zwei Ebenen mit je einer 34×116-Kachel: Ebene A zeichnet das Sechseck in
+   die obere Kachelhälfte, Ebene B in die untere und sitzt zusätzlich um eine
+   halbe Kachelbreite versetzt (background-position 17px) — zusammen ergibt
+   das die versetzte Wabe. A wandert nach links, B nach rechts.
+
+   Bewegt wird per `transform`, nicht per `background-position`: transform
+   läuft auf dem Compositor, background-position würde jeden Frame neu
+   zeichnen. Der Weg ist exakt eine Kachelbreite (34px), dadurch springt die
+   Schleife nicht sichtbar. Die Ebenen ragen links/rechts über den Rand
+   hinaus, damit beim Verschieben keine Kante hereinwandert. */
+#menu-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.menu-bg-layer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -40px;
+    right: -40px;
+    background-repeat: repeat;
+    background-size: 34px 116px;
+    will-change: transform;
+}
+
+.menu-bg-a {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='116' viewBox='0 0 34 116'%3E%3Cpath d='M17 1 L33 10 L33 28 L17 37 L1 28 L1 10 Z' fill='none' stroke='%23c98a10' stroke-opacity='0.10' stroke-width='1'/%3E%3C/svg%3E");
+    animation: hexDriftLeft 5s linear infinite;
+}
+
+.menu-bg-b {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='116' viewBox='0 0 34 116'%3E%3Cpath d='M17 59 L33 68 L33 86 L17 95 L1 86 L1 68 Z' fill='none' stroke='%23c98a10' stroke-opacity='0.10' stroke-width='1'/%3E%3C/svg%3E");
+    background-position: 17px 0;
+    animation: hexDriftRight 5s linear infinite;
+}
+
+@keyframes hexDriftLeft {
+    to {
+        transform: translateX(-34px);
+    }
+}
+
+@keyframes hexDriftRight {
+    to {
+        transform: translateX(34px);
+    }
+}
+
+/* Im Spiel deckt die Karte den Hintergrund ohnehin ab — dann braucht die
+   Animation auch nicht zu laufen (js/main.js setzt die Klasse). */
+body.in-game #menu-bg {
+    display: none;
+}
+
+/* Wer Bewegung reduziert haben will, bekommt das ruhende Muster. */
+@media (prefers-reduced-motion: reduce) {
+    .menu-bg-layer {
+        animation: none;
+    }
 }
 
 h2 {
@@ -180,10 +265,25 @@ h2 {
     pointer-events: none;
 }
 
-.stud--tl { top: 4px; left: 4px; }
-.stud--tr { top: 4px; right: 4px; }
-.stud--bl { bottom: 4px; left: 4px; }
-.stud--br { bottom: 4px; right: 4px; }
+.stud--tl {
+    top: 4px;
+    left: 4px;
+}
+
+.stud--tr {
+    top: 4px;
+    right: 4px;
+}
+
+.stud--bl {
+    bottom: 4px;
+    left: 4px;
+}
+
+.stud--br {
+    bottom: 4px;
+    right: 4px;
+}
 
 /* ── Kachel-Auswahl (js/segmented.js) ─────────────────────────────────────
    Ersetzt die <select>-Dropdowns im Setup-Screen. Das native <select> bleibt
@@ -270,7 +370,9 @@ h2 {
     text-transform: uppercase;
 }
 
-.seg-item-on .seg-title { color: var(--gold); }
+.seg-item-on .seg-title {
+    color: var(--gold);
+}
 
 .seg-sub {
     font-size: 15px;
@@ -278,8 +380,13 @@ h2 {
     color: var(--text-dim);
 }
 
-.seg-col .seg-sub { font-size: 15px; }
-.seg-item-off .seg-sub { color: #3f3931; }
+.seg-col .seg-sub {
+    font-size: 15px;
+}
+
+.seg-item-off .seg-sub {
+    color: #3f3931;
+}
 
 /* Spielerzahl: die Ziffer ist das Element, nicht die Beschriftung. */
 .seg-big {
@@ -288,7 +395,9 @@ h2 {
     color: var(--text-bright);
 }
 
-.seg-item-on .seg-big { color: var(--gold); }
+.seg-item-on .seg-big {
+    color: var(--gold);
+}
 
 /* Wenn Icon + Titel + Text in einer Zeile stehen, soll der Text den Rest
    füllen und der Titel darüber stehen — dafür eine kleine innere Spalte. */
@@ -314,13 +423,40 @@ h2 {
     flex: 0 0 auto;
 }
 
-.ic-12 { width: 12px; height: 12px; }
-.ic-14 { width: 14px; height: 14px; }
-.ic-20 { width: 20px; height: 20px; }
-.ic-24 { width: 24px; height: 24px; }
-.ic-32 { width: 32px; height: 32px; }
-.ic-40 { width: 40px; height: 40px; }
-.ic-48 { width: 48px; height: 48px; }
+.ic-12 {
+    width: 12px;
+    height: 12px;
+}
+
+.ic-14 {
+    width: 14px;
+    height: 14px;
+}
+
+.ic-20 {
+    width: 20px;
+    height: 20px;
+}
+
+.ic-24 {
+    width: 24px;
+    height: 24px;
+}
+
+.ic-32 {
+    width: 32px;
+    height: 32px;
+}
+
+.ic-40 {
+    width: 40px;
+    height: 40px;
+}
+
+.ic-48 {
+    width: 48px;
+    height: 48px;
+}
 
 /* Eingaben sind EINGESENKT — Bevel invertiert gegenüber Panels/Buttons. */
 input,
@@ -387,8 +523,8 @@ textarea:focus {
 .gift-slider::-webkit-slider-runnable-track {
     height: 4px;
     background: linear-gradient(to right,
-        var(--gold) 0%, var(--gold) var(--fill),
-        rgba(180, 150, 100, 0.25) var(--fill), rgba(180, 150, 100, 0.25) 100%);
+            var(--gold) 0%, var(--gold) var(--fill),
+            rgba(180, 150, 100, 0.25) var(--fill), rgba(180, 150, 100, 0.25) 100%);
 }
 
 .gift-slider::-webkit-slider-thumb {
@@ -487,7 +623,9 @@ textarea:focus {
         0 4px 0 #3a2604;
 }
 
-.action-btn.primary:hover { background: #dd9a17; }
+.action-btn.primary:hover {
+    background: #dd9a17;
+}
 
 .action-btn.primary:active {
     transform: translateY(4px);
@@ -500,47 +638,71 @@ textarea:focus {
    Fünf Familien statt der früher ~20 fest im JS verdrahteten Material-Farben
    (js/input.js). Zugeordnet wird nach Bedeutung der Aktion, damit man die Art
    einer Fähigkeit an der Farbe erkennt, bevor man den Text gelesen hat. */
-.action-btn.act-fire {                                  /* Kampf & Feuer */
+.action-btn.act-fire {
+    /* Kampf & Feuer */
     background: var(--fire-dk);
     color: #f8e5de;
     box-shadow: inset 2px 2px 0 var(--fire), inset -2px -2px 0 #3d1205, 0 4px 0 #2a0c03;
 }
-.action-btn.act-fire:hover  { background: #a4360f; }
 
-.action-btn.act-build {                                 /* Bau & Stein */
+.action-btn.act-fire:hover {
+    background: #a4360f;
+}
+
+.action-btn.act-build {
+    /* Bau & Stein */
     background: var(--stone-dk);
     color: #eef2f7;
     box-shadow: inset 2px 2px 0 var(--steel), inset -2px -2px 0 #262c37, 0 4px 0 #171a22;
 }
-.action-btn.act-build:hover { background: #66707f; }
 
-.action-btn.act-gold {                                  /* Gold & Handel */
+.action-btn.act-build:hover {
+    background: #66707f;
+}
+
+.action-btn.act-gold {
+    /* Gold & Handel */
     background: var(--gold-mid);
     color: #1c1305;
     box-shadow: inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 var(--gold-dk), 0 4px 0 #3a2604;
 }
-.action-btn.act-gold:hover  { background: #dd9a17; }
 
-.action-btn.act-shadow {                                /* Schatten & Spionage */
+.action-btn.act-gold:hover {
+    background: #dd9a17;
+}
+
+.action-btn.act-shadow {
+    /* Schatten & Spionage */
     background: var(--steel-dk);
     color: #c8d2e0;
     box-shadow: inset 2px 2px 0 var(--stone-dk), inset -2px -2px 0 #14171e, 0 4px 0 #0d0f14;
 }
-.action-btn.act-shadow:hover { background: #3a4052; }
 
-.action-btn.act-earth {                                 /* Erde & Unterwelt */
+.action-btn.act-shadow:hover {
+    background: #3a4052;
+}
+
+.action-btn.act-earth {
+    /* Erde & Unterwelt */
     background: var(--wood-dk);
     color: #d8c3a8;
     box-shadow: inset 2px 2px 0 var(--wood-hi), inset -2px -2px 0 #1a0f08, 0 4px 0 #120a05;
 }
-.action-btn.act-earth:hover { background: #4c3220; }
 
-.action-btn.act-ally {                                  /* Bündnis / Zustimmung */
+.action-btn.act-earth:hover {
+    background: #4c3220;
+}
+
+.action-btn.act-ally {
+    /* Bündnis / Zustimmung */
     background: #2c6b2c;
     color: #e6f7e6;
     box-shadow: inset 2px 2px 0 #5cb85c, inset -2px -2px 0 #133a13, 0 4px 0 #0c260c;
 }
-.action-btn.act-ally:hover { background: #357f35; }
+
+.action-btn.act-ally:hover {
+    background: #357f35;
+}
 
 /* Gedrückt-Zustand ist für alle Familien gleich: Sockel weg, Bevel invertiert. */
 .action-btn.act-ally:active,
@@ -574,7 +736,9 @@ textarea:focus {
         0 4px 0 #063015;
 }
 
-.wa-btn:hover { background: #1f9e4d; }
+.wa-btn:hover {
+    background: #1f9e4d;
+}
 
 .wa-btn:active {
     transform: translateY(4px);
@@ -768,7 +932,7 @@ canvas {
 /* Der Inhalt wird auf Lesebreite begrenzt und zentriert: das Panel selbst ist
    so breit wie der Bildschirm, aber auf dem Desktop lagen Name (links) und
    HP-Zahl (rechts) sonst fast einen Meter auseinander. */
-#info-panel > * {
+#info-panel>* {
     max-width: 520px;
     margin-left: auto;
     margin-right: auto;
@@ -858,7 +1022,9 @@ canvas {
     color: var(--text-bright);
 }
 
-.ip-hp-max { color: var(--text-dim); }
+.ip-hp-max {
+    color: var(--text-dim);
+}
 
 .ip-badge {
     flex: 0 0 auto;
@@ -874,10 +1040,29 @@ canvas {
     white-space: nowrap;
 }
 
-.ip-badge-gold  { background: #241a0c; color: var(--gold); box-shadow: inset 1px 1px 0 var(--gold-dk), inset -1px -1px 0 var(--panel-lo); }
-.ip-badge-fire  { background: #2a1008; color: #ff9d7d; box-shadow: inset 1px 1px 0 var(--fire-dk), inset -1px -1px 0 #120503; }
-.ip-badge-cyan  { background: #0d2530; color: #7fe3ff; box-shadow: inset 1px 1px 0 #1f5f78, inset -1px -1px 0 #06131a; }
-.ip-badge-green { background: #16210f; color: #8fd98f; box-shadow: inset 1px 1px 0 #2c4020, inset -1px -1px 0 #070c05; }
+.ip-badge-gold {
+    background: #241a0c;
+    color: var(--gold);
+    box-shadow: inset 1px 1px 0 var(--gold-dk), inset -1px -1px 0 var(--panel-lo);
+}
+
+.ip-badge-fire {
+    background: #2a1008;
+    color: #ff9d7d;
+    box-shadow: inset 1px 1px 0 var(--fire-dk), inset -1px -1px 0 #120503;
+}
+
+.ip-badge-cyan {
+    background: #0d2530;
+    color: #7fe3ff;
+    box-shadow: inset 1px 1px 0 #1f5f78, inset -1px -1px 0 #06131a;
+}
+
+.ip-badge-green {
+    background: #16210f;
+    color: #8fd98f;
+    box-shadow: inset 1px 1px 0 #2c4020, inset -1px -1px 0 #070c05;
+}
 
 .ip-stats {
     display: flex;
@@ -973,8 +1158,13 @@ canvas {
     scrollbar-width: thin;
 }
 
-.recruit-scroll > :first-child { margin-left: auto; }
-.recruit-scroll > :last-child { margin-right: auto; }
+.recruit-scroll> :first-child {
+    margin-left: auto;
+}
+
+.recruit-scroll> :last-child {
+    margin-right: auto;
+}
 
 .recruit-scroll .action-btn {
     flex: 0 0 auto;
@@ -1105,7 +1295,9 @@ canvas {
     box-shadow: inset 2px 2px 0 #1c1917, inset -2px -2px 0 #0b0a09;
 }
 
-.card.disabled h3 { color: #6d6558; }
+.card.disabled h3 {
+    color: #6d6558;
+}
 
 .card.bought {
     background: #16210f;
@@ -1210,7 +1402,9 @@ canvas {
     color: var(--text-dim);
 }
 
-.fac-upgrade-none { color: var(--text-faint); }
+.fac-upgrade-none {
+    color: var(--text-faint);
+}
 
 /* Kosten als eingesenkter Chip statt als bunte Textzeile */
 .card .cost {
@@ -1387,14 +1581,37 @@ canvas {
     background: var(--gold-mid);
 }
 
-.toast.error::before   { background: var(--fire); }
-.toast.error           { color: #ff9d7d; }
-.toast.success::before { background: var(--green); }
-.toast.success         { color: #8fd98f; }
-.toast.info::before    { background: var(--blue); }
-.toast.info            { color: #9adcf7; }
-.toast.gold::before    { background: var(--gold); }
-.toast.gold            { color: var(--gold); }
+.toast.error::before {
+    background: var(--fire);
+}
+
+.toast.error {
+    color: #ff9d7d;
+}
+
+.toast.success::before {
+    background: var(--green);
+}
+
+.toast.success {
+    color: #8fd98f;
+}
+
+.toast.info::before {
+    background: var(--blue);
+}
+
+.toast.info {
+    color: #9adcf7;
+}
+
+.toast.gold::before {
+    background: var(--gold);
+}
+
+.toast.gold {
+    color: var(--gold);
+}
 
 /* === EVENT OVERLAY === */
 #event-overlay {
@@ -1461,9 +1678,13 @@ canvas {
     background: #4a1a08;
 }
 
-.event-meta-kind { color: var(--text-dim); }
+.event-meta-kind {
+    color: var(--text-dim);
+}
 
-.event-card .stud { background: var(--fire); }
+.event-card .stud {
+    background: var(--fire);
+}
 
 .event-card h2 {
     color: var(--fire);
@@ -1684,13 +1905,27 @@ canvas {
 }
 
 @keyframes pulseGlow {
-    0%, 100% { text-shadow: 0 4px 0 #000, 0 0 20px rgba(232, 184, 74, 0.30); }
-    50%      { text-shadow: 0 4px 0 #000, 0 0 40px rgba(232, 184, 74, 0.65); }
+
+    0%,
+    100% {
+        text-shadow: 0 4px 0 #000, 0 0 20px rgba(232, 184, 74, 0.30);
+    }
+
+    50% {
+        text-shadow: 0 4px 0 #000, 0 0 40px rgba(232, 184, 74, 0.65);
+    }
 }
 
 @keyframes crownGlow {
-    0%, 100% { filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.85)) drop-shadow(0 0 10px rgba(232, 184, 74, 0.45)); }
-    50%      { filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.85)) drop-shadow(0 0 26px rgba(232, 184, 74, 0.95)); }
+
+    0%,
+    100% {
+        filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.85)) drop-shadow(0 0 10px rgba(232, 184, 74, 0.45));
+    }
+
+    50% {
+        filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.85)) drop-shadow(0 0 26px rgba(232, 184, 74, 0.95));
+    }
 }
 
 /* Strahlenkranz: liegt hinter allem, deshalb bekommt der restliche Inhalt
@@ -1706,7 +1941,7 @@ canvas {
     pointer-events: none;
 }
 
-#win-screen > *:not(.win-rays) {
+#win-screen>*:not(.win-rays) {
     position: relative;
     z-index: 1;
 }
@@ -1792,8 +2027,14 @@ canvas {
     flex-shrink: 0;
     line-height: 1;
 }
-#menu-btn:hover  { background: #46351f; }
-#menu-btn:active { box-shadow: var(--bevel-in); }
+
+#menu-btn:hover {
+    background: #46351f;
+}
+
+#menu-btn:active {
+    box-shadow: var(--bevel-in);
+}
 
 /* Kamerafokus-Schieberegler: stufenloser, rein manueller Regler unten rechts
    am Bildschirmrand statt des früheren Drei-Zustands-Buttons. Oben (Wert
@@ -1847,6 +2088,7 @@ canvas {
     filter: none;
     text-shadow: 0 0 6px rgba(79, 195, 247, 0.8);
 }
+
 #camera-focus-slider-wrap.focus-underworld .cfs-label-underworld {
     opacity: 1;
     filter: none;
@@ -1885,6 +2127,7 @@ canvas {
     background: linear-gradient(180deg, #1a3a5c 0%, #0d0b09 50%, #3a1a4a 100%);
     border: 2px solid var(--edge);
 }
+
 #camera-focus-slider::-moz-range-track {
     width: 8px;
     background: linear-gradient(180deg, #1a3a5c 0%, #0d0b09 50%, #3a1a4a 100%);
@@ -1903,6 +2146,7 @@ canvas {
     pointer-events: auto;
     cursor: pointer;
 }
+
 #camera-focus-slider::-moz-range-thumb {
     width: 22px;
     height: 16px;
@@ -1927,6 +2171,7 @@ canvas {
     padding: 10px;
     min-width: 170px;
 }
+
 #game-menu-popup button {
     min-height: 44px;
     padding: 10px 14px;
@@ -1939,8 +2184,15 @@ canvas {
     text-align: left;
     font-family: var(--font-body);
 }
-#game-menu-popup button:hover:not(:disabled) { background: #33281c; }
-#game-menu-popup button:active:not(:disabled) { box-shadow: var(--bevel-in); }
+
+#game-menu-popup button:hover:not(:disabled) {
+    background: #33281c;
+}
+
+#game-menu-popup button:active:not(:disabled) {
+    box-shadow: var(--bevel-in);
+}
+
 #game-menu-popup button:disabled {
     background: #141211;
     color: #3f3931;
@@ -1982,8 +2234,14 @@ canvas {
     margin-bottom: 8px;
     border-bottom: 2px solid var(--panel-hi);
 }
-#menu-surrender-item { color: #ff9d7d; }
-#menu-surrender-item:hover:not(:disabled) { background: #33160c !important; }
+
+#menu-surrender-item {
+    color: #ff9d7d;
+}
+
+#menu-surrender-item:hover:not(:disabled) {
+    background: #33160c !important;
+}
 
 /* === AUFGEBEN BESTÄTIGUNGS-OVERLAY === */
 #surrender-overlay {
@@ -2068,8 +2326,15 @@ canvas {
     color: #f8e5de;
     box-shadow: inset 2px 2px 0 var(--fire), inset -2px -2px 0 #3d1205, 0 4px 0 #2a0c03;
 }
-.btn-confirm-surrender:hover  { background: #a4360f; }
-.btn-confirm-surrender:active { transform: translateY(4px); box-shadow: inset 2px 2px 0 #3d1205, inset -2px -2px 0 var(--fire); }
+
+.btn-confirm-surrender:hover {
+    background: #a4360f;
+}
+
+.btn-confirm-surrender:active {
+    transform: translateY(4px);
+    box-shadow: inset 2px 2px 0 #3d1205, inset -2px -2px 0 var(--fire);
+}
 
 .btn-cancel-surrender,
 .btn-cancel-end-turn {
@@ -2077,10 +2342,18 @@ canvas {
     color: var(--text-dim);
     box-shadow: inset 2px 2px 0 var(--panel-hi), inset -2px -2px 0 var(--panel-lo), 0 4px 0 var(--edge);
 }
+
 .btn-cancel-surrender:hover,
-.btn-cancel-end-turn:hover { background: #33281c; color: var(--text); }
+.btn-cancel-end-turn:hover {
+    background: #33281c;
+    color: var(--text);
+}
+
 .btn-cancel-surrender:active,
-.btn-cancel-end-turn:active { transform: translateY(4px); box-shadow: var(--bevel-in); }
+.btn-cancel-end-turn:active {
+    transform: translateY(4px);
+    box-shadow: var(--bevel-in);
+}
 
 /* === ZUG BEENDEN BESTÄTIGUNGS-OVERLAY === */
 #end-turn-confirm-overlay {
@@ -2150,8 +2423,15 @@ canvas {
     color: #1c1305;
     box-shadow: inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 var(--gold-dk), 0 4px 0 #3a2604;
 }
-.btn-confirm-end-turn:hover  { background: #dd9a17; }
-.btn-confirm-end-turn:active { transform: translateY(4px); box-shadow: inset 2px 2px 0 var(--gold-dk), inset -2px -2px 0 #f0cf6a; }
+
+.btn-confirm-end-turn:hover {
+    background: #dd9a17;
+}
+
+.btn-confirm-end-turn:active {
+    transform: translateY(4px);
+    box-shadow: inset 2px 2px 0 var(--gold-dk), inset -2px -2px 0 #f0cf6a;
+}
 
 /* ── Login / Auth ─────────────────────────────────────────────────────────── */
 #login-screen,
@@ -2184,8 +2464,56 @@ canvas {
 }
 
 /* ── Home Screen ─────────────────────────────────────────────────────────── */
+/* Der Home-Screen verhält sich wie eine App-Startseite, nicht wie eine
+   Webseite: er füllt die Bildschirmhöhe und scrollt NICHT. Was wächst, ist
+   allein die Spieleliste (#game-list, flex:1) — sie ist der wichtigste
+   Bereich. Die Bestenliste bekommt einen Deckel, die Aktionen sitzen fest
+   am unteren Rand.
+   `body.home-view` wird in showHomeScreen gesetzt (js/lobby.js). */
 #home-screen {
-    gap: 14px;
+    gap: 10px;
+    height: 100%;
+    max-height: none;
+    overflow: hidden;
+}
+
+body.home-view {
+    height: 100dvh;
+    overflow: hidden;
+    touch-action: none;
+}
+
+/* Der Kasten bekommt die Resthöhe unter dem Seitentitel. */
+body.home-view #home-screen {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+/* Nebenaktionen als Dreierreihe am Fuß */
+.home-actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    flex: 0 0 auto;
+    margin-top: 2px;
+}
+
+/* Kompaktvariante: Icon über der Beschriftung, damit drei nebeneinander
+   passen, ohne dass die Wörter abgeschnitten werden. */
+.action-btn.compact {
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 58px;
+    padding: 8px 4px;
+    font-size: 8px;
+    letter-spacing: 0.8px;
 }
 
 /* Kopfleiste des Home-Screens (index.html, gefüllt in js/lobby.js) */
@@ -2193,10 +2521,10 @@ canvas {
     position: relative;
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 11px;
     width: 100%;
-    padding: 13px 12px;
+    flex: 0 0 auto;
+    padding: 11px 12px;
     background: var(--bg-panel);
     border: 2px solid var(--edge);
     box-shadow: var(--bevel);
@@ -2205,17 +2533,19 @@ canvas {
 .home-banner-text {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
+    flex: 1;
     min-width: 0;
     text-align: left;
 }
 
-.home-banner-title {
-    font-family: var(--font-display);
-    font-size: 1.25rem;
-    letter-spacing: 3px;
-    color: var(--gold);
-    text-shadow: 0 2px 0 #000;
+.home-banner-name {
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--text-bright);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .home-banner-sub {
@@ -2229,13 +2559,8 @@ canvas {
     white-space: nowrap;
 }
 
-/* Absolut positioniert, damit die Wortmarke mittig bleibt, egal ob ein
-   Rating da ist (im Debug-Modus gibt es keinen Account und keins). */
 .home-banner-rating {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
+    display: flex;
     align-items: center;
     gap: 5px;
     flex: 0 0 auto;
@@ -2253,6 +2578,7 @@ canvas {
     justify-content: space-between;
     align-items: center;
     width: 100%;
+    flex: 0 0 auto;
 }
 
 /* Steht die Überschrift allein (Bestenliste), gehört sie in die Mitte —
@@ -2306,13 +2632,18 @@ canvas {
     color: var(--text-dim);
 }
 
+/* Der einzige wachsende Bereich des Home-Screens: nimmt die Resthöhe und
+   scrollt bei Bedarf intern — der Screen selbst bleibt unbeweglich. */
 #game-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
     width: 100%;
-    max-height: 55vh;
+    flex: 1 1 auto;
+    min-height: 92px;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
 }
 
 #leaderboard-list {
@@ -2320,11 +2651,16 @@ canvas {
     flex-direction: column;
     gap: 8px;
     width: 100%;
-    /* Bounded so a long leaderboard never pushes "Meine Spiele" below the
-       fold — rows are single-line (see below), so this always cuts cleanly
-       between rows, never mid-row. The mask fade softens that edge further. */
-    max-height: 216px;
+    /* Gedeckelt, damit eine lange Bestenliste "Meine Spiele" nicht nach unten
+       schiebt — Zeilen sind einzeilig, der Schnitt liegt also immer zwischen
+       zwei Zeilen. Der Maskenverlauf weicht die Kante zusätzlich auf.
+       Anteilig statt fix: auf kleinen Handys blieb von "Meine Spiele" sonst
+       kaum etwas übrig, auf großen war unnötig Luft. */
+    flex: 0 1 auto;
+    max-height: min(216px, 26dvh);
     overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
     -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 20px), transparent 100%);
     mask-image: linear-gradient(to bottom, black calc(100% - 20px), transparent 100%);
 }
@@ -2332,14 +2668,15 @@ canvas {
 /* One line per row. Nur der Name kürzt mit Ellipse — Rang, Siege und der
    Button/Status behalten immer ihre volle Breite, damit man bei langen Namen
    trotzdem die Siege sieht. */
-#leaderboard-list .friend-row > span {
+#leaderboard-list .friend-row>span {
     white-space: nowrap;
 }
 
 /* Zeilen ohne Button (ich selbst / bereits befreundet) sonst niedriger als
    Zeilen mit Button (der hat min-height 44px) → einheitliche Höhe erzwingen. */
 #leaderboard-list .friend-row {
-    min-height: 60px;
+    min-height: 52px;
+    flex: 0 0 auto;
 }
 
 #leaderboard-list .lb-rank {
@@ -2352,7 +2689,8 @@ canvas {
     text-overflow: ellipsis;
     min-width: 0;
     flex: 1 1 auto;
-    text-align: left;   /* .screen-box zentriert sonst den Namen im gewachsenen Span */
+    text-align: left;
+    /* .screen-box zentriert sonst den Namen im gewachsenen Span */
 }
 
 /* Rating ist die Hauptzahl der Zeile — kräftiger als die Bilanz daneben. */
@@ -2410,8 +2748,13 @@ canvas {
     gap: 8px;
 }
 
-.game-card:hover  { background: #2a2219; }
-.game-card:active { box-shadow: var(--bevel-in); }
+.game-card:hover {
+    background: #2a2219;
+}
+
+.game-card:active {
+    box-shadow: var(--bevel-in);
+}
 
 /* "Du bist dran": die eine Karte pro Screen, die Gold UND Ecknieten bekommt. */
 .game-card-active {
@@ -2433,8 +2776,13 @@ canvas {
     background: var(--gold);
 }
 
-.game-card-active::before { left: 4px; }
-.game-card-active::after  { right: 4px; }
+.game-card-active::before {
+    left: 4px;
+}
+
+.game-card-active::after {
+    right: 4px;
+}
 
 .game-card-name {
     font-size: 15px;
@@ -2453,10 +2801,30 @@ canvas {
     text-transform: uppercase;
     border: 2px solid var(--edge);
 }
-.turn-badge      { background: var(--gold-mid); color: #1c1305; box-shadow: inset 1px 1px 0 #f0cf6a, inset -1px -1px 0 var(--gold-dk); }
-.wait-badge      { background: #1a1714; color: var(--text-dim); box-shadow: inset 1px 1px 0 #26211b, inset -1px -1px 0 #0b0a09; }
-.lobby-badge     { background: var(--steel-dk); color: var(--steel); box-shadow: inset 1px 1px 0 #3f4557, inset -1px -1px 0 #171a22; }
-.spectator-badge { background: #2a1633; color: #ce93d8; box-shadow: inset 1px 1px 0 #43254f, inset -1px -1px 0 #140a18; }
+
+.turn-badge {
+    background: var(--gold-mid);
+    color: #1c1305;
+    box-shadow: inset 1px 1px 0 #f0cf6a, inset -1px -1px 0 var(--gold-dk);
+}
+
+.wait-badge {
+    background: #1a1714;
+    color: var(--text-dim);
+    box-shadow: inset 1px 1px 0 #26211b, inset -1px -1px 0 #0b0a09;
+}
+
+.lobby-badge {
+    background: var(--steel-dk);
+    color: var(--steel);
+    box-shadow: inset 1px 1px 0 #3f4557, inset -1px -1px 0 #171a22;
+}
+
+.spectator-badge {
+    background: #2a1633;
+    color: #ce93d8;
+    box-shadow: inset 1px 1px 0 #43254f, inset -1px -1px 0 #140a18;
+}
 
 .game-delete-btn {
     background: transparent;
@@ -2468,10 +2836,16 @@ canvas {
     transition: opacity 0.15s;
     flex-shrink: 0;
 }
-.game-delete-btn:hover { opacity: 1; background: #33160c; }
+
+.game-delete-btn:hover {
+    opacity: 1;
+    background: #33160c;
+}
 
 /* ── Lobby Screen ─────────────────────────────────────────────────────────── */
-#lobby-screen { gap: 12px; }
+#lobby-screen {
+    gap: 12px;
+}
 
 .lobby-header {
     display: flex;
@@ -2512,8 +2886,15 @@ canvas {
     box-shadow: none;
 }
 
-.invite-section { width: 100%; }
-.invite-section p { margin: 0 0 4px; font-size: 15px; color: var(--text-dim); }
+.invite-section {
+    width: 100%;
+}
+
+.invite-section p {
+    margin: 0 0 4px;
+    font-size: 15px;
+    color: var(--text-dim);
+}
 
 .link-row {
     display: flex;
@@ -2541,8 +2922,15 @@ canvas {
     text-transform: uppercase;
     white-space: nowrap;
 }
-.link-row button:hover  { background: #46351f; }
-.link-row button:active { transform: translateY(4px); box-shadow: var(--bevel-in); }
+
+.link-row button:hover {
+    background: #46351f;
+}
+
+.link-row button:active {
+    transform: translateY(4px);
+    box-shadow: var(--bevel-in);
+}
 
 #lobby-friend-invite {
     flex-direction: column;
@@ -2584,8 +2972,13 @@ canvas {
 
 /* Verhältnis als 4px-Kante links: eine Einfärbung des 2px-Pixelrahmens wäre
    zu schwach, um Bündnis und Feind auf einen Blick zu trennen. */
-.dip-card-ally  { border-left: 4px solid var(--green); }
-.dip-card-enemy { border-left: 4px solid var(--fire); }
+.dip-card-ally {
+    border-left: 4px solid var(--green);
+}
+
+.dip-card-enemy {
+    border-left: 4px solid var(--fire);
+}
 
 .dip-card-header {
     display: flex;
@@ -2642,7 +3035,9 @@ canvas {
 }
 
 /* ── Friends Panel ───────────────────────────────────────────────────────── */
-#friends-panel { gap: 12px; }
+#friends-panel {
+    gap: 12px;
+}
 
 .friend-row {
     display: flex;
@@ -2668,10 +3063,12 @@ canvas {
     color: var(--text-dim);
     box-shadow: inset 2px 2px 0 #241d16, inset -2px -2px 0 #0b0908, 0 4px 0 var(--edge);
 }
+
 .action-btn.secondary:hover {
     background: #241d16;
     color: var(--text);
 }
+
 .action-btn.secondary:active {
     transform: translateY(4px);
     box-shadow: var(--bevel-in);
@@ -2721,8 +3118,13 @@ canvas {
     font-size: 15px;
 }
 
-.friend-picker-row:hover  { background: #2a2219; }
-.friend-picker-row:active { box-shadow: var(--bevel-in); }
+.friend-picker-row:hover {
+    background: #2a2219;
+}
+
+.friend-picker-row:active {
+    box-shadow: var(--bevel-in);
+}
 
 .friend-picker-row.selected {
     background: #241a0c;
@@ -2796,8 +3198,14 @@ textarea {
 
 /* Landscape on phone: reduce logo, tighter spacing */
 @media (max-height: 600px) and (orientation: landscape) {
-    .game-logo { display: none; }
-    .screen-box { gap: 10px; padding: 14px 16px; }
+    .game-logo {
+        display: none;
+    }
+
+    .screen-box {
+        gap: 10px;
+        padding: 14px 16px;
+    }
 }
 
 /* Ensure scrollable body on menu screens without breaking game canvas.
@@ -2815,6 +3223,12 @@ body {
 /* Safe area padding for notched phones (home screen, lobby, friends) */
 .screen-box {
     padding-bottom: max(28px, calc(env(safe-area-inset-bottom) + 12px));
+}
+
+/* Der Home-Screen nutzt seine Höhe komplett aus — dort reicht der reine
+   Safe-Area-Abstand, ein zusätzliches Polster nähme der Spieleliste Platz. */
+body.home-view #home-screen {
+    padding: 14px 14px max(14px, calc(env(safe-area-inset-bottom) + 6px));
 }
 
 /* === RADIAL-MENÜ (Langdruck-Auswahlrad) ===
@@ -2837,7 +3251,10 @@ body {
     opacity: 0;
     transition: opacity 150ms ease;
 }
-#radial-menu-overlay.radial-menu-visible { opacity: 1; }
+
+#radial-menu-overlay.radial-menu-visible {
+    opacity: 1;
+}
 
 .radial-circle {
     position: absolute;
@@ -2859,6 +3276,7 @@ body {
     box-shadow: var(--bevel), var(--drop);
     transition: transform 150ms ease, opacity 150ms ease, box-shadow 120ms ease, border-color 120ms ease;
 }
+
 /* Einblend-Animation: erst NACH dem Einfügen ins DOM wird diese Klasse per
    requestAnimationFrame auf #radial-menu-overlay gesetzt (radialmenu.js),
    damit der Übergang von scale(0.4)/opacity:0 tatsächlich animiert statt
@@ -2874,13 +3292,17 @@ body {
    .active steht bewusst NACH dieser Regel und gewinnt bei gleicher
    Spezifität, falls beide Klassen gleichzeitig anliegen. */
 @keyframes radialAffordablePulse {
-    0%, 100% {
+
+    0%,
+    100% {
         box-shadow: var(--bevel), 0 0 0 2px rgba(92, 184, 92, 0.55);
     }
+
     50% {
         box-shadow: var(--bevel), 0 0 0 2px #78ffa0, 0 0 18px 4px rgba(92, 184, 92, 0.65);
     }
 }
+
 .radial-circle.affordable {
     animation: radialAffordablePulse 1.4s ease-in-out infinite;
 }
@@ -2907,7 +3329,11 @@ body {
     filter: grayscale(0.7);
 }
 
-.radial-icon { font-size: 1.4rem; line-height: 1; }
+.radial-icon {
+    font-size: 1.4rem;
+    line-height: 1;
+}
+
 .radial-label {
     font-family: var(--font-ui);
     font-size: 8px;
@@ -2929,7 +3355,10 @@ body {
     opacity: 0;
     transition: opacity 150ms ease;
 }
-#radial-menu-overlay.radial-menu-visible .radial-center-dot { opacity: 1; }
+
+#radial-menu-overlay.radial-menu-visible .radial-center-dot {
+    opacity: 1;
+}
 
 /* ── Einstellungs-Modal (js/settings.js) ─────────────────────────────────── */
 .settings-row {
@@ -2963,7 +3392,10 @@ body {
     line-height: 1.4;
 }
 
-.settings-row-col .action-btn { width: 100%; margin: 0; }
+.settings-row-col .action-btn {
+    width: 100%;
+    margin: 0;
+}
 
 /* Toggle-Schalter */
 .toggle-switch {
@@ -2974,7 +3406,11 @@ body {
     cursor: pointer;
 }
 
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
 
 .toggle-knob {
     position: absolute;
@@ -2996,11 +3432,11 @@ body {
     transition: transform 0.12s steps(3);
 }
 
-.toggle-switch input:checked + .toggle-knob {
+.toggle-switch input:checked+.toggle-knob {
     background: #2a1f08;
 }
 
-.toggle-switch input:checked + .toggle-knob::before {
+.toggle-switch input:checked+.toggle-knob::before {
     transform: translateX(22px);
     background: var(--gold-mid);
     box-shadow: inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 var(--gold-dk);
@@ -3028,6 +3464,7 @@ body {
     border: 2px solid var(--edge);
     box-shadow: var(--bevel-in);
 }
+
 #settings-music-vol::-moz-range-track {
     height: 10px;
     background: #0d0b09;
@@ -3040,11 +3477,13 @@ body {
     appearance: none;
     width: 16px;
     height: 20px;
-    margin-top: -7px; /* mittig auf dem 10px-Track inkl. 2px-Rand */
+    margin-top: -7px;
+    /* mittig auf dem 10px-Track inkl. 2px-Rand */
     background: var(--gold-mid);
     border: 2px solid var(--edge);
     box-shadow: inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 var(--gold-dk);
 }
+
 #settings-music-vol::-moz-range-thumb {
     width: 16px;
     height: 20px;

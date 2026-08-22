@@ -91,6 +91,7 @@ function bootGame() {
     }
 
     canvasWrapper.style.display = 'block';
+    document.body.classList.add('in-game');   // stoppt den Menü-Hintergrund
     uiContainer.style.display = 'flex';
     gameHud.style.display = 'flex';
     endTurnBtn.disabled = false;

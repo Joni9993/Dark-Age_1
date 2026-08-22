@@ -23,6 +23,15 @@
 
 <body>
 
+    <!-- Animierter Wabenhintergrund der Menüs (css/game.css).
+         Zwei Ebenen, weil eine einzelne Hintergrundfläche nur in EINE Richtung
+         laufen kann: Ebene A trägt die geraden Hex-Reihen und wandert nach
+         links, Ebene B die ungeraden und wandert nach rechts. -->
+    <div id="menu-bg" aria-hidden="true">
+        <div class="menu-bg-layer menu-bg-a"></div>
+        <div class="menu-bg-layer menu-bg-b"></div>
+    </div>
+
     <div id="toast-container"></div>
 
     <div id="app-version"></div>
@@ -73,14 +82,17 @@
 
     <!-- ── Home Screen ────────────────────────────────────────────────────── -->
     <div id="home-screen" class="screen-box" style="display:none;">
-        <!-- Kopfleiste aus dem Design-Guide: Wappen, Wortmarke, eigener Rang
-             und Rating. Wird in refreshLeaderboardPanel (js/lobby.js) gefüllt. -->
+        <!-- Spielerkarte: eigener Name, Rang und Rating. Bewusst OHNE Wortmarke
+             — die steht schon als Seitentitel darüber. Wird in
+             refreshLeaderboardPanel (js/lobby.js) gefüllt.
+             TODO: soll später antippbar werden und ins eigene Profil führen
+             (Erfolge, Skins) — dann aus dem <div> ein <button> machen. -->
         <div class="home-banner">
             <span class="stud stud--tl"></span><span class="stud stud--tr"></span>
             <span class="stud stud--bl"></span><span class="stud stud--br"></span>
             <svg class="ic ic-32"><use href="#i-banner"></use></svg>
             <div class="home-banner-text">
-                <span class="home-banner-title">Dark Ages</span>
+                <span class="home-banner-name" id="home-banner-name">—</span>
                 <span class="home-banner-sub" id="home-banner-sub"></span>
             </div>
             <div class="home-banner-rating" id="home-banner-rating" style="display:none;">
@@ -92,17 +104,21 @@
             <h3><svg class="ic ic-20"><use href="#i-crown"></use></svg> Bestenliste</h3>
         </div>
         <div id="leaderboard-list"></div>
-        <div class="home-header" style="margin-top:4px;">
+        <div class="home-header">
             <h3>Meine Spiele</h3>
         </div>
         <!-- Nutzername steht seit dem Pixel-Umbau in .home-banner; das Element
-             bleibt, damit js/lobby.js:23 unverändert weiterschreiben kann. -->
+             bleibt, damit js/lobby.js unverändert weiterschreiben kann. -->
         <span id="home-username" hidden></span>
         <div id="game-list"></div>
         <button class="action-btn primary" onclick="showCreateGameModal()"><svg class="ic ic-14"><use href="#i-plus"></use></svg> Neues Spiel</button>
-        <button class="action-btn secondary" onclick="showFriendsPanel()"><svg class="ic ic-14"><use href="#i-users"></use></svg> Freunde</button>
-        <button class="action-btn secondary" onclick="window.open('darkages_guide.html','_blank')"><svg class="ic ic-14"><use href="#i-book"></use></svg> Anleitung</button>
-        <button class="action-btn secondary" onclick="openSettings()"><svg class="ic ic-14"><use href="#i-gear"></use></svg> Einstellungen</button>
+        <!-- Nebenaktionen nebeneinander am unteren Rand: drei volle Zeilen haben
+             den "Meine Spiele"-Bereich auf Handys fast vollständig verdrängt. -->
+        <div class="home-actions">
+            <button class="action-btn secondary compact" onclick="showFriendsPanel()"><svg class="ic ic-20"><use href="#i-users"></use></svg>Freunde</button>
+            <button class="action-btn secondary compact" onclick="window.open('darkages_guide.html','_blank')"><svg class="ic ic-20"><use href="#i-book"></use></svg>Anleitung</button>
+            <button class="action-btn secondary compact" onclick="openSettings()"><svg class="ic ic-20"><use href="#i-gear"></use></svg>Einstellungen</button>
+        </div>
     </div>
 
     <!-- ── Lobby Screen ───────────────────────────────────────────────────── -->

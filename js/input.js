@@ -2219,7 +2219,7 @@ function confirmSurrender() {
         const baseUrl = window.location.href.split('?')[0];
         const newUrl = baseUrl + "?state=" + encodedState;
         try { window.history.pushState({ path: newUrl }, '', newUrl); } catch (e) { }
-        canvasWrapper.style.display = 'none'; uiContainer.style.display = 'none'; gameHud.style.display = 'none';
+        canvasWrapper.style.display = 'none'; document.body.classList.remove('in-game'); uiContainer.style.display = 'none'; gameHud.style.display = 'none';
         document.getElementById('link-box').style.display = '';
         document.getElementById('wa-share-btn').style.display = '';
         document.getElementById('intermission-back-btn').style.display = 'none';
@@ -2724,7 +2724,7 @@ function doEndTurn() {
         const baseUrl = window.location.href.split('?')[0];
         const newUrl = baseUrl + "?state=" + encodedState;
         try { window.history.pushState({ path: newUrl }, '', newUrl); } catch (e) { }
-        canvasWrapper.style.display = 'none'; uiContainer.style.display = 'none'; gameHud.style.display = 'none';
+        canvasWrapper.style.display = 'none'; document.body.classList.remove('in-game'); uiContainer.style.display = 'none'; gameHud.style.display = 'none';
         document.getElementById('link-box').style.display = '';
         document.getElementById('wa-share-btn').style.display = '';
         document.getElementById('intermission-back-btn').style.display = 'none';
