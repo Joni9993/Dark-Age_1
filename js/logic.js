@@ -161,8 +161,13 @@ const getExpectedDamage = (attackerUnit, targetType, targetOwnerId, targetUnit) 
             hexDistance({ x: u.x, y: u.y }, { x: targetUnit.x, y: targetUnit.y }) === 1
         );
         if (hasAura) scaled = Math.max(1, scaled - 1);
-        // Wald-Deckung: Bodeneinheiten im Wald nehmen 1 DMG weniger
-        if (!isFlying(targetUnit) && getTerrainType(gameState, targetUnit.x, targetUnit.y) === 'forest') {
+        // Wald-Deckung: Bodeneinheiten im Wald nehmen 1 DMG weniger — gilt NICHT
+        // auf einem Dorf-Hex. Terrain und Dorf-Platzierung sind unabhängige
+        // Systeme (getTerrainType hängt nur an Seed+Koordinate, s. CLAUDE.md),
+        // ein Dorf kann also zufällig auf einem Wald-Cluster liegen; das Dorf
+        // selbst überschreibt dann aber die Bodendeckung, nicht nur optisch.
+        const onVillage = gameState.v[`${targetUnit.x},${targetUnit.y}`] !== undefined;
+        if (!onVillage && !isFlying(targetUnit) && getTerrainType(gameState, targetUnit.x, targetUnit.y) === 'forest') {
             scaled = Math.max(1, scaled - 1);
         }
     }
