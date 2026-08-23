@@ -1,9 +1,14 @@
 // === CANVAS CLICK HANDLER ===
 function handleCanvasClick(clientX, clientY) {
+    // Erster Klick aufs Spielfeld heißt "ich spiele jetzt": das Rückblick-Panel
+    // und seine Kartenmarker gehen weg. Anders als früher ist das nicht
+    // endgültig — der Knopf im HUD (js/recap.js) holt beides jederzeit zurück.
+    // Steht VOR dem Readonly-Guard darunter, damit auch ein wartender Spieler
+    // den Rückblick per Tippen auf die Karte wegbekommt und nicht nur über das ✕.
+    if (showRecap) { if (window.closeRecap) closeRecap(); else { showRecap = false; renderBoard(gameState); } }
+
     // Server mode: only the active player may interact with the board
     if (!isLegacyUrlMode && currentGameId && currentTurnSlot !== currentUserSlot) return;
-
-    if (showRecap) { showRecap = false; renderBoard(gameState); }
 
     hideActionMenu();
 
@@ -200,7 +205,7 @@ function handleCanvasClick(clientX, clientY) {
                 // clearUnderworldForTunnelHead, js/logic.js).
                 clearUnderworldForTunnelHead(gameState, window.tunnelStart.x, window.tunnelStart.y);
 
-                selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'cap', fx: window.tunnelStart.x, fy: window.tunnelStart.y });
+                selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'tunnel', fx: window.tunnelStart.x, fy: window.tunnelStart.y });
                 window.specialActive = null; selectedUnit = null; validMoves = []; window.tunnelStart = null;
                 infoPanel.innerHTML = "🚇 Tunnelbau gestartet! (Nächste Runde fertig)"; renderBoard(gameState);
             } else {
@@ -214,7 +219,7 @@ function handleCanvasClick(clientX, clientY) {
                 if (!gameState.wa) gameState.wa = [];
                 gameState.wa.push({ x: clickedX, y: clickedY, o: gameState.cp, h: getWallMaxHp(pState) });
 
-                selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'cap', fx: selectedUnit.x, fy: selectedUnit.y });
+                selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'wall', fx: selectedUnit.x, fy: selectedUnit.y });
                 window.specialActive = null; selectedUnit = null; validMoves = [];
                 infoPanel.innerHTML = "🧱 Palisade errichtet!"; renderBoard(gameState);
             } else {
@@ -227,7 +232,7 @@ function handleCanvasClick(clientX, clientY) {
                 pState.s = (pState.s || 0) - 5;
                 if (!gameState.tw) gameState.tw = [];
                 gameState.tw.push({ x: clickedX, y: clickedY, o: gameState.cp, h: getTowerMaxHp(pState), a: 1 });
-                selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'cap', fx: selectedUnit.x, fy: selectedUnit.y });
+                selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'tower', fx: selectedUnit.x, fy: selectedUnit.y });
                 window.specialActive = null; selectedUnit = null; validMoves = [];
                 infoPanel.innerHTML = "🗼 Turm errichtet!"; renderBoard(gameState);
             } else {
@@ -1433,17 +1438,19 @@ function showMoveAttackChoiceUI(x, y, targetAttack) {
         : targetAttack.isWallTarget ? 'Palisade'
         : targetAttack.isTunnelTarget ? 'Tunnel' : 'Ziel';
 
-    const moveLabel = isFlying(selectedUnit) ? '✈️ Hierher fliegen' : '🚶 Hierher laufen';
+    const flying = isFlying(selectedUnit);
 
-    const attackCard = `<div class="stack-card" style="border-color:#ff5252" onclick="window.resolveMoveAttackChoice('attack')">
-        <span style="color:#ff5252; font-weight:bold;">⚔️ Angreifen</span>
-        <span class="info-detail">${label} (~${expDmg} DMG)</span>
-    </div>`;
-    const moveCard = `<div class="stack-card" style="border-color:#4fc3f7" onclick="window.resolveMoveAttackChoice('move')">
-        <span style="color:#4fc3f7; font-weight:bold;">${moveLabel}</span>
-    </div>`;
+    const attackCard = `<button class="stack-card stack-card-attack" onclick="window.resolveMoveAttackChoice('attack')">
+        <span class="stack-head">${icon('sword', 'ic-14')}<span class="stack-name">Angreifen</span></span>
+        <span class="stack-sub">${label} · ~${expDmg} Schaden</span>
+    </button>`;
+    const moveCard = `<button class="stack-card stack-card-move" onclick="window.resolveMoveAttackChoice('move')">
+        <span class="stack-head">${icon(flying ? 'wing' : 'move', 'ic-14')}<span class="stack-name">Hierher ${flying ? 'fliegen' : 'laufen'}</span></span>
+        <span class="stack-sub">Feld ist frei</span>
+    </button>`;
 
-    infoPanel.innerHTML = `<div class="stack-picker">${attackCard}${moveCard}</div><div class="info-detail" style="color:#fff176;">Feld ist frei — ${label} ist nur in Reichweite. Was möchtest du tun?</div>`;
+    infoPanel.innerHTML = `<div class="stack-picker">${attackCard}${moveCard}</div>`
+        + `<div class="stack-hint">${label} ist nur in Reichweite — was möchtest du tun?</div>`;
 }
 
 window.resolveMoveAttackChoice = function (choice) {
@@ -1469,22 +1476,38 @@ function showMultiChoiceTileUI(x, y, { ground, air, tower } = {}) {
     hideActionMenu();
     window._stackChoice = { x, y, ground, air, tower };
 
+    // Kein `const icon = ...` hier: das wuerde die globale icon()-Funktion aus
+    // js/icons.js innerhalb dieser Funktion verdecken.
     const unitCard = (unit, layer) => {
         const maxHp = getUnitMaxHp(gameState.p[unit.p], unit.t, unit);
         const ownerName = formatOwnerName(unit.p, gameState.cp);
         const color = getEntityColor(unit.p);
-        const icon = layer === 'air' ? '✈️' : '⛰️';
-        return `<div class="stack-card" style="border-color:${color}" onclick="window.pickStackChoice('${layer}')">
-            <span style="color:${color}; font-weight:bold;">${icon} ${ownerName} ${unitStats[unit.t].name}</span>
-            <span class="info-detail">${unit.h}/${maxHp} HP</span>
-        </div>`;
+        const mine = unit.p === gameState.cp;
+        // Spielerfarbe nur als Bannerflaeche auf dunkler Platte (Design-Guide),
+        // nicht als Rahmen- oder Textfarbe.
+        return `<button class="stack-card" onclick="window.pickStackChoice('${layer}')">
+            <span class="stack-head">
+                ${icon(layer === 'air' ? 'wing' : unitRoleIcon(unit.t), 'ic-14')}
+                <span class="score-dot" style="background:${color}"></span>
+                <span class="stack-name">${ownerName} ${unitStats[unit.t].name}</span>
+                <span class="stack-hp">${unit.h}<span class="ip-hp-max">/${maxHp}</span></span>
+            </span>
+            ${hpBar(unit.h, maxHp, mine ? '' : 'foe')}
+        </button>`;
     };
     const towerCard = (tw) => {
         const color = getEntityColor(tw.o);
-        return `<div class="stack-card" style="border-color:${color}" onclick="window.pickStackChoice('tower')">
-            <span style="color:${color}; font-weight:bold;">🗼 Dein Turm</span>
-            <span class="info-detail">${tw.h}/15 HP</span>
-        </div>`;
+        // Maximum aus der Logik, nicht fest 15 — die Ruestungs-Reliquie hebt es an.
+        const maxHp = getTowerMaxHp(gameState.p[tw.o]);
+        return `<button class="stack-card" onclick="window.pickStackChoice('tower')">
+            <span class="stack-head">
+                ${icon('tower', 'ic-14')}
+                <span class="score-dot" style="background:${color}"></span>
+                <span class="stack-name">Dein Turm</span>
+                <span class="stack-hp">${tw.h}<span class="ip-hp-max">/${maxHp}</span></span>
+            </span>
+            ${hpBar(tw.h, maxHp, tw.o === gameState.cp ? '' : 'foe')}
+        </button>`;
     };
 
     let cards = '';
@@ -1492,7 +1515,8 @@ function showMultiChoiceTileUI(x, y, { ground, air, tower } = {}) {
     if (air) cards += unitCard(air, 'air');
     if (tower) cards += towerCard(tower);
 
-    infoPanel.innerHTML = `<div class="stack-picker">${cards}</div><div class="info-detail" style="color:#fff176;">Antippen zum Auswählen</div>`;
+    infoPanel.innerHTML = `<div class="stack-picker">${cards}</div>`
+        + `<div class="stack-hint">Antippen zum Auswählen</div>`;
 }
 
 window.pickStackChoice = function (layer) {
@@ -2010,7 +2034,10 @@ function focusCamera() {
     // die Kamera beim Rundenstart auf eine Aktion im Verbündeten-Gebiet statt aufs eigene.
     const vis = getVisibleHexes(pId, false);
 
-    const visibleActions = (gameState.la || []).filter(a => vis.has(`${a.x},${a.y}`));
+    // a.p !== pId: seit der Log-Umstellung (js/recap.js, recapAppendTurn) stehen
+    // bis zum eigenen Zugende auch noch die EIGENEN Aktionen der Vorrunde im
+    // Log — die Startkamera soll auf das schauen, was andere getan haben.
+    const visibleActions = (gameState.la || []).filter(a => a.p !== pId && vis.has(`${a.x},${a.y}`));
     if (visibleActions.length > 0) {
         targetHex = visibleActions[visibleActions.length - 1];
     } else {
@@ -2074,7 +2101,9 @@ function confirmSurrender() {
     }
     window.uwNoiseScratch = [];
 
-    gameState.la = turnActions;
+    // Siehe doEndTurn: derselbe Anhäng-Pfad, damit ein Aufgeben den laufenden
+    // Rückblick-Log nicht zurücksetzt.
+    recapAppendTurn(gameState, surrenderingId, turnActions);
     turnActions = [];
 
     let oldRn = gameState.rn;
@@ -2094,7 +2123,7 @@ function confirmSurrender() {
         const phase = uwCreatureRoundPhase();
         gameState.uwbd = phase.floats;
         phase.events.filter(e => e.type === 'creatureAtk').forEach(e => {
-            gameState.la.push({ x: e.x, y: e.y, t: 'creatureAtk', uw: true });
+            gameState.la.push({ x: e.x, y: e.y, t: 'creatureAtk', uw: true, p: -1 });
         });
     }
 
@@ -2384,7 +2413,12 @@ window.cancelEndTurn = cancelEndTurn;
 
 function doEndTurn() {
 
-    gameState.la = turnActions; turnActions = [];
+    // Rückblick-Log (js/recap.js): ANHÄNGEN statt überschreiben. Vorher stand
+    // hier `gameState.la = turnActions`, wodurch bei 3+ Spielern immer nur der
+    // unmittelbar vorherige Zug überlebte — der Rückblick konnte die Züge aller
+    // übrigen Spieler prinzipiell nie zeigen. recapAppendTurn stempelt den
+    // Spieler auf die Einträge und wirft die eigenen Alt-Einträge weg.
+    recapAppendTurn(gameState, gameState.cp, turnActions); turnActions = [];
     undoStack = [];
     updateUndoButton();
 
@@ -2489,7 +2523,7 @@ function doEndTurn() {
         // statt an turnActions (das oben bereits geleert/umgehängt wurde) — die
         // Events gehören noch zur GERADE beendeten Runde.
         phase.events.filter(e => e.type === 'creatureAtk').forEach(e => {
-            gameState.la.push({ x: e.x, y: e.y, t: 'creatureAtk', uw: true });
+            gameState.la.push({ x: e.x, y: e.y, t: 'creatureAtk', uw: true, p: -1 });
         });
     }
 

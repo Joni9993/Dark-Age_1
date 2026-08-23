@@ -1,7 +1,7 @@
 // === APP VERSION ===
 // Format: MAJOR.PATCH.HOTFIX — MAJOR = größeres Update/neue Implementation, PATCH = Patch, HOTFIX = Hotfix.
 // Immer nur die betroffene Stelle um 1 hochzählen. Siehe Versionierungsregel in CLAUDE.md.
-const APP_VERSION = '4.0.0';
+const APP_VERSION = '4.1.0';
 
 // === DOM REFERENCES ===
 const appVersionEl = document.getElementById('app-version');
@@ -48,7 +48,9 @@ const startGameBtn = document.getElementById('start-game-btn');
 // === MUTABLE GAME STATE ===
 let gameState = null;
 let turnActions = [];
-let showRecap = true;
+// Karten-Marker des Rückblicks (js/recap.js). Startwert false: das Panel und
+// seine Marker schaltet prepareRecap() am Zugstart bewusst ein, nichts anderes.
+let showRecap = false;
 window.specialActive = null;
 let pendingEvent = null;
 

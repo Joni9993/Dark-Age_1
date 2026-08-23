@@ -774,7 +774,12 @@ window.startCapture = function () {
             selectedUnit.cd = 2;
         }
         const loc = `${selectedUnit.x},${selectedUnit.y}`;
-        gameState.v[loc] = gameState.cp; selectedUnit.a = 1; turnActions.push({ x: selectedUnit.x, y: selectedUnit.y, t: 'cap' });
+        // vo = Vorbesitzer. Einzige Stelle, an der er noch bekannt ist — der
+        // Rückblick (js/recap.js) kann daraus "hat DEIN Dorf erobert" machen,
+        // was nach dem Besitzerwechsel aus dem State allein nicht mehr ableitbar ist.
+        const prevOwner = gameState.v[loc];
+        gameState.v[loc] = gameState.cp; selectedUnit.a = 1;
+        turnActions.push({ x: selectedUnit.x, y: selectedUnit.y, t: 'cap', vo: prevOwner });
         selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
         hideActionMenu(); infoPanel.innerHTML = "Dorf eingenommen!"; renderBoard(gameState);
     }

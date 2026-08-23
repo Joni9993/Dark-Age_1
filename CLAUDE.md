@@ -23,6 +23,12 @@ The app version is shown bottom-right on the start screen (`#app-version` in `in
 
 Only the affected number increments by 1; the numbers to its right reset to 0 (standard semver behavior). At the end of a work session, judge which category the change falls into and ask the user whether `APP_VERSION` should be bumped accordingly — don't bump it silently.
 
+**Verifikationsskripte** (kein Server, keine DB, kein DOM):
+```bash
+node maptest/verify_recap.js              # Rückblick: Log-Führung, Sichtbarkeit, Verdichtung
+node maptest/verify_underworld_m13.js     # Unterwelt-Integrationspass (u.a. dieselbe Sichtregel)
+```
+
 **Map analysis scripts:**
 ```bash
 node maptest/gen_maps.js [spieler] [radius]  # generates test map links as HTML (default 6 / 12)
@@ -32,7 +38,7 @@ Both load the real `js/mapgen.js` via `maptest/load_game.js` — no logic copies
 
 ## Architecture
 
-**Frontend**: Vanilla JS + Canvas/WebGL, no framework, no build step, no npm. `index.html` loads `js/*.js` as classic scripts — **load order matters** (globals → art → icons → data → prng → hex → logic → render → render3d → events → abilities → ui → diplomacy → input → radialmenu → segmented → mapgen → config → api → auth → settings → lobby → debug → main). Two ordering constraints that are easy to break: `icons.js` must precede every module that builds markup with `icon()` (ui, input, radialmenu, segmented), and `segmented.js` must precede `mapgen.js`, which calls `updateTeamModeOptions()` at load time and expects the tiles to already exist. External libs via CDN: `lz-string`, `three.js` (pinned ≤ r152 — newer releases dropped the UMD build). Fonts via Google Fonts: MedievalSharp (wordmark/titles), Jersey 15 (body), Silkscreen (labels/numbers).
+**Frontend**: Vanilla JS + Canvas/WebGL, no framework, no build step, no npm. `index.html` loads `js/*.js` as classic scripts — **load order matters** (globals → art → icons → data → prng → hex → logic → render → render3d → events → abilities → ui → recap → diplomacy → input → radialmenu → segmented → mapgen → config → api → auth → settings → lobby → debug → main). Two ordering constraints that are easy to break: `icons.js` must precede every module that builds markup with `icon()` (ui, input, radialmenu, segmented), and `segmented.js` must precede `mapgen.js`, which calls `updateTeamModeOptions()` at load time and expects the tiles to already exist. External libs via CDN: `lz-string`, `three.js` (pinned ≤ r152 — newer releases dropped the UMD build). Fonts via Google Fonts: MedievalSharp (wordmark/titles), Jersey 15 (body), Silkscreen (labels/numbers).
 
 **Art datasets**: `js/art.js` holds TWO complete datasets — `NEW_*` (the dark-fantasy design, **live for everyone since v3.0.0**) and `CLASSIC_*` (the pre-redesign look, kept frozen as an archive, never hand-edited). The `DEBUG_ART` flag that used to gate the redesign behind `?debug=1` is now hard-coded to `true` (in both `js/art.js` and the editor's generated output); it still picks which set is exposed as the actual `pal`/`pixelSprites`/`terrainColors`/`voxelModels` globals, so flipping it back to an expression would restore the old gate if ever needed.
 
@@ -64,6 +70,7 @@ Both load the real `js/mapgen.js` via `maptest/load_game.js` — no logic copies
 | `js/settings.js` | Background music via the Web Audio API (`AudioBufferSourceNode.loop`, not the native `<audio loop>` — that element cannot loop gaplessly regardless of file quality, confirmed against current best-practice sources). Audio data comes from `audio/theme_song_data.js` (a base64 blob, loaded via `<script>` — deliberately not `fetch()`, which fails under `file://` when `index.html?debug=1` is opened directly). Built from the raw recording via `node audio/build_loop.js`: crossfades head/tail in raw PCM for a seamless content-level seam, then encodes to FLAC (no MP3/LAME encoder-delay padding) before base64-embedding. Tunable params at the top of that file — **must be re-run after editing them, it does not auto-rebuild**. Settings modal: music on/off, volume, 2D/3D renderer toggle (`da_renderer`, mirrors `?r2d=1`, reloads to apply), end-turn confirmation dialog on/off (`da_endturn_confirm`, read in `js/input.js` `endTurnBtn` click handler), push notification status/activation, logout. All prefs in localStorage, per device |
 | `js/icons.js` | Pixel-Icon-Set: `<symbol>`-Sprite (12×12-Raster, `crispEdges`) + `icon(name, cls)` für JS-erzeugtes Markup. **Generiert** aus `design/ui-mockup/parts/sprite.html` — dort bearbeiten, nicht hier |
 | `js/segmented.js` | Kachel-Auswahl im Setup-Screen (Kartengröße/Spielerzahl/Teams). Die `<select>` bleiben im DOM (`.seg-native`, per CSS versteckt) und sind weiterhin die Datenquelle — alle bestehenden Leser (`mapSizeSelect.value` usw.) sind unverändert |
+| `js/recap.js` | **Rückblick** — was seit dem eigenen letzten Zug passiert ist: Log-Führung (`recapAppendTurn`), Sichtbarkeitsregel (`recapVisibleActions`, auch von beiden Renderern benutzt), Verdichtung (`buildRecapGroups`) und das Panel. Obere Hälfte DOM-frei und in Node getestet (`node maptest/verify_recap.js`) |
 | `js/debug.js` | `?debug=1` test mode (hotseat, click tools, scenarios) |
 | `js/main.js` | `bootGame()` (state normalization + recap + events), calls `initApp()` |
 
@@ -182,7 +189,7 @@ The canonical reference is `gameState.json`. Key fields:
 | `tu[]` | array | Tunnels: `{x1, y1, x2, y2, o, h, r}` (r = build round, usable when `r <= rn`) |
 | `wa[]` | array | Walls: `{x, y, h, o}` |
 | `ct` | object | Central watchtower `{x, y, ctrl}` |
-| `la[]` | array | Last actions (recap) |
+| `la[]` | array | Rückblick-Log: `{x, y, t, p}` (+ optional `uw`/`global`/`vo`). Läuft über eine **ganze Runde**, nicht nur einen Zug — `recapAppendTurn` (js/recap.js) hängt an und wirft die Einträge eines Spielers weg, sobald er wieder gezogen hat. `p` = Urheber (`-1` = Kreaturen/Weltereignis), `vo` = Vorbesitzer eines eroberten Dorfes. Gedeckelt auf `RECAP_LOG_CAP` Einträge |
 
 **Serialization invariants**: before compressing, default values are deleted (`a: 0`, `dp: 0`, empty arrays) and `u.i` is always removed (regenerated on load in `bootGame`). This cleanup exists in **three places** that must stay in sync: `doEndTurn` and `confirmSurrender` (`js/input.js`) and the restore side in `bootGame` (`js/main.js`).
 
@@ -212,6 +219,15 @@ All other bands are measured from the start village as before. Placement uses ca
 **Combat flow** (`js/input.js`): attack → damage → counter-attack after 600 ms `setTimeout` if the target survives and has the attacker in range → melee killers advance onto the target hex. Veterancy at 2 kills (+1 dmg).
 
 **Fog of war**: per player as compressed hex string (`compressFog`/`decompressFog`, `js/prng.js`). `getVisibleHexes` computes live vision (units, villages, towers, central watchtower); `updateExploration` persists it.
+
+**Rückblick / Recap** (`js/recap.js`, Aug 2026): Beim Zugstart zeigt ein Panel links oben, was seit dem **eigenen letzten Zug** im eigenen Sichtfeld passiert ist. Es löst den alten, dauerhaft abgeschalteten Kamera-Playback ab (1200 ms je Aktion, kein Abbruch, ein Glyph ohne Urheber). Vier Eigenschaften sind Absicht, nicht Zufall:
+
+- **Nicht blockierend.** Kein Overlay, kein Timer, kein Kamerazwang — die Kamera fährt ausschließlich, wenn der Spieler eine Zeile antippt (mehrfaches Antippen steppt die Felder dieser Zeile durch). Der Zug ist die ganze Zeit spielbar; der erste Klick aufs Spielfeld räumt das Panel weg.
+- **Wieder aufrufbar.** Der Knopf im HUD (`#recap-btn`, nur sichtbar wenn es etwas zu berichten gibt) holt ihn jederzeit zurück. Das ist die Voraussetzung dafür, dass er nicht blockieren muss — vorher war jeder Rückblick nach dem ersten Klick für immer weg.
+- **Eine ganze Runde statt eines Zuges.** `gameState.la` wurde früher in `doEndTurn` überschrieben; bei 3+ Spielern konnte man die Züge aller anderen Spieler prinzipiell nie sehen. `recapAppendTurn` hängt jetzt an, stempelt den Urheber (`a.p`) auf jeden Eintrag und wirft die Einträge eines Spielers weg, sobald **dieser** wieder zieht — dadurch enthält der Log ohne zusätzlichen Rundenzähler immer genau "alles seit dem letzten Zug dessen, der als Nächstes dran ist". Deckel: `RECAP_LOG_CAP`. `fx/fy` werden beim Anhängen gestrichen (einziger Leser war die entfernte Angriffsanimation).
+- **Verdichtet und priorisiert.** Gruppierung nach Spieler, darin nach Aktionsart mit Zählung ("3 Angriffe"). `recapTouchesViewer` markiert Aktionen auf eigenem Besitz als *trifft dich* und sortiert sie samt ihrer Gruppe nach oben; der HUD-Knopf färbt sich dann rot. Der Vorbesitzer eines eroberten Dorfes steckt als `vo` im Eintrag — nach dem Besitzerwechsel ist er aus dem State allein nicht mehr ableitbar.
+
+Die Sichtbarkeitsregel (M13: `global` immer, `uw` über das Netz, sonst Oberflächensicht, getarnte fremde Einheiten decken zu) steht seither **nur noch einmal**, in `recapVisibleActions` — `js/render.js`, `js/render3d.js` und das Panel benutzen dieselbe Funktion, vorher lag dieselbe Zeile dreimal im Code. `t: 'cap'` war ein Sammelbegriff für Dorf-Eroberung, Palisade, Turm, Tunnel, Auf- und Abtauchen; diese fünf haben jetzt eigene Typen (`wall`/`tower`/`tunnel`/`asc`/`desc`), sonst lässt sich keine sinnvolle Zeile daraus beschriften. Zuschauer (ausgeschieden) bekommen keinen Rückblick — für sie ist `gameState.cp` der aktive Spieler, es gäbe also keine eigene Sicht, auf die er sich beziehen könnte. Tests: `node maptest/verify_recap.js` (Log-Führung, Sichtbarkeit, Verdichtung, Icon-Namen, Blob-Zuwachs; kein DOM nötig).
 
 **Rating & Leaderboard** (`server/rating.js`, Aug 2026): the leaderboard ranks by a **Glicko-2** rating instead of raw win counts. Glicko-2 rather than plain Elo because the player base is small and very unevenly active (one player with ~50 games, the median at 1–5) — plain Elo would give a one-game player a number that looks as authoritative as a veteran's. Glicko-2 additionally tracks an uncertainty (RD): few games → high RD → shown as *provisional* and sorted after established players (`PROVISIONAL_GAMES = 5`); inactivity re-inflates RD instead of freezing a stale value forever. To players it still looks like Elo — one number around 1500.
 

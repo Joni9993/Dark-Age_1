@@ -101,63 +101,16 @@ function bootGame() {
     showRecap = false;
     focusCamera();
 
-    // M13: Recap-Sichtbarkeit ist NICHT einheitlich Oberflächen-Sicht — jede Aktion
-    // trägt optional a.uw (Sichtbarkeit über das Unterwelt-Netz, getVisibleUWHexes,
-    // statt getVisibleHexes) oder a.global (fog-unabhängig — PLAN.md nennt Wurm-Tod
-    // und Erschließungs-Fortschritt explizit "globale Meldung"). Design-Entscheidung
-    // fürs verdeckte Verhalten: unsichtbare Aktionen werden KOMPLETT WEGGELASSEN statt
-    // generisch umformuliert ("Es wurde in der Tiefe gegraben") — konsistent mit dem
-    // bestehenden Oberflächen-Recap, das genauso hart filtert statt zu anonymisieren.
-    // Das verhindert jeden Informations-Leak über fremde Stollen-Netze (kein Hinweis,
-    // DASS überhaupt etwas passiert ist, nicht nur WAS). Kammer/Zünden (M12) sind
-    // bewusst NICHT uw-getaggt: PLAN.md Abschn. 6 beschreibt beide explizit als
-    // oberirdisch wahrnehmbar ("Beben-Anzeige oben für alle Sichtbaren").
-    const recapActions = (gameState.la || []).filter(a => {
-        if (a.global) return true;
-        const vis = a.uw ? getVisibleUWHexes(gameState.cp) : getVisibleHexes(gameState.cp);
-        return vis.has(`${a.x},${a.y}`);
-    });
-
-    function startRecap() {
-        if (recapActions.length === 0) {
-            showRecap = false;
-            renderBoard(gameState);
-            startEvents();
-            return;
-        }
-
-        let recapIndex = 0;
-        // dig/mine/loot/relicbuy/relicuse/wormdeath (M9b-M11, Unterwelt) + chamber/
-        // detonate/collapse/erschl (M12) nutzen dieselben Tags wie oben — eigene
-        // Farbe/Icon statt der defensiven '•'/#fff-Fallbacks in playNextRecap unten.
-        const recapColors = { mv: '#64b5f6', atk: '#ff5252', buy: '#69f0ae', cap: '#ffab40', dig: '#a1662f', mine: '#7fe3ff', deliver: '#ffca28', loot: '#c9a24b', relicbuy: '#ba68c8', relicuse: '#ba68c8', trade: '#4dd0e1', wormdeath: '#8d6e63', chamber: '#ffb300', detonate: '#d84315', collapse: '#ff9800', erschl: '#8d6e63', creatureAtk: '#ff8a65' };
-        const recapIcons = { mv: '→', atk: '⚔', buy: '✦', cap: '⚑', dig: '⛏', mine: '💎', deliver: '💰', loot: '🏺', relicbuy: '🗺️', relicuse: '🔧', trade: '💱', wormdeath: '🐛', chamber: '💣', detonate: '🧨', collapse: '💥', erschl: '🌍', creatureAtk: '🐾' };
-
-        function playNextRecap() {
-            if (recapIndex >= recapActions.length) {
-                showRecap = false;
-                renderBoard(gameState);
-                setTimeout(startEvents, 400);
-                return;
-            }
-            const action = recapActions[recapIndex];
-            recapIndex++;
-
-            Renderer.centerOn(action.x, action.y);
-            renderBoard(gameState);
-
-            const icon = recapIcons[action.t] || '•';
-            const color = recapColors[action.t] || '#fff';
-
-            if (action.t === 'atk' && action.fx !== undefined) {
-                spawnAttackAnim(action.fx, action.fy, action.x, action.y, 'slash');
-            }
-            spawnFloatingText(action.x, action.y, icon, color);
-
-            setTimeout(playNextRecap, 1200);
-        }
-        playNextRecap();
-    }
+    // Rückblick (js/recap.js): Was seit dem eigenen letzten Zug im eigenen
+    // Sichtfeld passiert ist. Der Vorgänger an dieser Stelle war ein
+    // blockierendes Kamera-Playback (1200 ms je Aktion, kein Abbruch, nur der
+    // unmittelbar vorherige Zug, ein Glyph ohne Urheber) und war deshalb
+    // dauerhaft abgeschaltet — die Begründung im Detail steht im Kopf von
+    // js/recap.js. prepareRecap() blockiert nichts: es füllt den HUD-Knopf und
+    // öffnet ein Panel, das man ignorieren, wegklicken und jederzeit wieder
+    // aufrufen kann; die Kamera bewegt sich nur auf ausdrückliches Antippen.
+    // Die Fog-/uw-/global-Filterregel (M13) lebt jetzt in recapVisibleActions
+    // und wird von js/render.js und js/render3d.js mitbenutzt.
 
     function startEvents() {
         if (gameState.rn >= 3) {
@@ -222,9 +175,12 @@ function bootGame() {
         }
     }
 
-    // Recap temporarily disabled; keep collecting last actions for future fix
     renderBoard(gameState);
+    // Erst die Ereignis-/Diplomatie-Kette (die liegt als .overlay darüber),
+    // dann das Rückblick-Panel — so steht es nach dem Wegklicken eines
+    // Ereignisses sichtbar da, statt darunter zu verschwinden.
     startEvents();
+    prepareRecap();
 }
 
 // === APP BOOT ===

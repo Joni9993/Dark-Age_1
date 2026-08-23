@@ -1,10 +1,12 @@
 // Verifikationsskript M13 — Integrations-Pass.
 //
 // Deckt ab:
-//  (a) Recap-Sichtbarkeit: die uw/global-Tag-Filterregel aus js/main.js/render.js/
-//      render3d.js (dort DOM-gebunden, hier als reine Ein-Zeilen-Regel nachgebaut
-//      und gegen die echten Sicht-Primitiven getestet — die Primitiven selbst
-//      sind Produktionscode aus js/logic.js, hier nicht dupliziert).
+//  (a) Recap-Sichtbarkeit: die uw/global-Tag-Filterregel. Seit dem Umbau des
+//      Rückblicks steht sie einmal als recapVisibleActions (js/recap.js) und
+//      wird hier direkt aufgerufen statt nachgebaut — der frühere Nachbau war
+//      nötig, solange dieselbe Zeile dreimal DOM-gebunden im Code lag.
+//      Die neuen Regeln derselben Funktion (eigene Aktionen, Tarnung) und die
+//      Log-Führung selbst deckt maptest/verify_recap.js ab.
 //  (b)-(f) Diplomatie-Pass: Verbündeten-Sicht im Unterwelt-Netz (M13-Erweiterung
 //      von getVisibleUWHexes/isUWUnitVisible), calculateAttacksUW schließt
 //      weiterhin Verbündete/Waffenstillstand aus, Bündnisbruch WÄHREND laufender
@@ -33,7 +35,7 @@ function loadGameCode() {
     global.isSpectator = false;
     global.showToast = () => { };
 
-    const files = ['js/prng.js', 'js/hex.js', 'js/data.js', 'js/mapgen.js', 'js/logic.js', 'js/diplomacy.js'];
+    const files = ['js/prng.js', 'js/hex.js', 'js/data.js', 'js/mapgen.js', 'js/logic.js', 'js/diplomacy.js', 'js/recap.js'];
     const src = files.map(f => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n;\n');
     const fn = new Function(src + `
         return {
@@ -56,7 +58,8 @@ function loadGameCode() {
             getUnitMaxHp, getUnitCost, getUnitMove, unitStats, RELICS,
             getVillageMaxHp, getWallMaxHp, getTowerMaxHp,
             uwCreatureStats, UWC_SPINNE, UWC_WUEHLER, UWC_STEINPANZER, UWC_WURM,
-            checkTeamWin
+            checkTeamWin,
+            recapVisibleActions
         };
     `);
     return fn();
@@ -112,17 +115,16 @@ function walkAndDig(unit, targetX, targetY, guardMax = 60) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-console.log('=== (a) Recap-Sichtbarkeit: uw/global-Tags steuern die Fog-Filterung (Nachbau der Regel aus js/main.js) ===');
+console.log('=== (a) Recap-Sichtbarkeit: uw/global-Tags steuern die Fog-Filterung (recapVisibleActions, js/recap.js) ===');
 {
     const state = freshState(21, 7, 2);
-    // 1:1-Nachbau der Filterzeile aus bootGame/startRecap (js/main.js) bzw. der
-    // visibleRecaps-Filter in js/render.js/js/render3d.js — main.js/render*.js
-    // selbst sind zu DOM-lastig für den Node-Loader, die Regel ist aber eine
-    // reine Ein-Zeilen-Entscheidung auf getVisibleHexes/getVisibleUWHexes.
+    // Echter Produktionscode statt Nachbau: recapVisibleActions arbeitet auf
+    // state.la, deshalb wird die zu prüfende Aktion hier einzeln durchgereicht.
+    // p: -1 hält sie in jedem Fall "fremd" — der Eigenaktions-Filter ist Thema
+    // von maptest/verify_recap.js, hier geht es allein um die uw/global-Regel.
     function recapVisible(viewerId, action) {
-        if (action.global) return true;
-        const vis = action.uw ? M.getVisibleUWHexes(viewerId) : M.getVisibleHexes(viewerId);
-        return vis.has(`${action.x},${action.y}`);
+        state.la = [{ ...action, p: -1 }];
+        return M.recapVisibleActions(state, viewerId).length === 1;
     }
 
     assert(recapVisible(1, { x: 0, y: 0, t: 'wormdeath', global: true }) === true, 'global:true (Wurm-Tod/Erschließung) ist immer sichtbar, unabhängig von jeder Erkundung');

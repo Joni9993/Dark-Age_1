@@ -196,7 +196,29 @@
             </div>
         </div>
         <div id="resource-hud"></div>
+        <!-- Rückblick-Knopf (js/recap.js): nur sichtbar, wenn seit dem eigenen
+             letzten Zug überhaupt etwas Sichtbares passiert ist. Er ist der
+             Grund, warum der Rückblick nicht mehr blockieren muss — man kommt
+             jederzeit wieder an ihn heran, statt ihn einmalig wegzuklicken. -->
+        <button id="recap-btn" style="display:none;" title="Rückblick: was seit deinem letzten Zug passiert ist"
+            onclick="toggleRecap()"><svg class="ic ic-20">
+                <use href="#i-eye"></use>
+            </svg><span id="recap-btn-count">0</span></button>
         <button id="menu-btn" onclick="toggleGameMenu()"><svg class="ic ic-20"><use href="#i-menu"></use></svg></button>
+    </div>
+
+    <!-- Rückblick-Panel (js/recap.js). Liegt UNTER #game-hud (z-index 150), damit
+         Ressourcen und Knöpfe sichtbar bleiben, und ist bewusst kein .overlay:
+         der Zug läuft daneben ganz normal weiter. -->
+    <div id="recap-panel">
+        <div class="recap-head">
+            <span class="recap-title"><svg class="ic ic-14">
+                    <use href="#i-hourglass"></use>
+                </svg> Seit deinem letzten Zug</span>
+            <button class="recap-close" onclick="closeRecap()" aria-label="Rückblick schließen">✕</button>
+        </div>
+        <div id="recap-body"></div>
+        <div class="recap-foot">Zeile antippen springt zum Feld</div>
     </div>
 
     <div id="game-menu-popup" style="display:none;">
@@ -471,6 +493,9 @@
     <script src="js/events.js"></script>
     <script src="js/abilities.js"></script>
     <script src="js/ui.js"></script>
+    <!-- nach icons.js (baut Markup mit icon()), vor main.js (bootGame ruft
+         prepareRecap) und vor input.js (doEndTurn ruft recapAppendTurn) -->
+    <script src="js/recap.js"></script>
     <script src="js/diplomacy.js"></script>
     <script src="js/input.js"></script>
     <script src="js/radialmenu.js"></script>

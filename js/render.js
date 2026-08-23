@@ -689,19 +689,11 @@ function drawScene(state) {
     const vis = getVisibleHexes(gameState.cp);
     const explored = gameState.p[gameState.cp].e || [];
 
-    // M13: gleiche uw/global-Sichtregeln wie der Recap-Playback in bootGame (siehe
-    // dortiger Kommentar) — Unterwelt-Aktionen prüfen das Unterwelt-Netz statt der
-    // Oberflächen-Sicht, globale Meldungen (Wurm-Tod/Erschließung) immer sichtbar.
-    const visibleRecaps = (state.la || []).filter(a => {
-        if (a.global) return true;
-        if (a.uw) {
-            const uwVis = getVisibleUWHexes(gameState.cp);
-            if (!uwVis.has(`${a.x},${a.y}`)) return false;
-            return !((gameState.uw && gameState.uw.u) || []).some(u => u.p !== gameState.cp && u.iv === 1 && u.x === a.x && u.y === a.y);
-        }
-        if (!vis.has(`${a.x},${a.y}`)) return false;
-        return !state.u.some(u => u.p !== state.cp && u.iv === 1 && u.x === a.x && u.y === a.y);
-    });
+    // M13-Sichtregel (uw/global/getarnte Einheiten) — sie steht seit dem Umbau
+    // des Rückblicks nur noch einmal, in recapVisibleActions (js/recap.js), und
+    // wird von hier, von js/render3d.js und vom Rückblick-Panel gemeinsam
+    // benutzt. Vorher lag dieselbe Filterzeile dreimal im Code.
+    const visibleRecaps = recapVisibleActions(state, gameState.cp);
 
     // Unterwelt-Fokus (2): eigene, vom Oberflächen-Terrain unabhängige Draufsicht
     // statt der normalen Hex-Schleife (Netz-Sicht statt Oberflächen-Fog, siehe

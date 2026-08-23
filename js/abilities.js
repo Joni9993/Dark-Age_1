@@ -474,7 +474,9 @@ window.uwAscend = function () {
     ascendUWUnit(gameState, selectedUWUnit);
     // KEIN uw:true (M13): die Einheit erscheint jetzt AUF der Oberfläche — sichtbar
     // über die Oberflächen-Sicht (Default), symmetrisch zu uwDescend unten.
-    turnActions.push({ x, y, t: 'cap' });
+    // Eigener Typ 'asc' statt des früheren Sammelbegriffs 'cap' — im Rückblick
+    // (js/recap.js) ist "Aufgestiegen" etwas anderes als "Dorf erobert".
+    turnActions.push({ x, y, t: 'asc' });
     clearUWSelection();
     infoPanel.innerHTML = '🕳 Aufgestiegen zur Oberfläche!';
     hideActionMenu(); renderBoard(gameState); updateUI();
@@ -492,8 +494,8 @@ window.uwDescend = function () {
     saveUndoState();
     descendUWUnit(gameState, selectedUnit);
     // uw:true (M13): die Einheit verschwindet von der Oberfläche und taucht im
-    // Unterwelt-Netz auf — nur dort sichtbar.
-    turnActions.push({ x, y, t: 'cap', uw: true });
+    // Unterwelt-Netz auf — nur dort sichtbar. Eigener Typ 'desc', siehe uwAscend.
+    turnActions.push({ x, y, t: 'desc', uw: true });
     selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
     infoPanel.innerHTML = '🕳 Abgetaucht in die Unterwelt!';
     hideActionMenu(); renderBoard(gameState); updateUI();

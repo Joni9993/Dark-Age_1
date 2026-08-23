@@ -1176,37 +1176,96 @@ canvas {
 /* Mehrfach-Auswahl: Boden- und Lufteinheit teilen sich ein Hex */
 .stack-picker {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     justify-content: center;
 }
 
 .stack-card {
-    flex: 1 1 0;
-    max-width: 220px;
-    min-height: 44px;
-    padding: 8px 10px;
+    /* Basis 140px + Umbruch: drei Karten (Boden + Luft + Turm) nebeneinander
+       wären auf einem schmalen Handy je ~120px breit und die Namen restlos
+       abgeschnitten. So stehen zwei nebeneinander, die dritte rutscht darunter. */
+    flex: 1 1 140px;
+    max-width: 240px;
+    min-height: 48px;
+    padding: 9px 10px;
     background: #241d16;
     border: 2px solid var(--edge);
-    box-shadow: var(--bevel);
+    /* Knopf-Anatomie wie überall sonst: Sockel unten, der beim Drücken
+       verschwindet — die Karten SIND Schaltflächen. */
+    box-shadow: var(--bevel), 0 4px 0 var(--edge);
+    margin-bottom: 4px;
     cursor: pointer;
     transition: none;
-    text-align: center;
+    text-align: left;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
-    gap: 2px;
+    gap: 5px;
+    font-family: var(--font-body);
+    color: var(--text);
     /* #info-panel ist normalerweise reiner Text (pointer-events:none) —
        die Karten müssen Klicks aber gezielt wieder annehmen */
     pointer-events: auto;
 }
 
-.stack-card:hover {
-    background: #33281c;
-}
+.stack-card:hover { background: #33281c; }
 
 .stack-card:active {
+    transform: translateY(4px);
     box-shadow: var(--bevel-in);
+}
+
+.stack-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.stack-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    color: var(--text-bright);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stack-hp {
+    flex: 0 0 auto;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-bright);
+}
+
+.stack-sub {
+    font-size: 15px;
+    color: var(--text-dim);
+    line-height: 1.3;
+}
+
+/* Bedeutung über eine 4px-Kante links statt über eine Neon-Rahmenfarbe. */
+.stack-card-attack { border-left: 4px solid var(--fire); }
+.stack-card-move   { border-left: 4px solid var(--steel); }
+
+.stack-hint {
+    margin-top: 6px;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--gold);
+    text-align: center;
+}
+
+/* Die Karten tragen die Spielerfarbe als kleines Banner — hier etwas
+   kompakter als in der Rangliste. */
+.stack-card .score-dot {
+    width: 8px;
+    height: 10px;
 }
 
 #link-box {
@@ -3774,4 +3833,266 @@ body.app-view .screen-box {
     background: var(--gold-mid);
     border: 2px solid var(--edge);
     box-shadow: inset 2px 2px 0 #f0cf6a, inset -2px -2px 0 var(--gold-dk);
+}
+
+/* === RÜCKBLICK (js/recap.js) ==============================================
+   Nicht-blockierendes Panel am Zugstart: was seit dem eigenen letzten Zug im
+   eigenen Sichtfeld passiert ist. Liegt bewusst UNTER #game-hud (z-index 150)
+   und ist kein .overlay — das Spielfeld bleibt bedienbar, während es offen ist.
+   Formkanon wie überall: 2px-Rahmen, 2px-Bevel, kein Blur, keine Rundungen,
+   Trefferflächen >= 44px, Silkscreen nur auf 8/12/16px, Jersey 15 auf 15px. */
+
+/* Farbkanal je Aktionsart. Steht als Token auf :root, weil js/recap.js
+   (recapPulseColor) denselben Wert für den Karten-Puls ausliest — sonst gäbe
+   es einen zweiten, von Hand gepflegten Farbsatz im JS. */
+:root {
+    --rc-fire: #e2571f;
+    --rc-gold: #e8b84a;
+    --rc-build: #9fabbc;
+    --rc-earth: #b07a3c;
+    --rc-move: #8a7e6e;
+}
+
+#recap-btn {
+    width: 38px;
+    height: 38px;
+    display: none;
+    /* per JS auf flex, sobald es etwas zu berichten gibt */
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    position: relative;
+    background: #3a2b1c;
+    color: var(--text);
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 rgba(201, 147, 97, 0.30), inset -2px -2px 0 rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+#recap-btn:hover {
+    background: #46351f;
+}
+
+#recap-btn:active {
+    box-shadow: var(--bevel-in);
+}
+
+/* Zähler als kleine Ecke oben rechts — Silkscreen auf 8px, dem einzigen
+   scharfen Raster in dieser Größe. */
+#recap-btn-count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 16px;
+    height: 14px;
+    padding: 0 3px;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    line-height: 14px;
+    text-align: center;
+    color: #1c1305;
+    background: var(--gold-mid);
+    border: 2px solid var(--edge);
+}
+
+/* Griff mich an: sobald etwas Eigenes getroffen wurde, wechselt der Knopf auf
+   Feuer statt Gold — man soll am HUD sehen, ob es dringend ist. */
+#recap-btn.has-hit {
+    background: #4a1c0b;
+}
+
+#recap-btn.has-hit #recap-btn-count {
+    background: var(--fire);
+    color: #f8e5de;
+}
+
+#recap-panel {
+    display: none;
+    position: fixed;
+    left: 8px;
+    top: calc(64px + env(safe-area-inset-top));
+    width: 300px;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 200px);
+    z-index: 140;
+    background: var(--bg-panel);
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel), var(--drop);
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#recap-panel.open {
+    display: flex;
+}
+
+.recap-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 8px 8px 10px;
+    border-bottom: 2px solid var(--panel-hi);
+    background: var(--bg-card);
+}
+
+.recap-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--gold);
+}
+
+.recap-close {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    padding: 0;
+    background: #3a2b1c;
+    color: var(--text);
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 rgba(201, 147, 97, 0.30), inset -2px -2px 0 rgba(0, 0, 0, 0.55);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.recap-close:hover {
+    background: #46351f;
+}
+
+#recap-body {
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+.recap-empty {
+    padding: 12px 10px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--text-dim);
+}
+
+.recap-group+.recap-group {
+    border-top: 2px solid var(--panel-hi);
+    margin-top: 4px;
+    padding-top: 4px;
+}
+
+.recap-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px 4px;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+.recap-group.has-hit .recap-name {
+    color: var(--text-bright);
+}
+
+/* Eine Zeile = eine zusammengefasste Aktionsart. Volle Breite und 44px hoch,
+   damit sie auf dem Handy sicher zu treffen ist. */
+.recap-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    padding: 4px 10px;
+    background: transparent;
+    border: 0;
+    border-left: 4px solid transparent;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.recap-row:hover {
+    background: var(--bg-card);
+}
+
+.recap-row:active {
+    box-shadow: var(--bevel-in);
+}
+
+.recap-ic {
+    display: flex;
+    flex-shrink: 0;
+}
+
+.recap-label {
+    flex: 1;
+    min-width: 0;
+}
+
+.recap-label b {
+    color: var(--fire);
+    font-weight: normal;
+}
+
+/* Zähler "2/5" beim Durchsteppen mehrerer Felder derselben Zeile. */
+.recap-step {
+    flex-shrink: 0;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    color: var(--text-faint);
+}
+
+.recap-row.hit {
+    border-left-color: var(--fire);
+    background: #24140d;
+}
+
+.recap-row.rc-k-fire .recap-ic {
+    color: var(--rc-fire);
+}
+
+.recap-row.rc-k-gold .recap-ic {
+    color: var(--rc-gold);
+}
+
+.recap-row.rc-k-build .recap-ic {
+    color: var(--rc-build);
+}
+
+.recap-row.rc-k-earth .recap-ic {
+    color: var(--rc-earth);
+}
+
+.recap-row.rc-k-move .recap-ic {
+    color: var(--rc-move);
+}
+
+.recap-foot {
+    padding: 6px 10px;
+    border-top: 2px solid var(--panel-hi);
+    background: var(--bg-card);
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    color: var(--text-faint);
+}
+
+/* Auf schmalen Geräten volle Breite: 300px neben dem Spielfeld bringt nichts,
+   wenn das Spielfeld selbst nur 360px breit ist. */
+@media (max-width: 480px) {
+    #recap-panel {
+        left: 8px;
+        right: 8px;
+        width: auto;
+        max-height: 46vh;
+    }
 }

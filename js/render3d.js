@@ -1270,19 +1270,9 @@
         _shadowCount = 0;
         airVoxelMesh.material.opacity = airAlpha;
 
-        // M13: gleiche uw/global-Sichtregeln wie der Recap-Playback in bootGame (siehe
-        // dortiger Kommentar) — Unterwelt-Aktionen prüfen das Unterwelt-Netz statt der
-        // Oberflächen-Sicht, globale Meldungen (Wurm-Tod/Erschließung) immer sichtbar.
-        const visibleRecaps = (state.la || []).filter(a => {
-            if (a.global) return true;
-            if (a.uw) {
-                const uwVisR = getVisibleUWHexes(state.cp);
-                if (!uwVisR.has(`${a.x},${a.y}`)) return false;
-                return !((state.uw && state.uw.u) || []).some(u => u.p !== state.cp && u.iv === 1 && u.x === a.x && u.y === a.y);
-            }
-            if (!vis.has(`${a.x},${a.y}`)) return false;
-            return !state.u.some(u => u.p !== state.cp && u.iv === 1 && u.x === a.x && u.y === a.y);
-        });
+        // M13-Sichtregel — eine Quelle, siehe recapVisibleActions (js/recap.js)
+        // und den Kommentar an der gleichen Stelle in js/render.js.
+        const visibleRecaps = recapVisibleActions(state, state.cp);
 
         // Entity-Sammlung — identische Sichtbarkeitsregeln wie drawScene (render.js).
         // Sichtbarkeit der Oberflächen-Ebene (Einheiten, Dörfer, Steine, Türme,

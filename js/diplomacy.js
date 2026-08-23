@@ -11,6 +11,7 @@ function checkTeamWin(alivePlayers) {
 // Statistikleiste leer — alle Aufrufer reichen es durch, aber showWin soll auch
 // ohne funktionieren, falls später ein Siegpfad dazukommt.
 function showWin(msg, winners) {
+    if (window.closeRecap) closeRecap();   // Rückblick-Panel liegt fixed über allem
     canvasWrapper.style.display = 'none'; document.body.classList.remove('in-game');
     uiContainer.style.display = 'none';
     gameHud.style.display = 'none';

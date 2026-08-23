@@ -7,6 +7,8 @@ let _currentLobbyGame  = null;
 
 async function showHomeScreen() {
     _stopLobbyPoll();
+    if (window.closeRecap) closeRecap();   // Rückblick-Panel liegt fixed über allem
+
     window.history.replaceState({}, '', window.location.pathname);
     document.getElementById('defeat-banner').style.display  = 'none';
     document.getElementById('login-screen').style.display   = 'none';
