@@ -2469,27 +2469,51 @@ canvas {
    allein die Spieleliste (#game-list, flex:1) — sie ist der wichtigste
    Bereich. Die Bestenliste bekommt einen Deckel, die Aktionen sitzen fest
    am unteren Rand.
-   `body.home-view` wird in showHomeScreen gesetzt (js/lobby.js). */
+   `body.app-view` wird in showHomeScreen gesetzt (js/lobby.js). */
 #home-screen {
     gap: 10px;
-    height: 100%;
+    /* Bewusst KEIN height:100% — das setzt die Flex-Basis auf die volle
+       Bodyhöhe, und der Kasten schrumpft danach nicht exakt auf den freien
+       Platz zurück (er ragte dadurch unten aus dem Bild). Die Höhe kommt
+       allein aus flex-grow unten. */
     max-height: none;
     overflow: hidden;
 }
 
-body.home-view {
+/* ── App-Screens: füllen die Bildschirmhöhe, scrollen selbst nicht ───────
+   Gesetzt von showHomeScreen und showFriendsPanel (js/lobby.js). Scrollen
+   darf nur die jeweilige LISTE darin, nicht die Seite — sonst fühlt sich das
+   an wie eine Webseite statt wie eine App.
+
+   Zwei Fallstricke, die hier bewusst mit abgeräumt sind:
+   1. `min-height` schlägt `height` — die Basisregel setzt `min-height:100vh`
+      und muss zurückgesetzt werden, sonst bleibt der Body 100vh hoch (und
+      100vh zählt auf dem Handy die Adressleiste mit, 100dvh nicht).
+   2. Der Seitentitel bekommt hier feste Außenabstände. Mit dem Browser-
+      Standard (0.83em, also ~27px je nach Schriftgröße) ging die Rechnung
+      nicht auf und der Kasten ragte unten heraus. */
+body.app-view {
     height: 100dvh;
+    min-height: 0;
     overflow: hidden;
     touch-action: none;
 }
 
-/* Der Kasten bekommt die Resthöhe unter dem Seitentitel. */
-body.home-view #home-screen {
-    flex: 1 1 auto;
-    min-height: 0;
-    margin-top: 8px;
-    margin-bottom: 8px;
+body.app-view #main-title {
+    flex: 0 0 auto;
+    margin: 6px 0 8px;
+    font-size: 1.5rem;
 }
+
+body.app-view .screen-box {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+    margin: 0 0 8px;
+    overflow: hidden;
+}
+
+
 
 /* Nebenaktionen als Dreierreihe am Fuß */
 .home-actions {
@@ -2639,8 +2663,10 @@ body.home-view #home-screen {
     flex-direction: column;
     gap: 8px;
     width: 100%;
-    flex: 1 1 auto;
-    min-height: 92px;
+    /* Basis 0: nimmt den Rest der Kastenhöhe. Eine feste min-height würde den
+       Kasten von innen aufblähen und ihn wieder aus dem Bild schieben. */
+    flex: 1 1 0;
+    min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
     touch-action: pan-y;
@@ -2657,7 +2683,10 @@ body.home-view #home-screen {
        Anteilig statt fix: auf kleinen Handys blieb von "Meine Spiele" sonst
        kaum etwas übrig, auf großen war unnötig Luft. */
     flex: 0 1 auto;
-    max-height: min(216px, 26dvh);
+    /* Deckel bewusst knapp: "Meine Spiele" ist der wichtigere Bereich und
+       bekommt den Rest. Auf kleinen Handys blieben mit 26dvh nur ~50px für
+       die Spieleliste übrig, also weniger als eine Karte. */
+    max-height: min(190px, 21dvh);
     overflow-y: auto;
     overscroll-behavior: contain;
     touch-action: pan-y;
@@ -3050,12 +3079,32 @@ body.home-view #home-screen {
     gap: 8px;
 }
 
-#friend-requests-list,
+#friend-requests-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    flex: 0 0 auto;
+}
+
+/* Der einzige wachsende Bereich des Freunde-Screens: nimmt die Resthöhe und
+   scrollt intern, damit die Seite selbst stehen bleibt. */
 #friends-list {
     display: flex;
     flex-direction: column;
     gap: 6px;
     width: 100%;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+}
+
+#friends-panel .setup-group,
+#friends-panel .screen-title,
+#friends-panel > .action-btn {
+    flex: 0 0 auto;
 }
 
 .action-btn.secondary {
@@ -3225,9 +3274,9 @@ body {
     padding-bottom: max(28px, calc(env(safe-area-inset-bottom) + 12px));
 }
 
-/* Der Home-Screen nutzt seine Höhe komplett aus — dort reicht der reine
-   Safe-Area-Abstand, ein zusätzliches Polster nähme der Spieleliste Platz. */
-body.home-view #home-screen {
+/* App-Screens nutzen ihre Höhe komplett aus — dort reicht der reine
+   Safe-Area-Abstand, ein zusätzliches Polster nähme der Liste Platz. */
+body.app-view .screen-box {
     padding: 14px 14px max(14px, calc(env(safe-area-inset-bottom) + 6px));
 }
 

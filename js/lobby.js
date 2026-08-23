@@ -20,8 +20,8 @@ async function showHomeScreen() {
     winScreen.style.display                                 = 'none';
     closeGameMenu();
     document.getElementById('home-screen').style.display    = 'flex';
-    // Vollhöhen-Layout ohne Seiten-Scroll (css/game.css, body.home-view)
-    document.body.classList.add('home-view');
+    // Vollhöhen-Layout ohne Seiten-Scroll (css/game.css, body.app-view)
+    document.body.classList.add('app-view');
     document.getElementById('home-username').textContent    = currentProfile?.username ?? '';
     await refreshGameList();
     await refreshLeaderboardPanel();
@@ -70,7 +70,7 @@ async function refreshGameList() {
 // ── Create Game ───────────────────────────────────────────────────────────────
 
 function showCreateGameModal() {
-    document.getElementById('home-screen').style.display = 'none'; document.body.classList.remove('home-view');
+    document.getElementById('home-screen').style.display = 'none'; document.body.classList.remove('app-view');
     document.getElementById('player-names-container').style.display = 'none';
     document.getElementById('start-game-btn').style.display = 'none';
     document.getElementById('setup-back-btn').style.display = 'block';
@@ -104,7 +104,7 @@ async function handleCreateGame() {
 
 async function openLobbyScreen(gameId) {
     currentGameId = gameId;
-    document.getElementById('home-screen').style.display = 'none'; document.body.classList.remove('home-view');
+    document.getElementById('home-screen').style.display = 'none'; document.body.classList.remove('app-view');
     setupScreen.style.display = 'none';
 
     try {
@@ -308,7 +308,7 @@ async function openGame(gameId) {
         }
 
         window.history.replaceState({}, '', `?game=${gameId}`);
-        document.getElementById('home-screen').style.display = 'none'; document.body.classList.remove('home-view');
+        document.getElementById('home-screen').style.display = 'none'; document.body.classList.remove('app-view');
         bootGame();
 
         if (isSpectator) {
@@ -365,8 +365,11 @@ async function joinLobbyByToken(token) {
 // ── Friends ───────────────────────────────────────────────────────────────────
 
 async function showFriendsPanel() {
-    document.getElementById('home-screen').style.display = 'none'; document.body.classList.remove('home-view');
+    document.getElementById('home-screen').style.display = 'none';
     document.getElementById('friends-panel').style.display = 'flex';
+    // Auch der Freunde-Screen füllt die Höhe und scrollt nicht selbst —
+    // scrollen darf nur die Freundesliste darin (css/game.css, .app-view).
+    document.body.classList.add('app-view');
     await refreshFriendsPanel();
 }
 
