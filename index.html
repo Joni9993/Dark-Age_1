@@ -87,7 +87,7 @@
              refreshLeaderboardPanel (js/lobby.js) gefüllt.
              TODO: soll später antippbar werden und ins eigene Profil führen
              (Erfolge, Skins) — dann aus dem <div> ein <button> machen. -->
-        <div class="home-banner">
+        <button class="home-banner" onclick="showProfileScreen()">
             <span class="stud stud--tl"></span><span class="stud stud--tr"></span>
             <span class="stud stud--bl"></span><span class="stud stud--br"></span>
             <svg class="ic ic-32"><use href="#i-banner"></use></svg>
@@ -99,7 +99,8 @@
                 <svg class="ic ic-14"><use href="#i-crown"></use></svg>
                 <span id="home-banner-rating-value"></span>
             </div>
-        </div>
+            <svg class="ic ic-14 home-banner-chevron"><use href="#i-chev-r"></use></svg>
+        </button>
         <div class="home-header">
             <h3><svg class="ic ic-20"><use href="#i-crown"></use></svg> Bestenliste</h3>
         </div>
@@ -140,6 +141,34 @@
             <button class="action-btn" style="width:100%;" onclick="openFriendsPicker()"><svg class="ic ic-14"><use href="#i-users"></use></svg> Freunde einladen</button>
         </div>
         <button id="lobby-start-btn" class="action-btn primary" style="display:none;" onclick="handleStartGame()">Spiel starten</button>
+        <button class="action-btn secondary" onclick="showHomeScreen()">← Zurück</button>
+    </div>
+
+    <!-- ── Profil ────────────────────────────────────────────────────────────
+         Zeigt vorerst nur, was der Server ohnehin schon liefert: Rating samt
+         Unsicherheit, Rang, Bilanz und den Rating-Verlauf
+         (/api/leaderboard + /api/leaderboard/me/history). Erfolge und Skins
+         kommen später — dafür braucht es erst Serverseite. -->
+    <div id="profile-screen" class="screen-box" style="display:none;">
+        <h3 class="screen-title">Profil</h3>
+
+        <div class="profile-card">
+            <span class="stud stud--tl"></span><span class="stud stud--tr"></span>
+            <span class="stud stud--bl"></span><span class="stud stud--br"></span>
+            <svg class="ic ic-48"><use href="#i-banner"></use></svg>
+            <div class="profile-ident">
+                <span class="profile-name" id="profile-name">—</span>
+                <span class="profile-status" id="profile-status"></span>
+            </div>
+        </div>
+
+        <div class="profile-stats" id="profile-stats"></div>
+
+        <div class="home-header">
+            <h3><svg class="ic ic-20"><use href="#i-scroll"></use></svg> Verlauf</h3>
+        </div>
+        <div id="profile-history"></div>
+
         <button class="action-btn secondary" onclick="showHomeScreen()">← Zurück</button>
     </div>
 

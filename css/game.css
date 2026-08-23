@@ -43,6 +43,7 @@
     /* pal 16 */
     --green: #5cb85c;
     --blue: #4fc3f7;
+    --sun: #fff824;               /* pal 24 — Leuchtakzente */
 
     /* Material */
     --wood: #5e3a20;
@@ -3061,6 +3062,240 @@ body.app-view .screen-box {
     padding: 4px 8px;
     font-size: 12px;
     margin-top: 0;
+}
+
+/* ── Profil (js/lobby.js showProfileScreen) ──────────────────────────────── */
+.profile-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    flex: 0 0 auto;
+    padding: 16px 14px;
+    background: var(--bg-panel);
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
+    text-align: left;
+}
+
+.profile-ident {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.profile-name {
+    font-family: var(--font-body);
+    font-size: 30px;
+    line-height: 1;
+    color: var(--gold);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-status {
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    line-height: 1.5;
+}
+
+/* Vier Kennzahlen nebeneinander — auf schmalen Handys umbrechend statt
+   zusammengequetscht. */
+.profile-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+    flex: 0 0 auto;
+}
+
+.profile-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 10px 4px;
+    background: var(--bg-card);
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
+}
+
+.profile-stat-value {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-bright);
+}
+
+.profile-stat-value.is-gold { color: var(--gold); font-size: 16px; }
+
+.profile-stat-label {
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-align: center;
+}
+
+/* Der wachsende, scrollbare Bereich des Profil-Screens */
+#profile-history {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+}
+
+#profile-screen .screen-title,
+#profile-screen > .action-btn {
+    flex: 0 0 auto;
+}
+
+.profile-empty {
+    margin: 0;
+    padding: 12px 4px;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--text-faint);
+    text-align: center;
+}
+
+.hist-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+    padding: 9px 10px;
+    background: var(--bg-card);
+    border: 2px solid var(--edge);
+    box-shadow: var(--bevel);
+    text-align: left;
+}
+
+/* Sieg/Niederlage als Marke statt als Farbe der ganzen Zeile — die Zeile
+   bleibt so lesbar, das Ergebnis ist trotzdem auf einen Blick da. */
+.hist-mark {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-ui);
+    font-size: 8px;
+    border: 2px solid var(--edge);
+}
+
+.hist-mark.is-win {
+    background: #2c6b2c;
+    color: #e6f7e6;
+    box-shadow: inset 1px 1px 0 var(--green), inset -1px -1px 0 #133a13;
+}
+
+.hist-mark.is-loss {
+    background: var(--fire-dk);
+    color: #f8e5de;
+    box-shadow: inset 1px 1px 0 var(--fire), inset -1px -1px 0 #3d1205;
+}
+
+.hist-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.hist-name {
+    font-size: 15px;
+    color: var(--text-bright);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hist-meta {
+    font-family: var(--font-ui);
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+.hist-delta {
+    flex: 0 0 auto;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.hist-delta.is-up   { color: var(--green); }
+.hist-delta.is-down { color: #ff9d7d; }
+
+.hist-rating {
+    flex: 0 0 auto;
+    width: 42px;
+    text-align: right;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-bright);
+}
+
+/* Die Kopfleiste führt ins Profil. Damit man das sieht, trägt sie dieselbe
+   Knopf-Anatomie wie jeder andere Button im Spiel: 4px-Sockel unten, der beim
+   Drücken verschwindet, während der Knopf um genau diese 4px einsinkt.
+   Das ist die vorhandene Formsprache statt einer neuen Verzierung — wer einmal
+   irgendeinen Knopf gedrückt hat, erkennt sie wieder. */
+button.home-banner {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+    box-shadow:
+        inset 2px 2px 0 var(--panel-hi),
+        inset -2px -2px 0 var(--panel-lo),
+        0 4px 0 var(--edge);
+    /* Platz für den Sockel, damit die Karte darunter nicht anstößt */
+    margin-bottom: 4px;
+}
+
+button.home-banner:hover { background: #201a14; }
+
+button.home-banner:active {
+    transform: translateY(4px);
+    box-shadow: var(--bevel-in);
+}
+
+/* Zusätzlicher, sehr zurückhaltender Hinweis: das Chevron rückt alle paar
+   Sekunden kurz nach rechts. Lange Ruhephase (~4s), dann ein 3px-Stups —
+   genug, um den Blick einmal dorthin zu ziehen, ohne zu blinken.
+   transform statt left/right: läuft auf dem Compositor. */
+@keyframes chevronNudge {
+    0%, 84%, 100% { transform: translateX(0); }
+    90%           { transform: translateX(3px); }
+    95%           { transform: translateX(0); }
+}
+
+.home-banner-chevron {
+    flex: 0 0 auto;
+    color: var(--gold);
+    animation: chevronNudge 5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .home-banner-chevron { animation: none; }
+}
+
 }
 
 /* ── Friends Panel ───────────────────────────────────────────────────────── */

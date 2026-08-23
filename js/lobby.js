@@ -12,6 +12,7 @@ async function showHomeScreen() {
     document.getElementById('login-screen').style.display   = 'none';
     document.getElementById('lobby-screen').style.display   = 'none';
     document.getElementById('friends-panel').style.display  = 'none';
+    document.getElementById('profile-screen').style.display  = 'none';
     setupScreen.style.display                               = 'none';
     canvasWrapper.style.display                             = 'none'; document.body.classList.remove('in-game');
     uiContainer.style.display                               = 'none';
@@ -373,6 +374,80 @@ async function showFriendsPanel() {
     await refreshFriendsPanel();
 }
 
+// ── Profil ────────────────────────────────────────────────────────────────────
+//
+// Bewusst nur eine Anzeige des Bestehenden: Rating, Unsicherheit (RD), Rang,
+// Bilanz und Rating-Verlauf kommen aus /api/leaderboard und
+// /api/leaderboard/me/history — beide gab es schon, der Server wurde für diesen
+// Screen nicht angefasst. Erfolge/Skins brauchen erst eine Serverseite.
+async function showProfileScreen() {
+    document.getElementById('home-screen').style.display = 'none';
+    document.getElementById('profile-screen').style.display = 'flex';
+    document.body.classList.add('app-view');
+
+    const nameEl = document.getElementById('profile-name');
+    const statusEl = document.getElementById('profile-status');
+    const statsEl = document.getElementById('profile-stats');
+    const histEl = document.getElementById('profile-history');
+
+    nameEl.textContent = currentProfile?.username ?? '—';
+    statusEl.textContent = '';
+    statsEl.innerHTML = '';
+    histEl.innerHTML = '<p class="profile-empty">Lade...</p>';
+
+    const [rows, history] = await Promise.all([
+        api.get('/api/leaderboard').catch(() => []),
+        api.get('/api/leaderboard/me/history').catch(() => []),
+    ]);
+
+    const me = rows.find(r => r.id === currentProfile?.id);
+    const stat = (value, label, cls) =>
+        `<div class="profile-stat"><span class="profile-stat-value ${cls || ''}">${value}</span>` +
+        `<span class="profile-stat-label">${label}</span></div>`;
+
+    if (me) {
+        // Rang zählt nur unter den etablierten Spielern — für vorläufige gibt
+        // der Server bewusst keinen aus (zu wenige gewertete Partien).
+        const rank = me.established
+            ? rows.filter(r => r.established).findIndex(r => r.id === me.id) + 1
+            : null;
+        statusEl.textContent = me.established
+            ? `Rang ${rank} von ${rows.filter(r => r.established).length}`
+            : `Vorläufig — noch ${Math.max(0, 5 - me.games_rated)} gewertete Partien bis zum Rang`;
+
+        statsEl.innerHTML =
+            stat(me.rating + (me.established ? '' : '?'), 'Rating', 'is-gold') +
+            stat('±' + me.rd, 'Unsicherheit') +
+            stat(`${me.wins}/${me.games}`, 'Siege') +
+            stat(me.games_rated, 'gewertet');
+    } else {
+        statusEl.textContent = 'Noch keine gewerteten Partien';
+    }
+
+    if (!history.length) {
+        histEl.innerHTML = '<p class="profile-empty">Noch keine gewerteten Partien. '
+            + 'Der Verlauf beginnt mit der ersten beendeten Partie.</p>';
+        return;
+    }
+
+    histEl.innerHTML = history.map(h => {
+        const up = h.delta > 0;
+        const sign = up ? '+' : (h.delta < 0 ? '−' : '±');
+        const date = new Date(h.created_at).toLocaleDateString('de-DE',
+            { day: '2-digit', month: '2-digit', year: '2-digit' });
+        const opp = h.opponents === 1 ? '1 Gegner' : `${h.opponents} Gegner`;
+        return `<div class="hist-row">
+            <span class="hist-mark ${h.won ? 'is-win' : 'is-loss'}">${h.won ? 'S' : 'N'}</span>
+            <span class="hist-body">
+                <span class="hist-name">${escHtml(h.game_name || 'Gelöschte Partie')}</span>
+                <span class="hist-meta">${date} · ${opp}</span>
+            </span>
+            <span class="hist-delta ${up ? 'is-up' : (h.delta < 0 ? 'is-down' : '')}">${sign}${Math.abs(h.delta)}</span>
+            <span class="hist-rating">${h.rating_after}</span>
+        </div>`;
+    }).join('');
+}
+
 function hideFriendsPanel() {
     document.getElementById('friends-panel').style.display = 'none';
     showHomeScreen();
@@ -572,6 +647,7 @@ window.openFriendsPicker     = openFriendsPicker;
 window.closeFriendsPicker    = closeFriendsPicker;
 window.inviteSelectedFriends = inviteSelectedFriends;
 window.handleStartGame       = handleStartGame;
+window.showProfileScreen     = showProfileScreen;
 window.showFriendsPanel      = showFriendsPanel;
 window.hideFriendsPanel      = hideFriendsPanel;
 window.handleAddFriend       = handleAddFriend;
