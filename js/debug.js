@@ -234,7 +234,6 @@ function debugSetupErschliessung() {
 function debugRunCreaturePhase() {
     if (!gameState.uw || !gameState.uw.c || gameState.uw.c.length === 0) { showToast('Keine Kreaturen im aktuellen Zustand.'); return; }
     const phase = uwCreatureRoundPhase();
-    gameState.la = (gameState.la || []).concat(phase.events.filter(e => e.type === 'creatureAtk').map(e => ({ x: e.x, y: e.y, t: 'creatureAtk', uw: true, p: -1 })));
     renderBoard(gameState);
     updateUI();
     showToast(`🐾 Kreaturen-Phase ausgeführt: ${phase.events.length} Treffer, ${gameState.uw.c.length} Kreaturen übrig.`);

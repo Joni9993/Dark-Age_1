@@ -9,8 +9,9 @@ window.useAbility = function (type) {
         pState.m -= 3;
         let dmgDone = false;
         const canAttack = (targetId) => !(pState.al && pState.al.includes(targetId)) && !(pState.tc && pState.tc.includes(targetId));
+        const ritterHits = recapAoE({ au: selectedUnit.t });   // Rueckblick, s. recapAoE (js/recap.js)
         gameState.u.filter(u => u.p !== gameState.cp && canAttack(u.p) && !isFlying(u) && hexDistance({ x: u.x, y: u.y }, { x: selectedUnit.x, y: selectedUnit.y }) <= 1).forEach(enemy => {
-            enemy.h -= 4; spawnFloatingText(enemy.x, enemy.y, "-4", "#ff5252"); dmgDone = true;
+            enemy.h -= 4; ritterHits.unit(enemy, 4); spawnFloatingText(enemy.x, enemy.y, "-4", "#ff5252"); dmgDone = true;
         });
         gameState.u = gameState.u.filter(u => u.h > 0);
 
@@ -19,6 +20,7 @@ window.useAbility = function (type) {
                 let [vx, vy] = gameState.p[i].sv.split(',').map(Number);
                 if (hexDistance({ x: vx, y: vy }, { x: selectedUnit.x, y: selectedUnit.y }) <= 1) {
                     gameState.p[i].sh -= 4; spawnFloatingText(vx, vy, "-4", "#ff5252"); dmgDone = true;
+                    ritterHits.building(i, vx, vy, 4, gameState.p[i].sh <= 0);
                     if (gameState.p[i].sh <= 0) killPlayer(gameState, i, gameState.cp);
                 }
             }
@@ -29,13 +31,13 @@ window.useAbility = function (type) {
                 if (tun.o !== gameState.cp && canAttackTun(tun.o)) {
                     if (hexDistance({ x: tun.x1, y: tun.y1 }, { x: selectedUnit.x, y: selectedUnit.y }) <= 1 ||
                         hexDistance({ x: tun.x2, y: tun.y2 }, { x: selectedUnit.x, y: selectedUnit.y }) <= 1) {
-                        tun.h -= 4; spawnFloatingText(tun.x1, tun.y1, "-4", "#ff5252"); dmgDone = true;
+                        tun.h -= 4; ritterHits.tunnel(tun, tun.x1, tun.y1, 4); spawnFloatingText(tun.x1, tun.y1, "-4", "#ff5252"); dmgDone = true;
                     }
                 }
             });
             gameState.tu = gameState.tu.filter(tun => tun.h > 0);
         }
-        selectedUnit.a = 1; turnActions.push({ x: selectedUnit.x, y: selectedUnit.y, t: 'atk' });
+        selectedUnit.a = 1; ritterHits.flush(turnActions, selectedUnit.x, selectedUnit.y);
         selectedUnit = null; validMoves = []; validAttacks = []; hideActionMenu();
         if (dmgDone) { infoPanel.innerHTML = `🌀 Rundumschlag ausgeführt!`; }
         renderBoard(gameState);
@@ -124,6 +126,7 @@ window.useAbility = function (type) {
         getNeighbors(cx, cy).forEach(n => targets.push(n));
 
         const detDmg = pState.u.includes(9) ? 10 : 8;
+        const detHits = recapAoE({ au: 8 });   // Rueckblick, s. recapAoE (js/recap.js)
 
         targets.forEach(t => {
             spawnAttackAnim(cx, cy, t.x, t.y, 'fire');
@@ -131,6 +134,7 @@ window.useAbility = function (type) {
             gameState.u.forEach(u => {
                 if (u.x === t.x && u.y === t.y && u !== selectedUnit && !isFlying(u)) {
                     u.h -= detDmg;
+                    detHits.unit(u, detDmg);
                     spawnFloatingText(u.x, u.y, `-${detDmg}`, "#ff5252");
                 }
             });
@@ -139,6 +143,7 @@ window.useAbility = function (type) {
                 if (gameState.p[i].dead === 0 && gameState.p[i].sv === `${t.x},${t.y}`) {
                     gameState.p[i].sh -= detDmg;
                     spawnFloatingText(t.x, t.y, `-${detDmg}`, "#ff5252");
+                    detHits.building(i, t.x, t.y, detDmg, gameState.p[i].sh <= 0);
                     if (gameState.p[i].sh <= 0) killPlayer(gameState, i, gameState.cp);
                 }
             }
@@ -147,6 +152,7 @@ window.useAbility = function (type) {
                 gameState.tu.forEach(tun => {
                     if ((tun.x1 === t.x && tun.y1 === t.y) || (tun.x2 === t.x && tun.y2 === t.y)) {
                         tun.h -= detDmg;
+                        detHits.tunnel(tun, t.x, t.y, detDmg);
                         spawnFloatingText(t.x, t.y, `-${detDmg}`, "#ff5252");
                     }
                 });
@@ -156,6 +162,7 @@ window.useAbility = function (type) {
                 gameState.wa.forEach(w => {
                     if (w.x === t.x && w.y === t.y) {
                         w.h -= detDmg;
+                        detHits.wall(w, detDmg);
                         spawnFloatingText(t.x, t.y, `-${detDmg}`, "#ff5252");
                     }
                 });
@@ -166,6 +173,7 @@ window.useAbility = function (type) {
                 gameState.tw.forEach(tw => {
                     if (tw.x === t.x && tw.y === t.y) {
                         tw.h -= detDmg;
+                        detHits.tower(tw, detDmg);
                         spawnFloatingText(t.x, t.y, `-${detDmg}`, "#ff5252");
                     }
                 });
@@ -177,7 +185,7 @@ window.useAbility = function (type) {
         gameState.u = gameState.u.filter(u => u.h > 0);
         if (gameState.tu) gameState.tu = gameState.tu.filter(tun => tun.h > 0);
 
-        turnActions.push({ x: cx, y: cy, t: 'atk' });
+        detHits.flush(turnActions, cx, cy);
         selectedUnit = null; validMoves = []; validAttacks = []; window.specialActive = null;
         hideActionMenu(); infoPanel.innerHTML = "💥 BOOM! Saboteur detoniert!";
         renderBoard(gameState);
@@ -308,6 +316,7 @@ window.useAbility = function (type) {
         const cx = selectedUnit.x, cy = selectedUnit.y;
         const fsDmg = unitStats[15].fsDmg;
         const targets = [{ x: cx, y: cy }, ...getNeighbors(cx, cy)];
+        const fsHits = recapAoE({ au: selectedUnit.t });   // Rueckblick, s. recapAoE (js/recap.js)
 
         targets.forEach(t => {
             spawnAttackAnim(cx, cy, t.x, t.y, 'fire');
@@ -315,6 +324,7 @@ window.useAbility = function (type) {
             gameState.u.forEach(u => {
                 if (u.x === t.x && u.y === t.y && !isFlying(u)) {
                     u.h -= fsDmg;
+                    fsHits.unit(u, fsDmg);
                     spawnFloatingText(u.x, u.y, `-${fsDmg}`, "#ff5252");
                     if (u.h > 0) { u.bn = fsDmg; u.bo = gameState.cp; }
                 }
@@ -324,6 +334,7 @@ window.useAbility = function (type) {
                 if (gameState.p[i].dead === 0 && gameState.p[i].sv === `${t.x},${t.y}`) {
                     gameState.p[i].sh -= fsDmg;
                     spawnFloatingText(t.x, t.y, `-${fsDmg}`, "#ff5252");
+                    fsHits.building(i, t.x, t.y, fsDmg, gameState.p[i].sh <= 0);
                     if (gameState.p[i].sh <= 0) {
                         killPlayer(gameState, i, gameState.cp);
                     } else {
@@ -334,19 +345,19 @@ window.useAbility = function (type) {
 
             if (gameState.tu) gameState.tu.forEach(tun => {
                 if ((tun.x1 === t.x && tun.y1 === t.y) || (tun.x2 === t.x && tun.y2 === t.y)) {
-                    tun.h -= fsDmg; spawnFloatingText(t.x, t.y, `-${fsDmg}`, "#ff5252");
+                    tun.h -= fsDmg; fsHits.tunnel(tun, t.x, t.y, fsDmg); spawnFloatingText(t.x, t.y, `-${fsDmg}`, "#ff5252");
                     if (tun.h > 0) { tun.bn = fsDmg; tun.bo = gameState.cp; }
                 }
             });
             if (gameState.wa) gameState.wa.forEach(w => {
                 if (w.x === t.x && w.y === t.y) {
-                    w.h -= fsDmg; spawnFloatingText(t.x, t.y, `-${fsDmg}`, "#ff5252");
+                    w.h -= fsDmg; fsHits.wall(w, fsDmg); spawnFloatingText(t.x, t.y, `-${fsDmg}`, "#ff5252");
                     if (w.h > 0) { w.bn = fsDmg; w.bo = gameState.cp; }
                 }
             });
             if (gameState.tw) gameState.tw.forEach(tw => {
                 if (tw.x === t.x && tw.y === t.y) {
-                    tw.h -= fsDmg; spawnFloatingText(t.x, t.y, `-${fsDmg}`, "#ff5252");
+                    tw.h -= fsDmg; fsHits.tower(tw, fsDmg); spawnFloatingText(t.x, t.y, `-${fsDmg}`, "#ff5252");
                     if (tw.h > 0) { tw.bn = fsDmg; tw.bo = gameState.cp; }
                 }
             });
@@ -358,7 +369,7 @@ window.useAbility = function (type) {
         if (gameState.tw) gameState.tw = gameState.tw.filter(tw => tw.h > 0);
 
         selectedUnit.a = 1;
-        turnActions.push({ x: cx, y: cy, t: 'atk' });
+        fsHits.flush(turnActions, cx, cy);
         selectedUnit = null; validMoves = []; validAttacks = []; window.specialActive = null;
         hideActionMenu(); infoPanel.innerHTML = "🌋 FEUERSTURM! Alle getroffenen Ziele brennen!";
         renderBoard(gameState);
@@ -370,7 +381,9 @@ window.toggleDeploy = function () {
     saveUndoState();
     selectedUnit.dp = selectedUnit.dp === 1 ? 0 : 1;
     selectedUnit.a = 1;
-    turnActions.push({ x: selectedUnit.x, y: selectedUnit.y, t: 'atk' });
+    // Eigener Typ statt 'atk': das Auf-/Abbauen der Wagenburg ist kein Angriff
+    // und stand im Rückblick sonst als "Angriff" da (js/recap.js).
+    turnActions.push({ x: selectedUnit.x, y: selectedUnit.y, t: 'deploy', ut: selectedUnit.t });
     const deployed = selectedUnit.dp === 1;
     hideActionMenu();
     infoPanel.innerHTML = deployed ? `⛺ Wagenburg aufgeschlagen!` : `🐎 Wagenburg mobil.`;
@@ -445,10 +458,9 @@ window.useTunnel = function () {
             let linkX = tunnel.x1 === selectedUnit.x ? tunnel.x2 : tunnel.x1;
             let linkY = tunnel.y1 === selectedUnit.y ? tunnel.y2 : tunnel.y1;
             if (!groundUnitAt(linkX, linkY) && !gameState.v[`${linkX},${linkY}`]) {
-                const prevX = selectedUnit.x, prevY = selectedUnit.y;
                 selectedUnit.x = linkX; selectedUnit.y = linkY;
                 selectedUnit.a = 0;
-                turnActions.push({ x: linkX, y: linkY, t: 'mv', fx: prevX, fy: prevY });
+                turnActions.push({ x: linkX, y: linkY, t: 'mv', ut: selectedUnit.t });
                 selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
                 hideActionMenu(); infoPanel.innerHTML = "Durch Tunnel teleportiert!"; renderBoard(gameState);
             } else {
@@ -476,7 +488,7 @@ window.uwAscend = function () {
     // über die Oberflächen-Sicht (Default), symmetrisch zu uwDescend unten.
     // Eigener Typ 'asc' statt des früheren Sammelbegriffs 'cap' — im Rückblick
     // (js/recap.js) ist "Aufgestiegen" etwas anderes als "Dorf erobert".
-    turnActions.push({ x, y, t: 'asc' });
+    turnActions.push({ x, y, t: 'asc', ut: 7 });
     clearUWSelection();
     infoPanel.innerHTML = '🕳 Aufgestiegen zur Oberfläche!';
     hideActionMenu(); renderBoard(gameState); updateUI();
@@ -495,7 +507,7 @@ window.uwDescend = function () {
     descendUWUnit(gameState, selectedUnit);
     // uw:true (M13): die Einheit verschwindet von der Oberfläche und taucht im
     // Unterwelt-Netz auf — nur dort sichtbar. Eigener Typ 'desc', siehe uwAscend.
-    turnActions.push({ x, y, t: 'desc', uw: true });
+    turnActions.push({ x, y, t: 'desc', ut: 7, uw: true });
     selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
     infoPanel.innerHTML = '🕳 Abgetaucht in die Unterwelt!';
     hideActionMenu(); renderBoard(gameState); updateUI();

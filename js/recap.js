@@ -31,25 +31,32 @@ const RECAP_LOG_CAP = 180;
 
 // Aktionsarten, die als Übergriff auf eigenen Besitz gelten dürfen. Eine
 // Bewegung neben mein Dorf ist kein "betrifft dich" — ein Angriff darauf schon.
-const RECAP_HOSTILE = ['atk', 'cap', 'collapse', 'detonate', 'dynamite', 'chamber', 'creatureAtk'];
+const RECAP_HOSTILE = ['atk', 'cap', 'collapse', 'detonate', 'dynamite', 'chamber'];
 
 // kind → { ic (js/icons.js), k (Farbklasse, siehe css/game.css .rc-k-*),
-//          one/many (Beschriftung), prio (Sortierung innerhalb eines Spielers) }
-// Unbekannte Arten (alte Blobs, künftige Features) fallen auf RECAP_FALLBACK.
+//          one/many (Beschriftung ohne Einheit), prio (Sortierung),
+//          vb (Verbform MIT Einheit: "Pferd bewegt") }
+//
+// `vb` steht bewusst in der Einzahl und die Anzahl hängt als "×3" rechts an der
+// Zeile, statt in den Text eingebaut zu werden: im Deutschen müssten sonst
+// Artikel und Verb mitgebeugt werden ("2× Arbeiter gräbt"), und für jede neue
+// Aktionsart käme eine weitere Grammatikfalle dazu. Kinds ohne `vb` (oder
+// Einträge ohne Einheitentyp, z.B. aus alten Blobs) nutzen weiter one/many.
+// Unbekannte Arten fallen auf RECAP_FALLBACK.
 const RECAP_KINDS = {
     atk:         { ic: 'sword',      k: 'fire',  one: 'Angriff',                    many: n => `${n} Angriffe`,                    prio: 0 },
-    creatureAtk: { ic: 'blood',      k: 'fire',  one: 'Kreatur greift an',          many: n => `${n} Kreaturangriffe`,             prio: 0 },
-    cap:         { ic: 'village',    k: 'gold',  one: 'Dorf erobert',               many: n => `${n} Dörfer erobert`,              prio: 1 },
-    collapse:    { ic: 'boom',       k: 'fire',  one: 'Stollen gesprengt',          many: n => `${n}× Stollen gesprengt`,          prio: 1 },
+    cap:         { ic: 'village',    k: 'gold',  one: 'Dorf erobert',               many: n => `${n} Dörfer erobert`,              prio: 1, vb: 'erobert ein Dorf' },
+    deploy:      { ic: 'shield',     k: 'build', one: 'Wagenburg umgestellt',       many: n => `${n}× Wagenburg umgestellt`,       prio: 3, vb: 'stellt um' },
+    collapse:    { ic: 'boom',       k: 'fire',  one: 'Stollen gesprengt',          many: n => `${n}× Stollen gesprengt`,          prio: 1, vb: 'sprengt den Stollen' },
     detonate:    { ic: 'boom',       k: 'fire',  one: 'Ladung gezündet',            many: n => `${n} Ladungen gezündet`,           prio: 1 },
     dynamite:    { ic: 'dynamite',   k: 'fire',  one: 'Dynamit gelegt',             many: n => `${n}× Dynamit gelegt`,             prio: 1 },
     chamber:     { ic: 'dynamite',   k: 'fire',  one: 'Sprengkammer angelegt',      many: n => `${n} Sprengkammern angelegt`,      prio: 1 },
     erschl:      { ic: 'hex',        k: 'gold',  one: 'Herz der Tiefe erschlossen', many: n => `${n}× am Herz der Tiefe`,          prio: 1 },
     wormdeath:   { ic: 'skull',      k: 'earth', one: 'Der Alte Wurm ist gefallen', many: n => `${n}× Alter Wurm gefallen`,        prio: 1 },
-    buy:         { ic: 'users',      k: 'gold',  one: 'Einheit ausgehoben',         many: n => `${n} Einheiten ausgehoben`,        prio: 2 },
-    tower:       { ic: 'tower',      k: 'build', one: 'Turm errichtet',             many: n => `${n} Türme errichtet`,             prio: 3 },
-    wall:        { ic: 'wall',       k: 'build', one: 'Palisade errichtet',         many: n => `${n} Palisaden errichtet`,         prio: 3 },
-    tunnel:      { ic: 'tunnel',     k: 'build', one: 'Tunnel begonnen',            many: n => `${n} Tunnel begonnen`,             prio: 3 },
+    buy:         { ic: 'users',      k: 'gold',  one: 'Einheit ausgehoben',         many: n => `${n} Einheiten ausgehoben`,        prio: 2, vb: 'ausgehoben' },
+    tower:       { ic: 'tower',      k: 'build', one: 'Turm errichtet',             many: n => `${n} Türme errichtet`,             prio: 3, vb: 'errichtet einen Turm' },
+    wall:        { ic: 'wall',       k: 'build', one: 'Palisade errichtet',         many: n => `${n} Palisaden errichtet`,         prio: 3, vb: 'errichtet eine Palisade' },
+    tunnel:      { ic: 'tunnel',     k: 'build', one: 'Tunnel begonnen',            many: n => `${n} Tunnel begonnen`,             prio: 3, vb: 'beginnt einen Tunnel' },
     loot:        { ic: 'urn',        k: 'gold',  one: 'Fundkammer geplündert',      many: n => `${n} Fundkammern geplündert`,      prio: 3 },
     relicbuy:    { ic: 'urn',        k: 'gold',  one: 'Reliquie erworben',          many: n => `${n} Reliquien erworben`,          prio: 3 },
     relicuse:    { ic: 'urn',        k: 'gold',  one: 'Reliquie eingesetzt',        many: n => `${n} Reliquien eingesetzt`,        prio: 3 },
@@ -57,15 +64,77 @@ const RECAP_KINDS = {
     mine:        { ic: 'crystal',    k: 'earth', one: 'Kristallader angebrochen',   many: n => `${n} Kristalladern angebrochen`,   prio: 4 },
     deliver:     { ic: 'crystal',    k: 'gold',  one: 'Kristalle abgeliefert',      many: n => `${n}× Kristalle abgeliefert`,      prio: 4 },
     pickup:      { ic: 'crystal',    k: 'earth', one: 'Kristalle aufgenommen',      many: n => `${n}× Kristalle aufgenommen`,      prio: 4 },
-    dig:         { ic: 'pick',       k: 'earth', one: 'Stollen gegraben',           many: n => `${n} Felder gegraben`,             prio: 5 },
-    asc:         { ic: 'arrow-up',   k: 'earth', one: 'Aufgestiegen',               many: n => `${n}× aufgestiegen`,               prio: 5 },
-    desc:        { ic: 'arrow-down', k: 'earth', one: 'Abgetaucht',                 many: n => `${n}× abgetaucht`,                 prio: 5 },
-    jump:        { ic: 'jump',       k: 'earth', one: 'Durch den Stollen gesprungen', many: n => `${n} Stollensprünge`,            prio: 5 },
-    mv:          { ic: 'move',       k: 'move',  one: 'Bewegung',                   many: n => `${n} Bewegungen`,                  prio: 6 }
+    dig:         { ic: 'pick',       k: 'earth', one: 'Stollen gegraben',           many: n => `${n} Felder gegraben`,             prio: 5, vb: 'gräbt' },
+    asc:         { ic: 'arrow-up',   k: 'earth', one: 'Aufgestiegen',               many: n => `${n}× aufgestiegen`,               prio: 5, vb: 'steigt auf' },
+    desc:        { ic: 'arrow-down', k: 'earth', one: 'Abgetaucht',                 many: n => `${n}× abgetaucht`,                 prio: 5, vb: 'taucht ab' },
+    jump:        { ic: 'jump',       k: 'earth', one: 'Durch den Stollen gesprungen', many: n => `${n} Stollensprünge`,            prio: 5, vb: 'springt durch den Stollen' },
+    mv:          { ic: 'move',       k: 'move',  one: 'Bewegung',                   many: n => `${n} Bewegungen`,                  prio: 6, vb: 'bewegt' }
 };
 const RECAP_FALLBACK = { ic: 'hex', k: 'move', one: 'Aktion', many: n => `${n} Aktionen`, prio: 7 };
 
 function recapKind(t) { return RECAP_KINDS[t] || RECAP_FALLBACK; }
+
+// Gehoert der Eintrag ueberhaupt noch in den Rueckblick?
+//
+// Zwei Faelle, die beide aus laufenden Partien kommen, deren Blob aelter ist als
+// der aktuelle Code:
+//   · **Unbekannte Aktionsart.** Fruehere Versionen haben Arten protokolliert,
+//     die es heute nicht mehr gibt (`creatureAtk`). Ohne diesen Filter landen sie
+//     auf RECAP_FALLBACK und stehen als nichtssagendes "2 Aktionen" im Panel —
+//     eine Zeile, die nichts aussagt, ist schlechter als gar keine. Dass keine
+//     AKTUELL erzeugte Art hier durchfaellt, sichert maptest/verify_recap.js (g)
+//     ab; der Fallback ist damit reine Verteidigung, keine Anzeigelogik.
+//   · **Kein gueltiger Urheber.** `p: -1` (Kreaturen) und fehlendes `p` (Blobs von
+//     vor der Urheber-Stempelung) wurden von der Selbst-Beschneidung in
+//     recapAppendTurn nie erfasst — sie waeren bis zum Erreichen von
+//     RECAP_LOG_CAP im Log haengen geblieben.
+function recapEntryUsable(state, a) {
+    if (!RECAP_KINDS[a.t]) return false;
+    return typeof a.p === 'number' && a.p >= 0 && a.p < ((state.p && state.p.length) || 0);
+}
+
+// --- Flaechenschaden -------------------------------------------------------
+// Feuersturm, Stampede, Tribok-Salve, Rundumschlag und die Saboteur-Detonation
+// treffen mehrere Ziele auf einmal. Frueher stand dafuer EIN Eintrag auf dem
+// Mittelpunkt, aus dem das Panel nur "Elefant greift an" machen konnte — wer
+// getroffen wurde und wie hart, war nicht rekonstruierbar.
+//
+// Loesung: **je getroffenem Ziel ein eigener Eintrag, auf DESSEN Feld**. Das
+// bringt drei Dinge geschenkt, die eine Sammel-Zeile mit Opferliste alle
+// einzeln haette nachbauen muessen:
+//   · die normale Fog-Regel greift je Ziel (ein Treffer, den ich nicht sehen
+//     kann, taucht auch nicht auf),
+//   · "trifft dich" und die Karten-Hervorhebung sitzen auf dem richtigen Feld,
+//   · die Angriffszeile ist dieselbe wie bei einem Einzelangriff.
+//
+// Trifft die Faehigkeit nichts, bleibt ein Eintrag auf dem Mittelpunkt uebrig,
+// damit "Bombenballon greift an" nicht ganz verschwindet.
+//
+// `attacker` ist {au: <Einheitentyp>} oder {ab: 'tower'}.
+// Aufruf-Muster an den Faehigkeiten: Sammler anlegen, bei JEDEM Schadensblock
+// die passende Methode direkt nach dem `h -= dmg` aufrufen (dann stimmt das
+// Kill-Flag), am Ende flush().
+function recapAoE(attacker) {
+    const v = [];
+    const kl = obj => (obj && obj.h <= 0) ? 1 : undefined;
+    return {
+        unit(u, dm) { v.push({ x: u.x, y: u.y, vk: 'unit', vt: u.t, vp: u.p, dm, kl: kl(u) }); },
+        wall(w, dm) { v.push({ x: w.x, y: w.y, vk: 'wall', vp: w.o, dm, kl: kl(w) }); },
+        tower(t, dm) { v.push({ x: t.x, y: t.y, vk: 'tower', vp: t.o, dm, kl: kl(t) }); },
+        // Tunnel und Hauptgebaeude liegen nicht auf "ihrem" Objekt-Hex bzw. haben
+        // zwei Enden — das getroffene Feld kommt deshalb vom Aufrufer.
+        tunnel(t, x, y, dm) { v.push({ x, y, vk: 'tunnel', vp: t.o, dm, kl: kl(t) }); },
+        building(pid, x, y, dm, dead) { v.push({ x, y, vk: 'building', vp: pid, dm, kl: dead ? 1 : undefined }); },
+        flush(actions, cx, cy, extra) {
+            if (v.length === 0) {
+                actions.push(Object.assign({ x: cx, y: cy, t: 'atk' }, attacker, extra));
+            } else {
+                v.forEach(hit => actions.push(Object.assign({ t: 'atk' }, attacker, hit, extra)));
+            }
+            return v.length;
+        }
+    };
+}
 
 // --- Log-Pflege -----------------------------------------------------------
 // Wird am Zugende aufgerufen (js/input.js: doEndTurn, confirmSurrender) und
@@ -85,14 +154,16 @@ function recapAppendTurn(state, pid, actions) {
         // vo === -1 heißt "war neutral" und trägt keine Information.
         if (a.vo === -1) delete a.vo;
         // fx/fy (Herkunftsfeld) hatte genau EINEN Leser: die Angriffs-Animation
-        // des alten Kino-Playbacks. Die ist weg, das Panel arbeitet mit dem
-        // Zielfeld. Die Felder hier zentral zu streichen ist billiger als sie an
-        // den ~10 turnActions.push-Stellen einzeln zu entfernen — und sie sind
-        // ein Drittel des Logs, der seit der Rundenmitführung sechsmal so viele
-        // Einträge trägt wie vorher. Wer sie wiederbelebt, streicht diese Zeilen.
+        // des alten Kino-Playbacks. Die Push-Stellen sind mit umgestellt worden;
+        // das Löschen hier fängt nur noch laufende Partien ab, deren Blob die
+        // Felder schon trägt. Wer sie wiederbelebt, streicht diese Zeile.
         delete a.fx; delete a.fy;
     });
-    const kept = (state.la || []).filter(a => a.p !== undefined && a.p !== pid);
+    // Behalten wird nur, was ein anderer LEBENDER Slot in dieser Runde getan hat
+    // und was der aktuelle Code auch beschriften kann — damit raeumt sich der Log
+    // beim naechsten Zugende von selbst auf, statt Altlasten bis zum Deckel
+    // mitzuschleppen (siehe recapEntryUsable).
+    const kept = (state.la || []).filter(a => a.p !== pid && recapEntryUsable(state, a));
     state.la = kept.concat(actions).slice(-RECAP_LOG_CAP);
     return state.la;
 }
@@ -113,6 +184,10 @@ function recapVisibleActions(state, viewerId) {
     const hidden = (list, a) => (list || []).some(u => u.p !== viewerId && u.iv === 1 && u.x === a.x && u.y === a.y);
     return (state.la || []).filter(a => {
         if (a.p === viewerId) return false;
+        // Alt-Eintraege ohne heutige Entsprechung fallen sofort raus, nicht erst
+        // beim naechsten Zugende (recapAppendTurn) — sonst zeigt eine laufende
+        // Partie beim ersten Laden noch einmal die alte, nichtssagende Zeile.
+        if (!recapEntryUsable(state, a)) return false;
         if (a.global) return true;
         if (a.uw) {
             if (!visUW) visUW = getVisibleUWHexes(viewerId);
@@ -131,6 +206,12 @@ function recapVisibleActions(state, viewerId) {
 // Meldung der ganzen Runde.
 function recapTouchesViewer(state, a, viewerId) {
     if (a.vo === viewerId) return true;
+    // vp (Besitzer des Angriffsziels) ist die verlässlichere Auskunft als der
+    // Blick aufs Hex — und zwar genau im wichtigsten Fall: eine ZERSTÖRTE
+    // Einheit steht dort nicht mehr, ihr Verlust ist aber die Meldung, die man
+    // am dringendsten sehen will. Ohne diese Zeile blieb ausgerechnet der Kill
+    // unmarkiert, während der Streifschuss daneben rot war.
+    if (a.vp === viewerId) return true;
     if (RECAP_HOSTILE.indexOf(a.t) === -1) return false;
     const key = `${a.x},${a.y}`;
     if (state.v && state.v[key] === viewerId) return true;
@@ -145,22 +226,77 @@ function recapTouchesViewer(state, a, viewerId) {
     return false;
 }
 
+// --- Beschriftung ---------------------------------------------------------
+// Namen für Einheiten und Kreaturen. Beides liegt in js/data.js; die Funktionen
+// hier sind die einzige Stelle, an der der Rückblick sie anfasst — fehlende
+// Typen (alte Blobs, neue Einheiten vor dem Datenpflege-Pass) fallen auf einen
+// neutralen Text zurück, statt "undefined" in die Zeile zu schreiben.
+function recapUnitName(t) {
+    if (t === undefined || t === null) return 'Einheit';
+    const st = (typeof unitStats !== 'undefined' && unitStats) ? unitStats[t] : null;
+    return (st && st.name) || 'Einheit';
+}
+
+// Wer hat angegriffen? Meist eine Einheit (`au`), es kann aber auch ein Bauwerk
+// sein: der Turmschuss hat gar keine Einheit dahinter (`ab: 'tower'`).
+function recapActorName(a) {
+    if (a.ab === 'tower') return 'Turm';
+    return recapUnitName(a.au);
+}
+
+function recapCreatureName(t) {
+    const cs = (typeof uwCreatureStats !== 'undefined' && uwCreatureStats) ? uwCreatureStats[t] : null;
+    return (cs && cs.name) || 'Kreatur';
+}
+
+// Wen hat es getroffen? `vk` (Zielart) und `vt` (Ziel-Einheitentyp) kommen aus
+// executeAttackOnTarget/executeUWAttack (js/input.js). `vp === viewerId` wird zu
+// "dein/deine …" — das ist die Information, wegen der man den Rückblick liest.
+function recapVictimLabel(a, viewerId) {
+    const mine = a.vp === viewerId;
+    switch (a.vk) {
+        case 'building': return mine ? 'dein Hauptgebäude' : 'Hauptgebäude';
+        case 'wall':     return mine ? 'deine Palisade' : 'Palisade';
+        case 'tower':    return mine ? 'deinen Turm' : 'Turm';
+        case 'tunnel':   return mine ? 'deinen Tunnel' : 'Tunnel';
+        case 'creature': return recapCreatureName(a.vt);
+        case 'unit':     return (mine ? 'dein ' : '') + recapUnitName(a.vt);
+        default:         return null;   // Flächenangriffe/Altbestand: kein Einzelziel
+    }
+}
+
 // --- Verdichtung ----------------------------------------------------------
-// Rohlog → Gruppen je Spieler, darin Zeilen je Aktionsart. Eine Zeile trägt
-// ihre Hex-Liste mit, damit das Panel beim Antippen durchsteppen kann.
+// Rohlog → Gruppen je Spieler, darin Zeilen. Zwei verschiedene Verdichtungen,
+// mit Absicht:
+//   · **Angriffe bekommen je eine eigene Zeile.** Wer, auf wen, wie viel Schaden,
+//     tot ja/nein — das unterscheidet sich von Angriff zu Angriff, ein
+//     zusammengefasstes "3 Angriffe" wirft genau die Information weg, die man
+//     wissen will.
+//   · **Alles andere wird je Einheitentyp gebündelt**: "2× Pferd bewegt" statt
+//     zwei Zeilen. So steht trotzdem in jeder Zeile, WELCHE Einheit gehandelt
+//     hat, ohne dass ein Zug mit zwölf Bewegungen das Panel flutet.
+// Jede Zeile trägt ihre Hex-Liste mit — das Panel hebt beim Antippen alle
+// zugehörigen Felder hervor und steppt die Kamera durch sie hindurch.
 // Sortierung: Spieler, die mich angefasst haben, zuerst; innerhalb eines
 // Spielers erst die Treffer, dann nach prio (Kampf vor Bewegung).
 function buildRecapGroups(state, viewerId) {
     const groups = new Map();
+    let seq = 0;
     recapVisibleActions(state, viewerId).forEach(a => {
-        const pid = a.p === undefined ? -1 : a.p;
+        // recapEntryUsable garantiert einen gueltigen Spielerindex — die
+        // Gruppierung braucht deshalb keinen Sonderfall fuer urheberlose
+        // Eintraege mehr (der hiess frueher "Die Tiefe" und trug die
+        // Kreaturen-Angriffe, die es im Rueckblick nicht mehr gibt).
+        const pid = a.p;
         if (!groups.has(pid)) groups.set(pid, { pid, hits: 0, total: 0, rows: new Map() });
         const g = groups.get(pid);
         const hit = recapTouchesViewer(state, a, viewerId);
-        // Treffer und Nicht-Treffer derselben Art bleiben getrennte Zeilen —
-        // "2 Angriffe" und "Angriff · trifft dich" sind verschiedene Meldungen.
-        const rowKey = a.t + (hit ? '!' : '');
-        if (!g.rows.has(rowKey)) g.rows.set(rowKey, { t: a.t, hit, hexes: [] });
+        // Angriffe: nie bündeln (eigener Schlüssel je Eintrag). Sonst nach
+        // Aktionsart + Einheitentyp, Treffer getrennt von Nicht-Treffern.
+        const rowKey = a.t === 'atk'
+            ? `atk#${seq++}`
+            : `${a.t}:${a.ut === undefined ? '' : a.ut}${hit ? '!' : ''}`;
+        if (!g.rows.has(rowKey)) g.rows.set(rowKey, { t: a.t, ut: a.ut, hit, a, hexes: [] });
         g.rows.get(rowKey).hexes.push({ x: a.x, y: a.y, uw: !!a.uw });
         g.total++;
         if (hit) g.hits++;
@@ -170,19 +306,39 @@ function buildRecapGroups(state, viewerId) {
     groups.forEach(g => {
         const rows = [...g.rows.values()].map(r => {
             const kd = recapKind(r.t);
-            return {
-                t: r.t, hit: r.hit, hexes: r.hexes, ic: kd.ic, k: kd.k,
-                label: r.hexes.length === 1 ? kd.one : kd.many(r.hexes.length),
-                prio: kd.prio
+            const n = r.hexes.length;
+            const row = {
+                t: r.t, hit: r.hit, hexes: r.hexes, ic: kd.ic, k: kd.k, prio: kd.prio,
+                // Einheiten-Sprite links in der Zeile (js/art.js pixelSprites).
+                // Bei Angriffen ist der Angreifer gemeint, sonst die handelnde Einheit.
+                unit: r.t === 'atk' ? r.a.au : r.ut,
+                label: (r.ut !== undefined && kd.vb)
+                    ? `${recapUnitName(r.ut)} ${kd.vb}`
+                    : (n === 1 ? kd.one : kd.many(n)),
+                count: n
             };
+            if (r.t === 'atk') {
+                const victim = recapVictimLabel(r.a, viewerId);
+                row.actor = recapActorName(r.a);
+                // Bauwerk als Angreifer: eigenes Zeilensymbol, kein Einheiten-Sprite.
+                if (r.a.ab) { row.ic = r.a.ab; row.unit = undefined; }
+                row.victim = victim;
+                row.victimUnit = (r.a.vk === 'unit' || r.a.vk === 'creature') ? r.a.vt : undefined;
+                row.victimCreature = r.a.vk === 'creature';
+                row.dmg = r.a.dm;
+                row.killed = r.a.kl === 1;
+                // Fallback-Text für Flächenangriffe und Einträge aus alten Blobs,
+                // denen die Details fehlen — dann steht wenigstens der Angreifer da.
+                row.label = victim ? `${row.actor} → ${victim}` : `${row.actor} greift an`;
+            }
+            return row;
         });
-        rows.sort((a, b) => (b.hit - a.hit) || (a.prio - b.prio) || a.t.localeCompare(b.t));
-        const pl = g.pid >= 0 && state.p ? state.p[g.pid] : null;
+        rows.sort((a, b) => (b.hit - a.hit) || (a.prio - b.prio) || (b.count - a.count) || a.t.localeCompare(b.t));
+        const pl = state.p ? state.p[g.pid] : null;
         out.push({
             pid: g.pid, hits: g.hits, total: g.total, rows,
-            name: pl ? pl.n : 'Die Tiefe',
-            // -1 = Kreaturen/Weltereignisse: keine Spielerfarbe, sondern Stein.
-            color: (g.pid >= 0 && typeof playerColors !== 'undefined')
+            name: (pl && pl.n) || `Spieler ${g.pid + 1}`,
+            color: (typeof playerColors !== 'undefined')
                 ? playerColors[g.pid % playerColors.length] : '#7d838f'
         });
     });
@@ -233,6 +389,43 @@ if (typeof document !== 'undefined') (function () {
         return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     }
 
+    // --- Einheiten-Sprite als Zeilen-Symbol -------------------------------
+    // Zeichnet ein pixelSprite (js/art.js) einmalig in ein Offscreen-Canvas und
+    // gibt eine data-URL zurueck. Ein <img> statt eines <canvas> je Zeile, damit
+    // renderRecapPanel weiter reines innerHTML bleibt und ein erneutes Rendern
+    // nichts kostet. Gecacht je (Sprite, Spielerfarbe) — das sind im Extremfall
+    // ein paar Dutzend winzige Bitmaps ueber die ganze Partie.
+    const _spriteCache = {};
+    function recapSpriteURL(spriteKey, playerColor) {
+        const key = spriteKey + '|' + playerColor;
+        if (key in _spriteCache) return _spriteCache[key];
+        const arr = (typeof pixelSprites !== 'undefined' && pixelSprites) ? pixelSprites[spriteKey] : null;
+        if (!arr) return (_spriteCache[key] = null);
+        const size = Math.round(Math.sqrt(arr.length));
+        const cv = document.createElement('canvas');
+        cv.width = cv.height = size;
+        const cx = cv.getContext('2d');
+        for (let i = 0; i < arr.length; i++) {
+            if (!arr[i]) continue;
+            cx.fillStyle = spritePixelColor(arr[i], playerColor);
+            cx.fillRect(i % size, Math.floor(i / size), 1, 1);
+        }
+        return (_spriteCache[key] = cv.toDataURL());
+    }
+
+    // `cls` trennt Angreifer (volle Groesse) von Ziel (etwas kleiner) — ohne den
+    // Groessenunterschied lesen sich zwei gleich grosse Sprites nebeneinander
+    // wie ein Paar statt wie "der da hat den da getroffen".
+    function recapSprite(spriteKey, playerColor, cls) {
+        const url = (spriteKey === undefined || spriteKey === null) ? null : recapSpriteURL(spriteKey, playerColor);
+        return url ? '<img class="recap-unit ' + (cls || '') + '" src="' + url + '" alt="">' : '';
+    }
+
+    function recapCreatureSprite(t) {
+        const cs = (typeof uwCreatureStats !== 'undefined' && uwCreatureStats) ? uwCreatureStats[t] : null;
+        return (cs && cs.sprite !== undefined) ? recapSprite(cs.sprite, '#9e9e9e', 'small') : '';
+    }
+
     function renderRecapPanel() {
         const body = el('recap-body');
         if (!body) return;
@@ -240,43 +433,80 @@ if (typeof document !== 'undefined') (function () {
             body.innerHTML = '<div class="recap-empty">Seit deinem letzten Zug ist in deinem Sichtfeld nichts passiert.</div>';
             return;
         }
+        const viewer = recapViewerId();
+        const myColor = (viewer >= 0 && typeof playerColors !== 'undefined')
+            ? playerColors[viewer % playerColors.length] : '#9e9e9e';
         let html = '';
         recapGroups.forEach((g, gi) => {
             html += `<div class="recap-group${g.hits ? ' has-hit' : ''}">`;
             html += `<div class="recap-name"><span class="score-dot" style="background:${g.color}"></span>${escapeRecap(g.name)}</div>`;
             g.rows.forEach((r, ri) => {
-                const step = r.hexes.length > 1 ? `<span class="recap-step">1/${r.hexes.length}</span>` : '';
+                // Rechts haengt die Anzahl (x3) bzw. beim Durchsteppen die
+                // Position (2/3) — siehe Kommentar bei RECAP_KINDS.vb.
+                const step = r.hexes.length > 1
+                    ? `<span class="recap-step">&times;${r.hexes.length}</span>` : '';
+                let text;
+                if (r.t === 'atk' && r.victim) {
+                    // Ziel-Sprite nur bei Einheiten/Kreaturen — Hauptgebaeude,
+                    // Palisade, Turm und Tunnel haben kein Sprite in
+                    // Einheitengroesse, die stehen als Text da.
+                    const vSprite = r.victimCreature
+                        ? recapCreatureSprite(r.victimUnit)
+                        : (r.victimUnit !== undefined ? recapSprite(r.victimUnit, r.hit ? myColor : g.color, 'small') : '');
+                    text = `${escapeRecap(r.actor)} <span class="recap-arrow">&rarr;</span> ${vSprite}${escapeRecap(r.victim)}`;
+                } else {
+                    text = escapeRecap(r.label);
+                }
+                // "trifft dich" nur, wo der Text es nicht schon sagt: eine
+                // Angriffszeile mit benanntem Ziel liest sich bereits als
+                // "→ dein Schwert", ein zusätzlicher Hinweis wäre genau die
+                // Überladung, die das Panel vermeiden soll. Ohne benanntes Ziel
+                // (Flächenangriff, erobertes Dorf, gesprengter Stollen) bleibt er.
+                if (r.hit && !r.victim) text += '<b> · trifft dich</b>';
+                const dmg = r.dmg ? `<span class="recap-dmg">&minus;${r.dmg}</span>` : '';
+                const kill = r.killed ? `<span class="recap-kill">${icon('skull', 'ic-14')}</span>` : '';
                 html += `<button class="recap-row rc-k-${r.k}${r.hit ? ' hit' : ''}" data-g="${gi}" data-r="${ri}">`
                     + `<span class="recap-ic">${icon(r.ic, 'ic-14')}</span>`
-                    + `<span class="recap-label">${escapeRecap(r.label)}${r.hit ? '<b> · trifft dich</b>' : ''}</span>`
-                    + step
+                    + recapSprite(r.unit, g.color)
+                    + `<span class="recap-label">${text}</span>`
+                    + dmg + kill + step
                     + `</button>`;
             });
             html += '</div>';
         });
         body.innerHTML = html;
         body.querySelectorAll('.recap-row').forEach(btn => {
-            btn.addEventListener('click', () => jumpToRecapRow(+btn.dataset.g, +btn.dataset.r, btn));
+            btn.addEventListener('click', () => selectRecapRow(+btn.dataset.g, +btn.dataset.r, btn));
         });
     }
 
-    // Kamerafahrt nur auf ausdrückliches Antippen — das ist der Kern des
-    // Umbaus gegenüber dem alten Zwangs-Playback.
-    function jumpToRecapRow(gi, ri, btn) {
+    // Antippen waehlt die Zeile aus: ALLE zugehoerigen Felder leuchten auf der
+    // Karte auf (window.recapFocus, gelesen von js/render.js und js/render3d.js),
+    // und die Kamera faehrt auf das erste. Erneutes Antippen derselben Zeile geht
+    // zum naechsten Feld weiter — so kommt man an alle Bewegungen einer Einheit,
+    // ohne dass irgendetwas von allein losläuft (der Kern des Umbaus gegenueber
+    // dem alten Zwangs-Playback).
+    let _selectedKey = null;
+    function selectRecapRow(gi, ri, btn) {
         const row = recapGroups[gi] && recapGroups[gi].rows[ri];
         if (!row || row.hexes.length === 0) return;
         const key = gi + ':' + ri;
-        const idx = (recapCursors[key] || 0) % row.hexes.length;
+        const idx = (_selectedKey === key) ? ((recapCursors[key] || 0) % row.hexes.length) : 0;
         recapCursors[key] = idx + 1;
+        _selectedKey = key;
+
+        const body = el('recap-body');
+        if (body) body.querySelectorAll('.recap-row').forEach(b => b.classList.toggle('selected', b === btn));
+
+        window.recapFocus = { hexes: row.hexes, color: recapPulseColor(row.k) };
         const h = row.hexes[idx];
         Renderer.centerOn(h.x, h.y, 1.0);
         renderBoard(gameState);
-        spawnFloatingText(h.x, h.y, '◆', recapPulseColor(row.k));
         const step = btn && btn.querySelector('.recap-step');
         if (step) step.textContent = `${idx + 1}/${row.hexes.length}`;
     }
 
-    // Farben für den Karten-Puls kommen aus denselben CSS-Tokens wie die
+    // Farben fuer die Karten-Hervorhebung kommen aus denselben CSS-Tokens wie die
     // Panelzeilen (kein zweiter, per Hand gepflegter Farbsatz im JS — vgl. die
     // Regel gegen Inline-Materialfarben in CLAUDE.md).
     function recapPulseColor(k) {
@@ -284,9 +514,17 @@ if (typeof document !== 'undefined') (function () {
         return (v && v.trim()) || '#cabe98';
     }
 
+    // Auswahl aufheben: keine Zeile mehr markiert, keine Felder mehr hervorgehoben.
+    function clearRecapFocus() {
+        _selectedKey = null;
+        recapCursors = {};
+        window.recapFocus = null;
+    }
+
     function openRecap() {
         const panel = el('recap-panel');
         if (!panel) return;
+        clearRecapFocus();
         renderRecapPanel();
         panel.classList.add('open');
         recapOpen = true;
@@ -300,6 +538,7 @@ if (typeof document !== 'undefined') (function () {
         if (!recapOpen) return;
         recapOpen = false;
         showRecap = false;
+        clearRecapFocus();
         if (gameState) renderBoard(gameState);
     }
 
@@ -310,7 +549,6 @@ if (typeof document !== 'undefined') (function () {
         closeRecap();     // Reste aus der vorherigen Partie/dem vorherigen Zug
         const viewer = recapViewerId();
         recapGroups = (viewer < 0 || !gameState) ? [] : buildRecapGroups(gameState, viewer);
-        recapCursors = {};
         refreshRecapButton();
         showRecap = false;
         if (recapGroups.length > 0) openRecap();

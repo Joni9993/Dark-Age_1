@@ -1705,6 +1705,13 @@
 
         // Highlights — liest dieselben Globals wie der 2D-Renderer
         if (showRecap) visibleRecaps.forEach(a => addOverlay(a.x, a.y, 0xffa500, 0.4, state));
+        // Ausgewählte Rückblick-Zeile (js/recap.js selectRecapRow): ihre Felder
+        // leuchten kräftiger und in der Farbe der Aktionsart — so sieht man auf
+        // einen Blick, welche Einheiten der angetippte Bericht meint.
+        if (window.recapFocus && window.recapFocus.hexes) {
+            const rc = new THREE.Color(window.recapFocus.color || '#ffffff').getHex();
+            window.recapFocus.hexes.forEach(h => addOverlay(h.x, h.y, rc, 0.75, state));
+        }
         validMoves.forEach(mv => addOverlay(mv.x, mv.y, 0x64ff64, 0.3, state));
         validAttacks.forEach(a => addOverlay(a.x, a.y, 0xff6464, 0.5, state));
         if (selectedHex) addOverlay(selectedHex.x, selectedHex.y, 0xffffff, 0.25, state);

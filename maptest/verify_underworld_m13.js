@@ -120,10 +120,12 @@ console.log('=== (a) Recap-Sichtbarkeit: uw/global-Tags steuern die Fog-Filterun
     const state = freshState(21, 7, 2);
     // Echter Produktionscode statt Nachbau: recapVisibleActions arbeitet auf
     // state.la, deshalb wird die zu prüfende Aktion hier einzeln durchgereicht.
-    // p: -1 hält sie in jedem Fall "fremd" — der Eigenaktions-Filter ist Thema
-    // von maptest/verify_recap.js, hier geht es allein um die uw/global-Regel.
+    // Urheber ist immer der jeweils ANDERE Spieler — das hält die Aktion "fremd"
+    // (der Eigenaktions-Filter ist Thema von maptest/verify_recap.js) und gibt ihr
+    // zugleich einen gültigen Spielerindex, den recapEntryUsable verlangt. Hier
+    // geht es allein um die uw/global-Fog-Regel.
     function recapVisible(viewerId, action) {
-        state.la = [{ ...action, p: -1 }];
+        state.la = [{ ...action, p: viewerId === 0 ? 1 : 0 }];
         return M.recapVisibleActions(state, viewerId).length === 1;
     }
 

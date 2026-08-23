@@ -85,8 +85,14 @@ function handleCanvasClick(clientX, clientY) {
                     saveUndoState();
                     spawnAttackAnim(t.x, t.y, clickedX, clickedY, 'arrow');
                     spawnFloatingText(clickedX, clickedY, `-5`, "#ff5252");
+                    // Rueckblick (js/recap.js): der Turmschuss war bisher die einzige
+                    // Angriffsart ohne jeden Log-Eintrag — im Rueckblick des Getroffenen
+                    // fiel ein Schuss auf sein Dorf damit komplett unter den Tisch.
+                    // ab: 'tower' statt au: <Einheitentyp>, hier steht keine Einheit dahinter.
+                    const twHit = recapAoE({ ab: 'tower' });
                     if (targetUnit) {
                         targetUnit.h -= 5;
+                        twHit.unit(targetUnit, 5);
                         let killed = false;
                         if (targetUnit.h <= 0) { gameState.u = gameState.u.filter(u => u.i !== targetUnit.i); killed = true; }
                         const twPState = gameState.p[gameState.cp];
@@ -94,24 +100,29 @@ function handleCanvasClick(clientX, clientY) {
                         else infoPanel.innerHTML = `🗼 Turm feuert! (-5 HP)`;
                     } else if (targetTower) {
                         targetTower.h -= 5;
+                        twHit.tower(targetTower, 5);
                         if (targetTower.h <= 0) { gameState.tw = gameState.tw.filter(tw => tw !== targetTower); infoPanel.innerHTML = `🗼 Feindlicher Turm zerstört!`; }
                         else infoPanel.innerHTML = `🗼 Turm feuert auf Turm! (-5 HP)`;
                     } else if (targetWall) {
                         targetWall.h -= 5;
+                        twHit.wall(targetWall, 5);
                         if (targetWall.h <= 0) { gameState.wa = gameState.wa.filter(w => w !== targetWall); infoPanel.innerHTML = `🗼 Palisade zerstört!`; }
                         else infoPanel.innerHTML = `🗼 Turm feuert auf Palisade! (-5 HP)`;
                     } else if (targetTunnel) {
                         targetTunnel.h -= 5;
+                        twHit.tunnel(targetTunnel, clickedX, clickedY, 5);
                         if (targetTunnel.h <= 0) { gameState.tu = gameState.tu.filter(tu => tu !== targetTunnel); infoPanel.innerHTML = `🗼 Tunnel zerstört!`; }
                         else infoPanel.innerHTML = `🗼 Turm feuert auf Tunnel! (-5 HP)`;
                     } else if (targetBuildingOwner >= 0) {
                         gameState.p[targetBuildingOwner].sh -= 5;
+                        twHit.building(targetBuildingOwner, clickedX, clickedY, 5, gameState.p[targetBuildingOwner].sh <= 0);
                         if (gameState.p[targetBuildingOwner].sh <= 0) {
                             const deadName = gameState.p[targetBuildingOwner].n;
                             killPlayer(gameState, targetBuildingOwner, gameState.cp);
                             infoPanel.innerHTML = `💀 HAUPTGEBÄUDE ZERSTÖRT! ${deadName} ist ausgeschieden!`;
                         } else infoPanel.innerHTML = `🗼 Turm feuert auf Hauptgebäude! (-5 HP)`;
                     }
+                    twHit.flush(turnActions, clickedX, clickedY);
                     t.a = 1;
                     window.specialActive = null; selectedTower = null; selectedHex = null; validAttacks = [];
                     renderBoard(gameState);
@@ -205,7 +216,7 @@ function handleCanvasClick(clientX, clientY) {
                 // clearUnderworldForTunnelHead, js/logic.js).
                 clearUnderworldForTunnelHead(gameState, window.tunnelStart.x, window.tunnelStart.y);
 
-                selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'tunnel', fx: window.tunnelStart.x, fy: window.tunnelStart.y });
+                selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'tunnel', ut: selectedUnit.t });
                 window.specialActive = null; selectedUnit = null; validMoves = []; window.tunnelStart = null;
                 infoPanel.innerHTML = "🚇 Tunnelbau gestartet! (Nächste Runde fertig)"; renderBoard(gameState);
             } else {
@@ -219,7 +230,7 @@ function handleCanvasClick(clientX, clientY) {
                 if (!gameState.wa) gameState.wa = [];
                 gameState.wa.push({ x: clickedX, y: clickedY, o: gameState.cp, h: getWallMaxHp(pState) });
 
-                selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'wall', fx: selectedUnit.x, fy: selectedUnit.y });
+                selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'wall', ut: selectedUnit.t });
                 window.specialActive = null; selectedUnit = null; validMoves = [];
                 infoPanel.innerHTML = "🧱 Palisade errichtet!"; renderBoard(gameState);
             } else {
@@ -232,7 +243,7 @@ function handleCanvasClick(clientX, clientY) {
                 pState.s = (pState.s || 0) - 5;
                 if (!gameState.tw) gameState.tw = [];
                 gameState.tw.push({ x: clickedX, y: clickedY, o: gameState.cp, h: getTowerMaxHp(pState), a: 1 });
-                selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'tower', fx: selectedUnit.x, fy: selectedUnit.y });
+                selectedUnit.a = 1; turnActions.push({ x: clickedX, y: clickedY, t: 'tower', ut: selectedUnit.t });
                 window.specialActive = null; selectedUnit = null; validMoves = [];
                 infoPanel.innerHTML = "🗼 Turm errichtet!"; renderBoard(gameState);
             } else {
@@ -273,16 +284,20 @@ function handleCanvasClick(clientX, clientY) {
                 pathHexes.push({ x: toX, y: toY });
 
                 const canAttack = (targetId) => !(pState.al && pState.al.includes(targetId)) && !(pState.tc && pState.tc.includes(targetId));
+                // Rueckblick: je getroffenem Ziel ein eigener Eintrag (siehe recapAoE).
+                const stampHits = recapAoE({ au: selectedUnit.t });
                 pathHexes.forEach(ph => {
                     spawnAttackAnim(fromX, fromY, ph.x, ph.y, 'slash');
                     gameState.u.filter(u => u.x === ph.x && u.y === ph.y && u.p !== gameState.cp && canAttack(u.p) && !isFlying(u)).forEach(enemy => {
                         enemy.h -= 5;
+                        stampHits.unit(enemy, 5);
                         spawnFloatingText(enemy.x, enemy.y, "-5", "#ff5252");
                     });
                     for (let i = 0; i < gameState.p.length; i++) {
                         if (i !== gameState.cp && gameState.p[i].dead === 0 && canAttack(i) && gameState.p[i].sv === `${ph.x},${ph.y}`) {
                             gameState.p[i].sh -= 5;
                             spawnFloatingText(ph.x, ph.y, "-5", "#ff5252");
+                            stampHits.building(i, ph.x, ph.y, 5, gameState.p[i].sh <= 0);
                             if (gameState.p[i].sh <= 0) killPlayer(gameState, i, gameState.cp);
                         }
                     }
@@ -290,6 +305,7 @@ function handleCanvasClick(clientX, clientY) {
                         gameState.wa.forEach(w => {
                             if (w.x === ph.x && w.y === ph.y) {
                                 w.h -= 5;
+                                stampHits.wall(w, 5);
                                 spawnFloatingText(ph.x, ph.y, "-5", "#ff5252");
                             }
                         });
@@ -306,7 +322,7 @@ function handleCanvasClick(clientX, clientY) {
                 }
                 selectedUnit.x = landX; selectedUnit.y = landY;
                 selectedUnit.a = 1;
-                turnActions.push({ x: toX, y: toY, t: 'atk', fx: fromX, fy: fromY });
+                stampHits.flush(turnActions, toX, toY);
                 selectedUnit = null; validMoves = []; validAttacks = []; window.specialActive = null;
                 hideActionMenu(); infoPanel.innerHTML = "🐘 Stampede ausgeführt!";
                 renderBoard(gameState);
@@ -322,15 +338,17 @@ function handleCanvasClick(clientX, clientY) {
             let targets = [{ x: targetAttack.x, y: targetAttack.y, dmg: 3 }];
             getNeighbors(targetAttack.x, targetAttack.y).forEach(n => targets.push({ x: n.x, y: n.y, dmg: 2 }));
 
+            const tribokHits = recapAoE({ au: selectedUnit.t });   // Rueckblick, s. recapAoE
             targets.forEach(t => {
                 const canAttack = (targetId) => !(pState.al && pState.al.includes(targetId)) && !(pState.tc && pState.tc.includes(targetId));
 
                 let uList = gameState.u.filter(u => u.x === t.x && u.y === t.y && u.p !== gameState.cp && canAttack(u.p) && !isFlying(u));
-                uList.forEach(u => { u.h -= t.dmg; spawnFloatingText(u.x, u.y, `-${t.dmg}`, "#ff5252"); });
+                uList.forEach(u => { u.h -= t.dmg; tribokHits.unit(u, t.dmg); spawnFloatingText(u.x, u.y, `-${t.dmg}`, "#ff5252"); });
 
                 for (let i = 0; i < gameState.p.length; i++) {
                     if (i !== gameState.cp && gameState.p[i].dead === 0 && canAttack(i) && gameState.p[i].sv === `${t.x},${t.y}`) {
                         gameState.p[i].sh -= t.dmg; spawnFloatingText(t.x, t.y, `-${t.dmg}`, "#ff5252");
+                        tribokHits.building(i, t.x, t.y, t.dmg, gameState.p[i].sh <= 0);
                         if (gameState.p[i].sh <= 0) killPlayer(gameState, i, gameState.cp);
                     }
                 }
@@ -340,6 +358,7 @@ function handleCanvasClick(clientX, clientY) {
                         if (tun.o !== gameState.cp && canAttack(tun.o)) {
                             if ((tun.x1 === t.x && tun.y1 === t.y) || (tun.x2 === t.x && tun.y2 === t.y)) {
                                 tun.h -= t.dmg;
+                                tribokHits.tunnel(tun, t.x, t.y, t.dmg);
                                 spawnFloatingText(t.x, t.y, `-${t.dmg}`, "#ff5252");
                             }
                         }
@@ -350,6 +369,7 @@ function handleCanvasClick(clientX, clientY) {
                     gameState.tw.forEach(tw => {
                         if (tw.o !== gameState.cp && canAttack(tw.o) && tw.x === t.x && tw.y === t.y) {
                             tw.h -= t.dmg;
+                            tribokHits.tower(tw, t.dmg);
                             spawnFloatingText(t.x, t.y, `-${t.dmg}`, "#ff5252");
                         }
                     });
@@ -359,6 +379,7 @@ function handleCanvasClick(clientX, clientY) {
                     gameState.wa.forEach(w => {
                         if (w.o !== gameState.cp && canAttack(w.o) && w.x === t.x && w.y === t.y) {
                             w.h -= t.dmg;
+                            tribokHits.wall(w, t.dmg);
                             spawnFloatingText(t.x, t.y, `-${t.dmg}`, "#ff5252");
                         }
                     });
@@ -368,7 +389,7 @@ function handleCanvasClick(clientX, clientY) {
             if (gameState.tu) gameState.tu = gameState.tu.filter(tun => tun.h > 0);
             if (gameState.tw) gameState.tw = gameState.tw.filter(tw => tw.h > 0);
             if (gameState.wa) gameState.wa = gameState.wa.filter(w => w.h > 0);
-            selectedUnit.a = 1; turnActions.push({ x: targetAttack.x, y: targetAttack.y, t: 'atk', fx: selectedUnit.x, fy: selectedUnit.y });
+            selectedUnit.a = 1; tribokHits.flush(turnActions, targetAttack.x, targetAttack.y);
             selectedUnit = null; validMoves = []; validAttacks = []; window.specialActive = null; renderBoard(gameState); return;
         } else if (window.specialActive === 'tribok') {
             window.specialActive = null; selectedUnit = null; validMoves = []; validAttacks = []; renderBoard(gameState); return;
@@ -378,13 +399,12 @@ function handleCanvasClick(clientX, clientY) {
         if (window.specialActive === 'absprung') {
             if (selectedUnit && validMoves.some(m => m.x === clickedX && m.y === clickedY)) {
                 saveUndoState();
-                const prevX = selectedUnit.x, prevY = selectedUnit.y;
                 selectedUnit.x = clickedX; selectedUnit.y = clickedY;
                 selectedUnit.ld = 1;             // Landung ist permanent
                 selectedUnit.light = 1;          // gelandet zählt als leichte Bodeneinheit (Tunnel/Lufttransport)
                 selectedUnit.a = 2;              // zählt wie Bewegung — schießen geht noch
                 spawnFloatingText(clickedX, clickedY, "🪂", "#4fc3f7");
-                turnActions.push({ x: clickedX, y: clickedY, t: 'mv', fx: prevX, fy: prevY });
+                turnActions.push({ x: clickedX, y: clickedY, t: 'mv', ut: selectedUnit.t });
 
                 // Gelandet auf dem Wachturm-Feld: erobern wie beim normalen Betreten
                 if (gameState.ct && gameState.ct.x === clickedX && gameState.ct.y === clickedY && gameState.ct.ctrl !== gameState.cp) {
@@ -416,7 +436,7 @@ function handleCanvasClick(clientX, clientY) {
                 gameState.u = gameState.u.filter(u => u.i !== cargo.i);
                 selectedUnit.a = 1;
                 spawnFloatingText(selectedUnit.x, selectedUnit.y, "🚁📦", "#ffcc80");
-                turnActions.push({ x: selectedUnit.x, y: selectedUnit.y, t: 'mv' });
+                turnActions.push({ x: selectedUnit.x, y: selectedUnit.y, t: 'mv', ut: selectedUnit.t });
                 infoPanel.innerHTML = `🚁 ${unitStats[stored.t].name} aufgeladen!<div class="info-detail" style="color:#4fc3f7;">Fliegt jetzt mit. Stürzt die Luftschraube ab, geht die Fracht verloren!</div>`;
             }
             window.specialActive = null; selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
@@ -432,7 +452,7 @@ function handleCanvasClick(clientX, clientY) {
                 gameState.u.push(dropped);
                 selectedUnit.a = 1;
                 spawnFloatingText(clickedX, clickedY, "⬇️", "#ffcc80");
-                turnActions.push({ x: clickedX, y: clickedY, t: 'mv' });
+                turnActions.push({ x: clickedX, y: clickedY, t: 'mv', ut: dropped.t });
 
                 // Abgesetzt auf dem Wachturm-Feld: erobern
                 if (dropped.h > 0 && gameState.ct && gameState.ct.x === clickedX && gameState.ct.y === clickedY && gameState.ct.ctrl !== gameState.cp) {
@@ -462,9 +482,11 @@ function handleCanvasClick(clientX, clientY) {
                 const validT = (u) => u && u !== glider && u.p !== gameState.cp && u.iv !== 1 && canAttack(u.p);
                 let unitTarget = window.airView ? (validT(aT) ? aT : (validT(gT) ? gT : null)) : (validT(gT) ? gT : (validT(aT) ? aT : null));
 
+                const sturzHits = recapAoE({ au: glider.t });   // Einzelziel, gleiche Zeilenform
                 let killed = false;
                 if (unitTarget && unitTarget.p !== gameState.cp && canAttack(unitTarget.p)) {
                     unitTarget.h -= 9;
+                    sturzHits.unit(unitTarget, 9);
                     if (unitTarget.h <= 0) { gameState.u = gameState.u.filter(u => u.i !== unitTarget.i); killed = true; }
                 } else {
                     // Strukturen
@@ -472,20 +494,21 @@ function handleCanvasClick(clientX, clientY) {
                     for (let i = 0; i < gameState.p.length && !done; i++) {
                         if (i !== gameState.cp && gameState.p[i].dead === 0 && canAttack(i) && gameState.p[i].sv === `${clickedX},${clickedY}`) {
                             gameState.p[i].sh -= 9; done = true;
+                            sturzHits.building(i, clickedX, clickedY, 9, gameState.p[i].sh <= 0);
                             if (gameState.p[i].sh <= 0) killPlayer(gameState, i, gameState.cp);
                         }
                     }
                     if (!done && gameState.tw) {
                         const tw = gameState.tw.find(tw => tw.h > 0 && tw.o !== gameState.cp && canAttack(tw.o) && tw.x === clickedX && tw.y === clickedY);
-                        if (tw) { tw.h -= 9; if (tw.h <= 0) gameState.tw = gameState.tw.filter(t => t !== tw); done = true; }
+                        if (tw) { tw.h -= 9; sturzHits.tower(tw, 9); if (tw.h <= 0) gameState.tw = gameState.tw.filter(t => t !== tw); done = true; }
                     }
                     if (!done && gameState.wa) {
                         const w = gameState.wa.find(w => w.o !== gameState.cp && canAttack(w.o) && w.x === clickedX && w.y === clickedY);
-                        if (w) { w.h -= 9; if (w.h <= 0) gameState.wa = gameState.wa.filter(x => x !== w); done = true; }
+                        if (w) { w.h -= 9; sturzHits.wall(w, 9); if (w.h <= 0) gameState.wa = gameState.wa.filter(x => x !== w); done = true; }
                     }
                     if (!done && gameState.tu) {
                         const t = gameState.tu.find(t => t.o !== gameState.cp && canAttack(t.o) && ((t.x1 === clickedX && t.y1 === clickedY) || (t.x2 === clickedX && t.y2 === clickedY)));
-                        if (t) { t.h -= 9; if (t.h <= 0) gameState.tu = gameState.tu.filter(x => x !== t); done = true; }
+                        if (t) { t.h -= 9; sturzHits.tunnel(t, clickedX, clickedY, 9); if (t.h <= 0) gameState.tu = gameState.tu.filter(x => x !== t); done = true; }
                     }
                 }
 
@@ -493,7 +516,7 @@ function handleCanvasClick(clientX, clientY) {
                 if (killed && pState.u.includes(2)) pState.g += 2;
                 // Der Gleiter zerschellt
                 gameState.u = gameState.u.filter(u => u.i !== glider.i);
-                turnActions.push({ x: clickedX, y: clickedY, t: 'atk', fx: glider.x, fy: glider.y });
+                sturzHits.flush(turnActions, clickedX, clickedY);
                 infoPanel.innerHTML = `💥 Sturzangriff! Der Gleiter zerschellt am Ziel.${killed && pState.u.includes(2) ? ' | +2G Kopfgeld!' : ''}`;
             }
             window.specialActive = null; selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
@@ -898,13 +921,12 @@ function showUnderworldTileUI(clickedX, clickedY) {
 // (Undo/turnActions/Toasts/Re-Öffnen).
 function executeUWMoveTo(clickedX, clickedY) {
     saveUndoState();
-    const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
     const unit = selectedUWUnit;
     const { picked, delivered } = moveUWUnit(gameState, unit, clickedX, clickedY);
     // uw:true (M13): Recap-Sichtbarkeit läuft über das Unterwelt-Netz (getVisibleUWHexes),
     // nicht über die Oberflächen-Sicht — sonst würden fremde Stollen-Bewegungen an
     // Spieler durchsickern, die zufällig die Oberfläche über dem Hex sehen können.
-    turnActions.push({ x: clickedX, y: clickedY, t: 'mv', fx: fromX, fy: fromY, uw: true });
+    turnActions.push({ x: clickedX, y: clickedY, t: 'mv', ut: unit.t, uw: true });
     infoPanel.innerHTML = 'Bewegt.';
 
     // Herrenloser Kristallhaufen (Korrektur Juli 2026): nur trage-fähige Typen
@@ -941,14 +963,13 @@ function executeUWMoveTo(clickedX, clickedY) {
 // Fels z.B. keinen danebenliegenden Kristall mehr abbauen konnten).
 function executeUWDig(clickedX, clickedY) {
     saveUndoState();
-    const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
     const unit = selectedUWUnit;
     const wasFreshTurn = unit.a === 0;
     const canDigAgain = (unitStats[unit.t].digMove || 1) > 1;
     const { delivered } = digUWHex(gameState, unit, clickedX, clickedY);
     const isFirstDigOfTurn = wasFreshTurn && unit.a === 2;
     addUWNoise(clickedX, clickedY, 'dig');
-    turnActions.push({ x: clickedX, y: clickedY, t: 'dig', fx: fromX, fy: fromY, uw: true });
+    turnActions.push({ x: clickedX, y: clickedY, t: 'dig', ut: unit.t, uw: true });
     infoPanel.innerHTML = !isFirstDigOfTurn ? '⛏ Hex durchgegraben!'
         : canDigAgain ? '⛏ Erste Grabung! Noch eine Grabung oder eine Aktion möglich.'
         : '⛏ Hex durchgegraben! Noch eine Aktion möglich (z. B. Abbau aktivieren).';
@@ -1022,10 +1043,10 @@ window.startUWCollapse = function () {
 
 function executeUWCollapse(clickedX, clickedY) {
     saveUndoState();
-    const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
+    const unitType = selectedUWUnit.t;   // vor clearUWSelection() unten sichern
     collapseUWHex(gameState, selectedUWUnit, clickedX, clickedY); // setzt a=1 selbst
     addUWNoise(clickedX, clickedY, 'collapse');
-    turnActions.push({ x: clickedX, y: clickedY, t: 'collapse', fx: fromX, fy: fromY, uw: true });
+    turnActions.push({ x: clickedX, y: clickedY, t: 'collapse', ut: unitType, uw: true });
     infoPanel.innerHTML = '💥 Stollenbruch! Hex wieder massiver Fels.';
     window.uwSpecialActive = null; uwValidCollapse = [];
     clearUWSelection();
@@ -1074,10 +1095,9 @@ window.startUWJump = function () {
 
 function executeUWJump(clickedX, clickedY) {
     saveUndoState();
-    const fromX = selectedUWUnit.x, fromY = selectedUWUnit.y;
     const unit = selectedUWUnit;
     const { picked, delivered } = jumpUWUnit(gameState, unit, clickedX, clickedY);
-    turnActions.push({ x: clickedX, y: clickedY, t: 'jump', fx: fromX, fy: fromY, uw: true });
+    turnActions.push({ x: clickedX, y: clickedY, t: 'jump', ut: unit.t, uw: true });
     infoPanel.innerHTML = '🦘 Gesprungen!';
 
     if (picked > 0) {
@@ -1138,7 +1158,15 @@ function executeUWAttack(clickedX, clickedY, targetAttack) {
     // attackerUnit.a = 1 setzt bereits resolveUWAttack(OnCreature) selbst (js/logic.js) —
     // Angriff ist eine Fähigkeit wie Graben/Dynamit (aus a=0 ODER a=2, verbraucht
     // die Aktion vollständig, Oberflächen-Parität, Korrektur Juli 2026).
-    turnActions.push({ x: clickedX, y: clickedY, t: 'atk', fx: attackerUnit.x, fy: attackerUnit.y, uw: true });
+    // Rückblick-Details wie an der Oberfläche (s. executeAttackOnTarget).
+    // Kreaturen haben keinen Besitzer -> vp bleibt weg, vk unterscheidet sie.
+    turnActions.push({
+        x: clickedX, y: clickedY, t: 'atk', uw: true,
+        au: attackerUnit.t, dm: result.finalDmg,
+        vk: targetAttack.isCreature ? 'creature' : 'unit',
+        vt: target.t, vp: targetAttack.isCreature ? undefined : target.p,
+        kl: target.h <= 0 ? 1 : undefined
+    });
 
     // Grubenritter-Sturmangriff (Korrektur Juli 2026, maybeTriggerSturmangriff/
     // js/logic.js): bei einem Kill setzt resolveUWAttack(OnCreature) attacker.a
@@ -1311,7 +1339,28 @@ function executeAttackOnTarget(clickedX, clickedY, targetAttack) {
                     if (pState.u.includes(2)) { pState.g += 2; infoPanel.innerHTML = `Angriff! (-${finalDmg} HP) | +2G Kopfgeld!`; } else { infoPanel.innerHTML = `Angriff! (-${finalDmg} HP)`; }
                 } else { infoPanel.innerHTML = `Angriff! (-${finalDmg} HP)`; }
             }
-            turnActions.push({ x: clickedX, y: clickedY, t: 'atk', fx: selectedUnit.x, fy: selectedUnit.y });
+            // Rückblick-Details (js/recap.js): au = Angreifer-Typ, dm = Schaden,
+            // vk = Art des Ziels, vt = Ziel-Einheitentyp, vp = Ziel-Besitzer,
+            // kl = Ziel zerstört. Genau hier, weil executeAttackOnTarget die
+            // EINZIGE Stelle ist, an der alle fünf Zielarten (Einheit,
+            // Hauptgebäude, Tunnel, Palisade, Turm) schon aufgelöst sind —
+            // ohne diese Angaben kann das Panel nur "Angriff" sagen, und ein
+            // Angriff ohne Wer-auf-Wen ist genau das, was am alten Recap fehlte.
+            // Die getroffenen Objekte sind hier noch referenzierbar, auch wenn
+            // sie ihr Array bei h <= 0 bereits verlassen haben.
+            const _vTarget = targetAttack.isBuilding ? null
+                : targetAttack.isTunnelTarget ? targetAttack.tunnel
+                    : targetAttack.isWallTarget ? targetAttack.wall
+                        : targetAttack.isTowerTarget ? targetAttack.tower : targetAttack.target;
+            const _killed = targetAttack.isBuilding
+                ? (gameState.p[targetAttack.owner] && gameState.p[targetAttack.owner].sh <= 0)
+                : !!(_vTarget && _vTarget.h <= 0);
+            turnActions.push({
+                x: clickedX, y: clickedY, t: 'atk',
+                au: selectedUnit.t, dm: finalDmg, vk: targetType, vp: targetOwnerId,
+                vt: targetType === 'unit' && targetAttack.target ? targetAttack.target.t : undefined,
+                kl: _killed ? 1 : undefined
+            });
             if (selectedUnit.ps) { selectedUnit.a = 4; selectedUnit.ps = 0; } else { selectedUnit.a = 1; }
             selectedUnit = null; validMoves = []; validAttacks = []; selectedHex = null;
     }
@@ -1325,8 +1374,6 @@ function executeMoveTo(clickedX, clickedY) {
     const pState = gameState.p[gameState.cp];
     {
             saveUndoState();
-            const prevX = selectedUnit.x, prevY = selectedUnit.y;
-
             let targetX = clickedX; let targetY = clickedY; let teleported = false;
             // Der Arbeiter (7) nutzt Tunnel normalerweise wie jede andere Boden-
             // einheit (Auto-Teleport auf Betreten). NUR wenn das Ziel exakt sein
@@ -1375,7 +1422,7 @@ function executeMoveTo(clickedX, clickedY) {
             else if ((selectedUnit.t === 3 && pState.u.includes(1)) || selectedUnit.t === 8) { selectedUnit.a = 2; }
             else { selectedUnit.a = 2; }
 
-            turnActions.push({ x: targetX, y: targetY, t: 'mv', fx: prevX, fy: prevY });
+            turnActions.push({ x: targetX, y: targetY, t: 'mv', ut: selectedUnit.t });
 
             selectedHex = { x: targetX, y: targetY };
             validMoves = [];
@@ -2122,9 +2169,7 @@ function confirmSurrender() {
     if (gameState.rn > oldRn) {
         const phase = uwCreatureRoundPhase();
         gameState.uwbd = phase.floats;
-        phase.events.filter(e => e.type === 'creatureAtk').forEach(e => {
-            gameState.la.push({ x: e.x, y: e.y, t: 'creatureAtk', uw: true, p: -1 });
-        });
+        // Kein Recap-Eintrag für Kreaturen-Angriffe — siehe doEndTurn.
     }
 
     const alivePlayers = gameState.p.filter(p => p.dead !== 1);
@@ -2517,14 +2562,13 @@ function doEndTurn() {
     if (gameState.rn > oldRn) {
         const phase = uwCreatureRoundPhase();
         uwCreatureFloats = phase.floats;
-        // uw:true (M13): Kreaturen-Angriffe sind Unterwelt-Ereignisse und im Recap
-        // nur für Spieler mit Netz-Sicht auf das betroffene Hex sichtbar (gleiche
-        // Fog-Regel wie alle anderen UW-Aktionen). Direkt an gameState.la gehängt
-        // statt an turnActions (das oben bereits geleert/umgehängt wurde) — die
-        // Events gehören noch zur GERADE beendeten Runde.
-        phase.events.filter(e => e.type === 'creatureAtk').forEach(e => {
-            gameState.la.push({ x: e.x, y: e.y, t: 'creatureAtk', uw: true, p: -1 });
-        });
+        // Kreaturen-Angriffe stehen bewusst NICHT im Rückblick (Jonathan, Aug 2026):
+        // Die Telegraph-Markierung der Vorrunde zeigt sie bereits an, bevor sie
+        // fallen, und der eigentliche Treffer läuft ohnehin als Schadens-Float
+        // über gameState.uwbd. Eine Zeile "Kreatur greift an" konnte weder das eine
+        // noch das andere klarstellen — sie zählte zudem JEDEN Angriffsversuch der
+        // Runde, auch die, die niemanden trafen ("2 Kreaturangriffe" bei einem
+        // getroffenen Arbeiter).
     }
 
     if (gameState.tw) gameState.tw.filter(tw => tw.o === gameState.cp).forEach(tw => tw.a = 0);

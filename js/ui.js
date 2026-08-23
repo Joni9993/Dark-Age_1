@@ -522,7 +522,7 @@ window.buyUnit = function (type) {
             if (pState.u.includes(1)) unitObj.vet = 1;
             unitObj.h = getUnitMaxHp(pState, type, unitObj);
             gameState.u.push(unitObj);
-            turnActions.push({ x: selectedHex.x, y: selectedHex.y, t: 'buy' });
+            turnActions.push({ x: selectedHex.x, y: selectedHex.y, t: 'buy', ut: type });
             selectedHex = null; hideActionMenu(); renderBoard(gameState);
         } else { showToast('Nicht genug Gold!', 'error'); }
     }
@@ -541,7 +541,7 @@ window.buyUWUnit = function (type) {
     if (pState.g < cost) { showToast('Nicht genug Gold!', 'error'); return; }
     saveUndoState();
     buyUWUnitAt(gameState, gameState.cp, x, y, type);
-    turnActions.push({ x, y, t: 'buy', uw: true });
+    turnActions.push({ x, y, t: 'buy', ut: type, uw: true });
     hideActionMenu();
     renderBoard(gameState); updateUI();
 };
@@ -779,7 +779,7 @@ window.startCapture = function () {
         // was nach dem Besitzerwechsel aus dem State allein nicht mehr ableitbar ist.
         const prevOwner = gameState.v[loc];
         gameState.v[loc] = gameState.cp; selectedUnit.a = 1;
-        turnActions.push({ x: selectedUnit.x, y: selectedUnit.y, t: 'cap', vo: prevOwner });
+        turnActions.push({ x: selectedUnit.x, y: selectedUnit.y, t: 'cap', ut: selectedUnit.t, vo: prevOwner });
         selectedUnit = null; selectedHex = null; validMoves = []; validAttacks = [];
         hideActionMenu(); infoPanel.innerHTML = "Dorf eingenommen!"; renderBoard(gameState);
     }

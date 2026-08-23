@@ -292,6 +292,12 @@ function drawHex(x, y, terrainType, applyShroud, isRecap) {
 
     if (applyShroud) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(0, 0, 0, 0.65)"; ctx.fill(); }
     if (isRecap) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 165, 0, 0.4)"; ctx.fill(); ctx.strokeStyle = "orange"; ctx.lineWidth = 2; ctx.stroke(); }
+    // Ausgewählte Rückblick-Zeile — Pendant zum recapFocus-Overlay in render3d.js.
+    if (window.recapFocus && window.recapFocus.hexes && window.recapFocus.hexes.some(h => h.x === x && h.y === y)) {
+        drawHexPath(center.px, topY);
+        ctx.fillStyle = window.recapFocus.color || "#ffffff"; ctx.globalAlpha = 0.55; ctx.fill(); ctx.globalAlpha = 1;
+        ctx.strokeStyle = window.recapFocus.color || "#ffffff"; ctx.lineWidth = 3; ctx.stroke();
+    }
     if (selectedHex && selectedHex.x === x && selectedHex.y === y) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); }
     if (validMoves.some(m => m.x === x && m.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(100, 255, 100, 0.3)"; ctx.fill(); }
     if (validAttacks.some(a => a.x === x && a.y === y)) { drawHexPath(center.px, topY); ctx.fillStyle = "rgba(255, 100, 100, 0.5)"; ctx.fill(); }

@@ -37,7 +37,8 @@ function loadGameCode() {
             buildInitialGameState, createPRNG, compressFog, decompressFog,
             getVisibleHexes, getVisibleUWHexes, markUWExplored,
             recapAppendTurn, recapVisibleActions, recapTouchesViewer,
-            buildRecapGroups, recapKind, RECAP_LOG_CAP, RECAP_KINDS
+            buildRecapGroups, recapKind, recapUnitName, recapVictimLabel, recapAoE,
+            RECAP_LOG_CAP, RECAP_KINDS, unitStats, uwCreatureStats
         };
     `);
     return fn();
@@ -157,6 +158,15 @@ console.log('\n=== (c) recapTouchesViewer: was trifft mich selbst? ===');
 
     state.tw = [{ x: 4, y: 4, o: 1, h: 10, a: 0 }];
     assert(M.recapTouchesViewer(state, { x: 4, y: 4, t: 'atk' }, 1) === true, 'auch Turm/Palisade/Tunnel im eigenen Besitz zählen als Treffer');
+
+    // Der wichtigste Fall: ZERSTÖRTES Ziel. Auf dem Hex steht dann nichts
+    // Eigenes mehr — ohne vp bliebe ausgerechnet der Kill unmarkiert.
+    assert(M.recapTouchesViewer(state, { x: 40, y: 40, t: 'atk', vk: 'unit', vp: 1, kl: 1 }, 1) === true,
+        'ein zerstörtes eigenes Ziel zählt als Treffer, obwohl auf dem Feld nichts Eigenes mehr steht');
+    assert(M.recapTouchesViewer(state, { x: 40, y: 40, t: 'atk', vk: 'unit', vp: 0, kl: 1 }, 1) === false,
+        'ein zerstörtes FREMDES Ziel dagegen nicht');
+    assert(M.recapTouchesViewer(state, { x: 40, y: 40, t: 'atk', vp: -1 }, 1) === false,
+        'vp === -1 (kein Besitzer) trifft niemanden');
 }
 
 console.log('\n=== (d) buildRecapGroups: Verdichtung und Sortierung ===');
@@ -166,34 +176,166 @@ console.log('\n=== (d) buildRecapGroups: Verdichtung und Sortierung ===');
     const nb = { x: own.x + 1, y: own.y };
 
     state.la = [
-        { x: own.x, y: own.y, t: 'mv', p: 0 },
-        { x: nb.x, y: nb.y, t: 'mv', p: 0 },
-        { x: own.x, y: own.y, t: 'atk', p: 0 },     // trifft mich (meine Einheit)
-        { x: nb.x, y: nb.y, t: 'mv', p: 1 },
-        { x: 0, y: 0, t: 'creatureAtk', global: true, p: -1 }
+        { x: own.x, y: own.y, t: 'mv', ut: 2, p: 0 },
+        { x: nb.x, y: nb.y, t: 'mv', ut: 2, p: 0 },
+        // trifft mich: Angriff auf meine eigene Einheit
+        { x: own.x, y: own.y, t: 'atk', au: 3, dm: 6, vk: 'unit', vt: own.t, vp: 2, kl: 1, p: 0 },
+        { x: nb.x, y: nb.y, t: 'mv', ut: 1, p: 1 }
     ];
     const groups = M.buildRecapGroups(state, 2);
 
-    assert(groups.length === 3, 'drei Urheber = drei Gruppen (zwei Spieler + die Tiefe)');
+    assert(groups.length === 2, 'zwei Urheber = zwei Gruppen');
     assert(groups[0].pid === 0, 'der Spieler, der mich getroffen hat, steht oben');
     assert(groups[0].hits === 1, 'die Trefferzahl der Gruppe stimmt');
 
     const p0 = groups[0].rows;
     assert(p0[0].t === 'atk' && p0[0].hit === true, 'innerhalb der Gruppe steht der Treffer vor allem anderen');
-    assert(p0[0].label === 'Angriff', 'Einzahl-Beschriftung bei genau einem Feld');
+
     const mvRow = p0.find(r => r.t === 'mv');
-    assert(mvRow.hexes.length === 2 && mvRow.label === '2 Bewegungen', 'gleichartige Aktionen werden zu EINER Zeile verdichtet, mit Zählung');
-    assert(mvRow.hexes[0].x === own.x && mvRow.hexes[1].x === nb.x, 'die Zeile trägt alle ihre Felder mit — das Panel steppt sie durch');
+    assert(mvRow.hexes.length === 2, 'gleichartige Aktionen DESSELBEN Einheitentyps werden zu EINER Zeile verdichtet');
+    assert(mvRow.label === 'Pferd bewegt', `die Zeile nennt die Einheit statt eines generischen "Bewegung" (ist: "${mvRow.label}")`);
+    assert(mvRow.count === 2, 'die Anzahl haengt als eigenes Feld an der Zeile (im Panel als "x2"), nicht im Text');
+    assert(mvRow.unit === 2, 'die Zeile traegt den Einheitentyp fuers Sprite-Symbol');
+    assert(mvRow.hexes[0].x === own.x && mvRow.hexes[1].x === nb.x, 'die Zeile traegt alle ihre Felder mit — das Panel steppt sie durch');
     assert(mvRow.prio > p0[0].prio, 'Bewegung sortiert hinter Kampf');
 
-    const deep = groups.find(g => g.pid === -1);
-    assert(deep && deep.name === 'Die Tiefe', 'Kreaturen-Ereignisse landen in einer eigenen Gruppe ohne Spielernamen');
-    assert(deep.color === '#7d838f', 'ohne playerColors (js/art.js hier nicht geladen) fällt die Gruppenfarbe auf Stein zurück');
+    assert(groups.every(g => g.pid >= 0 && g.name === state.p[g.pid].n), 'jede Gruppe traegt einen echten Spielernamen');
+    assert(groups.every(g => g.color === '#7d838f'), 'ohne playerColors (js/art.js hier nicht geladen) faellt die Gruppenfarbe auf Stein zurueck');
 
     assert(M.buildRecapGroups(state, 0).every(g => g.pid !== 0), 'aus Sicht von Spieler 0 fehlt Spieler 0 — man sieht nie den eigenen Zug');
 
-    assert(M.recapKind('gibtsnicht').label === undefined && M.recapKind('gibtsnicht').one === 'Aktion',
-        'unbekannte Aktionsart fällt auf eine generische Beschriftung zurück statt zu werfen');
+    assert(M.recapKind('gibtsnicht').one === 'Aktion',
+        'unbekannte Aktionsart faellt auf eine generische Beschriftung zurueck statt zu werfen');
+
+    // Bewegungen zweier VERSCHIEDENER Einheitentypen duerfen nicht in eine Zeile
+    // fallen — sonst waere die Einheit in der Zeile wieder geraten.
+    const twoTypes = M.buildRecapGroups(state, 2).find(g => g.pid === 1);
+    assert(twoTypes.rows.length === 1 && twoTypes.rows[0].unit === 1, 'ein anderer Einheitentyp bekommt eine eigene Zeile');
+}
+
+console.log('\n=== (d2) Angriffszeilen: wer, wen, wie viel, tot? ===');
+{
+    const state = freshState(21, 7, 2);
+    const mine = state.u.find(u => u.p === 1);
+    const vx = mine.x, vy = mine.y;
+
+    // Zwei Angriffe desselben Angreifers auf verschiedene Ziele: die duerfen
+    // NICHT zusammenfallen — der Schaden und das Ziel unterscheiden sich, und
+    // genau das ist die Information, die den Rueckblick lesenswert macht.
+    state.la = [
+        { x: vx, y: vy, t: 'atk', au: 1, dm: 5, vk: 'unit', vt: mine.t, vp: 1, p: 0 },
+        { x: vx, y: vy, t: 'atk', au: 1, dm: 7, vk: 'unit', vt: mine.t, vp: 1, kl: 1, p: 0 }
+    ];
+    const rows = M.buildRecapGroups(state, 1)[0].rows;
+    assert(rows.length === 2, 'Angriffe werden nie gebuendelt — je Angriff eine Zeile');
+    assert(rows.every(r => r.actor === 'Bogen'), 'die Zeile nennt den Angreifer beim Namen');
+    assert(rows.every(r => r.victim === 'dein ' + M.unitStats[mine.t].name), '"dein …" macht sichtbar, dass es die eigene Einheit war');
+    assert(rows.some(r => r.dmg === 5) && rows.some(r => r.dmg === 7), 'der Schaden steht je Zeile');
+    assert(rows.filter(r => r.killed).length === 1, 'nur der toedliche Angriff ist als Kill markiert');
+    assert(rows.every(r => r.unit === 1 && r.victimUnit === mine.t), 'Angreifer- und Ziel-Sprite haengen an der Zeile');
+
+    // Gebaeude/Palisade/Turm/Tunnel haben keinen Einheitentyp, aber einen Namen.
+    const kinds = { building: 'dein Hauptgebaeude', wall: 'deine Palisade', tower: 'deinen Turm', tunnel: 'deinen Tunnel' };
+    Object.keys(kinds).forEach(vk => {
+        state.la = [{ x: vx, y: vy, t: 'atk', au: 6, dm: 3, vk, vp: 1, p: 0 }];
+        const r = M.buildRecapGroups(state, 1)[0].rows[0];
+        assert(r.victim.indexOf('dein') === 0 && r.victimUnit === undefined,
+            `Zielart "${vk}" wird benannt ("${r.victim}") und traegt kein Einheiten-Sprite`);
+    });
+
+    // Fremdes Ziel: kein "dein".
+    state.la = [{ x: vx, y: vy, t: 'atk', au: 6, dm: 3, vk: 'tower', vp: 0, p: 0 }];
+    assert(M.buildRecapGroups(state, 1)[0].rows[0].victim === 'Turm', 'ein fremdes Ziel bekommt kein "dein" davor');
+
+    // Flaechenangriff / Alt-Blob ohne Zieldetails: der Angreifer steht trotzdem da.
+    state.la = [{ x: vx, y: vy, t: 'atk', au: 9, p: 0 }];
+    const aoe = M.buildRecapGroups(state, 1)[0].rows[0];
+    assert(aoe.victim === null && aoe.label === 'Elefant greift an', 'ohne Zieldetails (Flaechenangriff, alter Blob) bleibt wenigstens der Angreifer stehen');
+    state.la = [{ x: vx, y: vy, t: 'atk', p: 0 }];
+    assert(M.buildRecapGroups(state, 1)[0].rows[0].label === 'Einheit greift an', 'ganz ohne Angaben faellt die Zeile auf einen neutralen Text zurueck statt "undefined" zu zeigen');
+}
+
+console.log('\n=== (d2b) Flaechenschaden: je getroffenem Ziel eine eigene Zeile ===');
+{
+    const state = freshState(21, 7, 2);
+    const a = state.u.find(u => u.p === 1);
+    const b = { i: 900, p: 1, t: 1, x: a.x + 1, y: a.y, h: 10 };
+    state.u.push(b);
+    const wall = { x: a.x, y: a.y + 1, o: 1, h: 2 };
+    state.wa = [wall];
+
+    // Feuersturm-Muster: Sammler anlegen, bei jedem Schadensblock melden, flushen.
+    const hits = M.recapAoE({ au: 15 });
+    const acts = [];
+    a.h -= 3; hits.unit(a, 3);
+    b.h -= 3; hits.unit(b, 3);
+    wall.h -= 3; hits.wall(wall, 3);           // 2 HP -> zerstoert
+    hits.building(1, 4, 4, 3, false);
+    const n = hits.flush(acts, 9, 9);
+
+    assert(n === 4 && acts.length === 4, 'ein Eintrag je getroffenem Ziel, nicht einer auf dem Mittelpunkt');
+    assert(acts.every(x => x.t === 'atk' && x.au === 15), 'alle tragen dieselbe Angreifer-Einheit');
+    assert(acts[0].x === a.x && acts[0].y === a.y && acts[1].x === b.x,
+        'jeder Eintrag sitzt auf dem Feld SEINES Ziels — davon haengen Fog-Filter und Karten-Hervorhebung ab');
+    assert(acts.find(x => x.vk === 'wall').kl === 1, 'ein zerstoertes Ziel wird als Kill markiert');
+    assert(acts.find(x => x.vk === 'unit' && x.vt === a.t).kl === undefined, 'ueberlebende Ziele nicht');
+    assert(acts.find(x => x.vk === 'building').vp === 1, 'das Hauptgebaeude traegt seinen Besitzer');
+
+    // Und die Zeilen daraus lesen sich wie Einzelangriffe.
+    state.la = M.recapAppendTurn(state, 0, acts);
+    const rows = M.buildRecapGroups(state, 1)[0].rows;
+    assert(rows.length >= 3, `aus dem Flaechenangriff werden ${rows.length} eigene Zeilen`);
+    assert(rows.every(r => r.actor === 'Bombenballon'), 'jede nennt den Verursacher');
+    assert(rows.some(r => r.victim === 'deine Palisade' && r.killed), 'die zerstoerte Palisade steht als eigene Zeile mit Kill-Marke');
+
+    // Trifft die Faehigkeit nichts, bleibt genau ein Eintrag auf dem Mittelpunkt.
+    const empty = M.recapAoE({ au: 9 });
+    const acts2 = [];
+    assert(empty.flush(acts2, 5, 6) === 0 && acts2.length === 1 && acts2[0].x === 5 && acts2[0].y === 6,
+        'ohne Treffer bleibt ein Eintrag auf dem Mittelpunkt — "Elefant greift an" verschwindet nicht');
+    state.la = [Object.assign({ p: 0 }, acts2[0])];
+    assert(M.buildRecapGroups(state, 1)[0].rows[0].label === 'Elefant greift an', 'und wird als solcher beschriftet');
+}
+
+console.log('\n=== (d2c) Turmschuss: das Bauwerk als Angreifer ===');
+{
+    const state = freshState(21, 7, 2);
+    const mine = state.u.find(u => u.p === 1);
+    // ab statt au: hinter einem Turmschuss steht keine Einheit.
+    state.la = [{ x: mine.x, y: mine.y, t: 'atk', ab: 'tower', dm: 5, vk: 'unit', vt: mine.t, vp: 1, kl: 1, p: 0 }];
+    const row = M.buildRecapGroups(state, 1)[0].rows[0];
+    assert(row.actor === 'Turm', 'der Angreifer heisst "Turm", nicht "Einheit"');
+    assert(row.ic === 'tower', 'die Zeile bekommt das Turm-Symbol statt eines Einheiten-Sprites');
+    assert(row.unit === undefined, 'und traegt kein Einheiten-Sprite (es gibt keine Einheit)');
+    assert(row.victim === 'dein ' + M.unitStats[mine.t].name && row.dmg === 5 && row.killed,
+        'Ziel, Schaden und Kill stehen wie bei jedem anderen Angriff');
+}
+
+console.log('\n=== (d3) Altlasten aus laufenden Partien: nichtssagende Zeilen gibt es nicht ===');
+{
+    // Genau der Fall, den Jonathan gemeldet hat: ein Blob, der noch
+    // creatureAtk-Eintraege traegt (Kreaturen-Angriffe sind seit Aug 2026 kein
+    // Rueckblick-Inhalt mehr). Ohne Filter landen sie auf RECAP_FALLBACK und
+    // stehen als "2 Aktionen" ohne erkennbaren Inhalt im Panel.
+    const state = freshState(21, 7, 2);
+    const own = state.u.find(u => u.p === 1);
+    const legacy = [
+        { x: own.x, y: own.y, t: 'creatureAtk', uw: true, p: -1 },
+        { x: own.x, y: own.y, t: 'creatureAtk', uw: true, p: -1 }
+    ];
+
+    state.la = legacy.slice();
+    assert(M.recapVisibleActions(state, 1).length === 0, 'entfernte Aktionsarten werden gar nicht erst angezeigt');
+    assert(M.buildRecapGroups(state, 1).length === 0, 'es entsteht keine Gruppe und keine "N Aktionen"-Zeile');
+
+    // ... und sie verschwinden dauerhaft, statt bis RECAP_LOG_CAP mitzulaufen:
+    // p: -1 fiel unter die alte Selbst-Beschneidung (a.p !== pid) nie heraus.
+    M.recapAppendTurn(state, 0, [{ x: 1, y: 1, t: 'mv', ut: 0 }]);
+    assert(state.la.length === 1 && state.la[0].t === 'mv', 'das naechste Zugende raeumt sie endgueltig aus dem Log');
+
+    // Gleiches gilt fuer einen Urheber, den es im State nicht gibt.
+    state.la = [{ x: own.x, y: own.y, t: 'mv', ut: 0, p: 7 }];
+    assert(M.recapVisibleActions(state, 1).length === 0, 'ein Eintrag mit ungueltigem Spielerindex wird verworfen statt zu einer Geistergruppe zu werden');
 }
 
 console.log('\n=== (e) Serialisierung: Roundtrip und Blob-Zuwachs ===');
@@ -235,6 +377,10 @@ console.log('\n=== (f) Icon-Namen: jede Aktionsart zeigt ein Icon, das es wirkli
     const kinds = Object.entries(M.RECAP_KINDS);
     assert(kinds.every(([, k]) => typeof k.one === 'string' && typeof k.many === 'function'),
         'jede Aktionsart hat Ein- und Mehrzahl-Beschriftung');
+    assert(kinds.every(([, k]) => k.vb === undefined || typeof k.vb === 'string'),
+        'vb (Verbform mit Einheit) ist, wo gesetzt, ein String');
+    assert(M.RECAP_KINDS.creatureAtk === undefined,
+        'Kreaturen-Angriffe stehen nicht mehr im Rueckblick — der Telegraph zeigt sie vorher an');
     assert(kinds.every(([, k]) => ['fire', 'gold', 'build', 'earth', 'move'].indexOf(k.k) !== -1),
         'jede Aktionsart nutzt einen der fünf Farbkanäle (--rc-*, css/game.css)');
 }
@@ -242,20 +388,27 @@ console.log('\n=== (f) Icon-Namen: jede Aktionsart zeigt ein Icon, das es wirkli
 console.log('\n=== (g) Vollständigkeit: jede im Spielcode erzeugte Aktionsart ist beschriftet ===');
 {
     // Sonst rutscht eine neue Aktion still in den generischen Fallback "Aktion".
+    // Betrachtet werden NUR die Push-Aufrufe in den Rueckblick-Log, nicht jedes
+    // `t:` im Code — sonst zaehlen Einheiten-Tags wie t:'Veteran' mit. Seit
+    // recapEntryUsable eine unbeschriftete Art wegwirft, ist das keine
+    // Kosmetik mehr: eine vergessene Beschriftung macht die Aktion unsichtbar.
     const srcFiles = ['js/input.js', 'js/abilities.js', 'js/ui.js', 'js/debug.js'];
     const produced = new Set();
     srcFiles.forEach(f => {
         const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
-        const re = /t:\s*'([a-zA-Z]+)'/g;
+        const pushRe = /(?:turnActions|\.la)\.push\(\s*\{[\s\S]{0,600}?\}\s*\)/g;
         let m;
-        while ((m = re.exec(src)) !== null) produced.add(m[1]);
+        while ((m = pushRe.exec(src)) !== null) {
+            const t = /\bt:\s*'([a-zA-Z]+)'/.exec(m[0]);
+            if (t) produced.add(t[1]);
+        }
     });
-    // 'creature'/'reset' u.ä. stammen aus Event-Objekten, nicht aus dem Recap-Log.
     const known = Object.keys(M.RECAP_KINDS);
     const unlabeled = [...produced].filter(t => known.indexOf(t) === -1);
-    const logTypes = [...produced].filter(t => known.indexOf(t) !== -1);
-    assert(logTypes.length >= 15, `mindestens 15 der tatsächlich erzeugten Aktionsarten sind beschriftet (gefunden: ${logTypes.length})`);
-    console.log(`   nicht in RECAP_KINDS (Event-/Fremdobjekte, laufen auf den Fallback): ${unlabeled.join(', ') || '—'}`);
+    console.log(`   erzeugte Aktionsarten (${produced.size}): ${[...produced].sort().join(', ')}`);
+    assert(produced.size >= 18, `die Suche findet die Push-Stellen wirklich (gefunden: ${produced.size})`);
+    assert(unlabeled.length === 0, `JEDE erzeugte Aktionsart steht in RECAP_KINDS${unlabeled.length ? ' — unbeschriftet: ' + unlabeled.join(', ') : ''}`);
+    assert(!produced.has('creatureAtk'), 'kein Spielcode erzeugt noch creatureAtk-Recap-Eintraege');
 }
 
 console.log('');
