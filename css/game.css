@@ -4141,6 +4141,145 @@ body.app-view .screen-box {
     color: var(--gold);
 }
 
+/* Eingeklappter Rückblick (js/recap.js setRecapCollapsed).
+   Auf dem Handy geht das Panel über die volle Breite und deckt damit genau die
+   Bildschirmmitte ab, in die Renderer.centerOn das angetippte Feld legt — man
+   wählt ein Ereignis und sieht das Ergebnis nicht. Eingeklappt bleibt nur die
+   gewählte Zeile stehen, das Spielfeld liegt frei. Deshalb klappt das Auswählen
+   auf schmalen Geräten automatisch ein. */
+.recap-list-btn {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: #3a2b1c;
+    color: var(--text);
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 rgba(201, 147, 97, 0.30), inset -2px -2px 0 rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+}
+
+.recap-list-btn:hover {
+    background: #46351f;
+}
+
+/* Der Titel schiebt die beiden Knöpfe nach rechts. */
+.recap-head .recap-title {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Eingeklappt: alles ausblenden ausser der gewählten Zeile. Kein eigenes
+   Markup dafür — die Liste bleibt im DOM, damit Aufklappen ohne Neuaufbau
+   funktioniert und die Auswahl erhalten bleibt. */
+#recap-panel.collapsed {
+    max-height: none;
+}
+
+#recap-panel.collapsed #recap-body {
+    overflow: visible;
+    padding: 0;
+}
+
+#recap-panel.collapsed .recap-group {
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+}
+
+#recap-panel.collapsed .recap-name,
+#recap-panel.collapsed .recap-empty,
+#recap-panel.collapsed .recap-foot,
+#recap-panel.collapsed .recap-row:not(.selected) {
+    display: none;
+}
+
+/* Eingeklappt ohne Auswahl (Standardzustand beim Zugstart): statt eines leeren
+   Kastens die Kurzfassung. Bewusst kein automatischer Sprung auf das erste
+   Ereignis — eine Kamerafahrt, die niemand ausgelöst hat, ist genau das, was
+   der Rückblick nicht mehr tun soll (js/recap.js syncRecapSelState). */
+#recap-summary {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 10px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--text-dim);
+}
+
+#recap-panel.collapsed:not(.has-sel) #recap-summary {
+    display: flex;
+}
+
+#recap-panel.collapsed:not(.has-sel) #recap-body {
+    display: none;
+}
+
+.recap-sum-n {
+    font-family: var(--font-ui);
+    font-size: 16px;
+    color: var(--gold);
+}
+
+#recap-summary b {
+    color: var(--rc-fire);
+    font-weight: normal;
+}
+
+/* In der Einzelansicht braucht die Zeile keine Auswahl-Umrandung mehr — sie
+   IST die Auswahl. Der farbige Streifen links bleibt (Treffer-Markierung). */
+#recap-panel.collapsed .recap-row.selected {
+    background: transparent;
+    box-shadow: none;
+}
+
+/* Blätter-Leiste: nur eingeklappt sichtbar. */
+#recap-nav {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 8px;
+    border-top: 2px solid var(--panel-hi);
+    background: var(--bg-card);
+}
+
+#recap-panel.collapsed #recap-nav {
+    display: flex;
+}
+
+.recap-nav-btn {
+    min-width: 56px;
+    height: 40px;
+    padding: 0;
+    background: #3a2b1c;
+    color: var(--text);
+    border: 2px solid var(--edge);
+    box-shadow: inset 2px 2px 0 rgba(201, 147, 97, 0.30), inset -2px -2px 0 rgba(0, 0, 0, 0.55);
+    font-family: var(--font-ui);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.recap-nav-btn:hover {
+    background: #46351f;
+}
+
+.recap-nav-btn:active {
+    box-shadow: var(--bevel-in);
+}
+
+#recap-nav-pos {
+    font-family: var(--font-ui);
+    font-size: 8px;
+    color: var(--text-dim);
+}
+
 /* Auf schmalen Geräten volle Breite: 300px neben dem Spielfeld bringt nichts,
    wenn das Spielfeld selbst nur 360px breit ist. */
 @media (max-width: 480px) {

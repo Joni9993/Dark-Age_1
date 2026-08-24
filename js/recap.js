@@ -352,12 +352,33 @@ if (typeof document !== 'undefined') (function () {
 
     let recapGroups = [];
     let recapOpen = false;
-    // Zeile → welches ihrer Hexes beim nächsten Tippen angesteuert wird.
-    // Wiederholtes Tippen läuft die Liste durch, statt immer aufs erste Hex zu
-    // springen — so kommt man an alle drei Angriffe, nicht nur an den ersten.
-    let recapCursors = {};
+    // Flache Ereignisliste in Anzeigereihenfolge: EIN Eintrag je (Zeile, Feld).
+    // Sie ist die Grundlage fürs Durchblättern — eine Zeile mit drei Angriffen
+    // liefert drei Stationen, und das Blättern läuft am Zeilenende einfach in
+    // die nächste Zeile weiter, statt in der Zeile zu kreisen.
+    let recapFlat = [];
+    let recapPos = -1;
 
     function el(id) { return document.getElementById(id); }
+
+    // Liegt das Panel gerade DA, wohin die Kamera zielt?
+    //
+    // Renderer.centerOn setzt das gewählte Feld in die Mitte des Spielfelds.
+    // Deckt das aufgeklappte Panel diese Mitte ab, wählt man ein Ereignis aus
+    // und sieht das Ergebnis nicht — auf dem Handy ist das der Normalfall.
+    // Bewusst geometrisch geprüft statt über einen Breakpoint geraten: die
+    // Frage ist nicht "ist das ein Handy", sondern "verdeckt das Panel das
+    // Ziel" — das trifft auch ein kleines Fenster am Desktop und ein Panel,
+    // das durch viele Zeilen ungewöhnlich hoch geworden ist.
+    function recapCoversTarget() {
+        const panel = el('recap-panel');
+        const wrap = document.getElementById('canvas-wrapper');
+        if (!panel || !wrap) return false;
+        const p = panel.getBoundingClientRect();
+        const w = wrap.getBoundingClientRect();
+        const cx = w.left + w.width / 2, cy = w.top + w.height / 2;
+        return cx >= p.left && cx <= p.right && cy >= p.top && cy <= p.bottom;
+    }
 
     // Wer schaut zu? gameState.cp ist die richtige Antwort — auch für einen
     // wartenden Spieler im Servermodus, denn openGame (js/lobby.js) setzt cp
@@ -443,6 +464,8 @@ if (typeof document !== 'undefined') (function () {
             g.rows.forEach((r, ri) => {
                 // Rechts haengt die Anzahl (x3) bzw. beim Durchsteppen die
                 // Position (2/3) — siehe Kommentar bei RECAP_KINDS.vb.
+                // data-n haelt die Anzahl fest, damit gotoRecapFlat den Zaehler
+                // zwischen "x3" und "2/3" hin- und herschalten kann.
                 const step = r.hexes.length > 1
                     ? `<span class="recap-step">&times;${r.hexes.length}</span>` : '';
                 let text;
@@ -465,7 +488,7 @@ if (typeof document !== 'undefined') (function () {
                 if (r.hit && !r.victim) text += '<b> · trifft dich</b>';
                 const dmg = r.dmg ? `<span class="recap-dmg">&minus;${r.dmg}</span>` : '';
                 const kill = r.killed ? `<span class="recap-kill">${icon('skull', 'ic-14')}</span>` : '';
-                html += `<button class="recap-row rc-k-${r.k}${r.hit ? ' hit' : ''}" data-g="${gi}" data-r="${ri}">`
+                html += `<button class="recap-row rc-k-${r.k}${r.hit ? ' hit' : ''}" data-g="${gi}" data-r="${ri}" data-n="${r.hexes.length}">`
                     + `<span class="recap-ic">${icon(r.ic, 'ic-14')}</span>`
                     + recapSprite(r.unit, g.color)
                     + `<span class="recap-label">${text}</span>`
@@ -476,34 +499,106 @@ if (typeof document !== 'undefined') (function () {
         });
         body.innerHTML = html;
         body.querySelectorAll('.recap-row').forEach(btn => {
-            btn.addEventListener('click', () => selectRecapRow(+btn.dataset.g, +btn.dataset.r, btn));
+            btn.addEventListener('click', () => selectRecapRow(+btn.dataset.g, +btn.dataset.r));
         });
     }
 
-    // Antippen waehlt die Zeile aus: ALLE zugehoerigen Felder leuchten auf der
-    // Karte auf (window.recapFocus, gelesen von js/render.js und js/render3d.js),
-    // und die Kamera faehrt auf das erste. Erneutes Antippen derselben Zeile geht
-    // zum naechsten Feld weiter — so kommt man an alle Bewegungen einer Einheit,
-    // ohne dass irgendetwas von allein losläuft (der Kern des Umbaus gegenueber
-    // dem alten Zwangs-Playback).
-    let _selectedKey = null;
-    function selectRecapRow(gi, ri, btn) {
-        const row = recapGroups[gi] && recapGroups[gi].rows[ri];
-        if (!row || row.hexes.length === 0) return;
-        const key = gi + ':' + ri;
-        const idx = (_selectedKey === key) ? ((recapCursors[key] || 0) % row.hexes.length) : 0;
-        recapCursors[key] = idx + 1;
-        _selectedKey = key;
+    // Antippen waehlt eine Station der flachen Ereignisliste: ALLE Felder der
+    // zugehoerigen Zeile leuchten auf der Karte auf (window.recapFocus, gelesen
+    // von js/render.js und js/render3d.js), die Kamera faehrt auf das Feld
+    // dieser Station. Nichts laeuft von allein los — das ist der Kern des
+    // Umbaus gegenueber dem alten Zwangs-Playback.
+    function buildRecapFlat() {
+        recapFlat = [];
+        recapGroups.forEach((g, gi) => g.rows.forEach((r, ri) =>
+            r.hexes.forEach((h, hi) => recapFlat.push({ gi, ri, hi }))));
+        recapPos = -1;
+    }
+
+    function gotoRecapFlat(pos) {
+        if (recapFlat.length === 0) return;
+        recapPos = ((pos % recapFlat.length) + recapFlat.length) % recapFlat.length;
+        const f = recapFlat[recapPos];
+        const row = recapGroups[f.gi].rows[f.ri];
+        const h = row.hexes[f.hi];
 
         const body = el('recap-body');
-        if (body) body.querySelectorAll('.recap-row').forEach(b => b.classList.toggle('selected', b === btn));
+        if (body) {
+            body.querySelectorAll('.recap-row').forEach(b => {
+                const sel = +b.dataset.g === f.gi && +b.dataset.r === f.ri;
+                b.classList.toggle('selected', sel);
+                const step = b.querySelector('.recap-step');
+                // Zaehler rechts: ausserhalb der Auswahl die Anzahl ("x3"),
+                // in der Auswahl die Position innerhalb der Zeile ("2/3").
+                if (step) step.innerHTML = sel
+                    ? `${f.hi + 1}/${row.hexes.length}`
+                    : `&times;${b.dataset.n}`;
+            });
+        }
+        const posEl = el('recap-nav-pos');
+        if (posEl) posEl.textContent = `${recapPos + 1}/${recapFlat.length}`;
+        syncRecapSelState();
 
         window.recapFocus = { hexes: row.hexes, color: recapPulseColor(row.k) };
-        const h = row.hexes[idx];
         Renderer.centerOn(h.x, h.y, 1.0);
         renderBoard(gameState);
-        const step = btn && btn.querySelector('.recap-step');
-        if (step) step.textContent = `${idx + 1}/${row.hexes.length}`;
+    }
+
+    // Blaettern (Pfeile im eingeklappten Zustand). Laeuft um, damit man nicht
+    // an einem Ende haengen bleibt.
+    function recapStep(delta) {
+        if (recapPos < 0) gotoRecapFlat(0);
+        else gotoRecapFlat(recapPos + delta);
+    }
+
+    function selectRecapRow(gi, ri) {
+        const cur = recapPos >= 0 ? recapFlat[recapPos] : null;
+        if (cur && cur.gi === gi && cur.ri === ri) gotoRecapFlat(recapPos + 1);
+        else gotoRecapFlat(recapFlat.findIndex(f => f.gi === gi && f.ri === ri));
+        // Verdeckt die Liste das Ziel der Kamerafahrt, klappt sie beim
+        // Auswaehlen automatisch ein — sonst waehlt man ein Ereignis und sieht
+        // genau das nicht, was man sehen wollte.
+        if (!recapCollapsed && recapCoversTarget()) {
+            setRecapCollapsed(true);
+            // Nach dem Einklappen ist das Panel kleiner: noch einmal zentrieren,
+            // damit das Feld auch wirklich in der freien Flaeche landet.
+            gotoRecapFlat(recapPos);
+        }
+    }
+
+    // Eingeklappt und noch nichts gewaehlt: statt eines leeren Kastens die
+    // Kurzfassung ("7 Ereignisse, 2 treffen dich"). Bewusst NICHT automatisch
+    // auf das erste Ereignis springen — das waere wieder eine Kamerafahrt, die
+    // niemand ausgeloest hat, und genau davon ist der Rueckblick weg. Erst ein
+    // Tippen auf > oder auf die Zeile bewegt etwas.
+    function syncRecapSelState() {
+        const panel = el('recap-panel');
+        if (panel) panel.classList.toggle('has-sel', recapPos >= 0);
+        const posEl = el('recap-nav-pos');
+        if (posEl && recapPos < 0) posEl.textContent = `–/${recapFlat.length}`;
+        const sum = el('recap-summary');
+        if (sum) {
+            const n = recapFlat.length;
+            const hits = recapGroups.reduce((a, g) => a + g.hits, 0);
+            sum.innerHTML = `<span class="recap-sum-n">${n}</span> ${n === 1 ? 'Ereignis' : 'Ereignisse'}`
+                + (hits ? `<b> · ${hits === 1 ? 'eines trifft' : hits + ' treffen'} dich</b>` : '');
+        }
+    }
+
+    // Ein-/Ausklappen. Eingeklappt zeigt das Panel nur noch die gewaehlte Zeile
+    // (der Rest wird per CSS ausgeblendet) plus die Blaetter-Pfeile.
+    let recapCollapsed = false;
+    function setRecapCollapsed(on) {
+        const panel = el('recap-panel');
+        if (!panel) return;
+        recapCollapsed = !!on && recapFlat.length > 0;
+        panel.classList.toggle('collapsed', recapCollapsed);
+        const btn = el('recap-list-btn');
+        if (btn) {
+            btn.innerHTML = icon(recapCollapsed ? 'menu' : 'chev-l', 'ic-14');
+            btn.title = recapCollapsed ? 'Alle Eintraege zeigen' : 'Liste einklappen';
+        }
+        syncRecapSelState();
     }
 
     // Farben fuer die Karten-Hervorhebung kommen aus denselben CSS-Tokens wie die
@@ -516,8 +611,7 @@ if (typeof document !== 'undefined') (function () {
 
     // Auswahl aufheben: keine Zeile mehr markiert, keine Felder mehr hervorgehoben.
     function clearRecapFocus() {
-        _selectedKey = null;
-        recapCursors = {};
+        recapPos = -1;
         window.recapFocus = null;
     }
 
@@ -526,6 +620,11 @@ if (typeof document !== 'undefined') (function () {
         if (!panel) return;
         clearRecapFocus();
         renderRecapPanel();
+        buildRecapFlat();
+        // Standardzustand ist eingeklappt (Jonathan, Aug 2026): die volle Liste
+        // deckt auf dem Handy das halbe Spielfeld ab. Das Handy ist die
+        // Hauptplattform — die Liste ist die Ausnahme, nicht der Normalfall.
+        setRecapCollapsed(true);
         panel.classList.add('open');
         recapOpen = true;
         showRecap = true;             // Karten-Marker (js/render.js/render3d.js)
@@ -557,6 +656,9 @@ if (typeof document !== 'undefined') (function () {
     window.openRecap = openRecap;
     window.closeRecap = closeRecap;
     window.toggleRecap = function () { recapOpen ? closeRecap() : openRecap(); };
+    window.toggleRecapList = function () { setRecapCollapsed(!recapCollapsed); };
+    window.recapStep = recapStep;
     window.prepareRecap = prepareRecap;
     window.isRecapOpen = function () { return recapOpen; };
+    window.isRecapCollapsed = function () { return recapCollapsed; };
 })();

@@ -215,9 +215,24 @@
             <span class="recap-title"><svg class="ic ic-14">
                     <use href="#i-hourglass"></use>
                 </svg> Seit deinem letzten Zug</span>
+            <!-- Liste ein-/ausklappen. Auf dem Handy verdeckt die volle Liste das
+                 halbe Spielfeld — eingeklappt bleibt nur die gerade gewählte Zeile
+                 stehen und man sieht, worauf die Kamera springt (js/recap.js). -->
+            <button class="recap-list-btn" id="recap-list-btn" onclick="toggleRecapList()"
+                aria-label="Liste ein-/ausklappen"></button>
             <button class="recap-close" onclick="closeRecap()" aria-label="Rückblick schließen">✕</button>
         </div>
         <div id="recap-body"></div>
+        <!-- Eingeklappt und noch nichts ausgewählt: Kurzfassung statt leerem
+             Kasten (js/recap.js syncRecapSelState). -->
+        <div id="recap-summary"></div>
+        <!-- Nur im eingeklappten Zustand: durch alle Ereignisse blättern, ohne
+             die Liste wieder aufzuklappen. -->
+        <div id="recap-nav">
+            <button class="recap-nav-btn" onclick="recapStep(-1)" aria-label="Vorheriges Ereignis">‹</button>
+            <span id="recap-nav-pos">1/1</span>
+            <button class="recap-nav-btn" onclick="recapStep(1)" aria-label="Nächstes Ereignis">›</button>
+        </div>
         <div class="recap-foot">Zeile antippen springt zum Feld</div>
     </div>
 
