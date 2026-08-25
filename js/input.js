@@ -1856,7 +1856,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                         menuHtml += `<button class="action-btn act-shadow" style="padding: 8px; font-size: 0.9rem;" onclick="window.uwDescend()">${icon('arrow-down', 'ic-14')} Abtauchen</button>`;
                     }
                     if (onTunnel.r <= gameState.rn && (clickedUnit.a === 0 || clickedUnit.a === 2) && !isHeavyUnit(clickedUnit)) {
-                        menuHtml += `<button class="action-btn act-build" style="padding: 8px; font-size: 0.9rem;" onclick="useTunnel()">${icon('tunnel', 'ic-14')} Durch Tunnel gehen</button>`;
+                        menuHtml += `<button class="action-btn act-shadow" style="padding: 8px; font-size: 0.9rem;" onclick="useTunnel()">${icon('tunnel', 'ic-14')} Durch Tunnel gehen</button>`;
                     }
                 }
                 if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2)) {
@@ -1890,7 +1890,7 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
             if (clickedUnit.t === 4) specInfo = "Spezial: Aktionspunkt nach Angriff wiederherstellen.";
             if (clickedUnit.t === 5) specInfo = "Spezial: Unsichtbar für Feinde. Bricht bei Angriff." + (clickedUnit.cd ? ` (Cooldown: ${clickedUnit.cd} Runden)` : "");
             if (clickedUnit.t === 6) specInfo = "Spezial: AoE-Angriff auf Zielgebiet (Reichweite 3).";
-            if (clickedUnit.t === 7) specInfo = "Spezial: ⛏️ Abbau starten (gratis). Kann 🧱 Mauer (1🪨), 🚇 Tunnel (4🪨), 🗼 Turm (5🪨) bauen.";
+            if (clickedUnit.t === 7) specInfo = `Spezial: ${icon('pick', 'ic-14')} Abbau starten (gratis). Kann ${icon('wall', 'ic-14')} Mauer (1${icon('stone', 'ic-14')}), ${icon('tunnel', 'ic-14')} Tunnel (4${icon('stone', 'ic-14')}), ${icon('tower', 'ic-14')} Turm (5${icon('stone', 'ic-14')}) bauen.`;
             if (clickedUnit.t === 8) specInfo = "Spezial: Kann sich bewegen und explodieren (AoE 8 DMG). Zerstört sich selbst und schädigt auch eigene Truppen!";
             if (clickedUnit.t === 9) specInfo = "Spezial: Stampede – Wähle ein Ziel (max. Distanz 2). Elefant trifft alle Feinde auf dem Weg (5 DMG, kein Gegenangriff) und bewegt sich dorthin.";
             if (clickedUnit.t === 10) specInfo = "Spezial: Parthershot (1🪵) – Aktiviere vor dem Angriff. Nach dem Angriff kann der Kamelreiter sich noch einmal bewegen (Rückzug/Neupositionierung)." + (clickedUnit.ps ? " ► AKTIV – Jetzt angreifen!" : "");
@@ -1928,17 +1928,21 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
                 // eigenen Tunnel-Startpunkt kann er zusätzlich zum normalen Tunnelgang
                 // "Abtauchen" (uwDescend, js/abilities.js), am Stollenkopf unten wieder
                 // "Aufsteigen" (uwAscend). Kein separater Rekrutierungs-Button nötig.
-                recruitHtml += mkBtn(7, '⛏️', 'Arbeiter', '#fff176');
-                if (pState.f.includes(0)) { recruitHtml += mkBtn(3, '🛡️', 'Ritter', '#fff176'); recruitHtml += mkBtn(10, '🐪', 'Kamelreiter', '#e65100'); }
-                if (pState.f.includes(1)) { recruitHtml += mkBtn(4, '🪓', 'Berserker', '#fff176'); recruitHtml += mkBtn(8, '💣', 'Saboteur', '#fff176'); }
-                if (pState.f.includes(2)) { recruitHtml += mkBtn(5, '🗡️', 'Assassine', '#fff176'); recruitHtml += mkBtn(9, '🐘', 'Elefant', '#a1887f'); }
-                if (pState.f.includes(3)) { recruitHtml += mkBtn(6, '🏗️', 'Tribok', '#fff176'); recruitHtml += mkBtn(11, '🚚', 'Wagenburg', '#fff176'); }
+                recruitHtml += mkBtn(7, '⛏️', 'Arbeiter');
+                // Umrandungsfarbe = Fraktionsfarbe (nicht Einheitentyp): jede Fraktion hat
+                // genau eine Farbe für alle ihre Spezialeinheiten (Boden wie Luft), damit
+                // man die Zugehörigkeit sofort erkennt statt raten zu müssen. Standard-
+                // einheiten (oben, faktionslos) bleiben absichtlich ohne Umrandung.
+                if (pState.f.includes(0)) { recruitHtml += mkBtn(3, '🛡️', 'Ritter', 'var(--gold-mid)'); recruitHtml += mkBtn(10, '🐪', 'Kamelreiter', 'var(--gold-mid)'); }
+                if (pState.f.includes(1)) { recruitHtml += mkBtn(4, '🪓', 'Berserker', 'var(--red)'); recruitHtml += mkBtn(8, '💣', 'Saboteur', 'var(--red)'); }
+                if (pState.f.includes(2)) { recruitHtml += mkBtn(5, '🗡️', 'Assassine', 'var(--blue)'); recruitHtml += mkBtn(9, '🐘', 'Elefant', 'var(--blue)'); }
+                if (pState.f.includes(3)) { recruitHtml += mkBtn(6, '🏗️', 'Tribok', 'var(--wood-hi)'); recruitHtml += mkBtn(11, '🚚', 'Wagenburg', 'var(--wood-hi)'); }
             }
             if (freeAirHere) {
-                if (pState.f.includes(0)) recruitHtml += mkBtn(12, '🚁', 'Luftschraube', '#4fc3f7');
-                if (pState.f.includes(1)) recruitHtml += mkBtn(13, '🛩️', 'Gleiter', '#4fc3f7');
-                if (pState.f.includes(2)) recruitHtml += mkBtn(14, '🪂', 'Fallschirm', '#4fc3f7');
-                if (pState.f.includes(3)) recruitHtml += mkBtn(15, '🎈', 'Ballon', '#4fc3f7');
+                if (pState.f.includes(0)) recruitHtml += mkBtn(12, '🚁', 'Luftschraube', 'var(--gold-mid)');
+                if (pState.f.includes(1)) recruitHtml += mkBtn(13, '🛩️', 'Gleiter', 'var(--red)');
+                if (pState.f.includes(2)) recruitHtml += mkBtn(14, '🪂', 'Fallschirm', 'var(--blue)');
+                if (pState.f.includes(3)) recruitHtml += mkBtn(15, '🎈', 'Ballon', 'var(--wood-hi)');
             }
             infoPanel.innerHTML += `<div class="info-detail" style="color: #fff176;">Was möchtest du rekrutieren?</div>`;
         }

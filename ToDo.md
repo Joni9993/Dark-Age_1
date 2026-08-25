@@ -8,8 +8,4 @@
 
 4. login/account managment optimieren
 
-5. ~~recap der züge der anderen spieler wenn man seinen eigenen zug startet analysieren und optimieren~~ — erledigt (js/recap.js):
-   nicht-blockierendes Rückblick-Panel statt Zwangs-Playback, läuft über die
-   ganze Runde statt nur den letzten Zug, nach Spieler/Art verdichtet,
-   Treffer auf eigenen Besitz zuerst, jederzeit über den HUD-Knopf wieder
-   aufrufbar. Details in CLAUDE.md ("Rückblick / Recap").
+6. namen werden in der rangliste im spiel nicht angezeigt ![alt text](image-1.png)

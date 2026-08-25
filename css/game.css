@@ -1795,15 +1795,15 @@ canvas {
 .score-card-header {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 15px;
+    gap: 4px;
+    font-size: 12px;
     min-width: 0;
 }
 
 .score-rank {
     flex: 0 0 auto;
     color: var(--text-dim);
-    font-size: 15px;
+    font-size: 12px;
     min-width: 16px;
 }
 
@@ -1838,7 +1838,7 @@ canvas {
     flex: 0 0 auto;
     white-space: nowrap;
     color: var(--blue);
-    font-size: 15px;
+    font-size: 12px;
 }
 
 .score-total {
@@ -1874,7 +1874,7 @@ canvas {
 }
 
 .score-subrow {
-    font-size: 15px;
+    font-size: 12px;
     color: var(--text-dim);
     line-height: 1.4;
 }
@@ -1885,7 +1885,7 @@ canvas {
 
 .score-legend {
     margin-top: 2px;
-    font-size: 15px;
+    font-size: 12px;
     color: var(--text-dim);
     text-align: center;
     opacity: 0.7;
