@@ -55,9 +55,9 @@ const upgrades = {
 const unitStats = {
     0: { dmg: 5, range: 1, move: 1, name: "Schwert", cost: 3, maxHp: 10, isMelee: true, light: true },
     1: { dmg: 5, range: 2, move: 1, name: "Bogen", cost: 4, maxHp: 10, isMelee: false, light: true },
-    2: { dmg: 5, range: 1, move: 2, name: "Pferd", cost: 4, maxHp: 10, isMelee: true, light: true },
+    2: { dmg: 5, range: 1, move: 2, name: "Pferd", cost: 3, maxHp: 10, isMelee: true, light: true },
     3: { dmg: 6, range: 1, move: 2, name: "Ritter", cost: 6, maxHp: 15, isMelee: true, light: true },
-    4: { dmg: 6, range: 1, move: 2, name: "Berserker", cost: 4, maxHp: 10, isMelee: true, light: true },
+    4: { dmg: 6, range: 1, move: 2, name: "Berserker", cost: 5, maxHp: 10, isMelee: true, light: true },
     5: { dmg: 6, range: 1, move: 3, name: "Assassine", cost: 4, maxHp: 8, isMelee: true, light: true },
     6: { dmg: 6, range: 3, move: 1, name: "Tribok", cost: 7, maxHp: 10, isMelee: false, light: true },
     7: { dmg: 2, range: 1, move: 1, name: "Arbeiter", cost: 2, maxHp: 10, isMelee: true, light: true },
