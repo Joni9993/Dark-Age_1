@@ -55,14 +55,17 @@ async function refreshGameList() {
             else if (myTurn)              badge = '<span class="game-badge turn-badge">Du bist dran!</span>';
             else                          badge = `<span class="game-badge wait-badge">Warte auf ${escHtml(row.current_player_username || '?')}...</span>`;
 
-            const canDelete = row.status === 'lobby' ? row.slot === 0 : row.status === 'active';
-            const deleteTitle = row.status === 'lobby' ? 'Lobby löschen' : 'Spiel aufgeben';
+            const canDelete = row.status === 'lobby' ? row.slot === 0 : true;
+            const deleteTitle = row.status === 'lobby' ? 'Lobby löschen'
+                : row.status === 'finished' ? 'Aus Liste entfernen' : 'Spiel aufgeben';
             const deleteBtn = canDelete
                 ? `<button class="game-delete-btn" title="${deleteTitle}" onclick="event.stopPropagation();deleteGame('${escHtml(row.id)}','${escHtml(row.status)}')">${icon('trash', 'ic-14')}</button>`
                 : '';
 
             const card = document.createElement('div');
-            card.className = 'game-card' + (myTurn ? ' game-card-active' : '');
+            // Beendete Spiele optisch abgesetzt (gedimmt) von laufenden — sonst sieht
+            // man den Unterschied zum "Beendet"-Badge erst beim genauen Hinsehen.
+            card.className = 'game-card' + (myTurn ? ' game-card-active' : '') + (row.status === 'finished' ? ' game-card-finished' : '');
             card.innerHTML = `<span class="game-card-name">${escHtml(row.name)}</span>${badge}${deleteBtn}`;
             card.addEventListener('click', () => {
                 if (row.status === 'lobby') openLobbyScreen(row.id);
@@ -638,6 +641,17 @@ async function deleteGame(gameId, status) {
         if (!confirm('Spiel aufgeben? Du wirst als aufgegeben markiert und das Spiel läuft ohne dich weiter.')) return;
         try {
             await api.post(`/api/games/${gameId}/abandon`, {});
+            await refreshGameList();
+        } catch (err) {
+            showToast('Fehler: ' + err.message);
+        }
+    } else if (status === 'finished') {
+        // Rein kosmetisch (server/routes/games.js POST :id/hide, list_hidden) —
+        // betrifft nur die eigene Liste, keine Auswirkung auf Wertung/Leaderboard
+        // und andere Spieler sehen das Spiel unverändert weiter.
+        if (!confirm('Spiel aus deiner Liste entfernen? Andere Spieler sehen es weiterhin.')) return;
+        try {
+            await api.post(`/api/games/${gameId}/hide`, {});
             await refreshGameList();
         } catch (err) {
             showToast('Fehler: ' + err.message);

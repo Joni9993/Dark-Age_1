@@ -2855,6 +2855,16 @@ body.app-view .screen-box {
     position: relative;
 }
 
+/* Beendete Spiele: sichtbar gedimmt, damit "läuft noch" vs. "vorbei" auch ohne
+   den Blick aufs Badge sofort klar ist — Karte bleibt aber voll lesbar/klickbar. */
+.game-card-finished {
+    opacity: 0.6;
+}
+
+.game-card-finished:hover {
+    opacity: 0.85;
+}
+
 .game-card-active::before,
 .game-card-active::after {
     content: "";
@@ -2919,7 +2929,9 @@ body.app-view .screen-box {
     background: #1a1714;
     color: var(--text-dim);
     box-shadow: inset 1px 1px 0 #26211b, inset -1px -1px 0 #0b0a09;
-    opacity: 0.7;
+    /* Kein eigenes opacity hier — die ganze Karte ist schon per .game-card-finished
+       gedimmt, ein zweites opacity würde sich multiplizieren und die Beschriftung
+       zu blass machen. */
 }
 
 .game-delete-btn {
@@ -2928,13 +2940,15 @@ body.app-view .screen-box {
     cursor: pointer;
     font-size: 1rem;
     padding: 4px 6px;
-    opacity: 0.6;
-    transition: opacity 0.15s;
+    color: var(--text);
+    opacity: 0.8;
+    transition: opacity 0.15s, color 0.15s;
     flex-shrink: 0;
 }
 
 .game-delete-btn:hover {
     opacity: 1;
+    color: var(--red, #e05c4d);
     background: #33160c;
 }
 

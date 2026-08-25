@@ -45,12 +45,13 @@ router.get('/', authMiddleware, async (req, res) => {
          JOIN games g ON g.id = gp.game_id
          LEFT JOIN game_players cp_gp ON cp_gp.game_id = g.id AND cp_gp.slot = g.current_slot
          LEFT JOIN profiles cp ON cp.id = cp_gp.profile_id
-         WHERE gp.profile_id = $1 AND gp.left_game = FALSE
+         WHERE gp.profile_id = $1 AND gp.left_game = FALSE AND gp.list_hidden = FALSE
            -- Beendete Spiele bleiben 14 Tage sichtbar (Niederlage-Rückblick, Aug 2026)
            -- statt sofort zu verschwinden — sonst wäre defeatLog für den Verlierer genau
            -- dann unerreichbar, wenn er ihn am ehesten nachschauen will. Kein Enddatum wäre
            -- eine unbegrenzt wachsende Liste für aktive Spieler; 14 Tage sind großzügig genug
            -- für "nach dem Spiel in Ruhe reinschauen", ohne die Liste dauerhaft zu belasten.
+           -- list_hidden lässt Spieler ein beendetes Spiel früher selbst ausblenden.
            AND (g.status != 'finished' OR g.updated_at > NOW() - INTERVAL '14 days')
          ORDER BY g.updated_at DESC`,
         [req.profileId]
@@ -321,6 +322,24 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 
     await pool.query('DELETE FROM game_players WHERE game_id = $1', [req.params.id]);
     await pool.query('DELETE FROM games WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+});
+
+// ── POST /api/games/:id/hide  — any participant removes a FINISHED game from
+// their own list ─────────────────────────────────────────────────────────────
+// Anders als DELETE /:id (Host-only, Lobby-only, löscht das ganze Spiel):
+// jeder Teilnehmer, nur bei bereits beendeten Spielen, betrifft nur die eigene
+// Zeile (list_hidden) — die anderen Spieler sehen das Spiel unverändert weiter.
+router.post('/:id/hide', authMiddleware, async (req, res) => {
+    const { rows: [game] } = await pool.query('SELECT status FROM games WHERE id = $1', [req.params.id]);
+    if (!game) return res.status(404).json({ error: 'Spiel nicht gefunden' });
+    if (game.status !== 'finished') return res.status(400).json({ error: 'Nur beendete Spiele können ausgeblendet werden' });
+
+    const { rowCount } = await pool.query(
+        'UPDATE game_players SET list_hidden = TRUE WHERE game_id = $1 AND profile_id = $2',
+        [req.params.id, req.profileId]
+    );
+    if (!rowCount) return res.status(403).json({ error: 'Kein Zugriff' });
     res.json({ ok: true });
 });
 

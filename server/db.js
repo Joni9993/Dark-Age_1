@@ -67,6 +67,13 @@ async function initSchema() {
         -- (Sieg-Benachrichtigung/Leaderboard fallen dort auf die alte Heuristik zurück).
         ALTER TABLE games ADD COLUMN IF NOT EXISTS winner_slots INT[];
 
+        -- list_hidden (Niederlage-Rückblick, Aug 2026): rein kosmetisches "aus meiner
+        -- Liste entfernen" für BEENDETE Spiele — bewusst NICHT left_game wiederverwendet,
+        -- das fließt in server/rating.js als Aufgeben-Signal in die Wertung ein. Ein
+        -- Spieler, der ein sauber beendetes Spiel nur aus der Übersicht räumen will, soll
+        -- nicht rückwirkend wie ein Aufgeber gewertet werden.
+        ALTER TABLE game_players ADD COLUMN IF NOT EXISTS list_hidden BOOLEAN DEFAULT FALSE;
+
         CREATE TABLE IF NOT EXISTS friendships (
             requester_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
             addressee_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
