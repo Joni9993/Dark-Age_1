@@ -342,12 +342,16 @@
         <button class="action-btn primary" onclick="showHomeScreen ? showHomeScreen() : (window.location.href=window.location.href.split('?')[0])">Zur Spielübersicht</button>
     </div>
 
-    <!-- ── Defeat Banner (spectator / eliminated) ─────────────────────────────── -->
+    <!-- ── Defeat Banner (spectator/eliminated ODER Erschließungs-/Team-Sieg-Verlierer,
+         js/lobby.js openGame) — Text kommt aus JS, da beide Fälle dasselbe Banner
+         mit unterschiedlicher Formulierung nutzen ("besiegt" vs. "Spiel vorbei,
+         nicht gewonnen" — Letztere gelten laut server/rating.js bewusst nicht als
+         besiegt). ─────────────────────────────────────────────────────────────── -->
     <div id="defeat-banner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:150; background:#b71c1c; color:#fff; padding:14px 16px; flex-direction:column; align-items:center; gap:10px; text-align:center;">
-        <span style="font-size:1rem; font-weight:bold;">Du wurdest besiegt</span>
-        <span style="font-size:0.85rem; opacity:0.85;">Sieh dir den letzten Spielstand an, dann kannst du zurückgehen.</span>
+        <span id="defeat-banner-title" style="font-size:1rem; font-weight:bold;">Du wurdest besiegt</span>
+        <span id="defeat-banner-sub" style="font-size:0.85rem; opacity:0.85;">Der Rückblick-Knopf oben zeigt, wie es dazu kam. Danach kannst du zurückgehen.</span>
         <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
-            <button class="action-btn secondary" style="min-height:36px;padding:6px 16px;" onclick="document.getElementById('defeat-banner').style.display='none'">Spielstand ansehen</button>
+            <button class="action-btn secondary" style="min-height:36px;padding:6px 16px;" onclick="document.getElementById('defeat-banner').style.display='none'; if (window.openRecap) window.openRecap();">Rückblick ansehen</button>
             <button class="action-btn secondary" style="min-height:36px;padding:6px 16px;" onclick="showHomeScreen()">← Zur Übersicht</button>
         </div>
     </div>

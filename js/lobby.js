@@ -45,7 +45,12 @@ async function refreshGameList() {
             const myTurn   = row.status === 'active' && row.current_slot === row.slot && !row.eliminated;
             const spectator = row.eliminated;
             let badge = '';
-            if (row.status === 'lobby')  badge = '<span class="game-badge lobby-badge">Lobby</span>';
+            // Beendete Spiele bleiben in der Liste (server/routes/games.js liefert sie
+            // jetzt mit) statt zu verschwinden, sobald das Spiel vorbei ist — sonst wäre
+            // der Niederlage-Rückblick (defeatLog) für den Verlierer genau in dem Moment
+            // unerreichbar, in dem er ihn am ehesten in Ruhe nachschauen will.
+            if (row.status === 'finished') badge = '<span class="game-badge finished-badge">Beendet</span>';
+            else if (row.status === 'lobby')  badge = '<span class="game-badge lobby-badge">Lobby</span>';
             else if (spectator)           badge = '<span class="game-badge spectator-badge">Zuschauer</span>';
             else if (myTurn)              badge = '<span class="game-badge turn-badge">Du bist dran!</span>';
             else                          badge = `<span class="game-badge wait-badge">Warte auf ${escHtml(row.current_player_username || '?')}...</span>`;
@@ -299,6 +304,13 @@ async function openGame(gameId) {
         currentUserSlot = game.my_slot;
         currentTurnSlot = game.current_slot;
         isSpectator     = game.my_eliminated === true;
+        // Erschließungs-/Team-Sieg-Verlierer sind NIE "eliminated" (server/rating.js
+        // unterscheidet das bewusst — das Spiel endete nur unter ihnen weg, sie
+        // wurden nicht besiegt). winner_slots ist NULL bei älteren, vor diesem Fix
+        // beendeten Spielen — dann lässt sich nichts Verlässliches sagen.
+        const isNonWinningEnd = !isSpectator && game.status === 'finished' &&
+            Array.isArray(game.winner_slots) && game.winner_slots.length > 0 &&
+            game.winner_slots.indexOf(currentUserSlot) === -1;
 
         let decoded = null;
         try { decoded = LZString.decompressFromEncodedURIComponent(game.state_blob); } catch (_) {}
@@ -316,6 +328,13 @@ async function openGame(gameId) {
 
         if (isSpectator) {
             _activateSpectatorMode();
+            document.getElementById('defeat-banner-title').textContent = 'Du wurdest besiegt';
+            document.getElementById('defeat-banner-sub').textContent = 'Der Rückblick-Knopf oben zeigt, wie es dazu kam. Danach kannst du zurückgehen.';
+            document.getElementById('defeat-banner').style.display = 'flex';
+        } else if (isNonWinningEnd) {
+            _setReadOnly(true);
+            document.getElementById('defeat-banner-title').textContent = 'Das Spiel ist vorbei';
+            document.getElementById('defeat-banner-sub').textContent = 'Du warst nicht unter den Siegern. Der Rückblick-Knopf oben zeigt, was zuletzt geschah.';
             document.getElementById('defeat-banner').style.display = 'flex';
         } else if (currentTurnSlot !== currentUserSlot) {
             _setReadOnly(true);

@@ -35,9 +35,10 @@ function loadGameCode() {
     const fn = new Function(src + `
         return {
             buildInitialGameState, createPRNG, compressFog, decompressFog,
-            getVisibleHexes, getVisibleUWHexes, markUWExplored,
+            getVisibleHexes, getVisibleUWHexes, markUWExplored, killPlayer,
             recapAppendTurn, recapVisibleActions, recapTouchesViewer,
             buildRecapGroups, recapKind, recapUnitName, recapVictimLabel, recapAoE,
+            finalizeDefeatLogs, finalizeGameEndLogs,
             RECAP_LOG_CAP, RECAP_KINDS, unitStats, uwCreatureStats
         };
     `);
@@ -409,6 +410,134 @@ console.log('\n=== (g) Vollständigkeit: jede im Spielcode erzeugte Aktionsart i
     assert(produced.size >= 18, `die Suche findet die Push-Stellen wirklich (gefunden: ${produced.size})`);
     assert(unlabeled.length === 0, `JEDE erzeugte Aktionsart steht in RECAP_KINDS${unlabeled.length ? ' — unbeschriftet: ' + unlabeled.join(', ') : ''}`);
     assert(!produced.has('creatureAtk'), 'kein Spielcode erzeugt noch creatureAtk-Recap-Eintraege');
+}
+
+console.log('\n=== (h) Niederlage-Rückblick: defeatLog wird beim Tod eingefroren ===');
+{
+    const state = freshState(21, 7, 2);
+    const [vx, vy] = state.p[1].sv.split(',').map(Number);
+    state.la = [];
+
+    // Reihenfolge wie im echten Spiel: killPlayer laeuft MITTEN im Zug (friert
+    // die Sicht des Sterbenden ein, BEVOR seine Einheiten/Doerfer entfernt
+    // werden) — der toedliche Angriff selbst landet erst am Zugende ueber
+    // recapAppendTurn im Log, danach erst finalizeDefeatLogs.
+    M.killPlayer(state, 1, 0);
+    assert(state.p[1].dead === 1, 'killPlayer markiert den Spieler wie bisher als tot');
+    assert(Array.isArray(state.p[1]._deathVis) && state.p[1]._deathVis.length > 0,
+        'die Sicht des Sterbenden wird VOR dem Aufräumen eingefroren');
+
+    M.recapAppendTurn(state, 0, [
+        { x: vx, y: vy, t: 'atk', au: 3, dm: 30, vk: 'building', vp: 1, kl: 1 }
+    ]);
+    M.finalizeDefeatLogs(state);
+
+    assert(Array.isArray(state.p[1].defeatLog), 'defeatLog wird gesetzt');
+    assert(!state.p[1]._deathVis && !state.p[1]._deathVisUW,
+        'die temporären Sicht-Sets werden nach dem Einfrieren wieder entfernt');
+    assert(state.p[1].defeatLog.some(a => a.vk === 'building' && a.kl === 1),
+        'der tödliche Angriff steht im eingefrorenen Log');
+
+    const groups = M.buildRecapGroups(state, 1, state.p[1].defeatLog);
+    assert(groups.length === 1 && groups[0].hits === 1,
+        'derselbe Verdichtungscode wie beim Live-Rückblick liefert eine Treffer-Gruppe aus dem eingefrorenen Log');
+
+    // Der Sterbende zieht nie wieder — ein zweiter finalizeDefeatLogs-Aufruf
+    // (naechstes Zugende eines anderen Spielers) darf defeatLog nicht anfassen.
+    M.recapAppendTurn(state, 0, [{ x: vx, y: vy, t: 'mv', ut: 2 }]);
+    const before = state.p[1].defeatLog.length;
+    M.finalizeDefeatLogs(state);
+    assert(state.p[1].defeatLog.length === before,
+        'defeatLog wird nur EINMAL eingefroren, spätere Züge ändern es nicht mehr nachträglich');
+}
+
+console.log('\n=== (h2) defeatLog respektiert die zum Todeszeitpunkt eingefrorene Sicht ===');
+{
+    // Dieselbe "+6 = ausserhalb der Sicht"-Distanz wie in (b) — eine fremde
+    // Aktion, die der Sterbende beim Sterben gar nicht haette sehen koennen,
+    // darf nicht nachtraeglich im Rueckblick auftauchen. Ohne den eingefrorenen
+    // Sicht-Snapshot wuerde recapVisibleActionsFrom sonst live neu rechnen und
+    // faende NACH killPlayers Aufraeumen gar keine Einheiten/Doerfer mehr vor.
+    const state = freshState(21, 7, 3);
+    const [dvx, dvy] = state.p[2].sv.split(',').map(Number);
+    const far = { x: dvx + 6, y: dvy };
+
+    M.killPlayer(state, 2, 0);
+    M.recapAppendTurn(state, 0, [{ x: far.x, y: far.y, t: 'mv', ut: 2 }]);
+    M.finalizeDefeatLogs(state);
+
+    assert(state.p[2].defeatLog.length === 0,
+        'eine für den Sterbenden zum Todeszeitpunkt unsichtbare fremde Aktion bleibt außen vor');
+}
+
+console.log('\n=== (i) defeatLog: Serialisierungs-Roundtrip ===');
+{
+    const state = freshState(21, 7, 2);
+    const [vx, vy] = state.p[1].sv.split(',').map(Number);
+    state.la = [];
+    M.killPlayer(state, 1, 0);
+    M.recapAppendTurn(state, 0, [{ x: vx, y: vy, t: 'atk', au: 3, dm: 30, vk: 'building', vp: 1, kl: 1 }]);
+    M.finalizeDefeatLogs(state);
+
+    const encoded = LZString.compressToEncodedURIComponent(JSON.stringify(state));
+    const decoded = JSON.parse(LZString.decompressFromEncodedURIComponent(encoded));
+    assert(Array.isArray(decoded.p[1].defeatLog) && decoded.p[1].defeatLog.length === state.p[1].defeatLog.length,
+        'defeatLog übersteht den LZString-Roundtrip wie der Rest des States');
+    assert(decoded.p[1]._deathVis === undefined, '_deathVis reist nicht mit — es wird schon bei finalizeDefeatLogs gelöscht');
+    assert(M.buildRecapGroups(decoded, 1, decoded.p[1].defeatLog).length === 1,
+        'und ist nach dem Roundtrip weiterhin auswertbar');
+}
+
+console.log('\n=== (j) Erschließungs-/Team-Sieg: Verlierer bekommen trotzdem ein defeatLog ===');
+{
+    // checkErschliessungWin/checkTeamWin (js/logic.js, js/diplomacy.js) rufen
+    // NIE killPlayer für die Verlierer auf — sie gelten laut server/rating.js
+    // bewusst als "nicht besiegt", das Spiel endet nur unter ihnen weg.
+    // finalizeGameEndLogs deckt genau diese Lücke.
+    const state = freshState(21, 7, 3);
+    // Auf dem eigenen Feld von Spieler 1, wie in (b) — sonst hängt der Test von
+    // zufälligen Spawn-Abständen ab, ob der Zug überhaupt in Sicht liegt.
+    const own = state.u.find(u => u.p === 1);
+    state.la = [{ x: own.x, y: own.y, t: 'mv', ut: 3, p: 0 }];
+
+    M.finalizeGameEndLogs(state, [state.p[0]]);
+
+    assert(state.p[0].defeatLog === undefined, 'der Sieger selbst bekommt kein defeatLog');
+    assert(Array.isArray(state.p[1].defeatLog) && Array.isArray(state.p[2].defeatLog),
+        'alle Nicht-Sieger bekommen ein defeatLog, obwohl sie nie killPlayer durchlaufen haben');
+    assert(state.p[1].dead !== 1, 'ihr dead-Flag bleibt unangetastet — "nicht besiegt", nicht "besiegt"');
+
+    const groups = M.buildRecapGroups(state, 1, state.p[1].defeatLog);
+    assert(groups.length === 1 && groups[0].pid === 0, 'das eingefrorene Log liest sich wie jeder andere Rückblick');
+
+    // Ein bereits über Kampf gestorbener Spieler wird nicht überschrieben —
+    // z.B. Team-Sieg, bei dem einzelne Gegner schon vorher gestorben sind.
+    const state2 = freshState(22, 7, 3);
+    state2.la = [];
+    M.killPlayer(state2, 2, 0);
+    M.recapAppendTurn(state2, 0, [{ x: 1, y: 1, t: 'atk', au: 1, dm: 30, vk: 'building', vp: 2, kl: 1 }]);
+    M.finalizeDefeatLogs(state2);
+    const before = state2.p[2].defeatLog;
+    M.finalizeGameEndLogs(state2, [state2.p[0]]);
+    assert(state2.p[2].defeatLog === before,
+        'ein bereits über killPlayer eingefrorenes Log wird von finalizeGameEndLogs nicht überschrieben');
+}
+
+console.log('\n=== (k) Integrations-Guard: finalizeGameEndLogs wird NUR bei tatsächlichem Sieg aufgerufen ===');
+{
+    // Kritischer Bug bei der ersten Umsetzung: ein unbedingter Aufruf würde
+    // bei JEDEM normalen Zugende (der weit überwiegende Fall, kein Sieg) jeden
+    // noch aktiven Spieler fälschlich als "Nicht-Sieger" mit leerem
+    // winnerIds-Set einfrieren — und wegen des "nur einmal setzen"-Schutzes in
+    // finalizeGameEndLogs bliebe defeatLog dann für den Rest der Partie auf
+    // diesem bedeutungslosen Schnappschuss hängen. Die Unit-Tests oben testen
+    // die Funktion isoliert und hätten das NICHT gefangen — nur ein Blick auf
+    // die Aufrufstelle selbst tut das.
+    const src = fs.readFileSync(path.join(ROOT, 'js/input.js'), 'utf8');
+    const calls = [...src.matchAll(/^.*finalizeGameEndLogs\(.*$/gm)];
+    assert(calls.length >= 2, `mindestens 2 Aufrufstellen erwartet (doEndTurn + confirmSurrender), gefunden: ${calls.length}`);
+    assert(calls.every(m => /if\s*\(\s*isWin\s*\)/.test(m[0])),
+        `jede Aufrufstelle steht hinter einem "if (isWin)"-Guard auf derselben Zeile — ungeschützt: ${calls.filter(m => !/if\s*\(\s*isWin\s*\)/.test(m[0])).map(m => m[0].trim()).join(' | ')}`);
 }
 
 console.log('');

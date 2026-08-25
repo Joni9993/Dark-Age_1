@@ -21,6 +21,7 @@ function bootGame() {
         if (typeof p.ue === 'string') p.ue = decompressFog(p.ue);
         if (!p.of) p.of = [];
         if (!p.rel) p.rel = []; // gekaufte, noch nicht ausgerüstete Reliquien (M10)
+        if (!p.defeatLog) p.defeatLog = []; // Niederlage-Rückblick (Aug 2026), alte Blobs ohne das Feld
     });
     if (!gameState.tu) gameState.tu = [];
     if (!gameState.wa) gameState.wa = [];

@@ -45,7 +45,13 @@ router.get('/', authMiddleware, async (req, res) => {
          JOIN games g ON g.id = gp.game_id
          LEFT JOIN game_players cp_gp ON cp_gp.game_id = g.id AND cp_gp.slot = g.current_slot
          LEFT JOIN profiles cp ON cp.id = cp_gp.profile_id
-         WHERE gp.profile_id = $1 AND g.status != 'finished' AND gp.left_game = FALSE
+         WHERE gp.profile_id = $1 AND gp.left_game = FALSE
+           -- Beendete Spiele bleiben 14 Tage sichtbar (Niederlage-Rückblick, Aug 2026)
+           -- statt sofort zu verschwinden — sonst wäre defeatLog für den Verlierer genau
+           -- dann unerreichbar, wenn er ihn am ehesten nachschauen will. Kein Enddatum wäre
+           -- eine unbegrenzt wachsende Liste für aktive Spieler; 14 Tage sind großzügig genug
+           -- für "nach dem Spiel in Ruhe reinschauen", ohne die Liste dauerhaft zu belasten.
+           AND (g.status != 'finished' OR g.updated_at > NOW() - INTERVAL '14 days')
          ORDER BY g.updated_at DESC`,
         [req.profileId]
     );

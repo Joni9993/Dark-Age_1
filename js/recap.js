@@ -177,12 +177,21 @@ function recapAppendTurn(state, pid, actions) {
 // Die Sichtmengen werden einmal berechnet und nicht mehr je Eintrag — der alte
 // Filter rief getVisibleHexes pro Aktion auf.
 function recapVisibleActions(state, viewerId) {
-    let visSurface = null, visUW = null;
+    return recapVisibleActionsFrom(state.la, state, viewerId, null, null);
+}
+
+// Kern der Fog-Regel, losgelöst von WOHER die Sicht-Sets kommen: der normale
+// Pfad (recapVisibleActions oben) berechnet sie live aus der aktuellen Karte;
+// der Niederlage-Rückblick (finalizeDefeatLogs, s.u.) reicht stattdessen die
+// beim Tod eingefrorenen Sets durch — der Sterbende hat danach keine Einheiten/
+// Dörfer mehr, eine Live-Neuberechnung würde alles wegfiltern. `visSurface`/
+// `visUW` als Set ODER null (dann wird bei Bedarf live berechnet, wie bisher).
+function recapVisibleActionsFrom(actions, state, viewerId, visSurface, visUW) {
     // Getarnte fremde Einheit steht JETZT auf dem Feld: dann fällt der Eintrag
     // weg, sonst verrät der Rückblick ihre Position (Regel kam ursprünglich aus
     // den beiden Renderern und gilt jetzt für Karte und Panel gleichermaßen).
     const hidden = (list, a) => (list || []).some(u => u.p !== viewerId && u.iv === 1 && u.x === a.x && u.y === a.y);
-    return (state.la || []).filter(a => {
+    return (actions || []).filter(a => {
         if (a.p === viewerId) return false;
         // Alt-Eintraege ohne heutige Entsprechung fallen sofort raus, nicht erst
         // beim naechsten Zugende (recapAppendTurn) — sonst zeigt eine laufende
@@ -197,6 +206,44 @@ function recapVisibleActions(state, viewerId) {
         if (!visSurface) visSurface = getVisibleHexes(viewerId);
         if (!visSurface.has(`${a.x},${a.y}`)) return false;
         return !hidden(state.u, a);
+    });
+}
+
+// Niederlage-Rückblick: beim Tod (killPlayer, js/logic.js) wird die Sicht des
+// Sterbenden als _deathVis/_deathVisUW eingefroren, BEVOR seine Einheiten/
+// Dörfer entfernt werden — der tödliche Angriff selbst landet aber erst hier,
+// am Zugende, in state.la (recapAppendTurn ist bereits gelaufen). Wird von
+// doEndTurn UND confirmSurrender aufgerufen (jeder Zug kann jemanden töten:
+// Kampf, Brand-Tick, Aufgeben) — ein Aufruf für alle drei Fälle statt einer
+// Sonderbehandlung je Todesursache. `defeatLog` wird nur EINMAL gesetzt (der
+// Sterbende zieht nie wieder, es gibt also nur dieses eine Fenster).
+function finalizeDefeatLogs(state) {
+    (state.p || []).forEach((p, i) => {
+        if (p.dead !== 1 || !p._deathVis || p.defeatLog) return;
+        const visSurface = new Set(p._deathVis);
+        const visUW = new Set(p._deathVisUW || []);
+        p.defeatLog = recapVisibleActionsFrom(state.la, state, i, visSurface, visUW);
+        delete p._deathVis;
+        delete p._deathVisUW;
+    });
+}
+
+// Erschließungs-/Team-Sieg: diese Verlierer durchlaufen NIE killPlayer — sie
+// gelten bewusst als "nicht besiegt", das Spiel endet nur unter ihnen weg
+// (server/rating.js unterscheidet das absichtlich, eliminated bleibt FALSE).
+// Trotzdem verdienen sie denselben Rückblick. Anders als finalizeDefeatLogs
+// keine Zwei-Phasen-Sicht-Snapshot-Logik nötig: diese Spieler bleiben am
+// Leben, ihre Einheiten/Dörfer stehen im Aufrufmoment noch, also liefert die
+// normale LIVE recapVisibleActions bereits die richtige Sicht. `winners` ist
+// das Array der Sieger-Spielerobjekte (teamWinners/erschlWinners/alivePlayers
+// aus js/input.js, dieselbe Form wie bei showWin) — bei einer regulären
+// Elimination (alivePlayers.length === 1) sind alle Nicht-Sieger ohnehin schon
+// einzeln über finalizeDefeatLogs erfasst, der Aufruf hier ist dann ein no-op.
+function finalizeGameEndLogs(state, winners) {
+    const winnerIds = new Set((winners || []).map(w => state.p.indexOf(w)));
+    (state.p || []).forEach((p, i) => {
+        if (p.dead === 1 || winnerIds.has(i) || p.defeatLog) return;
+        p.defeatLog = recapVisibleActions(state, i);
     });
 }
 
@@ -241,6 +288,7 @@ function recapUnitName(t) {
 // sein: der Turmschuss hat gar keine Einheit dahinter (`ab: 'tower'`).
 function recapActorName(a) {
     if (a.ab === 'tower') return 'Turm';
+    if (a.ab === 'fire') return 'Feuer';
     return recapUnitName(a.au);
 }
 
@@ -279,10 +327,15 @@ function recapVictimLabel(a, viewerId) {
 // zugehörigen Felder hervor und steppt die Kamera durch sie hindurch.
 // Sortierung: Spieler, die mich angefasst haben, zuerst; innerhalb eines
 // Spielers erst die Treffer, dann nach prio (Kampf vor Bewegung).
-function buildRecapGroups(state, viewerId) {
+// `actions` ist optional: normalerweise wird die Sicht live berechnet
+// (recapVisibleActions). Der Niederlage-Rückblick reicht stattdessen das
+// bereits beim Tod gefilterte defeatLog durch (finalizeDefeatLogs) — derselbe
+// Verdichtungs-/Sortier-Code, nur mit einer eingefrorenen statt einer live
+// berechneten Quelle.
+function buildRecapGroups(state, viewerId, actions) {
     const groups = new Map();
     let seq = 0;
-    recapVisibleActions(state, viewerId).forEach(a => {
+    (actions || recapVisibleActions(state, viewerId)).forEach(a => {
         // recapEntryUsable garantiert einen gueltigen Spielerindex — die
         // Gruppierung braucht deshalb keinen Sonderfall fuer urheberlose
         // Eintraege mehr (der hiess frueher "Die Tiefe" und trug die
@@ -388,11 +441,33 @@ if (typeof document !== 'undefined') (function () {
     // Ausnahme Zuschauer (ausgeschieden): dort bleibt cp der aktive Spieler und
     // die Karte ist ohnehin komplett aufgedeckt — ein "seit deinem letzten Zug"
     // hat für ihn weder Bedeutung noch eine eigene Sicht, auf die es sich
-    // beziehen könnte. Also gar kein Rückblick statt einem falschen.
+    // beziehen könnte. ABER: sein eigener Slot (currentUserSlot, js/lobby.js)
+    // kann ein eingefrorenes defeatLog tragen (finalizeDefeatLogs) — das ist
+    // kein "seit deinem letzten Zug" mehr, sondern der einmalige Blick auf die
+    // eigene Niederlage. Ohne defeatLog bleibt es beim alten "kein Rückblick
+    // statt einem falschen".
     function recapViewerId() {
         if (!gameState) return -1;
-        if (typeof isSpectator !== 'undefined' && isSpectator) return -1;
+        if (typeof isSpectator !== 'undefined' && isSpectator) {
+            if (typeof currentUserSlot === 'number' && gameState.p && gameState.p[currentUserSlot] &&
+                gameState.p[currentUserSlot].defeatLog && gameState.p[currentUserSlot].defeatLog.length > 0) {
+                return currentUserSlot;
+            }
+            return -1;
+        }
         return gameState.cp;
+    }
+
+    // Quelle für buildRecapGroups: undefined im Normalfall (live berechnet),
+    // das eingefrorene defeatLog im Niederlage-Fall. Bewusst NICHT an
+    // isSpectator gekoppelt: der Erschließungs-/Team-Sieg-Verlierer
+    // (finalizeGameEndLogs, js/recap.js) bleibt eliminated=FALSE, ist also nie
+    // isSpectator, kriegt aber trotzdem ein eingefrorenes defeatLog — dessen
+    // bloße Anwesenheit ist bereits das verlässliche Signal, es wird an keiner
+    // anderen Stelle für einen normal spielenden Spieler gesetzt.
+    function recapSource(viewerId) {
+        const p = gameState && gameState.p && gameState.p[viewerId];
+        return (p && p.defeatLog && p.defeatLog.length > 0) ? p.defeatLog : undefined;
     }
 
     function refreshRecapButton() {
@@ -647,7 +722,7 @@ if (typeof document !== 'undefined') (function () {
     function prepareRecap() {
         closeRecap();     // Reste aus der vorherigen Partie/dem vorherigen Zug
         const viewer = recapViewerId();
-        recapGroups = (viewer < 0 || !gameState) ? [] : buildRecapGroups(gameState, viewer);
+        recapGroups = (viewer < 0 || !gameState) ? [] : buildRecapGroups(gameState, viewer, recapSource(viewer));
         refreshRecapButton();
         showRecap = false;
         if (recapGroups.length > 0) openRecap();

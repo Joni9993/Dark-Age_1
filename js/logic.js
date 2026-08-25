@@ -66,6 +66,15 @@ const getUnitCost = (pState, type) =>
 // nicht zuordenbarer Brand-Tod) -> alles neutral, auch das Hauptgebäude.
 function killPlayer(state, deadId, killerId) {
     const pState = state.p[deadId];
+    // Niederlage-Rückblick (Aug 2026): die Sicht des Sterbenden existiert nur
+    // VOR dem Aufräumen unten (getVisibleHexes/-UWHexes brauchen seine noch
+    // lebenden Einheiten/Dörfer) — der tödliche Angriff selbst landet aber erst
+    // am Zugende in state.la (recapAppendTurn läuft in doEndTurn/confirmSurrender,
+    // nicht hier). Deshalb hier nur die Sicht einfrieren; finalizeDefeatLogs
+    // (js/recap.js) baut daraus am Zugende defeatLog, sobald state.la auch den
+    // tödlichen Treffer enthält.
+    pState._deathVis = [...getVisibleHexes(deadId)];
+    pState._deathVisUW = state.uw ? [...getVisibleUWHexes(deadId)] : [];
     pState.dead = 1;
     state.u = state.u.filter(u => u.p !== deadId);
     if (state.uw) state.uw.u = (state.uw.u || []).filter(u => u.p !== deadId);

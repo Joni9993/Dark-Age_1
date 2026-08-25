@@ -2915,6 +2915,13 @@ body.app-view .screen-box {
     box-shadow: inset 1px 1px 0 #43254f, inset -1px -1px 0 #140a18;
 }
 
+.finished-badge {
+    background: #1a1714;
+    color: var(--text-dim);
+    box-shadow: inset 1px 1px 0 #26211b, inset -1px -1px 0 #0b0a09;
+    opacity: 0.7;
+}
+
 .game-delete-btn {
     background: transparent;
     border: none;

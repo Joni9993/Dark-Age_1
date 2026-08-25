@@ -7,5 +7,3 @@
 3. skins implementieren?!
 
 4. login/account managment optimieren
-
-6. namen werden in der rangliste im spiel nicht angezeigt ![alt text](image-1.png)

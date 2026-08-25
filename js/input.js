@@ -2156,6 +2156,10 @@ function confirmSurrender() {
     // Rückblick-Log nicht zurücksetzt.
     recapAppendTurn(gameState, surrenderingId, turnActions);
     turnActions = [];
+    // Niederlage-Rückblick: friert defeatLog für den gerade Aufgebenden ein
+    // (js/recap.js) — der Sicht-Snapshot kam schon aus killPlayer oben, jetzt
+    // steht auch der Aufgeben-Eintrag selbst in gameState.la.
+    finalizeDefeatLogs(gameState);
 
     let oldRn = gameState.rn;
     let loopGuard = 0;
@@ -2179,6 +2183,13 @@ function confirmSurrender() {
     const alivePlayers = gameState.p.filter(p => p.dead !== 1);
     const teamWinners = checkTeamWin(alivePlayers);
     const isWin = teamWinners || alivePlayers.length === 1;
+    // Team-Sieg durch Aufgeben: siehe doEndTurn — bei teamWinners sind alle
+    // Nicht-Sieger ohnehin schon einzeln gestorben, hier also ein no-op, aber
+    // aus Konsistenzgründen mitgeführt. NUR bei tatsächlichem Spielende
+    // aufrufen (isWin) — sonst würde bei einem Aufgeben, das das Spiel NICHT
+    // beendet, jeder noch aktive Spieler fälschlich als "Nicht-Sieger" mit
+    // einem leeren winnerIds-Set eingefroren, mitten im laufenden Spiel.
+    if (isWin) finalizeGameEndLogs(gameState, teamWinners || alivePlayers);
 
     if (!isWin && gameState.rn > 1) {
         const pState = gameState.p[gameState.cp];
@@ -2201,6 +2212,7 @@ function confirmSurrender() {
         if (gameState.st && gameState.st.length === 0) delete gameState.st;
         if (gameState.tw && gameState.tw.length === 0) delete gameState.tw;
         if (p.dead === 0) delete p.dead;
+        if (p.defeatLog && p.defeatLog.length === 0) delete p.defeatLog;
     });
     gameState.u.forEach(u => {
         if (u.a === 0) delete u.a;
@@ -2627,12 +2639,35 @@ function doEndTurn() {
             p.sh -= dmg;
             const [svx, svy] = p.sv.split(',').map(Number);
             burnFloats.push({ x: svx, y: svy, val: dmg });
-            if (p.sh <= 0) {
+            const dies = p.sh <= 0;
+            // Niederlage-Rückblick (Aug 2026): Brand-Ticks hatten bisher GAR
+            // keinen Log-Eintrag (anders als der Turmschuss, `ab: 'tower'`) —
+            // ein Spieler, der am eigenen Zugbeginn an einem alten Brand-Tag
+            // stirbt, hätte sonst einen leeren Rückblick. Direkt in la statt
+            // über turnActions/recapAppendTurn: gameState.cp ist zu diesem
+            // Zeitpunkt schon der NEUE Spieler (i), nicht der Verursacher —
+            // die übliche Zugende-Stempelung würde also den Falschen als
+            // Urheber eintragen. Ohne bekannten Verursacher (Ladung ohne bo,
+            // sollte nicht vorkommen) bleibt der Tick unprotokolliert statt mit
+            // ungültigem Urheber im Log zu landen (recapEntryUsable würde ihn
+            // ohnehin verwerfen).
+            if (typeof igniter === 'number') {
+                if (!gameState.la) gameState.la = [];
+                gameState.la.push({
+                    x: svx, y: svy, t: 'atk', ab: 'fire', vk: 'building',
+                    vp: i, dm: dmg, kl: dies ? 1 : undefined, p: igniter
+                });
+            }
+            if (dies) {
                 killPlayer(gameState, i, igniter); // Hauptdorf geht an den Verursacher des Brands, Rest wird neutral
             }
         }
     });
     gameState.bd = burnFloats;
+    // Niederlage-Rückblick: friert defeatLog für alle in diesem Zug frisch
+    // Verstorbenen ein (Kampf während des Zugs ODER gerade eben Brand-Tod) —
+    // ein Aufruf am Ende von doEndTurn deckt beide Todesursachen ab.
+    finalizeDefeatLogs(gameState);
 
     if (gameState.rn > oldRn && gameState.rn >= 3) {
         const evt = checkForEvent();
@@ -2666,6 +2701,20 @@ function doEndTurn() {
         }
     }
     const isWin = teamWinners2 || alivePlayers.length === 1 || !!erschlWinners;
+
+    // Niederlage-Rückblick, Erschließungs-/Team-Sieg-Fall: diese Verlierer
+    // durchlaufen NIE killPlayer (server/rating.js unterscheidet bewusst
+    // "besiegt" von "das Spiel endete unter dir weg", eliminated bleibt
+    // FALSE) — trotzdem verdienen sie denselben Rückblick. Bei teamWinners2
+    // sind alle Nicht-Sieger ohnehin schon einzeln gestorben (checkTeamWin
+    // basiert auf alivePlayers) und damit bereits über finalizeDefeatLogs
+    // abgedeckt; der Aufruf ist dort ein no-op. Bei Erschließung sind sie es
+    // NICHT — hier greift die Sonderbehandlung wirklich. NUR bei isWin
+    // aufrufen — sonst würde JEDER normale Zugwechsel (der weit überwiegende
+    // Fall) jeden noch aktiven Spieler fälschlich als "Nicht-Sieger" mit einem
+    // leeren winnerIds-Set einfrieren und defeatLog mitten im laufenden Spiel
+    // dauerhaft (nur-einmal-Guard) mit einem bedeutungslosen Schnappschuss belegen.
+    if (isWin) finalizeGameEndLogs(gameState, teamWinners2 || erschlWinners || alivePlayers);
 
     const pId = gameState.cp; const pState = gameState.p[pId];
     let healsThisTurn = [];
@@ -2705,6 +2754,7 @@ function doEndTurn() {
         if (gameState.st && gameState.st.length === 0) delete gameState.st;
         if (gameState.tw && gameState.tw.length === 0) delete gameState.tw;
         if (p.dead === 0) delete p.dead;
+        if (p.defeatLog && p.defeatLog.length === 0) delete p.defeatLog;
     });
     gameState.u.forEach(u => {
         if (u.a === 0) delete u.a;
