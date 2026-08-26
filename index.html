@@ -17,7 +17,9 @@
          Jersey statt eines runderen Pixel-Fonts wegen der Ziffern: in Pixelify Sans
          ist die 5 nicht vom S zu unterscheiden und 2/8 verschwimmen bei 11px —
          in einem Spiel voller Kosten- und Rundenzahlen ein Ausschlusskriterium. -->
-    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Jersey+15&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Jersey+15&family=Silkscreen:wght@400;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="css/game.css">
 </head>
 
@@ -44,26 +46,35 @@
              Display und liegt in derselben Palette wie der Rest der UI. -->
         <svg class="game-crest" viewBox="0 0 24 24" shape-rendering="crispEdges" role="img" aria-label="Dark Ages">
             <g fill="#2c303d">
-                <rect x="8" y="2" width="8" height="1"/><rect x="6" y="3" width="12" height="1"/>
-                <rect x="5" y="4" width="14" height="9"/><rect x="6" y="13" width="12" height="1"/>
-                <rect x="7" y="14" width="10" height="2"/><rect x="8" y="16" width="8" height="1"/>
-                <rect x="9" y="17" width="6" height="2"/><rect x="10" y="19" width="4" height="1"/>
-                <rect x="11" y="20" width="2" height="1"/>
+                <rect x="8" y="2" width="8" height="1" />
+                <rect x="6" y="3" width="12" height="1" />
+                <rect x="5" y="4" width="14" height="9" />
+                <rect x="6" y="13" width="12" height="1" />
+                <rect x="7" y="14" width="10" height="2" />
+                <rect x="8" y="16" width="8" height="1" />
+                <rect x="9" y="17" width="6" height="2" />
+                <rect x="10" y="19" width="4" height="1" />
+                <rect x="11" y="20" width="2" height="1" />
             </g>
             <g fill="#171a22">
-                <rect x="16" y="4" width="3" height="9"/><rect x="14" y="13" width="4" height="1"/>
-                <rect x="13" y="14" width="4" height="2"/><rect x="13" y="16" width="3" height="1"/>
+                <rect x="16" y="4" width="3" height="9" />
+                <rect x="14" y="13" width="4" height="1" />
+                <rect x="13" y="14" width="4" height="2" />
+                <rect x="13" y="16" width="3" height="1" />
             </g>
             <g fill="#9fabbc">
-                <rect x="8" y="2" width="8" height="1"/><rect x="6" y="3" width="2" height="1"/>
-                <rect x="5" y="4" width="1" height="9"/>
+                <rect x="8" y="2" width="8" height="1" />
+                <rect x="6" y="3" width="2" height="1" />
+                <rect x="5" y="4" width="1" height="9" />
             </g>
             <g fill="#c98a10">
-                <rect x="11" y="5" width="2" height="10"/><rect x="8" y="10" width="8" height="1"/>
-                <rect x="10" y="15" width="4" height="1"/>
+                <rect x="11" y="5" width="2" height="10" />
+                <rect x="8" y="10" width="8" height="1" />
+                <rect x="10" y="15" width="4" height="1" />
             </g>
             <g fill="#e8b84a">
-                <rect x="11" y="4" width="2" height="1"/><rect x="11" y="6" width="1" height="7"/>
+                <rect x="11" y="4" width="2" height="1" />
+                <rect x="11" y="6" width="1" height="7" />
             </g>
         </svg>
         <h3 class="login-wordmark">Dark Ages</h3>
@@ -74,7 +85,8 @@
         </div>
         <div class="setup-group">
             <label>Passwort</label>
-            <input type="password" id="login-password-input" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="current-password">
+            <input type="password" id="login-password-input"
+                placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="current-password">
         </div>
         <button id="login-btn" class="action-btn primary" onclick="handleLogin()">Einloggen</button>
         <p class="login-hint">Neu hier? Wähle einen Namen und ein Passwort — dein Account wird automatisch erstellt.</p>
@@ -90,19 +102,27 @@
         <button class="home-banner" onclick="showProfileScreen()">
             <span class="stud stud--tl"></span><span class="stud stud--tr"></span>
             <span class="stud stud--bl"></span><span class="stud stud--br"></span>
-            <svg class="ic ic-32"><use href="#i-banner"></use></svg>
+            <svg class="ic ic-32">
+                <use href="#i-banner"></use>
+            </svg>
             <div class="home-banner-text">
                 <span class="home-banner-name" id="home-banner-name">—</span>
                 <span class="home-banner-sub" id="home-banner-sub"></span>
             </div>
             <div class="home-banner-rating" id="home-banner-rating" style="display:none;">
-                <svg class="ic ic-14"><use href="#i-crown"></use></svg>
+                <svg class="ic ic-14">
+                    <use href="#i-crown"></use>
+                </svg>
                 <span id="home-banner-rating-value"></span>
             </div>
-            <svg class="ic ic-14 home-banner-chevron"><use href="#i-chev-r"></use></svg>
+            <svg class="ic ic-14 home-banner-chevron">
+                <use href="#i-chev-r"></use>
+            </svg>
         </button>
         <div class="home-header">
-            <h3><svg class="ic ic-20"><use href="#i-crown"></use></svg> Bestenliste</h3>
+            <h3><svg class="ic ic-20">
+                    <use href="#i-crown"></use>
+                </svg> Bestenliste</h3>
         </div>
         <div id="leaderboard-list"></div>
         <div class="home-header">
@@ -112,13 +132,22 @@
              bleibt, damit js/lobby.js unverändert weiterschreiben kann. -->
         <span id="home-username" hidden></span>
         <div id="game-list"></div>
-        <button class="action-btn primary" onclick="showCreateGameModal()"><svg class="ic ic-14"><use href="#i-plus"></use></svg> Neues Spiel</button>
+        <button class="action-btn primary" onclick="showCreateGameModal()"><svg class="ic ic-14">
+                <use href="#i-plus"></use>
+            </svg> Neues Spiel</button>
         <!-- Nebenaktionen nebeneinander am unteren Rand: drei volle Zeilen haben
              den "Meine Spiele"-Bereich auf Handys fast vollständig verdrängt. -->
         <div class="home-actions">
-            <button class="action-btn secondary compact" onclick="showFriendsPanel()"><svg class="ic ic-20"><use href="#i-users"></use></svg>Freunde</button>
-            <button class="action-btn secondary compact" onclick="window.open('darkages_guide.html','_blank')"><svg class="ic ic-20"><use href="#i-book"></use></svg>Anleitung</button>
-            <button class="action-btn secondary compact" onclick="openSettings()"><svg class="ic ic-20"><use href="#i-gear"></use></svg>Einstellungen</button>
+            <button class="action-btn secondary compact" onclick="showFriendsPanel()"><svg class="ic ic-20">
+                    <use href="#i-users"></use>
+                </svg>Freunde</button>
+            <button class="action-btn secondary compact" onclick="window.open('darkages_guide.html','_blank')"><svg
+                    class="ic ic-20">
+                    <use href="#i-book"></use>
+                </svg>Anleitung</button>
+            <button class="action-btn secondary compact" onclick="openSettings()"><svg class="ic ic-20">
+                    <use href="#i-gear"></use>
+                </svg>Einstellungen</button>
         </div>
     </div>
 
@@ -139,9 +168,12 @@
             </div>
         </div>
         <div id="lobby-friend-invite" style="display:none;width:100%;">
-            <button class="action-btn" style="width:100%;" onclick="openFriendsPicker()"><svg class="ic ic-14"><use href="#i-users"></use></svg> Freunde einladen</button>
+            <button class="action-btn" style="width:100%;" onclick="openFriendsPicker()"><svg class="ic ic-14">
+                    <use href="#i-users"></use>
+                </svg> Freunde einladen</button>
         </div>
-        <button id="lobby-start-btn" class="action-btn primary" style="display:none;" onclick="handleStartGame()">Spiel starten</button>
+        <button id="lobby-start-btn" class="action-btn primary" style="display:none;" onclick="handleStartGame()">Spiel
+            starten</button>
         <button class="action-btn secondary" onclick="showHomeScreen()">← Zurück</button>
     </div>
 
@@ -156,7 +188,9 @@
         <div class="profile-card">
             <span class="stud stud--tl"></span><span class="stud stud--tr"></span>
             <span class="stud stud--bl"></span><span class="stud stud--br"></span>
-            <svg class="ic ic-48"><use href="#i-banner"></use></svg>
+            <svg class="ic ic-48">
+                <use href="#i-banner"></use>
+            </svg>
             <div class="profile-ident">
                 <span class="profile-name" id="profile-name">—</span>
                 <span class="profile-status" id="profile-status"></span>
@@ -166,7 +200,9 @@
         <div class="profile-stats" id="profile-stats"></div>
 
         <div class="home-header">
-            <h3><svg class="ic ic-20"><use href="#i-scroll"></use></svg> Verlauf</h3>
+            <h3><svg class="ic ic-20">
+                    <use href="#i-scroll"></use>
+                </svg> Verlauf</h3>
         </div>
         <div id="profile-history"></div>
 
@@ -192,7 +228,9 @@
         <div id="scoreboard" onclick="toggleScoreboard()">
             <div class="score-compact" id="score-compact"></div>
             <div id="scoreboard-popup" style="display:none;" onclick="event.stopPropagation()">
-                <div class="scoreboard-popup-header" id="scoreboard-popup-header"><svg class="ic ic-14"><use href="#i-crown"></use></svg> Rangliste</div>
+                <div class="scoreboard-popup-header" id="scoreboard-popup-header"><svg class="ic ic-14">
+                        <use href="#i-crown"></use>
+                    </svg> Rangliste</div>
                 <div id="scoreboard-modal-content"></div>
             </div>
         </div>
@@ -205,7 +243,9 @@
             onclick="toggleRecap()"><svg class="ic ic-20">
                 <use href="#i-eye"></use>
             </svg><span id="recap-btn-count">0</span></button>
-        <button id="menu-btn" onclick="toggleGameMenu()"><svg class="ic ic-20"><use href="#i-menu"></use></svg></button>
+        <button id="menu-btn" onclick="toggleGameMenu()"><svg class="ic ic-20">
+                <use href="#i-menu"></use>
+            </svg></button>
     </div>
 
     <!-- Rückblick-Panel (js/recap.js). Liegt UNTER #game-hud (z-index 150), damit
@@ -239,17 +279,25 @@
 
     <div id="game-menu-popup" style="display:none;">
         <div id="menu-ranked-marker" class="menu-ranked-marker" style="display:none;">
-            <svg class="ic ic-14"><use href="#i-crown"></use></svg> Ranked
+            <svg class="ic ic-14">
+                <use href="#i-crown"></use>
+            </svg> Ranked
         </div>
         <button id="menu-undo-item" onclick="undoLastAction(); closeGameMenu()" disabled>↩ Rückgängig</button>
-        <button id="menu-surrender-item" onclick="openSurrenderDialog(); closeGameMenu()"><svg class="ic ic-14"><use href="#i-flag"></use></svg> Aufgeben</button>
-        <button onclick="openSettings(); closeGameMenu()"><svg class="ic ic-14"><use href="#i-gear"></use></svg> Einstellungen</button>
+        <button id="menu-surrender-item" onclick="openSurrenderDialog(); closeGameMenu()"><svg class="ic ic-14">
+                <use href="#i-flag"></use>
+            </svg> Aufgeben</button>
+        <button onclick="openSettings(); closeGameMenu()"><svg class="ic ic-14">
+                <use href="#i-gear"></use>
+            </svg> Einstellungen</button>
         <button onclick="showHomeScreen(); closeGameMenu()">← Hauptmenü</button>
     </div>
 
     <div id="surrender-overlay">
         <div class="surrender-card">
-            <div class="surrender-icon"><svg class="ic ic-48"><use href="#i-flag"></use></svg></div>
+            <div class="surrender-icon"><svg class="ic ic-48">
+                    <use href="#i-flag"></use>
+                </svg></div>
             <h3>Aufgeben?</h3>
             <p id="surrender-msg">Bist du sicher? Alle deine Einheiten und Dörfer gehen verloren. Diese Aktion kann
                 nicht rückgängig gemacht werden.</p>
@@ -263,7 +311,9 @@
     <!-- ── Zug beenden Bestätigungs-Overlay ─────────────────────────────────── -->
     <div id="end-turn-confirm-overlay">
         <div class="end-turn-confirm-card">
-            <div class="end-turn-confirm-icon"><svg class="ic ic-48"><use href="#i-sword"></use></svg></div>
+            <div class="end-turn-confirm-icon"><svg class="ic ic-48">
+                    <use href="#i-sword"></use>
+                </svg></div>
             <h3>Zug wirklich beenden?</h3>
             <p id="end-turn-confirm-msg">Du hast noch Aktionen die du ausführen könntest.</p>
             <div class="end-turn-confirm-actions">
@@ -284,14 +334,18 @@
             <h3 class="screen-title">Neues Spiel</h3>
             <p class="gamemode-sub">Wie möchtest du spielen?</p>
             <button class="gamemode-choice is-ranked" onclick="chooseGameMode(true)">
-                <svg class="ic ic-32"><use href="#i-crown"></use></svg>
+                <svg class="ic ic-32">
+                    <use href="#i-crown"></use>
+                </svg>
                 <span class="gamemode-choice-title">Ranked</span>
-                <span class="gamemode-choice-desc">Zählt für dein Rating. Kein Rückgängig.</span>
+                <span class="gamemode-choice-desc"></span>
             </button>
             <button class="gamemode-choice" onclick="chooseGameMode(false)">
-                <svg class="ic ic-32"><use href="#i-sword"></use></svg>
+                <svg class="ic ic-32">
+                    <use href="#i-sword"></use>
+                </svg>
                 <span class="gamemode-choice-title">Normal</span>
-                <span class="gamemode-choice-desc">Zum Ausprobieren. Ohne Wertung, mit Rückgängig.</span>
+                <span class="gamemode-choice-desc"></span>
             </button>
             <button class="action-btn secondary" onclick="closeGameModeOverlay()">← Zurück</button>
         </div>
@@ -337,8 +391,10 @@
         <!-- Legacy mode button (URL play without server) -->
         <button id="start-game-btn" class="action-btn primary" style="display:none;">Welt generieren & Starten</button>
         <!-- Server mode button -->
-        <button id="create-game-confirm-btn" class="action-btn primary" style="display:none;" onclick="handleCreateGame()">Spiel erstellen</button>
-        <button id="setup-back-btn" class="action-btn secondary" style="display:none;" onclick="handleSetupBack()">← Zurück</button>
+        <button id="create-game-confirm-btn" class="action-btn primary" style="display:none;"
+            onclick="handleCreateGame()">Spiel erstellen</button>
+        <button id="setup-back-btn" class="action-btn secondary" style="display:none;" onclick="handleSetupBack()">←
+            Zurück</button>
     </div>
 
     <div id="intermission-screen" class="screen-box">
@@ -346,28 +402,37 @@
         <p id="intermission-msg">Kopiere diesen Link und schicke ihn an den nächsten Spieler.</p>
         <textarea id="link-box" rows="5" readonly></textarea>
         <button id="wa-share-btn" class="action-btn wa-btn">Über WhatsApp teilen</button>
-        <button id="intermission-back-btn" class="action-btn secondary" style="display:none;" onclick="showHomeScreen()">← Zur Spielübersicht</button>
+        <button id="intermission-back-btn" class="action-btn secondary" style="display:none;"
+            onclick="showHomeScreen()">← Zur Spielübersicht</button>
     </div>
 
     <div id="win-screen" class="screen-box">
         <!-- Strahlenkranz hinter dem Inhalt (z-index 0, Rest liegt darüber) -->
         <svg class="win-rays" viewBox="0 0 420 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
             <g fill="var(--gold-mid)" transform="translate(210 120)">
-                <polygon points="0,0 -300,-90 -300,-58" /><polygon points="0,0 300,-90 300,-58" />
-                <polygon points="0,0 -300,-14 -300,16" /><polygon points="0,0 300,-14 300,16" />
-                <polygon points="0,0 -240,150 -215,178" /><polygon points="0,0 240,150 215,178" />
-                <polygon points="0,0 -110,300 -70,300" /><polygon points="0,0 110,300 70,300" />
+                <polygon points="0,0 -300,-90 -300,-58" />
+                <polygon points="0,0 300,-90 300,-58" />
+                <polygon points="0,0 -300,-14 -300,16" />
+                <polygon points="0,0 300,-14 300,16" />
+                <polygon points="0,0 -240,150 -215,178" />
+                <polygon points="0,0 240,150 215,178" />
+                <polygon points="0,0 -110,300 -70,300" />
+                <polygon points="0,0 110,300 70,300" />
                 <polygon points="0,0 -26,-300 6,-300" />
             </g>
         </svg>
-        <svg class="win-crown"><use href="#i-crown"></use></svg>
+        <svg class="win-crown">
+            <use href="#i-crown"></use>
+        </svg>
         <!-- Ohne Ausrufezeichen: in MedievalSharp ist das "!" ein senkrechter
              Strich und "SIEG!" liest sich als "SIEGI". -->
         <h1 class="win-title">SIEG</h1>
         <p id="win-msg" class="win-msg"></p>
         <!-- Endstand-Leiste, gefüllt in showWin (js/diplomacy.js) -->
         <div id="win-stats" class="win-stats" style="display:none;"></div>
-        <button class="action-btn primary" onclick="showHomeScreen ? showHomeScreen() : (window.location.href=window.location.href.split('?')[0])">Zur Spielübersicht</button>
+        <button class="action-btn primary"
+            onclick="showHomeScreen ? showHomeScreen() : (window.location.href=window.location.href.split('?')[0])">Zur
+            Spielübersicht</button>
     </div>
 
     <!-- ── Defeat Banner (spectator/eliminated ODER Erschließungs-/Team-Sieg-Verlierer,
@@ -375,12 +440,17 @@
          mit unterschiedlicher Formulierung nutzen ("besiegt" vs. "Spiel vorbei,
          nicht gewonnen" — Letztere gelten laut server/rating.js bewusst nicht als
          besiegt). ─────────────────────────────────────────────────────────────── -->
-    <div id="defeat-banner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:150; background:#b71c1c; color:#fff; padding:14px 16px; flex-direction:column; align-items:center; gap:10px; text-align:center;">
+    <div id="defeat-banner"
+        style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:150; background:#b71c1c; color:#fff; padding:14px 16px; flex-direction:column; align-items:center; gap:10px; text-align:center;">
         <span id="defeat-banner-title" style="font-size:1rem; font-weight:bold;">Du wurdest besiegt</span>
-        <span id="defeat-banner-sub" style="font-size:0.85rem; opacity:0.85;">Der Rückblick-Knopf oben zeigt, wie es dazu kam. Danach kannst du zurückgehen.</span>
+        <span id="defeat-banner-sub" style="font-size:0.85rem; opacity:0.85;">Der Rückblick-Knopf oben zeigt, wie es
+            dazu kam. Danach kannst du zurückgehen.</span>
         <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
-            <button class="action-btn secondary" style="min-height:36px;padding:6px 16px;" onclick="document.getElementById('defeat-banner').style.display='none'; if (window.openRecap) window.openRecap();">Rückblick ansehen</button>
-            <button class="action-btn secondary" style="min-height:36px;padding:6px 16px;" onclick="showHomeScreen()">← Zur Übersicht</button>
+            <button class="action-btn secondary" style="min-height:36px;padding:6px 16px;"
+                onclick="document.getElementById('defeat-banner').style.display='none'; if (window.openRecap) window.openRecap();">Rückblick
+                ansehen</button>
+            <button class="action-btn secondary" style="min-height:36px;padding:6px 16px;" onclick="showHomeScreen()">←
+                Zur Übersicht</button>
         </div>
     </div>
 
@@ -392,7 +462,9 @@
     </div>
 
     <div id="research-overlay" class="overlay">
-        <h2 class="overlay-title"><svg class="ic ic-24"><use href="#i-scroll"></use></svg> Forschung</h2>
+        <h2 class="overlay-title"><svg class="ic ic-24">
+                <use href="#i-scroll"></use>
+            </svg> Forschung</h2>
         <div class="cards-container" id="research-cards"></div>
         <button class="action-btn"
             onclick="document.getElementById('research-overlay').style.display='none'">Schließen</button>
@@ -400,7 +472,9 @@
 
     <!-- Fraktions-Fenster (Radialmenü "⚜️ Fraktion", window.openFactionOverview, js/ui.js) -->
     <div id="faction-overlay" class="overlay">
-        <h2 class="overlay-title"><svg class="ic ic-24"><use href="#i-banner"></use></svg> Fraktionen</h2>
+        <h2 class="overlay-title"><svg class="ic ic-24">
+                <use href="#i-banner"></use>
+            </svg> Fraktionen</h2>
         <div class="cards-container" id="faction-cards" style="max-width: 600px;"></div>
         <button class="action-btn"
             onclick="document.getElementById('faction-overlay').style.display='none'">Schließen</button>
@@ -409,8 +483,11 @@
     <!-- Reliquien-Fenster (Radialmenü "🏺 Reliquien", window.openRelicShop, js/ui.js) — ersetzt den
          ehemaligen Reliquien-Shop-Block im Dorf-Menü (js/input.js), fürs Hauptgebäude war kein Platz mehr. -->
     <div id="relic-overlay" class="overlay">
-        <h2 class="overlay-title"><svg class="ic ic-24"><use href="#i-urn"></use></svg> Reliquien</h2>
-        <div id="relic-cards" style="width: 100%; max-width: 600px; display: flex; flex-direction: column; align-items: center;"></div>
+        <h2 class="overlay-title"><svg class="ic ic-24">
+                <use href="#i-urn"></use>
+            </svg> Reliquien</h2>
+        <div id="relic-cards"
+            style="width: 100%; max-width: 600px; display: flex; flex-direction: column; align-items: center;"></div>
         <button class="action-btn"
             onclick="document.getElementById('relic-overlay').style.display='none'">Schließen</button>
     </div>
@@ -418,8 +495,12 @@
     <!-- Handel-Fenster (Radialmenü "⚖️ Handel", window.openTradeShop, js/ui.js) — Tausch von
          Gold/Holz/Stein 1:1, Kristalle nur einseitig 1:3 verkaufbar. -->
     <div id="trade-overlay" class="overlay">
-        <h2 class="overlay-title"><svg class="ic ic-24"><use href="#i-scales"></use></svg> Handel</h2>
-        <div id="trade-cards" style="width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; gap: 14px;"></div>
+        <h2 class="overlay-title"><svg class="ic ic-24">
+                <use href="#i-scales"></use>
+            </svg> Handel</h2>
+        <div id="trade-cards"
+            style="width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; gap: 14px;">
+        </div>
         <button class="action-btn"
             onclick="document.getElementById('trade-overlay').style.display='none'">Schließen</button>
     </div>
@@ -452,7 +533,9 @@
     <!-- ── Einstellungen (js/settings.js) ────────────────────────────────────── -->
     <div id="settings-overlay" class="modal-backdrop" style="display:none;">
         <div class="screen-box modal-box">
-            <h3 class="screen-title"><svg class="ic ic-20"><use href="#i-gear"></use></svg> Einstellungen</h3>
+            <h3 class="screen-title"><svg class="ic ic-20">
+                    <use href="#i-gear"></use>
+                </svg> Einstellungen</h3>
             <div class="settings-row">
                 <span class="settings-label">Musik</span>
                 <label class="toggle-switch">
@@ -475,7 +558,8 @@
             <div class="settings-row">
                 <span class="settings-label">Zug-beenden-Bestätigung</span>
                 <label class="toggle-switch">
-                    <input type="checkbox" id="settings-endturn-toggle" onchange="setEndTurnConfirmEnabled(this.checked)">
+                    <input type="checkbox" id="settings-endturn-toggle"
+                        onchange="setEndTurnConfirmEnabled(this.checked)">
                     <span class="toggle-knob"></span>
                 </label>
             </div>
@@ -485,7 +569,8 @@
                 <button id="settings-push-btn" class="action-btn secondary" style="display:none;"
                     onclick="handleSettingsEnablePush()">Jetzt aktivieren</button>
             </div>
-            <button id="settings-logout-btn" class="action-btn secondary" style="display:none;" onclick="handleLogout()">Abmelden</button>
+            <button id="settings-logout-btn" class="action-btn secondary" style="display:none;"
+                onclick="handleLogout()">Abmelden</button>
             <button class="action-btn" onclick="closeSettings()">Schließen</button>
         </div>
     </div>
@@ -493,7 +578,9 @@
     <!-- ── Friend Picker Overlay ─────────────────────────────────────────────── -->
     <div id="friend-picker-overlay" class="modal-backdrop" style="display:none;">
         <div class="screen-box modal-box">
-            <h3 class="screen-title"><svg class="ic ic-20"><use href="#i-users"></use></svg> Freunde einladen</h3>
+            <h3 class="screen-title"><svg class="ic ic-20">
+                    <use href="#i-users"></use>
+                </svg> Freunde einladen</h3>
             <p style="margin:0;font-size:0.8rem;color:var(--text-dim);">Tippe auf einen Freund um ihn auszuwählen.</p>
             <div id="friend-picker-list"></div>
             <button id="friend-picker-invite-btn" class="action-btn" onclick="inviteSelectedFriends()">Einladen</button>
@@ -501,7 +588,9 @@
         </div>
     </div>
 
-    <div id="canvas-wrapper"><canvas id="gameCanvas"></canvas><div id="float-layer"></div></div>
+    <div id="canvas-wrapper"><canvas id="gameCanvas"></canvas>
+        <div id="float-layer"></div>
+    </div>
     <div id="ui-container">
         <div id="info-panel">Lade Spielstand...</div>
         <div id="action-menu"></div>
@@ -515,10 +604,14 @@
         <button id="end-turn-btn" class="action-btn" style="display:none;"></button>
 
         <div id="camera-focus-slider-wrap" title="Kamerafokus: oben Luftansicht, unten Unterwelt, Mitte Standard">
-            <span class="cfs-label cfs-label-air"><svg class="ic ic-14"><use href="#i-wing"></use></svg></span>
+            <span class="cfs-label cfs-label-air"><svg class="ic ic-14">
+                    <use href="#i-wing"></use>
+                </svg></span>
             <input type="range" id="camera-focus-slider" min="-100" max="100" value="0" step="1"
                 oninput="setCameraFocusSlider(this.value)">
-            <span class="cfs-label cfs-label-underworld"><svg class="ic ic-14"><use href="#i-pick"></use></svg></span>
+            <span class="cfs-label cfs-label-underworld"><svg class="ic ic-14">
+                    <use href="#i-pick"></use>
+                </svg></span>
         </div>
     </div>
 
