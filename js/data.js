@@ -53,7 +53,7 @@ const upgrades = {
 
 // === UNIT STATS ===
 const unitStats = {
-    0: { dmg: 5, range: 1, move: 1, name: "Schwert", cost: 3, maxHp: 10, isMelee: true, light: true },
+    0: { dmg: 6, range: 1, move: 1, name: "Schwert", cost: 3, maxHp: 10, isMelee: true, light: true },
     1: { dmg: 5, range: 2, move: 1, name: "Bogen", cost: 3, maxHp: 10, isMelee: false, light: true },
     2: { dmg: 5, range: 1, move: 2, name: "Pferd", cost: 3, maxHp: 10, isMelee: true, light: true },
     3: { dmg: 6, range: 1, move: 2, name: "Ritter", cost: 6, maxHp: 15, isMelee: true, light: true },
