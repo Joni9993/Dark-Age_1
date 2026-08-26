@@ -39,7 +39,7 @@ async function getGamePlayers(gameId) {
 router.get('/', authMiddleware, async (req, res) => {
     const { rows } = await pool.query(
         `SELECT gp.slot, gp.eliminated,
-                g.id, g.name, g.status, g.current_slot, g.max_players, g.updated_at,
+                g.id, g.name, g.status, g.current_slot, g.max_players, g.updated_at, g.ranked,
                 cp.username AS current_player_username
          FROM game_players gp
          JOIN games g ON g.id = gp.game_id
@@ -61,7 +61,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
 // ── POST /api/games  — create lobby ──────────────────────────────────────────
 router.post('/', authMiddleware, async (req, res) => {
-    const { max_players = 2, map_radius = 7, team_mode = 'ffa', name: requestedName } = req.body;
+    const { max_players = 2, map_radius = 7, team_mode = 'ffa', name: requestedName, ranked } = req.body;
     if (max_players < 2 || max_players > 6) return res.status(400).json({ error: 'Ungültige Spieleranzahl' });
 
     const validTeamModes = { ffa: true, diplomacy: true, teams2: true, teams3: true };
@@ -79,9 +79,9 @@ router.post('/', authMiddleware, async (req, res) => {
     const name = trimmedName || `${profile.username}s Spiel`;
 
     const { rows: [game] } = await pool.query(
-        `INSERT INTO games (name, host_id, max_players, map_radius, team_mode)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [name, req.profileId, max_players, map_radius, team_mode]
+        `INSERT INTO games (name, host_id, max_players, map_radius, team_mode, ranked)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [name, req.profileId, max_players, map_radius, team_mode, ranked === true]
     );
     await pool.query(
         'INSERT INTO game_players (game_id, slot, profile_id) VALUES ($1, 0, $2)',

@@ -129,6 +129,7 @@
             <span id="lobby-player-count" style="font-size:0.8rem;color:var(--text-dim);">0 / 2</span>
         </div>
         <span id="lobby-team-mode" style="font-size:0.8rem;color:var(--text-dim);"></span>
+        <span id="lobby-ranked-mode" class="lobby-ranked-badge"></span>
         <div id="lobby-player-list"></div>
         <div class="invite-section">
             <p>Einladungslink:</p>
@@ -237,6 +238,9 @@
     </div>
 
     <div id="game-menu-popup" style="display:none;">
+        <div id="menu-ranked-marker" class="menu-ranked-marker" style="display:none;">
+            <svg class="ic ic-14"><use href="#i-crown"></use></svg> Ranked
+        </div>
         <button id="menu-undo-item" onclick="undoLastAction(); closeGameMenu()" disabled>↩ Rückgängig</button>
         <button id="menu-surrender-item" onclick="openSurrenderDialog(); closeGameMenu()"><svg class="ic ic-14"><use href="#i-flag"></use></svg> Aufgeben</button>
         <button onclick="openSettings(); closeGameMenu()"><svg class="ic ic-14"><use href="#i-gear"></use></svg> Einstellungen</button>
@@ -270,10 +274,34 @@
     </div>
 
 
+    <!-- ── Ranked/Normal-Wahl ─────────────────────────────────────────────────
+         Erster Schritt von "+ Neues Spiel" (js/lobby.js showCreateGameModal),
+         bevor der bestehende Setup-Screen kommt. Nur im Server-Modus relevant
+         — der Legacy-URL-Modus (js/auth.js) zeigt den Setup-Screen direkt und
+         läuft dieses Overlay nie an. ─────────────────────────────────────── -->
+    <div id="gamemode-overlay">
+        <div class="gamemode-card">
+            <h3 class="screen-title">Neues Spiel</h3>
+            <p class="gamemode-sub">Wie möchtest du spielen?</p>
+            <button class="gamemode-choice is-ranked" onclick="chooseGameMode(true)">
+                <svg class="ic ic-32"><use href="#i-crown"></use></svg>
+                <span class="gamemode-choice-title">Ranked</span>
+                <span class="gamemode-choice-desc">Zählt für dein Rating. Kein Rückgängig.</span>
+            </button>
+            <button class="gamemode-choice" onclick="chooseGameMode(false)">
+                <svg class="ic ic-32"><use href="#i-sword"></use></svg>
+                <span class="gamemode-choice-title">Normal</span>
+                <span class="gamemode-choice-desc">Zum Ausprobieren. Ohne Wertung, mit Rückgängig.</span>
+            </button>
+            <button class="action-btn secondary" onclick="closeGameModeOverlay()">← Zurück</button>
+        </div>
+    </div>
+
     <div id="setup-screen" class="screen-box" style="display:none;">
         <img src="Icon.png" alt="Dark Ages" class="game-logo">
         <h3 class="screen-title">Spiel
             erstellen</h3>
+        <div id="setup-mode-badge" class="setup-mode-badge"></div>
         <div class="setup-group">
             <label>Spielname:</label>
             <input type="text" id="game-name" maxlength="60" placeholder="z.B. Jonis Spiel">
@@ -310,7 +338,7 @@
         <button id="start-game-btn" class="action-btn primary" style="display:none;">Welt generieren & Starten</button>
         <!-- Server mode button -->
         <button id="create-game-confirm-btn" class="action-btn primary" style="display:none;" onclick="handleCreateGame()">Spiel erstellen</button>
-        <button id="setup-back-btn" class="action-btn secondary" style="display:none;" onclick="showHomeScreen()">← Zurück</button>
+        <button id="setup-back-btn" class="action-btn secondary" style="display:none;" onclick="handleSetupBack()">← Zurück</button>
     </div>
 
     <div id="intermission-screen" class="screen-box">

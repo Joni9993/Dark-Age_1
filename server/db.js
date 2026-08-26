@@ -74,6 +74,15 @@ async function initSchema() {
         -- nicht rückwirkend wie ein Aufgeber gewertet werden.
         ALTER TABLE game_players ADD COLUMN IF NOT EXISTS list_hidden BOOLEAN DEFAULT FALSE;
 
+        -- ranked (Aug 2026): trennt normale Partien von gewerteten. Liegt bewusst
+        -- auf games, nicht im state_blob — der Blob wird vom Client geschrieben,
+        -- die Wertung darf nicht am manipulierbaren Ende hängen. DEFAULT FALSE
+        -- markiert den kompletten Altbestand (inkl. laufender Partien) als normal —
+        -- niemand hat eine bestehende Partie als "ranked" gestartet, also wird auch
+        -- keine rückwirkend gewertet. server/rating.js prüft dieses Feld vor jeder
+        -- Wertung, server/routes/leaderboard.js filtert Bilanz/Rang danach.
+        ALTER TABLE games ADD COLUMN IF NOT EXISTS ranked BOOLEAN NOT NULL DEFAULT FALSE;
+
         CREATE TABLE IF NOT EXISTS friendships (
             requester_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
             addressee_id UUID REFERENCES profiles(id) ON DELETE CASCADE,

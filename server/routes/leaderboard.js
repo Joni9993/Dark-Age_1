@@ -10,11 +10,12 @@ const { PROVISIONAL_GAMES } = require('../rating');
 // nach einem einzigen Glückstreffer über jemandem mit 50 Partien — genau das
 // Problem, das die reine Siegzählung vorher hatte.
 //
-// `wins`/`games` sind bewusst die HISTORISCHE Bilanz über alle beendeten Partien
-// (inkl. der Zeit vor Einführung des Ratings), damit im Leaderboard nichts
-// verschwindet, was die Spieler kennen. Das Rating selbst startet dagegen bei
-// allen frisch (kein Backfill, siehe RATING_EPOCH in server/rating.js) — ein
-// Spieler kann also viele Siege und noch 0 gewertete Partien haben.
+// `wins`/`games` sind seit der Ranked/Normal-Trennung (Aug 2026) auf gewertete
+// Partien beschränkt (g.ranked = TRUE) — sonst stünde neben einem frischen
+// Rating von 1500 eine Bilanz aus Normalspielen, die nichts über die Rangliste
+// aussagt. Das Rating selbst startet ohnehin frisch (kein Backfill, siehe
+// RATING_EPOCH in server/rating.js) — ein Spieler kann also viele Ranked-Siege
+// und noch 0 gewertete Partien haben, wenn er unter RATING_EPOCH liegt.
 // Sieg-Definition wie zuvor: winner_slots, mit Rückfall auf die alte Heuristik
 // für Partien von vor diesem Feld.
 router.get('/', authMiddleware, async (req, res) => {
@@ -31,7 +32,7 @@ router.get('/', authMiddleware, async (req, res) => {
                 COUNT(g.id)::int AS games
          FROM profiles p
          LEFT JOIN game_players gp ON gp.profile_id = p.id
-         LEFT JOIN games g ON g.id = gp.game_id AND g.status = 'finished'
+         LEFT JOIN games g ON g.id = gp.game_id AND g.status = 'finished' AND g.ranked = TRUE
          GROUP BY p.id, p.username, p.rating, p.rd, p.games_rated
          ORDER BY (p.games_rated >= $1) DESC, p.rating DESC, p.username ASC
          LIMIT 100`,

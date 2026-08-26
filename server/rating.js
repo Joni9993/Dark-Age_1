@@ -205,11 +205,14 @@ async function rateFinishedGame(gameId) {
         await client.query('BEGIN');
 
         const { rows: [game] } = await client.query(
-            `SELECT id, status, winner_slots, state_blob FROM games WHERE id = $1 FOR UPDATE`,
+            `SELECT id, status, ranked, winner_slots, state_blob FROM games WHERE id = $1 FOR UPDATE`,
             [gameId]
         );
         if (!game)                      { await client.query('ROLLBACK'); return { skipped: 'not_found' }; }
         if (game.status !== 'finished') { await client.query('ROLLBACK'); return { skipped: 'not_finished' }; }
+        // Normale Partien zählen nie fürs Rating — weder bei regulärem Sieg noch
+        // beim Aufgeben (beide Aufrufer von rateFinishedGame landen hier).
+        if (!game.ranked)                { await client.query('ROLLBACK'); return { skipped: 'unranked' }; }
 
         const { rows: already } = await client.query(
             'SELECT 1 FROM rating_history WHERE game_id = $1 LIMIT 1', [gameId]
@@ -314,7 +317,7 @@ async function rebuildAllRatings({ since = RATING_EPOCH } = {}) {
 
     const { rows } = await pool.query(
         `SELECT id FROM games
-          WHERE status = 'finished' ${since ? 'AND updated_at >= $1' : ''}
+          WHERE status = 'finished' AND ranked = TRUE ${since ? 'AND updated_at >= $1' : ''}
           ORDER BY updated_at ASC`,
         since ? [since] : []
     );

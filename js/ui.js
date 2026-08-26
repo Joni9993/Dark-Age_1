@@ -1,16 +1,30 @@
 // === UNDO ===
 function updateUndoButton() {
     const item = document.getElementById('menu-undo-item');
-    if (item) item.disabled = undoStack.length === 0;
+    if (!item) return;
+    // Ranked: Knopf bleibt sichtbar (statt zu verschwinden), aber dauerhaft
+    // gesperrt mit erklärendem Text — kein toter Knopf ohne Hinweis, warum er
+    // nichts tut (Entscheidung Jonathan, Aug 2026).
+    if (isRankedGame) {
+        item.disabled = true;
+        item.textContent = '↩ Rückgängig — im Ranked gesperrt';
+    } else {
+        item.disabled = undoStack.length === 0;
+        item.textContent = '↩ Rückgängig';
+    }
 }
 
 function saveUndoState() {
+    if (isRankedGame) return;   // kein Rückgängig im Ranked — Deep-Copy erst gar nicht anlegen
     undoStack.push({ gs: JSON.parse(JSON.stringify(gameState)), ta: [...turnActions] });
     if (undoStack.length > 10) undoStack.shift();
     updateUndoButton();
 }
 
 window.undoLastAction = function () {
+    // window-global (Konsole erreichbar) — Guard hier zusätzlich zum
+    // deaktivierten Menüknopf, nicht nur UI-Kosmetik.
+    if (isRankedGame) { showToast('Im Ranked kann nichts rückgängig gemacht werden.', 'error'); return; }
     if (undoStack.length === 0) { showToast('Nichts rückgängig zu machen.', 'error'); return; }
     const snap = undoStack.pop();
     gameState = snap.gs;
@@ -35,6 +49,7 @@ window.undoLastAction = function () {
 window.toggleGameMenu = function () {
     const popup = document.getElementById('game-menu-popup');
     if (!popup) return;
+    updateUndoButton();
     popup.style.display = popup.style.display === 'none' ? '' : 'none';
 };
 

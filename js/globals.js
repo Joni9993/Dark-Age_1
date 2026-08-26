@@ -1,7 +1,7 @@
 // === APP VERSION ===
 // Format: MAJOR.PATCH.HOTFIX — MAJOR = größeres Update/neue Implementation, PATCH = Patch, HOTFIX = Hotfix.
 // Immer nur die betroffene Stelle um 1 hochzählen. Siehe Versionierungsregel in CLAUDE.md.
-const APP_VERSION = '4.2.1';
+const APP_VERSION = '4.3.0';
 
 // === DOM REFERENCES ===
 const appVersionEl = document.getElementById('app-version');
@@ -124,3 +124,4 @@ let currentUserSlot = null;
 let currentTurnSlot = null;   // server-authoritative: whose turn it is (never changed by client)
 let isSpectator = false;
 let isLegacyUrlMode = false;
+let isRankedGame = false;   // aus game.ranked (openGame, js/lobby.js) — sperrt Undo, siehe saveUndoState/undoLastAction (js/ui.js)

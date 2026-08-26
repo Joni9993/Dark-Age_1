@@ -15,6 +15,8 @@ async function showHomeScreen() {
     document.getElementById('lobby-screen').style.display   = 'none';
     document.getElementById('friends-panel').style.display  = 'none';
     document.getElementById('profile-screen').style.display  = 'none';
+    document.getElementById('gamemode-overlay').classList.remove('open');
+    _pendingRanked = null;
     setupScreen.style.display                               = 'none';
     canvasWrapper.style.display                             = 'none'; document.body.classList.remove('in-game');
     uiContainer.style.display                               = 'none';
@@ -62,11 +64,16 @@ async function refreshGameList() {
                 ? `<button class="game-delete-btn" title="${deleteTitle}" onclick="event.stopPropagation();deleteGame('${escHtml(row.id)}','${escHtml(row.status)}')">${icon('trash', 'ic-14')}</button>`
                 : '';
 
+            const rankedBadge = row.ranked
+                ? `<span class="game-badge ranked-badge">${icon('crown', 'ic-14')} Ranked</span>` : '';
+
             const card = document.createElement('div');
             // Beendete Spiele optisch abgesetzt (gedimmt) von laufenden — sonst sieht
             // man den Unterschied zum "Beendet"-Badge erst beim genauen Hinsehen.
             card.className = 'game-card' + (myTurn ? ' game-card-active' : '') + (row.status === 'finished' ? ' game-card-finished' : '');
-            card.innerHTML = `<span class="game-card-name">${escHtml(row.name)}</span>${badge}${deleteBtn}`;
+            // Beide Badges in einem Wrapper — sonst spreizt .game-card (space-between)
+            // sie als eigene Flex-Kinder ungleichmäßig statt sie zusammenzuhalten.
+            card.innerHTML = `<span class="game-card-name">${escHtml(row.name)}</span><span class="game-card-badges">${rankedBadge}${badge}</span>${deleteBtn}`;
             card.addEventListener('click', () => {
                 if (row.status === 'lobby') openLobbyScreen(row.id);
                 else openGame(row.id);
@@ -80,8 +87,37 @@ async function refreshGameList() {
 
 // ── Create Game ───────────────────────────────────────────────────────────────
 
+// Modus-Wahl der aktuell laufenden "+ Neues Spiel"-Erstellung (js/lobby.js
+// chooseGameMode → handleCreateGame). Nur zwischen den beiden Schritten gültig,
+// kein persistenter State.
+let _pendingRanked = null;
+
 function showCreateGameModal() {
-    document.getElementById('home-screen').style.display = 'none'; document.body.classList.remove('app-view');
+    // Fixed Vollbild-Overlay wie #surrender-overlay — body.app-view betrifft
+    // nur .screen-box-Layouts und muss hier nicht angefasst werden.
+    document.getElementById('home-screen').style.display = 'none';
+    document.getElementById('gamemode-overlay').classList.add('open');
+}
+
+function closeGameModeOverlay() {
+    document.getElementById('gamemode-overlay').classList.remove('open');
+    showHomeScreen();
+}
+
+// Zweiter Schritt: Modus ist gewählt, jetzt der bestehende Setup-Screen
+// (Kartengröße/Spieleranzahl/Teams). "← Zurück" dort führt eine Stufe zurück
+// in dieses Overlay statt direkt nach Hause (js/lobby.js setup-back-btn).
+function chooseGameMode(ranked) {
+    _pendingRanked = ranked === true;
+    document.getElementById('gamemode-overlay').classList.remove('open');
+    document.body.classList.remove('app-view');
+
+    const badge = document.getElementById('setup-mode-badge');
+    badge.className = 'setup-mode-badge ' + (_pendingRanked ? 'is-ranked' : 'is-normal');
+    badge.innerHTML = _pendingRanked
+        ? `${icon('crown', 'ic-14')} Ranked`
+        : `${icon('sword', 'ic-14')} Normal`;
+
     document.getElementById('player-names-container').style.display = 'none';
     document.getElementById('start-game-btn').style.display = 'none';
     document.getElementById('setup-back-btn').style.display = 'block';
@@ -90,18 +126,33 @@ function showCreateGameModal() {
     updateTeamModeOptions();
 }
 
+// setup-back-btn (index.html onclick) — zurück zur Modus-Wahl, wenn diese
+// gerade offen war (Server-Erstellung), sonst wie zuvor zum Hauptmenü (Legacy-
+// Pfad zeigt den Setup-Screen ohne Modus-Wahl, siehe js/auth.js).
+function handleSetupBack() {
+    setupScreen.style.display = 'none';
+    if (_pendingRanked !== null) {
+        _pendingRanked = null;
+        document.getElementById('gamemode-overlay').classList.add('open');
+    } else {
+        showHomeScreen();
+    }
+}
+
 async function handleCreateGame() {
     const maxPlayers = parseInt(playerCountSelect.value);
     const mapRadius  = parseInt(mapSizeSelect.value);
     const teamMode   = teamModeSelect.value;
     const gameName   = document.getElementById('game-name').value.trim();
+    const ranked     = _pendingRanked === true;
 
     const btn = document.getElementById('create-game-confirm-btn');
     btn.disabled = true; btn.textContent = 'Erstelle...';
 
     try {
-        const game = await api.post('/api/games', { max_players: maxPlayers, map_radius: mapRadius, team_mode: teamMode, name: gameName });
+        const game = await api.post('/api/games', { max_players: maxPlayers, map_radius: mapRadius, team_mode: teamMode, name: gameName, ranked });
         currentGameId = game.id;
+        _pendingRanked = null;
         setupScreen.style.display = 'none';
         await openLobbyScreen(game.id);
     } catch (err) {
@@ -139,6 +190,9 @@ const TEAM_MODE_LABELS = {
 function _renderLobbyScreen(game) {
     document.getElementById('lobby-title').textContent = game.name;
     document.getElementById('lobby-team-mode').textContent = TEAM_MODE_LABELS[game.team_mode] || '';
+    const rankedEl = document.getElementById('lobby-ranked-mode');
+    rankedEl.className = 'lobby-ranked-badge' + (game.ranked ? ' is-ranked' : '');
+    rankedEl.innerHTML = game.ranked ? `${icon('crown', 'ic-14')} Ranked` : '';
     const isHost = game.host_id === currentProfile.id;
     const players = game.players || [];
 
@@ -303,6 +357,13 @@ async function openGame(gameId) {
         const game = await api.get(`/api/games/${gameId}`);
 
         if (!game.state_blob) { showToast('Spiel hat noch keinen Spielstand.'); showHomeScreen(); return; }
+
+        // Server-Wahrheit, nicht der Blob (der ist clientseitig manipulierbar) —
+        // sperrt Undo für die gesamte Spielsitzung (js/ui.js saveUndoState/undoLastAction).
+        isRankedGame = game.ranked === true;
+        updateUndoButton();
+        const rankedMarker = document.getElementById('menu-ranked-marker');
+        if (rankedMarker) rankedMarker.style.display = isRankedGame ? 'flex' : 'none';
 
         currentUserSlot = game.my_slot;
         currentTurnSlot = game.current_slot;
@@ -676,6 +737,9 @@ function escHtml(str) {
 window.showHomeScreen        = showHomeScreen;
 window.deleteGame            = deleteGame;
 window.showCreateGameModal   = showCreateGameModal;
+window.closeGameModeOverlay  = closeGameModeOverlay;
+window.chooseGameMode        = chooseGameMode;
+window.handleSetupBack       = handleSetupBack;
 window.handleCreateGame      = handleCreateGame;
 window.copyInviteLink        = copyInviteLink;
 window.openFriendsPicker     = openFriendsPicker;
