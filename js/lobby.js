@@ -501,7 +501,7 @@ async function showProfileScreen() {
             : `Vorläufig — noch ${Math.max(0, 5 - me.games_rated)} gewertete Partien bis zum Rang`;
 
         statsEl.innerHTML =
-            stat(me.rating + (me.established ? '' : '?'), 'Rating', 'is-gold') +
+            stat(me.rating, 'Rating', 'is-gold') +
             stat('±' + me.rd, 'Unsicherheit') +
             stat(`${me.wins}/${me.games}`, 'Siege') +
             stat(me.games_rated, 'gewertet');
@@ -635,7 +635,7 @@ async function refreshLeaderboardPanel() {
         // Name eigener Span → nur er kürzt mit Ellipse, Rating/Bilanz bleiben sichtbar.
         div.innerHTML = `<span class="lb-rank">${rankLabel}</span>
             <span class="lb-name">${escHtml(row.username)}${isMe ? ' (Du)' : ''}</span>
-            <span class="lb-rating" title="${escHtml(ratingTitle)}">${row.rating}${row.established ? '' : '?'}</span>
+            <span class="lb-rating" title="${escHtml(ratingTitle)}">${row.rating}</span>
             <span class="lb-wins" title="Siege / beendete Partien insgesamt">${row.wins}/${row.games}</span>
             ${action}`;
         list.appendChild(div);
@@ -666,7 +666,7 @@ async function refreshLeaderboardPanel() {
     }
     if (ratingBox && ratingVal) {
         if (me) {
-            ratingVal.textContent = me.rating + (me.established ? '' : '?');
+            ratingVal.textContent = me.rating;
             ratingBox.style.display = 'flex';
         } else {
             ratingBox.style.display = 'none';
