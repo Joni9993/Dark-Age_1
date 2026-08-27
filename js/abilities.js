@@ -422,6 +422,30 @@ window.startDemolishTunnel = function () {
     renderBoard(gameState);
 };
 
+window.startDemolishTower = function () {
+    if (!selectedUnit || !gameState.tw) return;
+    const adjTowers = gameState.tw.filter(t => t.o === gameState.cp && hexDistance({ x: t.x, y: t.y }, { x: selectedUnit.x, y: selectedUnit.y }) === 1);
+    if (adjTowers.length === 0) return;
+    if (adjTowers.length === 1) { demolishTower(adjTowers[0].x, adjTowers[0].y); return; }
+
+    window.specialActive = 'demolish_tower';
+    window.demolishTargets = adjTowers.map(t => ({ x: t.x, y: t.y }));
+    hideActionMenu();
+    infoPanel.innerHTML = `🗼 Turm abreißen<br><div class="info-detail" style="color: #ffb74d;">Wähle einen markierten Turm.</div>`;
+    renderBoard(gameState);
+};
+
+window.demolishTower = function (tx, ty) {
+    if (!selectedUnit || !gameState.tw) return;
+    saveUndoState();
+    gameState.tw = gameState.tw.filter(t => !(t.x === tx && t.y === ty && t.o === gameState.cp));
+    gameState.p[gameState.cp].s = (gameState.p[gameState.cp].s || 0) + 3;
+    selectedUnit.a = 1;
+    selectedUnit = null; validMoves = []; validAttacks = [];
+    window.specialActive = null; window.demolishTargets = [];
+    hideActionMenu(); infoPanel.innerHTML = `🗼 Turm abgerissen! +3🪨`; renderBoard(gameState);
+};
+
 window.demolishTunnel = function (x1, y1) {
     if (!selectedUnit || !gameState.tu) return;
     saveUndoState();

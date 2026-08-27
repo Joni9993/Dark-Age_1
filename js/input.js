@@ -137,7 +137,7 @@ function handleCanvasClick(clientX, clientY) {
         // Eigener einsatzbereiter Turm auf dem geklickten Feld — aber nur, wenn der Klick
         // nicht eigentlich eine laufende Bewegung/einen Angriff abschließt (z.B. ein
         // Flieger, der auf/über den eigenen Turm zieht, da Türme Luft nicht blockieren).
-        if (ownReadyTower && !pendingMove && !pendingAttack) {
+        if (ownReadyTower && !pendingMove && !pendingAttack && window.specialActive !== 'demolish_tower') {
             if (clickedGround || clickedAirUnconditional) {
                 // Eine Einheit teilt sich das Feld mit dem Turm — Auswahl anbieten
                 showMultiChoiceTileUI(clickedX, clickedY, { ground: clickedGround, air: clickedAirUnconditional, tower: ownReadyTower });
@@ -262,6 +262,14 @@ function handleCanvasClick(clientX, clientY) {
             const target = window.demolishTargets.find(t => t.x === clickedX && t.y === clickedY);
             if (target) {
                 demolishTunnel(target.x1, target.y1);
+            } else {
+                window.specialActive = null; window.demolishTargets = []; selectedUnit = null; renderBoard(gameState);
+            }
+            return;
+        } else if (window.specialActive === 'demolish_tower') {
+            const target = window.demolishTargets.find(t => t.x === clickedX && t.y === clickedY);
+            if (target) {
+                demolishTower(target.x, target.y);
             } else {
                 window.specialActive = null; window.demolishTargets = []; selectedUnit = null; renderBoard(gameState);
             }
@@ -1870,6 +1878,10 @@ function showTileUI(clickedX, clickedY, clickedUnit) {
             if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2) && gameState.wa) {
                 const hasAdjWall = gameState.wa.some(w => w.o === gameState.cp && hexDistance({ x: w.x, y: w.y }, { x: clickedUnit.x, y: clickedUnit.y }) === 1);
                 if (hasAdjWall) menuHtml += `<button class="action-btn act-build" style="padding: 8px; font-size: 0.9rem;" onclick="startDemolishWall()">${icon('wall', 'ic-14')} Mauer abreißen</button>`;
+            }
+            if (clickedUnit.t === 7 && (clickedUnit.a === 0 || clickedUnit.a === 2) && gameState.tw) {
+                const hasAdjTower = gameState.tw.some(t => t.o === gameState.cp && hexDistance({ x: t.x, y: t.y }, { x: clickedUnit.x, y: clickedUnit.y }) === 1);
+                if (hasAdjTower) menuHtml += `<button class="action-btn act-build" style="padding: 8px; font-size: 0.9rem;" onclick="startDemolishTower()">${icon('tower', 'ic-14')} Turm abreißen (+3${icon('stone', 'ic-14')})</button>`;
             }
 
             const canCapture = (villageOwner === -1)
