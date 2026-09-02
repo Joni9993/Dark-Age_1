@@ -64,8 +64,12 @@ async function refreshGameList() {
                 ? `<button class="game-delete-btn" title="${deleteTitle}" onclick="event.stopPropagation();deleteGame('${escHtml(row.id)}','${escHtml(row.status)}')">${icon('trash', 'ic-14')}</button>`
                 : '';
 
+            // Beide Modi als Tag sichtbar, nicht nur Ranked — sonst ist "kein Badge"
+            // die einzige Kennzeichnung für Normal, und die geht in der Liste unter
+            // (Jonathans Meldung: man erkennt den Modus laufender Spiele gar nicht).
             const rankedBadge = row.ranked
-                ? `<span class="game-badge ranked-badge">${icon('crown', 'ic-14')} Ranked</span>` : '';
+                ? `<span class="game-badge ranked-badge">${icon('crown', 'ic-14')} Ranked</span>`
+                : `<span class="game-badge normal-badge">${icon('sword', 'ic-14')} Normal</span>`;
 
             const card = document.createElement('div');
             // Beendete Spiele optisch abgesetzt (gedimmt) von laufenden — sonst sieht
@@ -191,8 +195,8 @@ function _renderLobbyScreen(game) {
     document.getElementById('lobby-title').textContent = game.name;
     document.getElementById('lobby-team-mode').textContent = TEAM_MODE_LABELS[game.team_mode] || '';
     const rankedEl = document.getElementById('lobby-ranked-mode');
-    rankedEl.className = 'lobby-ranked-badge' + (game.ranked ? ' is-ranked' : '');
-    rankedEl.innerHTML = game.ranked ? `${icon('crown', 'ic-14')} Ranked` : '';
+    rankedEl.className = 'lobby-ranked-badge ' + (game.ranked ? 'is-ranked' : 'is-normal');
+    rankedEl.innerHTML = game.ranked ? `${icon('crown', 'ic-14')} Ranked` : `${icon('sword', 'ic-14')} Normal`;
     const isHost = game.host_id === currentProfile.id;
     const players = game.players || [];
 
@@ -362,8 +366,17 @@ async function openGame(gameId) {
         // sperrt Undo für die gesamte Spielsitzung (js/ui.js saveUndoState/undoLastAction).
         isRankedGame = game.ranked === true;
         updateUndoButton();
+        // Immer sichtbar, nicht nur im Ranked-Fall — sonst gibt es während des
+        // Spielens gar keine Stelle, an der der Modus überhaupt steht (der Knopf
+        // war vorher komplett ausgeblendet statt "Normal" zu zeigen).
         const rankedMarker = document.getElementById('menu-ranked-marker');
-        if (rankedMarker) rankedMarker.style.display = isRankedGame ? 'flex' : 'none';
+        if (rankedMarker) {
+            rankedMarker.style.display = 'flex';
+            rankedMarker.classList.toggle('is-normal', !isRankedGame);
+            rankedMarker.innerHTML = isRankedGame
+                ? `${icon('crown', 'ic-14')} Ranked`
+                : `${icon('sword', 'ic-14')} Normal`;
+        }
 
         currentUserSlot = game.my_slot;
         currentTurnSlot = game.current_slot;
