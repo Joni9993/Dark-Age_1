@@ -28,11 +28,36 @@ function applyEliminationsToState(state, eliminatedSlots) {
 // ── Helper ────────────────────────────────────────────────────────────────────
 async function getGamePlayers(gameId) {
     const { rows } = await pool.query(
-        `SELECT gp.slot, gp.eliminated, p.username
+        // profile_id mit ausgeliefert (Aug 2026, Lobby-Kick) — der Client
+        // braucht ihn als Ziel für POST :id/kick, vorher war der Slot die
+        // einzige clientseitige Kennung eines Lobby-Spielers.
+        `SELECT gp.slot, gp.eliminated, p.id AS profile_id, p.username
          FROM game_players gp JOIN profiles p ON p.id = gp.profile_id
          WHERE gp.game_id = $1 ORDER BY gp.slot`, [gameId]
     );
     return rows;
+}
+
+// Nach dem Entfernen eines Lobby-Spielers (Kick oder freiwilliges Verlassen)
+// müssen die restlichen Slots wieder lückenlos 0..n-1 sein — sonst hält
+// join/invite (COALESCE(MAX(slot),-1)+1) eine Lobby mit einer freien Lücke
+// fälschlich für voll, sobald ein mittlerer Slot frei wurde. Zwischenschritt
+// über negative Slots, damit der PRIMARY KEY (game_id, slot) beim Umsortieren
+// nicht kollidiert (gleiches Muster wie shuffleSeats beim Spielstart).
+// Muss innerhalb derselben Transaktion laufen wie das DELETE, mit der
+// games-Zeile FOR UPDATE gesperrt — sonst könnte ein gleichzeitiger Join
+// zwischen Delete und Renumbering in die Lücke greifen.
+async function renumberLobbySlots(client, gameId) {
+    const { rows: seats } = await client.query(
+        'SELECT profile_id FROM game_players WHERE game_id = $1 ORDER BY slot', [gameId]
+    );
+    await client.query('UPDATE game_players SET slot = -slot - 1 WHERE game_id = $1', [gameId]);
+    for (let i = 0; i < seats.length; i++) {
+        await client.query(
+            'UPDATE game_players SET slot = $1 WHERE game_id = $2 AND profile_id = $3',
+            [i, gameId, seats[i].profile_id]
+        );
+    }
 }
 
 // ── GET /api/games  — my game list ───────────────────────────────────────────
@@ -323,6 +348,91 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     await pool.query('DELETE FROM game_players WHERE game_id = $1', [req.params.id]);
     await pool.query('DELETE FROM games WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
+});
+
+// ── POST /api/games/:id/kick  — host removes another player from the lobby ────
+router.post('/:id/kick', authMiddleware, async (req, res) => {
+    const { profile_id } = req.body;
+    if (!profile_id) return res.status(400).json({ error: 'Kein Spieler angegeben' });
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const { rows: [game] } = await client.query(
+            `SELECT id, host_id, name FROM games WHERE id = $1 AND status = 'lobby' FOR UPDATE`,
+            [req.params.id]
+        );
+        if (!game || game.host_id !== req.profileId) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ error: 'Nicht der Host oder Spiel nicht in Lobby' });
+        }
+        // Der Host wirft sich nicht selbst raus — dafür gibt es DELETE :id
+        // (löscht die ganze Lobby), ein "Kick" des Hosts hinterließe eine
+        // Lobby ohne Host und ohne definierten Nachfolger.
+        if (profile_id === game.host_id) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Der Host kann sich nicht selbst rauswerfen — Lobby stattdessen löschen' });
+        }
+
+        const { rowCount } = await client.query(
+            'DELETE FROM game_players WHERE game_id = $1 AND profile_id = $2',
+            [req.params.id, profile_id]
+        );
+        if (!rowCount) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Spieler nicht in der Lobby' });
+        }
+        await renumberLobbySlots(client, req.params.id);
+        await client.query('COMMIT');
+
+        notifyPlayer(profile_id, 'Dark Ages', `Du wurdest aus "${game.name}" entfernt.`, process.env.APP_URL).catch(() => {});
+        res.json({ ok: true });
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Kick fehlgeschlagen', req.params.id, err);
+        res.status(500).json({ error: 'Kick fehlgeschlagen' });
+    } finally {
+        client.release();
+    }
+});
+
+// ── POST /api/games/:id/leave  — non-host player leaves the lobby voluntarily ─
+router.post('/:id/leave', authMiddleware, async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const { rows: [game] } = await client.query(
+            `SELECT id, host_id FROM games WHERE id = $1 AND status = 'lobby' FOR UPDATE`,
+            [req.params.id]
+        );
+        if (!game) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Spiel nicht in Lobby' });
+        }
+        // Der Host verlässt seine eigene Lobby nicht — DELETE :id löst sie auf.
+        if (game.host_id === req.profileId) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Der Host kann die Lobby nicht verlassen — stattdessen löschen' });
+        }
+
+        const { rowCount } = await client.query(
+            'DELETE FROM game_players WHERE game_id = $1 AND profile_id = $2',
+            [req.params.id, req.profileId]
+        );
+        if (!rowCount) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ error: 'Nicht in der Lobby' });
+        }
+        await renumberLobbySlots(client, req.params.id);
+        await client.query('COMMIT');
+        res.json({ ok: true });
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Lobby verlassen fehlgeschlagen', req.params.id, err);
+        res.status(500).json({ error: 'Verlassen fehlgeschlagen' });
+    } finally {
+        client.release();
+    }
 });
 
 // ── POST /api/games/:id/hide  — any participant removes a FINISHED game from

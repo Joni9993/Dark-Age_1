@@ -23,7 +23,9 @@ const api = (() => {
         if (!res.ok) {
             let msg = res.statusText;
             try { const j = await res.json(); msg = j.error || msg; } catch (_) {}
-            throw new Error(msg);
+            const err = new Error(msg);
+            err.status = res.status;
+            throw err;
         }
 
         return res.json();
