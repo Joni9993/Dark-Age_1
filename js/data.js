@@ -138,7 +138,7 @@ const RELICS = {
     blade: { name: "Klingenschmiede der Tiefe", icon: "⚒️", cost: 7, desc: "Permanent: alle eigenen Einheiten (Oberfläche, Unterwelt, Luft) erhalten +1 DMG.", target: "instant" },
     armor: { name: "Bollwerk des Bergvolks", icon: "🛡️", cost: 7, desc: "Permanent: Startdorf, Mauern & Türme erhalten +50% Max-HP (sofort voll geheilt); alle eigenen Einheiten erhalten +2 Max-HP (sofort mitgeheilt).", target: "instant" },
     tool: { name: "Meisterwerkzeug", icon: "🔧", cost: 3, desc: "Ein Bauwerk (Mauer/Turm/Tunnel/Startdorf) sofort auf volle HP.", target: "building" },
-    map: { name: "Karte der Tiefe", icon: "🗺️", cost: 10, desc: "Permanente Sicht auf die gesamte Karte (Oberfläche + Unterwelt-Netz).", target: "instant" }
+    map: { name: "Karte der Tiefe", icon: "🗺️", cost: 10, desc: "Permanente Sicht auf die gesamte Karte (Oberfläche + Unterwelt-Netz). Wirkt ab deinem nächsten Zug.", target: "instant" }
 };
 
 // === UNTERWELT-KREATUREN (M11, PLAN.md Abschn. 5) ===
