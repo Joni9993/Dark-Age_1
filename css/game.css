@@ -3168,11 +3168,35 @@ body.app-view .screen-box {
 }
 
 .player-slot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     padding: 12px;
     background: var(--bg-card);
     border: 2px solid var(--edge);
     box-shadow: var(--bevel);
     font-size: 15px;
+}
+
+/* Host-only, in der Namenszeile eines belegten (nicht-eigenen) Slots
+   (js/lobby.js _renderLobbyScreen). */
+.player-slot-kick-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: var(--bg-panel);
+    border: 2px solid var(--edge);
+    color: var(--red);
+    cursor: pointer;
+}
+
+.player-slot-kick-btn:active {
+    transform: translateY(2px);
 }
 
 /* Freier Platz: Schraffur statt gestricheltem Rand — eine gestrichelte Linie

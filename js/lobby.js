@@ -206,9 +206,24 @@ function _renderLobbyScreen(game) {
         const p = players.find(pl => pl.slot === i);
         const div = document.createElement('div');
         div.className = 'player-slot' + (p ? '' : ' player-slot-empty');
-        div.textContent = p
-            ? `${i + 1}. ${p.username}${i === 0 ? ' (Host)' : ''}`
-            : `${i + 1}. Warte auf Spieler...`;
+        if (p) {
+            const isPlayerHost = p.profile_id === game.host_id;
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = `${i + 1}. ${p.username}${isPlayerHost ? ' (Host)' : ''}`;
+            div.appendChild(nameSpan);
+            // Host kann jeden anderen Spieler rauswerfen (Jonathans Meldung: bisher
+            // gar keine Möglichkeit, jemanden aus der eigenen Lobby zu entfernen).
+            if (isHost && !isPlayerHost) {
+                const kickBtn = document.createElement('button');
+                kickBtn.className = 'player-slot-kick-btn';
+                kickBtn.title = `${p.username} rauswerfen`;
+                kickBtn.innerHTML = icon('trash', 'ic-14');
+                kickBtn.onclick = () => handleKickPlayer(p.profile_id, p.username);
+                div.appendChild(kickBtn);
+            }
+        } else {
+            div.textContent = `${i + 1}. Warte auf Spieler...`;
+        }
         playerList.appendChild(div);
     }
 
@@ -218,14 +233,21 @@ function _renderLobbyScreen(game) {
 
     const startBtn     = document.getElementById('lobby-start-btn');
     const inviteSection = document.getElementById('lobby-friend-invite');
+    const leaveBtn      = document.getElementById('lobby-leave-btn');
     if (isHost) {
         startBtn.style.display = 'block';
         startBtn.disabled      = players.length < 2;
         startBtn.textContent   = players.length < 2 ? 'Mindestens 2 Spieler nötig' : 'Spiel starten';
         inviteSection.style.display = 'flex';
+        leaveBtn.style.display = 'none';
     } else {
         startBtn.style.display = 'none';
         inviteSection.style.display = 'none';
+        // Beigetretene Spieler konnten die Lobby bisher gar nicht wieder
+        // verlassen (Jonathans Meldung: "← Zurück" navigiert nur weg, der
+        // game_players-Eintrag blieb bestehen) — mussten also zwangsläufig
+        // mitspielen, sobald der Host startete.
+        leaveBtn.style.display = 'block';
     }
 }
 
@@ -244,7 +266,19 @@ function _startLobbyPoll() {
                 return;
             }
             _renderLobbyScreen(game);
-        } catch (_) {}
+        } catch (err) {
+            // Rausgeworfen (403) oder Lobby vom Host gelöscht (404) — ohne diesen
+            // Fall würde der Poll bei einem echten Kick einfach weiter ins Leere
+            // laufen und der betroffene Spieler bliebe tatenlos auf dem Lobby-
+            // Screen hängen. Andere Fehler (Netzwerk-Hänger etc.) sollen den
+            // nächsten Poll-Tick einfach erneut versuchen, statt fälschlich
+            // "rausgeworfen" zu melden.
+            if (err.status === 403 || err.status === 404) {
+                _stopLobbyPoll();
+                showToast('Du wurdest aus der Lobby entfernt.');
+                showHomeScreen();
+            }
+        }
     }, 5000);
 }
 
@@ -350,6 +384,28 @@ async function handleStartGame() {
     } catch (err) {
         showToast('Fehler: ' + err.message);
         btn.disabled = false; btn.textContent = 'Spiel starten';
+    }
+}
+
+async function handleKickPlayer(profileId, username) {
+    if (!confirm(`${username} aus der Lobby werfen?`)) return;
+    try {
+        await api.post(`/api/games/${currentGameId}/kick`, { profile_id: profileId });
+        const game = await api.get(`/api/games/${currentGameId}`);
+        _renderLobbyScreen(game);
+    } catch (err) {
+        showToast('Fehler: ' + err.message);
+    }
+}
+
+async function handleLeaveLobby() {
+    if (!confirm('Diese Lobby verlassen?')) return;
+    try {
+        await api.post(`/api/games/${currentGameId}/leave`, {});
+        _stopLobbyPoll();
+        showHomeScreen();
+    } catch (err) {
+        showToast('Fehler: ' + err.message);
     }
 }
 
