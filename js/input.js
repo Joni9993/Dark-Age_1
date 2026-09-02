@@ -1076,6 +1076,9 @@ window.startUWLootFundkammer = function () {
         showToast(`🏺 Fundkammer: +${loot.amount} 💎 Kristalle!`, 'gold');
     } else if (loot.instant) {
         showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} wirkt sofort!`, 'gold');
+    } else if (loot.pending) {
+        // Karte der Tiefe (Undo-Exploit-Fix): wirkt erst ab dem eigenen nächsten Zug.
+        showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} wirkt ab deinem nächsten Zug!`, 'gold');
     } else {
         showToast(`🏺 Fundkammer: ${RELICS[loot.relic].icon} ${RELICS[loot.relic].name} gefunden!`, 'gold');
     }
@@ -2600,6 +2603,19 @@ function doEndTurn() {
     }
 
     if (gameState.tw) gameState.tw.filter(tw => tw.o === gameState.cp).forEach(tw => tw.a = 0);
+
+    // Karte der Tiefe (Korrektur Aug 2026, Undo-Exploit): Kauf/Fund setzt nur
+    // p[].mrPending, der Reveal selbst (applyMapRelic) läuft erst hier, zu
+    // Beginn des eigenen nächsten Zuges (NEUER gameState.cp, s.o.). Vorher
+    // zeigte die Karte die volle Aufklärung SOFORT im Kaufzug — ein
+    // anschließendes Undo holte das Gold zurück, aber das bereits Gesehene
+    // (gegnerische Basen/Einheiten) ließ sich nicht "zurückholen": kostenlose
+    // Vollaufklärung. Der Undo-Stack wird bei jedem Zugende geleert (s.u.),
+    // ein Kauf lässt sich also nicht mehr bis zum eigenen nächsten Zug offen
+    // halten und dann doch noch zurückrollen.
+    if (activatePendingMapRelic(gameState, gameState.cp)) {
+        showToast('🗺️ Karte der Tiefe wirkt jetzt — die ganze Karte ist aufgedeckt!', 'gold');
+    }
 
     // Moral-Kollaps (M12, PLAN.md Abschn. 3): zu Beginn des eigenen Zuges (NEUER
     // gameState.cp, direkt nach dem Wechsel oben) — kein nutzbarer Tunnel mehr ->

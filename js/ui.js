@@ -576,7 +576,12 @@ window.buyRelic = function (key) {
     pState.k -= def.cost;
     if (def.target === 'instant') {
         applyInstantRelic(gameState, gameState.cp, key);
-        showToast(`${def.icon} ${def.name} wirkt dauerhaft!`, 'gold');
+        // Karte der Tiefe wirkt erst ab dem nächsten Zug (Undo-Exploit-Fix,
+        // js/logic.js queueMapRelic/activatePendingMapRelic) — Klingenschmiede/
+        // Bollwerk bleiben sofort wirksam, dort gibt es nichts zu "sehen" und
+        // damit nichts, was ein Undo im Nachhinein nicht sauber zurücknähme.
+        const msg = key === 'map' ? 'wirkt ab deinem nächsten Zug!' : 'wirkt dauerhaft!';
+        showToast(`${def.icon} ${def.name} ${msg}`, 'gold');
     } else {
         if (!pState.rel) pState.rel = [];
         pState.rel.push(key);

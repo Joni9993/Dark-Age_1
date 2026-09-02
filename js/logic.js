@@ -1587,10 +1587,14 @@ function lootFundkammer(state, playerId, unit, x, y) {
     const idx = Math.min(RELIC_KEYS.length - 1, Math.floor(underworldHash(state, x, y, 3) * RELIC_KEYS.length));
     const relic = RELIC_KEYS[idx];
     // Instant-Reliquien (Klingenschmiede/Bollwerk/Karte) wirken sofort wie beim
-    // Kauf (buyRelic, js/ui.js) und landen nie im Inventar.
+    // Kauf (buyRelic, js/ui.js) und landen nie im Inventar. Karte der Tiefe ist
+    // die eine Ausnahme (pending statt instant) — applyInstantRelic leitet sie
+    // intern auf queueMapRelic um (Undo-Exploit, s. dort); der Fund-Toast
+    // (js/input.js startUWLootFundkammer) muss das unterscheiden können, sonst
+    // würde er fälschlich "wirkt sofort" behaupten.
     if (RELICS[relic].target === 'instant') {
         applyInstantRelic(state, playerId, relic);
-        return { type: 'relic', relic, instant: true };
+        return { type: 'relic', relic, instant: relic !== 'map', pending: relic === 'map' };
     }
     if (!pState.rel) pState.rel = [];
     pState.rel.push(relic);
@@ -1663,13 +1667,21 @@ function applyRelicToBuilding(state, playerId, target, maxHpFor) {
     return true;
 }
 
-// Karte der Tiefe: wirkt sofort beim Kauf, landet nie in p[].rel — deckt
-// Oberfläche (p[].e) UND Unterwelt-Netz (p[].ue) komplett und dauerhaft auf.
-// p[].mr gewährt zusätzlich permanente 100%-LIVE-Sicht an der Oberfläche
-// (getVisibleHexes) — nur p[].e zu setzen ließ die Felder außerhalb der
-// eigenen Sichtweite abgedunkelt (Jonathans Playtest Juli 2026). Unten bleibt
-// die Umkreis-2-Regel für Bewegliches bewusst bestehen (Hinterhalt-Design,
-// PLAN.md Abschn. 3) — die Netz-Geometrie ist über p[].ue ohnehin voll offen.
+// Karte der Tiefe: deckt Oberfläche (p[].e) UND Unterwelt-Netz (p[].ue)
+// komplett und dauerhaft auf, landet nie in p[].rel. p[].mr gewährt
+// zusätzlich permanente 100%-LIVE-Sicht an der Oberfläche (getVisibleHexes)
+// — nur p[].e zu setzen ließ die Felder außerhalb der eigenen Sichtweite
+// abgedunkelt (Jonathans Playtest Juli 2026). Unten bleibt die Umkreis-2-
+// Regel für Bewegliches bewusst bestehen (Hinterhalt-Design, PLAN.md
+// Abschn. 3) — die Netz-Geometrie ist über p[].ue ohnehin voll offen.
+//
+// Läuft NICHT mehr direkt beim Kauf/Fund (Korrektur Aug 2026, Undo-Exploit):
+// queueMapRelic/lootFundkammer setzen nur noch p[].mrPending, der eigentliche
+// Reveal hier läuft erst über activatePendingMapRelic zu Beginn des eigenen
+// nächsten Zuges (doEndTurn, js/input.js) — vorher zeigte ein Kauf die volle
+// Karte SOFORT im selben Zug; ein anschließendes Undo holte das Gold zurück,
+// aber das bereits Gesehene (gegnerische Basen/Einheiten) ließ sich nicht
+// "zurückholen" — kostenlose Vollaufklärung.
 function applyMapRelic(state, playerId) {
     const pState = state.p[playerId];
     const total = state.bw * state.bh;
@@ -1677,6 +1689,22 @@ function applyMapRelic(state, playerId) {
     pState.e = all.slice();
     pState.ue = all.slice();
     pState.mr = 1;
+}
+
+// Kauf/Fund der Karte der Tiefe: nur noch die Absicht vermerken, der Reveal
+// selbst wartet bis zum eigenen nächsten Zugbeginn (s.o.).
+function queueMapRelic(state, playerId) {
+    state.p[playerId].mrPending = 1;
+}
+
+// Zugbeginn-Hook (doEndTurn, js/input.js): löst eine wartende Karte der Tiefe
+// aus, falls der neue aktive Spieler eine hat. Gibt zurück, ob etwas aktiviert
+// wurde (für Toast).
+function activatePendingMapRelic(state, playerId) {
+    if (!state.p[playerId].mrPending) return false;
+    delete state.p[playerId].mrPending;
+    applyMapRelic(state, playerId);
+    return true;
 }
 
 // Zentraler Anwend-Punkt für alle drei "instant"-Reliquien (Klingenschmiede,
@@ -1687,7 +1715,9 @@ function applyMapRelic(state, playerId) {
 // dieselbe "wirkt sofort spürbar" Erwartung wie das alte Ausrüsten-mit-Heilen.
 function applyInstantRelic(state, playerId, key) {
     const pState = state.p[playerId];
-    if (key === 'map') { applyMapRelic(state, playerId); return; }
+    // Karte der Tiefe wirkt bewusst NICHT hier (Undo-Exploit, s. queueMapRelic) —
+    // nur vormerken, aktiviert wird sie erst zu Beginn des nächsten Zuges.
+    if (key === 'map') { queueMapRelic(state, playerId); return; }
     if (key === 'blade') { pState.rb = 1; return; }
     if (key === 'armor') {
         pState.ra = 1;

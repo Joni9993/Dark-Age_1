@@ -560,7 +560,9 @@ window.startRelicEquip = function (key) {
         saveUndoState();
         pState.rel.splice(idx, 1);
         applyInstantRelic(gameState, gameState.cp, key);
-        showToast(`${def.icon} ${def.name} wirkt dauerhaft!`, 'gold');
+        // Karte der Tiefe: wirkt erst ab dem nächsten Zug (s. queueMapRelic, js/logic.js).
+        const msg = key === 'map' ? 'wirkt ab deinem nächsten Zug!' : 'wirkt dauerhaft!';
+        showToast(`${def.icon} ${def.name} ${msg}`, 'gold');
         const [svx, svy] = (pState.sv || '0,0').split(',').map(Number);
         turnActions.push({ x: svx, y: svy, t: 'relicuse' });
         hideActionMenu(); renderBoard(gameState); updateUI();
