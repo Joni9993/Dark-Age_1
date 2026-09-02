@@ -2632,6 +2632,13 @@ canvas {
     gap: 4px;
 }
 
+.lobby-ranked-badge.is-normal {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-dim);
+}
+
 /* Im Spielmenü über dem (im Ranked gesperrten) Rückgängig-Knopf — erklärt
    ohne extra Klick, warum der Knopf grau ist. */
 .menu-ranked-marker {
@@ -2647,6 +2654,10 @@ canvas {
     border-bottom: 2px solid var(--edge);
 }
 
+.menu-ranked-marker.is-normal {
+    color: var(--text-dim);
+}
+
 /* Spielliste (js/lobby.js refreshGameList): Ranked-Badge neben Status-Badge,
    beide in einem Wrapper (hält sie als ein Flex-Kind von .game-card zusammen). */
 .game-card-badges {
@@ -2658,6 +2669,14 @@ canvas {
 .game-badge.ranked-badge {
     background: var(--gold-dk);
     color: var(--gold);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.game-badge.normal-badge {
+    background: var(--bg-card);
+    color: var(--text-dim);
     display: inline-flex;
     align-items: center;
     gap: 4px;
