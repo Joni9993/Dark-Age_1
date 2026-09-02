@@ -3078,6 +3078,13 @@ body.app-view .screen-box {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    /* Flex-Items schrumpfen ohne min-width:0 nie unter ihre Inhaltsbreite
+       (Standard min-width:auto) — das ellipsis oben griff dadurch nie, ein
+       langer Wait-Badge-Name (s.u.) drückte den Spielnamen bis auf 0 Breite
+       weg und verschob den Delete-Button mit (Jonathans Meldung). flex:1 hält
+       den Namen als bevorzugten Platznehmer, min-width als Untergrenze. */
+    min-width: 0;
+    flex: 1 1 auto;
 }
 
 .game-badge {
@@ -3100,6 +3107,12 @@ body.app-view .screen-box {
     background: #1a1714;
     color: var(--text-dim);
     box-shadow: inset 1px 1px 0 #26211b, inset -1px -1px 0 #0b0a09;
+    /* Einziges Badge mit variabler Länge (Nutzername) — ohne Deckel nimmt es
+       sich per white-space:nowrap (.game-badge) so viel Platz wie der Name
+       lang ist und quetscht den Spielnamen daneben weg (s. .game-card-name). */
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .lobby-badge {

@@ -383,7 +383,7 @@ function openDraft(cost) {
             <p>${fac.passive}</p>
             <span class="fac-label">Spezial</span>
             <span class="fac-special">${fac.special}</span>
-            <div class="fac-cost"><span class="badge-cost">${icon('gold', 'ic-12')} ${cost}</span>
+            <div class="fac-cost"><span class="badge-cost">${icon('wood', 'ic-12')} ${cost}</span>
                 <span class="badge-cost">${icon('village', 'ic-12')} ${fac.reqV}</span></div>
         </div>`;
     });
