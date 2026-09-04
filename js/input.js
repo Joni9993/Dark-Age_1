@@ -7,6 +7,16 @@ function handleCanvasClick(clientX, clientY) {
     // den Rückblick per Tippen auf die Karte wegbekommt und nicht nur über das ✕.
     if (showRecap) { if (window.closeRecap) closeRecap(); else { showRecap = false; renderBoard(gameState); } }
 
+    // Beendete Partie (window.gameFinished, gesetzt in bootGame): die Endstellung
+    // ist seit Sept 2026 begehbar — über den Rückblick-Knopf im Sieg-/
+    // Niederlage-Screen — aber nur zum Anschauen. Ohne diesen Riegel könnte der
+    // Sieger, dessen Zugnummer noch auf ihm steht, im beendeten Spiel weiter
+    // Einheiten bewegen und kaufen (der Zug-beenden-Knopf ist zwar aus, der
+    // lokale State ließe sich trotzdem verbiegen). Steht NACH dem
+    // Rückblick-Wegklicken darüber, damit ein Tippen auf die Karte das Panel
+    // weiterhin schließt.
+    if (window.gameFinished) return;
+
     // Server mode: only the active player may interact with the board
     if (!isLegacyUrlMode && currentGameId && currentTurnSlot !== currentUserSlot) return;
 
@@ -2166,6 +2176,24 @@ function confirmSurrender() {
         gameState.uw.n = window.uwNoiseScratch || [];
     }
     window.uwNoiseScratch = [];
+
+    // Aufgeben im Rückblick (Sept 2026): bis hierher hatte das Aufgeben KEINEN
+    // Log-Eintrag — der Gegner gewann und bekam als Erklärung nur die letzten
+    // gewöhnlichen Aktionen des Aufgebenden zu sehen, nie die Aufgabe selbst
+    // (Vincents Frage: "und wenn man gewonnen hat, weil der andere aufgegeben
+    // hat?"). `global` statt Fog-Regel, weil eine Aufgabe alle angeht und der
+    // Aufgebende in diesem Moment ohnehin nichts mehr auf der Karte hat, das
+    // man sehen könnte. Der Urheberstempel (a.p) kommt aus recapAppendTurn
+    // gleich darunter — dadurch fällt der Eintrag beim Aufgebenden selbst
+    // wieder heraus (eigene Aktionen stehen nie im eigenen Rückblick).
+    {
+        const sv = (gameState.p[surrenderingId].sv || '').split(',').map(Number);
+        const ok = sv.length === 2 && sv.every(Number.isFinite);
+        turnActions.push({
+            x: ok ? sv[0] : gameState.ct.x, y: ok ? sv[1] : gameState.ct.y,
+            t: 'surrender', global: 1
+        });
+    }
 
     // Siehe doEndTurn: derselbe Anhäng-Pfad, damit ein Aufgeben den laufenden
     // Rückblick-Log nicht zurücksetzt.

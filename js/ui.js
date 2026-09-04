@@ -217,7 +217,12 @@ function updateUI() {
     if (!selectedUnit && !selectedHex && !selectedUWUnit && !window.selectedUnderworldHex && window.specialActive !== 'tribok') {
         const actualTurnId = (currentTurnSlot !== null && currentTurnSlot !== undefined) ? currentTurnSlot : gameState.cp;
         const actualTurnName = gameState.p[actualTurnId]?.n ?? pState.n;
-        infoPanel.innerHTML = `Runde ${gameState.rn} | ${actualTurnName} ist am Zug.<div class="info-detail">Tippe auf Einheiten oder Dörfer für Details.</div>`;
+        // Beendete Partie (window.gameFinished, gesetzt in bootGame): "X ist am
+        // Zug" wäre schlicht falsch — hier zieht niemand mehr. Diese Ansicht
+        // erreicht man über den Rückblick-Knopf im Sieg-/Niederlage-Screen.
+        infoPanel.innerHTML = window.gameFinished
+            ? `Spiel beendet nach ${gameState.rn} ${gameState.rn === 1 ? 'Runde' : 'Runden'}.<div class="info-detail">Endstellung — tippe auf Einheiten oder Dörfer für Details.</div>`
+            : `Runde ${gameState.rn} | ${actualTurnName} ist am Zug.<div class="info-detail">Tippe auf Einheiten oder Dörfer für Details.</div>`;
     }
 
     updateScoreboard();

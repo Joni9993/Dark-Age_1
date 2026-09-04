@@ -2023,6 +2023,31 @@ canvas {
     animation: pulseGlow 2s ease infinite;
 }
 
+/* Endscreen des Verlierers (js/diplomacy.js showWin setzt .is-defeat): derselbe
+   Kasten, aber ohne Triumph — Strahlenkranz und Titel in Feuer/Stein statt Gold,
+   kein pulsierendes Leuchten. Eine eigene Overlay-Variante wäre doppelte
+   Struktur für zwei Farbwerte. */
+#win-screen.is-defeat .win-rays g {
+    fill: var(--fire-dk);
+}
+
+/* Kein `color:` — die Symbole in js/icons.js tragen ihre Farben fest im
+   Sprite, currentColor greift dort nicht. Das Totenkopf-Symbol bringt seine
+   eigene mit, hier fällt nur das goldene Pulsieren weg. */
+#win-screen.is-defeat .win-crown {
+    animation: none;
+    filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.85));
+}
+
+/* "NIEDERLAGE" ist doppelt so lang wie "SIEG" und lief bei 3rem + 8px Laufweite
+   auf dem Handy aus dem Kasten heraus. */
+#win-screen.is-defeat .win-title {
+    color: var(--stone);
+    animation: none;
+    font-size: clamp(1.5rem, 9vw, 2.6rem);
+    letter-spacing: 4px;
+}
+
 .win-msg {
     margin: 6px 0 0;
     font-size: 15px;

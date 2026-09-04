@@ -437,13 +437,7 @@ async function openGame(gameId) {
         currentUserSlot = game.my_slot;
         currentTurnSlot = game.current_slot;
         isSpectator     = game.my_eliminated === true;
-        // Erschließungs-/Team-Sieg-Verlierer sind NIE "eliminated" (server/rating.js
-        // unterscheidet das bewusst — das Spiel endete nur unter ihnen weg, sie
-        // wurden nicht besiegt). winner_slots ist NULL bei älteren, vor diesem Fix
-        // beendeten Spielen — dann lässt sich nichts Verlässliches sagen.
-        const isNonWinningEnd = !isSpectator && game.status === 'finished' &&
-            Array.isArray(game.winner_slots) && game.winner_slots.length > 0 &&
-            game.winner_slots.indexOf(currentUserSlot) === -1;
+        const isFinished = game.status === 'finished';
 
         let decoded = null;
         try { decoded = LZString.decompressFromEncodedURIComponent(game.state_blob); } catch (_) {}
@@ -459,15 +453,21 @@ async function openGame(gameId) {
         document.getElementById('home-screen').style.display = 'none'; document.body.classList.remove('app-view');
         bootGame();
 
-        if (isSpectator) {
+        // Beendete Partie: bootGame hat bereits den Sieg-/Niederlage-Screen
+        // aufgelegt, und DER trägt seit Sept 2026 den Rückblick-Knopf. Das
+        // rote Banner wäre hier eine zweite, halb verdeckte Ansage derselben
+        // Sache (es liegt mit z-index 150 unter dem Screen) — es bleibt dem
+        // Fall vorbehalten, für den es gedacht war: ausgeschieden, während die
+        // Partie ohne einen weiterläuft. Der frühere isNonWinningEnd-Zweig
+        // (Erschließungs-/Team-Sieg-Verlierer, nie "eliminated") ist damit
+        // abgedeckt — der Endscreen fragt selbst, ob man unter den Siegern war.
+        if (isFinished) {
+            _setReadOnly(true, true);
+            if (isSpectator) _activateSpectatorMode(true);
+        } else if (isSpectator) {
             _activateSpectatorMode();
             document.getElementById('defeat-banner-title').textContent = 'Du wurdest besiegt';
             document.getElementById('defeat-banner-sub').textContent = 'Der Rückblick-Knopf oben zeigt, wie es dazu kam. Danach kannst du zurückgehen.';
-            document.getElementById('defeat-banner').style.display = 'flex';
-        } else if (isNonWinningEnd) {
-            _setReadOnly(true);
-            document.getElementById('defeat-banner-title').textContent = 'Das Spiel ist vorbei';
-            document.getElementById('defeat-banner-sub').textContent = 'Du warst nicht unter den Siegern. Der Rückblick-Knopf oben zeigt, was zuletzt geschah.';
             document.getElementById('defeat-banner').style.display = 'flex';
         } else if (currentTurnSlot !== currentUserSlot) {
             _setReadOnly(true);
@@ -479,7 +479,11 @@ async function openGame(gameId) {
     }
 }
 
-function _activateSpectatorMode() {
+// `quiet`: bei einer beendeten Partie liegt der Endscreen darüber — ein Toast
+// und eine Kamerafahrt hinter einem Vollbild-Screen sind nur Lärm. Die
+// Vollsicht selbst wird trotzdem gesetzt, damit die Endstellung vollständig
+// dasteht, sobald man den Screen für den Rückblick beiseiteräumt.
+function _activateSpectatorMode(quiet) {
     if (gameState?.p?.[gameState.cp]) {
         const all = [];
         for (let y = 0; y < gameState.bh; y++)
@@ -487,16 +491,17 @@ function _activateSpectatorMode() {
                 all.push(y * gameState.bw + x);
         gameState.p[gameState.cp].e = all;
     }
-    _setReadOnly(true);
+    _setReadOnly(true, quiet);
+    if (quiet) return;
     renderBoard(gameState);
     showToast('Zuschauer-Modus – komplette Karte sichtbar');
 }
 
-function _setReadOnly(readonly) {
+function _setReadOnly(readonly, quiet) {
     endTurnBtn.disabled = readonly;
     const sb = document.getElementById('menu-surrender-item');
     if (sb) sb.style.display = readonly ? 'none' : '';
-    if (readonly && !isSpectator) {
+    if (readonly && !isSpectator && !quiet) {
         const actualPlayer = (currentTurnSlot !== null && currentTurnSlot !== undefined) ? gameState?.p?.[currentTurnSlot] : null;
         showToast(actualPlayer ? `Warte auf ${actualPlayer.n}s Zug...` : 'Warte auf deinen Zug...');
     }

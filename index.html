@@ -257,7 +257,7 @@
         <div class="recap-head">
             <span class="recap-title"><svg class="ic ic-14">
                     <use href="#i-hourglass"></use>
-                </svg> Seit deinem letzten Zug</span>
+                </svg> <span id="recap-title-text">Seit deinem letzten Zug</span></span>
             <!-- Liste ein-/ausklappen. Auf dem Handy verdeckt die volle Liste das
                  halbe Spielfeld — eingeklappt bleibt nur die gerade gewählte Zeile
                  stehen und man sieht, worauf die Kamera springt (js/recap.js). -->
@@ -424,10 +424,15 @@
         </svg>
         <!-- Ohne Ausrufezeichen: in MedievalSharp ist das "!" ein senkrechter
              Strich und "SIEG!" liest sich als "SIEGI". -->
-        <h1 class="win-title">SIEG</h1>
+        <h1 class="win-title" id="win-title">SIEG</h1>
         <p id="win-msg" class="win-msg"></p>
         <!-- Endstand-Leiste, gefüllt in showWin (js/diplomacy.js) -->
         <div id="win-stats" class="win-stats" style="display:none;"></div>
+        <!-- Rückblick auf das Spielende (js/diplomacy.js showEndRecap): räumt
+             diesen Screen beiseite und zeigt die Endstellung mit dem
+             Rückblick-Panel. Sichtbarkeit setzt showWin. -->
+        <button class="action-btn secondary" id="win-recap-btn" style="display:none;"
+            onclick="showEndRecap()">Rückblick ansehen</button>
         <button class="action-btn primary"
             onclick="showHomeScreen ? showHomeScreen() : (window.location.href=window.location.href.split('?')[0])">Zur
             Spielübersicht</button>

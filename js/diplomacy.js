@@ -17,6 +17,33 @@ function showWin(msg, winners) {
     gameHud.style.display = 'none';
     document.getElementById('win-msg').innerText = msg;
 
+    // "SIEG" stand bis Sept 2026 auch dem Verlierer im Gesicht — der Screen
+    // kannte nur eine Anrede. Wer vor dem Gerät sitzt, weiß nur der Server-Modus
+    // (currentUserSlot); im Hotseat/Legacy-Modus schaut immer der gerade
+    // Ziehende zu, dort bleibt es beim Sieg-Screen.
+    const mySlot = (typeof currentUserSlot === 'number' && gameState.p[currentUserSlot]) ? currentUserSlot : -1;
+    const iWon = mySlot < 0 || (winners || []).indexOf(gameState.p[mySlot]) !== -1;
+    const titleEl = document.getElementById('win-title');
+    if (titleEl) titleEl.textContent = iWon ? 'SIEG' : 'NIEDERLAGE';
+    const crownEl = document.querySelector('.win-crown use');
+    if (crownEl) crownEl.setAttribute('href', iWon ? '#i-crown' : '#i-skull');
+    winScreen.classList.toggle('is-defeat', !iWon);
+
+    // Rückblick-Knopf, aber nur auf dem Weg über bootGame (window.gameFinished):
+    // dort ist prepareRecap() direkt vorher gelaufen, die Gruppen stehen also
+    // passend zum Endstand. Der zweite Weg hierher ist der Sieg MITTEN im
+    // eigenen Zug (doEndTurn, js/input.js) — da ist der Log gerade erst
+    // geschrieben und die Sichtfelder sind fürs Serialisieren schon komprimiert;
+    // ein Rückblick daraus wäre bestenfalls der vom Zugbeginn. Wer ihn will,
+    // öffnet die beendete Partie noch einmal aus der Liste. Nichts zu berichten
+    // -> kein Knopf, statt ein leeres Panel anzubieten.
+    const recapBtn = document.getElementById('win-recap-btn');
+    if (recapBtn) {
+        const n = window.recapEventCount ? window.recapEventCount() : 0;
+        recapBtn.style.display = (window.gameFinished && n > 0) ? '' : 'none';
+        recapBtn.textContent = `Rückblick ansehen (${n})`;
+    }
+
     const statsEl = document.getElementById('win-stats');
     if (statsEl) {
         const ids = (winners || []).map(p => gameState.p.indexOf(p)).filter(i => i >= 0);
@@ -38,6 +65,27 @@ function showWin(msg, winners) {
 
     winScreen.style.display = 'flex';
 }
+
+// Sieg-/Endscreen beiseiteräumen und die Endstellung mit dem Rückblick zeigen.
+// Gegenstück zu showWin: dieselben vier Anzeigen wieder an, aber ohne
+// Interaktion (der Zug-beenden-Knopf bleibt aus, Aufgeben verschwindet aus dem
+// Menü — das Spiel ist vorbei). Zurück ins Hauptmenü kommt man über das
+// Spielmenü, der Rückblick selbst über den HUD-Knopf.
+function showEndRecap() {
+    winScreen.style.display = 'none';
+    canvasWrapper.style.display = 'block';
+    document.body.classList.add('in-game');
+    uiContainer.style.display = 'flex';
+    gameHud.style.display = 'flex';
+    endTurnBtn.disabled = true;
+    const surrenderItem = document.getElementById('menu-surrender-item');
+    if (surrenderItem) surrenderItem.style.display = 'none';
+    Renderer.resize();
+    focusCamera();
+    renderBoard(gameState);
+    if (window.openRecap) openRecap();
+}
+window.showEndRecap = showEndRecap;
 
 // Server mode: only the active player may act — everyone else is read-only/spectator (see handleCanvasClick).
 function isMyActiveTurn() {
