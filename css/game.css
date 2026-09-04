@@ -3161,6 +3161,44 @@ body.app-view .screen-box {
        zu blass machen. */
 }
 
+/* Offene Einladung (Sept 2026): die Karte hebt sich ab, solange sie eine
+   Entscheidung von mir verlangt — sonst geht sie zwischen den laufenden Partien
+   unter und der Host wartet auf eine Zusage, die niemand gesehen hat. */
+.invite-badge {
+    background: var(--gold-dk);
+    color: var(--gold);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: inset 1px 1px 0 #9c6a08, inset -1px -1px 0 #3d2802;
+}
+
+.game-card-invite {
+    border-color: var(--gold-mid);
+}
+
+.game-accept-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px 6px;
+    color: var(--green);
+    flex-shrink: 0;
+}
+
+.game-accept-btn:hover {
+    background: #12300f;
+}
+
+.lobby-invite-hint {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.35;
+    color: var(--text-dim);
+    text-align: left;
+}
+
 .game-delete-btn {
     background: transparent;
     border: none;

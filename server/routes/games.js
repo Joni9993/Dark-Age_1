@@ -31,7 +31,7 @@ async function getGamePlayers(gameId) {
         // profile_id mit ausgeliefert (Aug 2026, Lobby-Kick) — der Client
         // braucht ihn als Ziel für POST :id/kick, vorher war der Slot die
         // einzige clientseitige Kennung eines Lobby-Spielers.
-        `SELECT gp.slot, gp.eliminated, p.id AS profile_id, p.username
+        `SELECT gp.slot, gp.eliminated, gp.invite_status, p.id AS profile_id, p.username
          FROM game_players gp JOIN profiles p ON p.id = gp.profile_id
          WHERE gp.game_id = $1 ORDER BY gp.slot`, [gameId]
     );
@@ -63,7 +63,7 @@ async function renumberLobbySlots(client, gameId) {
 // ── GET /api/games  — my game list ───────────────────────────────────────────
 router.get('/', authMiddleware, async (req, res) => {
     const { rows } = await pool.query(
-        `SELECT gp.slot, gp.eliminated,
+        `SELECT gp.slot, gp.eliminated, gp.invite_status,
                 g.id, g.name, g.status, g.current_slot, g.max_players, g.updated_at, g.ranked,
                 cp.username AS current_player_username
          FROM game_players gp
@@ -126,12 +126,16 @@ router.get('/:id', authMiddleware, async (req, res) => {
     const me = players.find(p => false); // will fetch separately
 
     const { rows: [myRow] } = await pool.query(
-        'SELECT slot, eliminated FROM game_players WHERE game_id = $1 AND profile_id = $2',
+        'SELECT slot, eliminated, invite_status FROM game_players WHERE game_id = $1 AND profile_id = $2',
         [req.params.id, req.profileId]
     );
     if (!myRow) return res.status(403).json({ error: 'Kein Zugriff' });
 
-    res.json({ ...game, players, my_slot: myRow.slot, my_eliminated: myRow.eliminated });
+    res.json({
+        ...game, players,
+        my_slot: myRow.slot, my_eliminated: myRow.eliminated,
+        my_invite_status: myRow.invite_status
+    });
 });
 
 // ── POST /api/games/:id/start  — host starts game ────────────────────────────
@@ -156,13 +160,43 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
         await client.query('BEGIN');
 
         const { rows: [game] } = await client.query(
-            `SELECT id FROM games
+            `SELECT id, ranked, team_mode FROM games
               WHERE id = $1 AND host_id = $2 AND status = 'lobby' FOR UPDATE`,
             [req.params.id, req.profileId]
         );
         if (!game) {
             await client.query('ROLLBACK');
             return res.status(403).json({ error: 'Nicht der Host oder Spiel nicht in Lobby' });
+        }
+
+        // Zusage-Pflicht, aber NUR für gewertete Partien (Sept 2026): dort
+        // kostet ein erzwungenes Aufgeben je nach RD zweistellig bis dreistellig
+        // Rating-Punkte (server/rating.js wertet left_game als Niederlage gegen
+        // alle), das darf niemand ohne Zustimmung aufgedrückt bekommen. In einer
+        // normalen Partie wäre dieselbe Wartepflicht nur Reibung ohne Gegenwert —
+        // dort gilt eine offene Einladung mit dem Start als angenommen, wie
+        // bisher. Die Prüfung liegt in derselben Transaktion wie der Start
+        // (games-Zeile FOR UPDATE), sonst könnte eine Zusage/Absage dazwischen
+        // rutschen.
+        const { rows: [{ pending }] } = await client.query(
+            `SELECT COUNT(*)::int AS pending FROM game_players
+              WHERE game_id = $1 AND invite_status = 'pending'`,
+            [req.params.id]
+        );
+        if (game.ranked && pending > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                error: pending === 1
+                    ? 'Ein eingeladener Spieler hat noch nicht zugesagt'
+                    : `${pending} eingeladene Spieler haben noch nicht zugesagt`
+            });
+        }
+        if (pending > 0) {
+            await client.query(
+                `UPDATE game_players SET invite_status = 'accepted'
+                  WHERE game_id = $1 AND invite_status = 'pending'`,
+                [req.params.id]
+            );
         }
 
         const { rows: seats } = await client.query(
@@ -172,6 +206,23 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
              ORDER BY gp.slot FOR UPDATE OF gp`,
             [req.params.id]
         );
+
+        // Team-Modus muss zur tatsächlichen Spielerzahl passen (Sept 2026).
+        // buildInitialGameState (js/mapgen.js) überspringt die Team-Zuweisung
+        // still, wenn count nicht durch die Teamgröße teilbar ist — aus einem
+        // 3v3 würde dann ohne jede Meldung ein Jeder-gegen-jeden, und
+        // server/rating.js wertet es auch so (`state.at === 1` fehlt). Erreichbar
+        // war das schon über Kick und Verlassen; seit man eine Einladung
+        // ablehnen kann, ist es der Normalfall statt der Ausnahme, deshalb
+        // steht die Prüfung jetzt hier — auf der Serverseite, weil nur sie
+        // beim Start die endgültige Belegung kennt.
+        const teamSize = game.team_mode === 'teams2' ? 2 : game.team_mode === 'teams3' ? 3 : 0;
+        if (teamSize > 0 && (seats.length % teamSize !== 0 || seats.length / teamSize < 2)) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                error: `Feste ${teamSize}er-Teams brauchen eine durch ${teamSize} teilbare Spielerzahl (mindestens ${teamSize * 2}) — aktuell sind es ${seats.length}`
+            });
+        }
 
         if (seats.length > 1) {
             const { blob, assignments } = shuffleSeats(seats, state_blob);
@@ -583,7 +634,7 @@ router.post('/:id/invite', authMiddleware, async (req, res) => {
     if (!username) return res.status(400).json({ error: 'Kein Name angegeben' });
 
     const { rows: [game] } = await pool.query(
-        'SELECT name, max_players, status FROM games WHERE id = $1 AND host_id = $2',
+        'SELECT name, max_players, status, ranked FROM games WHERE id = $1 AND host_id = $2',
         [req.params.id, req.profileId]
     );
     if (!game) return res.status(403).json({ error: 'Nicht der Host' });
@@ -606,16 +657,95 @@ router.post('/:id/invite', authMiddleware, async (req, res) => {
     );
     if (next_slot >= game.max_players) return res.status(400).json({ error: 'Lobby ist voll' });
 
+    // 'pending' statt sofort vollwertiger Mitspieler (Sept 2026): der
+    // Eingeladene entscheidet selbst (POST :id/invite/respond). Bei einer
+    // Ranked-Partie kann der Host erst starten, wenn alle zugesagt haben —
+    // siehe die Prüfung in POST :id/start. Der Beitritt über den
+    // Einladungslink bleibt 'accepted' (Default): wer den Link selbst
+    // anklickt, hat damit bereits zugesagt.
     await pool.query(
-        'INSERT INTO game_players (game_id, slot, profile_id) VALUES ($1, $2, $3)',
+        `INSERT INTO game_players (game_id, slot, profile_id, invite_status)
+         VALUES ($1, $2, $3, 'pending')`,
         [req.params.id, next_slot, friend.id]
     );
 
     // Push notification to invited player (non-blocking)
     const url = `${process.env.APP_URL}?game=${req.params.id}`;
-    notifyPlayer(friend.id, 'Dark Ages', `Du wurdest zu "${game.name}" eingeladen!`, url).catch(() => {});
+    const kind = game.ranked ? 'Ranked-Partie' : 'Partie';
+    notifyPlayer(friend.id, 'Dark Ages', `Einladung zur ${kind} "${game.name}" — annehmen oder ablehnen?`, url).catch(() => {});
 
     res.json({ ok: true });
+});
+
+// ── POST /api/games/:id/invite/respond  — eingeladener Spieler sagt zu/ab ────
+// Gegenstück zu POST :id/invite. Zusagen setzt nur das Feld; ABLEHNEN löscht die
+// Zeile und nummeriert die Slots neu — genau wie Kick und freiwilliges
+// Verlassen. Einen Zustand 'declined' stehen zu lassen wäre teurer als er nützt:
+// der Slot bliebe belegt (join/invite rechnen mit MAX(slot)+1), es bräuchte eine
+// eigene Aufräumregel, und die Auskunft "hat abgelehnt" bekommt der Host über
+// den Push ohnehin.
+router.post('/:id/invite/respond', authMiddleware, async (req, res) => {
+    const accept = req.body.accept === true;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const { rows: [game] } = await client.query(
+            `SELECT id, host_id, name, ranked FROM games WHERE id = $1 AND status = 'lobby' FOR UPDATE`,
+            [req.params.id]
+        );
+        if (!game) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Spiel nicht in Lobby' });
+        }
+
+        // Der Host lehnt seine eigene Lobby nicht ab — das hinterließe eine
+        // Lobby ohne Host (gleiche Begründung wie bei Kick und Leave); zum
+        // Auflösen gibt es DELETE :id.
+        if (game.host_id === req.profileId) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Der Host kann die Lobby nicht verlassen — stattdessen löschen' });
+        }
+
+        const { rows: [me] } = await client.query(
+            'SELECT invite_status FROM game_players WHERE game_id = $1 AND profile_id = $2',
+            [req.params.id, req.profileId]
+        );
+        if (!me) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ error: 'Nicht eingeladen' });
+        }
+        // Doppeltes Zusagen ist harmlos (zwei Geräte, doppelter Tap); ein
+        // Ablehnen NACH dem Zusagen ist es auch — das ist dann schlicht ein
+        // Verlassen der Lobby, wofür POST :id/leave dieselbe Wirkung hat.
+        if (accept) {
+            await client.query(
+                `UPDATE game_players SET invite_status = 'accepted'
+                  WHERE game_id = $1 AND profile_id = $2`,
+                [req.params.id, req.profileId]
+            );
+            await client.query('COMMIT');
+            return res.json({ ok: true, accepted: true });
+        }
+
+        await client.query(
+            'DELETE FROM game_players WHERE game_id = $1 AND profile_id = $2',
+            [req.params.id, req.profileId]
+        );
+        await renumberLobbySlots(client, req.params.id);
+        await client.query('COMMIT');
+
+        const { rows: [who] } = await pool.query('SELECT username FROM profiles WHERE id = $1', [req.profileId]);
+        notifyPlayer(game.host_id, 'Dark Ages',
+            `${who ? who.username : 'Ein Spieler'} hat die Einladung zu "${game.name}" abgelehnt.`,
+            process.env.APP_URL).catch(() => {});
+        res.json({ ok: true, accepted: false });
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Einladungs-Antwort fehlgeschlagen', req.params.id, err);
+        res.status(500).json({ error: 'Antwort fehlgeschlagen' });
+    } finally {
+        client.release();
+    }
 });
 
 module.exports = router;
