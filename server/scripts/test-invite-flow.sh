@@ -56,12 +56,22 @@ chk "der Host selbst gilt als zugesagt" \
 chk "Start wird abgewiesen, solange die Zusage fehlt" "$(start $HOST $G)" "409"
 chk "und das Spiel ist danach unverändert Lobby" "$(game $HOST $G | jq -r .status)" "lobby"
 
-echo; echo "=== (2) Nach der Zusage startet es ==="
-respond $GUEST $G true > /dev/null
+echo; echo "=== (2) Die letzte Zusage startet die volle Lobby von selbst ==="
+# Auto-Start (Sept 2026): der Host muss nicht mehr danebensitzen und drücken —
+# der Anfangszustand entsteht serverseitig (server/mapgen.js).
+ACC=$(respond $GUEST $G true)
+chk "die Antwort meldet den Start" "$(echo "$ACC" | jq -r .started)" "true"
 chk "der Zustand steht auf angenommen" \
     "$(mylist $GUEST | jq -r ".[] | select(.id==\"$G\") | .invite_status")" "accepted"
-chk "Start geht durch" "$(start $HOST $G)" "200"
-chk "Spiel läuft" "$(game $HOST $G | jq -r .status)" "active"
+chk "Spiel läuft, ohne dass jemand gestartet hat" "$(game $HOST $G | jq -r .status)" "active"
+chk "und der Startzustand trägt beide Spieler" \
+    "$(game $HOST $G | jq -r .state_blob | (cd "$SERVER_DIR" && node -e "
+        const L=require('lz-string');let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{
+        const s=JSON.parse(L.decompressFromEncodedURIComponent(d.trim()));
+        console.log(s.p.map(x=>x.n).sort().join(',')
+          +'|karte:'+(Object.keys(s.v).length>0 && s.u.length===2 && s.rad===7));})"))" \
+    "guestuser,hostuser|karte:true"
+chk "ein nachträglicher Startversuch läuft ins Leere" "$(start $HOST $G)" "403"
 
 echo; echo "=== (3) Ablehnen: raus aus der Lobby, Slot wieder frei ==="
 G2=$(mkgame $HOST true)
@@ -89,13 +99,18 @@ chk "die offene Einladung gilt damit als angenommen" \
     "$(mylist $GUEST | jq -r ".[] | select(.id==\"$G3\") | .invite_status")" "accepted"
 
 echo; echo "=== (5) Grenzfälle ==="
-G4=$(mkgame $HOST true)
+# Bewusst eine Lobby mit freiem Platz (3 Plätze, 2 Leute): eine volle Lobby
+# würde bei der Zusage sofort starten und die folgenden Prüfungen liefen dann
+# gegen ein laufendes Spiel statt gegen eine Lobby.
+G4=$(C -X POST $API/games -H 'Content-Type: application/json' -H "Authorization: Bearer $HOST" \
+       -d '{"max_players":3,"map_radius":7,"team_mode":"ffa","name":"Halbvoll","ranked":true}' | jq -r .id)
 invite $HOST $G4 guestuser > /dev/null
 chk "der Host kann seine eigene Lobby nicht ablehnen" \
     "$(respond $HOST $G4 false | jq -r .error)" "Der Host kann die Lobby nicht verlassen — stattdessen löschen"
 chk "ein Unbeteiligter hat kein Mitspracherecht" \
     "$(respond $THIRD $G4 true | jq -r .error)" "Nicht eingeladen"
-respond $GUEST $G4 true > /dev/null
+chk "eine Zusage in einer noch nicht vollen Lobby startet nichts" \
+    "$(respond $GUEST $G4 true | jq -r .started)" "false"
 chk "doppeltes Zusagen bleibt folgenlos" "$(respond $GUEST $G4 true | jq -r .accepted)" "true"
 G5=$(mkgame $HOST true)
 C -X POST $API/games/lobby/$(game $HOST $G5 | jq -r .invite_token)/join -H "Authorization: Bearer $THIRD" > /dev/null
@@ -172,9 +187,14 @@ GT=$(C -X POST $API/games -H 'Content-Type: application/json' -H "Authorization:
        -d '{"max_players":6,"map_radius":12,"team_mode":"teams3","name":"Dreier","ranked":true}' | jq -r .id)
 for n in p2 p3 p4 p5 p6; do invite $HOST $GT $n > /dev/null; done
 for n in p2 p3 p4 p5 p6; do eval "respond \$T_$n $GT true" > /dev/null; done
-chk "die volle Sechser-Lobby startet als 3v3" \
-    "$(C -o /dev/null -w '%{http_code}' -X POST $API/games/$GT/start -H 'Content-Type: application/json' \
-        -H "Authorization: Bearer $HOST" -d "$(jq -nc --arg b "$BLOB6" '{seed:1,state_blob:$b}')")" "200"
+chk "die volle Sechser-Lobby startet mit der letzten Zusage von selbst" \
+    "$(game $HOST $GT | jq -r .status)" "active"
+chk "und zwar wirklich als 3v3, nicht als Jeder-gegen-jeden" \
+    "$(game $HOST $GT | jq -r .state_blob | (cd "$SERVER_DIR" && node -e "
+        const L=require('lz-string');let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{
+        const s=JSON.parse(L.decompressFromEncodedURIComponent(d.trim()));
+        console.log('at='+s.at+' teamgroessen='+s.p.map(x=>(x.al||[]).length+1).join(','));})"))" \
+    "at=1 teamgroessen=3,3,3,3,3,3"
 
 GT2=$(C -X POST $API/games -H 'Content-Type: application/json' -H "Authorization: Bearer $HOST" \
         -d '{"max_players":6,"map_radius":12,"team_mode":"teams3","name":"Dreier2","ranked":true}' | jq -r .id)
@@ -187,6 +207,28 @@ chk "und der Start wird abgewiesen statt still zum FFA zu werden" \
         -d "$(jq -nc --arg b "$BLOB5" '{seed:1,state_blob:$b}')" | jq -r .error)" \
     "Feste 3er-Teams brauchen eine durch 3 teilbare Spielerzahl (mindestens 6) — aktuell sind es 5"
 chk "das Spiel bleibt Lobby" "$(game $HOST $GT2 | jq -r .status)" "lobby"
+
+echo; echo "=== (8) Auto-Start: was ihn NICHT auslösen darf ==="
+# Der Beitritt über den Einladungslink war schon immer Sache des Hosts, was den
+# Start angeht — die Automatik beantwortet nur die Frage, die sie selbst
+# gestellt hat (die Einladung).
+G8=$(mkgame $HOST true)
+C -X POST $API/games/lobby/$(game $HOST $G8 | jq -r .invite_token)/join -H "Authorization: Bearer $GUEST" > /dev/null
+chk "die Lobby ist voll" "$(game $HOST $G8 | jq -r '.players | length')" "2"
+chk "ein Link-Beitritt startet trotzdem nichts" "$(game $HOST $G8 | jq -r .status)" "lobby"
+chk "der Host startet sie von Hand" "$(start $HOST $G8)" "200"
+
+# Eine unvollständige Lobby wartet weiter, auch wenn niemand mehr offen ist:
+# solange ein Platz frei ist, will der Host womöglich noch jemanden einladen.
+G9=$(C -X POST $API/games -H 'Content-Type: application/json' -H "Authorization: Bearer $HOST" \
+       -d '{"max_players":4,"map_radius":7,"team_mode":"ffa","name":"Dreiviertel","ranked":true}' | jq -r .id)
+invite $HOST $G9 p2 > /dev/null
+invite $HOST $G9 p4 > /dev/null
+respond $T_p2 $G9 true > /dev/null
+chk "auch die letzte offene Zusage startet nichts, solange ein Platz frei ist" \
+    "$(respond $T_p4 $G9 true | jq -r .started)" "false"
+chk "die Lobby bleibt Lobby" "$(game $HOST $G9 | jq -r .status)" "lobby"
+chk "der Host kann sie unvollständig von Hand starten" "$(start $HOST $G9)" "200"
 
 echo
 [ $fail -eq 0 ] && echo "Alle Prüfungen bestanden." || { echo "FEHLER"; exit 1; }

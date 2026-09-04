@@ -4,6 +4,7 @@ const { authMiddleware } = require('../auth');
 const { notifyPlayer } = require('../push');
 const { rateFinishedGame } = require('../rating');
 const { shuffleSeats } = require('../seating');
+const { buildStartState } = require('../mapgen');
 const LZString = require('lz-string');
 
 // Apply server-side eliminations to a parsed state object.
@@ -138,6 +139,68 @@ router.get('/:id', authMiddleware, async (req, res) => {
     });
 });
 
+// Der eigentliche Spielstart, gemeinsam genutzt von POST /:id/start (Host
+// drückt) und tryAutoStart (letzte Zusage trifft ein, Sept 2026). Erwartet eine
+// laufende Transaktion, in der die games-Zeile bereits FOR UPDATE gesperrt und
+// als Lobby bestätigt ist. Gibt { ok, error?, seats } zurück; der Aufrufer
+// entscheidet über COMMIT/ROLLBACK und die Antwort.
+async function finalizeStart(client, gameId, teamMode, seed, stateBlob) {
+    const { rows: seats } = await client.query(
+        `SELECT gp.slot, gp.profile_id, p.username
+         FROM game_players gp JOIN profiles p ON p.id = gp.profile_id
+         WHERE gp.game_id = $1 AND gp.profile_id IS NOT NULL
+         ORDER BY gp.slot FOR UPDATE OF gp`,
+        [gameId]
+    );
+
+    // Team-Modus muss zur tatsächlichen Spielerzahl passen (Sept 2026).
+    // buildInitialGameState (js/mapgen.js) überspringt die Team-Zuweisung
+    // still, wenn count nicht durch die Teamgröße teilbar ist — aus einem
+    // 3v3 würde dann ohne jede Meldung ein Jeder-gegen-jeden, und
+    // server/rating.js wertet es auch so (`state.at === 1` fehlt). Erreichbar
+    // war das schon über Kick und Verlassen; seit man eine Einladung ablehnen
+    // kann, ist es der Normalfall statt der Ausnahme, deshalb steht die
+    // Prüfung hier — auf der Serverseite, weil nur sie beim Start die
+    // endgültige Belegung kennt.
+    const teamSize = teamMode === 'teams2' ? 2 : teamMode === 'teams3' ? 3 : 0;
+    if (teamSize > 0 && (seats.length % teamSize !== 0 || seats.length / teamSize < 2)) {
+        return { ok: false, seats, error: `Feste ${teamSize}er-Teams brauchen eine durch ${teamSize} teilbare Spielerzahl (mindestens ${teamSize * 2}) — aktuell sind es ${seats.length}` };
+    }
+
+    let finalBlob = stateBlob;
+    // Wer nach dem Mischen auf Slot 0 sitzt, also zuerst am Zug ist — die
+    // Einträge in `seats` tragen noch die ALTE Belegung, ihr .slot taugt dafür
+    // nicht (der Auto-Start schickt genau diesem Spieler ein "du bist dran").
+    let firstProfileId = seats.length ? seats[0].profile_id : null;
+    if (seats.length > 1) {
+        const { blob, assignments } = shuffleSeats(seats, stateBlob);
+        finalBlob = blob;
+        const first = assignments.find(a => a.slot === 0);
+        if (first) firstProfileId = first.profile_id;
+
+        // Slots umschreiben. Erst aus dem PK-Bereich schieben, sonst kollidiert
+        // PRIMARY KEY (game_id, slot) mitten in der Permutation.
+        const ids = seats.map(s => s.profile_id);
+        await client.query(
+            'UPDATE game_players SET slot = -slot - 1 WHERE game_id = $1 AND profile_id = ANY($2)',
+            [gameId, ids]
+        );
+        for (const a of assignments) {
+            await client.query(
+                'UPDATE game_players SET slot = $1 WHERE game_id = $2 AND profile_id = $3',
+                [a.slot, gameId, a.profile_id]
+            );
+        }
+    }
+
+    await client.query(
+        `UPDATE games SET status = 'active', seed = $1, state_blob = $2,
+         current_slot = 0, round = 1, updated_at = NOW() WHERE id = $3`,
+        [seed, finalBlob, gameId]
+    );
+    return { ok: true, seats, firstProfileId };
+}
+
 // ── POST /api/games/:id/start  — host starts game ────────────────────────────
 router.post('/:id/start', authMiddleware, async (req, res) => {
     const { seed, state_blob } = req.body;
@@ -155,7 +218,6 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
     // der games-Zeile): zwei gleichzeitige Start-Klicks würden sonst beide
     // durchlaufen und die Sitzplätze zweimal permutieren.
     const client = await pool.connect();
-    let finalBlob = state_blob;
     try {
         await client.query('BEGIN');
 
@@ -199,55 +261,12 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
             );
         }
 
-        const { rows: seats } = await client.query(
-            `SELECT gp.slot, gp.profile_id, p.username
-             FROM game_players gp JOIN profiles p ON p.id = gp.profile_id
-             WHERE gp.game_id = $1 AND gp.profile_id IS NOT NULL
-             ORDER BY gp.slot FOR UPDATE OF gp`,
-            [req.params.id]
-        );
-
-        // Team-Modus muss zur tatsächlichen Spielerzahl passen (Sept 2026).
-        // buildInitialGameState (js/mapgen.js) überspringt die Team-Zuweisung
-        // still, wenn count nicht durch die Teamgröße teilbar ist — aus einem
-        // 3v3 würde dann ohne jede Meldung ein Jeder-gegen-jeden, und
-        // server/rating.js wertet es auch so (`state.at === 1` fehlt). Erreichbar
-        // war das schon über Kick und Verlassen; seit man eine Einladung
-        // ablehnen kann, ist es der Normalfall statt der Ausnahme, deshalb
-        // steht die Prüfung jetzt hier — auf der Serverseite, weil nur sie
-        // beim Start die endgültige Belegung kennt.
-        const teamSize = game.team_mode === 'teams2' ? 2 : game.team_mode === 'teams3' ? 3 : 0;
-        if (teamSize > 0 && (seats.length % teamSize !== 0 || seats.length / teamSize < 2)) {
+        const started = await finalizeStart(client, req.params.id, game.team_mode, seed, state_blob);
+        if (!started.ok) {
             await client.query('ROLLBACK');
-            return res.status(409).json({
-                error: `Feste ${teamSize}er-Teams brauchen eine durch ${teamSize} teilbare Spielerzahl (mindestens ${teamSize * 2}) — aktuell sind es ${seats.length}`
-            });
+            return res.status(409).json({ error: started.error });
         }
 
-        if (seats.length > 1) {
-            const { blob, assignments } = shuffleSeats(seats, state_blob);
-            finalBlob = blob;
-
-            // Slots umschreiben. Erst aus dem PK-Bereich schieben, sonst kollidiert
-            // PRIMARY KEY (game_id, slot) mitten in der Permutation.
-            const ids = seats.map(s => s.profile_id);
-            await client.query(
-                'UPDATE game_players SET slot = -slot - 1 WHERE game_id = $1 AND profile_id = ANY($2)',
-                [req.params.id, ids]
-            );
-            for (const a of assignments) {
-                await client.query(
-                    'UPDATE game_players SET slot = $1 WHERE game_id = $2 AND profile_id = $3',
-                    [a.slot, req.params.id, a.profile_id]
-                );
-            }
-        }
-
-        await client.query(
-            `UPDATE games SET status = 'active', seed = $1, state_blob = $2,
-             current_slot = 0, round = 1, updated_at = NOW() WHERE id = $3`,
-            [seed, finalBlob, req.params.id]
-        );
         await client.query('COMMIT');
     } catch (err) {
         await client.query('ROLLBACK').catch(() => {});
@@ -677,6 +696,77 @@ router.post('/:id/invite', authMiddleware, async (req, res) => {
     res.json({ ok: true });
 });
 
+// Startet die Lobby von selbst, sobald der letzte Eingeladene zugesagt hat
+// (Sept 2026, Jonathans Wunsch). Bedingungen bewusst eng:
+//
+//   · **voll** — solange ein Platz frei ist, will der Host womöglich noch
+//     jemanden einladen; "alle da und alle einverstanden" ist das einzige
+//     Signal, bei dem nichts mehr zu entscheiden bleibt.
+//   · **keine offene Zusage mehr** — auch in einer normalen Partie, obwohl der
+//     Host dort manuell jederzeit starten dürfte. Von selbst loszulaufen,
+//     während noch jemand gefragt ist, wäre etwas anderes als das, was er
+//     zugesagt bekommen hat.
+//   · **nur aus dem Zusage-Pfad heraus** — ein Beitritt über den Einladungslink
+//     löst das NICHT aus. Dort war der Start bisher die Sache des Hosts, und
+//     das bleibt so; die Automatik antwortet nur auf die Frage, die sie selbst
+//     gestellt hat.
+//
+// Der Anfangszustand entsteht dabei serverseitig (server/mapgen.js lädt den
+// echten js/mapgen.js) — sonst könnte die Partie nur starten, während der Host
+// die App offen hat, und genau das soll die Automatik ja ersparen.
+// Fehler werden geschluckt und geloggt: die Zusage selbst ist zu diesem
+// Zeitpunkt bereits committet und darf nicht daran scheitern, dass der
+// Auto-Start nicht klappt — der Host kann dann von Hand starten.
+async function tryAutoStart(gameId) {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const { rows: [game] } = await client.query(
+            `SELECT id, name, max_players, map_radius, team_mode
+               FROM games WHERE id = $1 AND status = 'lobby' FOR UPDATE`,
+            [gameId]
+        );
+        if (!game) { await client.query('ROLLBACK'); return null; }
+
+        const { rows: [counts] } = await client.query(
+            `SELECT COUNT(*)::int AS total,
+                    COUNT(*) FILTER (WHERE invite_status = 'pending')::int AS pending
+               FROM game_players WHERE game_id = $1`,
+            [gameId]
+        );
+        if (counts.pending > 0 || counts.total < game.max_players || counts.total < 2) {
+            await client.query('ROLLBACK');
+            return null;
+        }
+
+        // Namen in Slot-Reihenfolge — dieselbe Reihenfolge, in der auch
+        // handleStartGame (js/lobby.js) den Zustand baut. Gemischt wird danach
+        // ohnehin in finalizeStart.
+        const { rows: names } = await client.query(
+            `SELECT p.username FROM game_players gp JOIN profiles p ON p.id = gp.profile_id
+              WHERE gp.game_id = $1 AND gp.profile_id IS NOT NULL ORDER BY gp.slot`,
+            [gameId]
+        );
+        const { seed, blob } = buildStartState(names.map(n => n.username), game.map_radius, game.team_mode);
+
+        const started = await finalizeStart(client, gameId, game.team_mode, seed, blob);
+        if (!started.ok) {
+            // Teamgröße passt nicht — kein Fehler, nur kein Auto-Start. Der
+            // Host sieht den Grund an seinem Startknopf.
+            await client.query('ROLLBACK');
+            return null;
+        }
+        await client.query('COMMIT');
+        return { game, seats: started.seats, firstProfileId: started.firstProfileId };
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Auto-Start fehlgeschlagen', gameId, err);
+        return null;
+    } finally {
+        client.release();
+    }
+}
+
 // ── POST /api/games/:id/invite/respond  — eingeladener Spieler sagt zu/ab ────
 // Gegenstück zu POST :id/invite. Zusagen setzt nur das Feld; ABLEHNEN löscht die
 // Zeile und nummeriert die Slots neu — genau wie Kick und freiwilliges
@@ -724,7 +814,36 @@ router.post('/:id/invite/respond', authMiddleware, async (req, res) => {
                 [req.params.id, req.profileId]
             );
             await client.query('COMMIT');
-            return res.json({ ok: true, accepted: true });
+
+            // Der Host erfuhr bisher nur von Absagen — eine Zusage passierte
+            // lautlos, er musste also selbst nachsehen, ob er starten kann.
+            // Nur bei einer echten Zustandsänderung melden, sonst schickt ein
+            // doppelter Tap auf zwei Geräten zwei Nachrichten.
+            if (me.invite_status === 'pending') {
+                const { rows: [who] } = await pool.query('SELECT username FROM profiles WHERE id = $1', [req.profileId]);
+                const name = who ? who.username : 'Ein Spieler';
+                const url = `${process.env.APP_URL}?game=${req.params.id}`;
+                const started = await tryAutoStart(req.params.id);
+                if (started) {
+                    // Alle Beteiligten, auch der Host: hier hat niemand einen
+                    // Knopf gedrückt, die Partie läuft trotzdem.
+                    for (const seat of started.seats) {
+                        // Nicht an den, der gerade getippt hat — der sieht den
+                        // Start ohnehin auf dem Bildschirm.
+                        if (seat.profile_id === req.profileId) continue;
+                        notifyPlayer(seat.profile_id, 'Dark Ages',
+                            seat.profile_id === started.firstProfileId
+                                ? `Alle haben zugesagt — "${game.name}" läuft, du bist dran!`
+                                : `Alle haben zugesagt — "${game.name}" hat begonnen!`,
+                            url).catch(() => {});
+                    }
+                } else {
+                    notifyPlayer(game.host_id, 'Dark Ages',
+                        `${name} hat die Einladung zu "${game.name}" angenommen.`, url).catch(() => {});
+                }
+                return res.json({ ok: true, accepted: true, started: !!started });
+            }
+            return res.json({ ok: true, accepted: true, started: false });
         }
 
         await client.query(
