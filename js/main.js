@@ -64,15 +64,36 @@ function bootGame() {
         if (u.dp === undefined) u.dp = 0;
         if (u.mi === undefined) delete u.mi;
     });
+    // Spielende (Sept 2026 umgebaut): früher stieg bootGame hier mit
+    // `showWin(...); return;` aus — VOR Renderer.init() und prepareRecap(). Damit
+    // war der komplette Niederlage-/Endspiel-Rückblick unerreichbar: das
+    // defeatLog lag im Blob, die 14-Tage-Sichtbarkeit beendeter Spiele in der
+    // Liste war eingebaut, das Defeat-Banner in js/lobby.js wurde gesetzt — nur
+    // gebaut wurde der Rückblick nie, und showWin blendet Karte samt HUD (also
+    // auch den Rückblick-Knopf) aus. Sichtbar wurde er einzig im Sonderfall
+    // "ausgeschieden, Spiel läuft weiter"; im 1v1 kann der gar nicht auftreten,
+    // weil dort Elimination immer zugleich Spielende ist.
+    //
+    // Jetzt wird das Ende nur noch gemerkt: der Boot läuft vollständig durch
+    // (Karte, HUD, Rückblick), erst ganz am Schluss legt sich der Sieg-Screen
+    // darüber — mit einem Knopf, der ihn für den Rückblick wieder wegräumt.
+    let gameOver = null;
     const alivePlayers = gameState.p.filter(p => p.dead !== 1);
     const teamWinnersB = checkTeamWin(alivePlayers);
-    if (teamWinnersB) { showWin(`${teamWinnersB.map(p => p.n).join(' & ')} gewinnen gemeinsam!`, teamWinnersB); return; }
-    if (alivePlayers.length <= 1) { showWin(`${alivePlayers[0].n} hat als Letzter überlebt!`, [alivePlayers[0]]); return; }
     // Herz-Sieg (M12): muss auch beim Laden geprüft werden, nicht nur direkt nach
     // doEndTurn — sonst sehen alle anderen Clients (die den bereits gewonnenen
     // Blob erst beim Öffnen laden) nie den Sieg-Screen, obwohl uw.hz.n schon das Ziel erreicht hat.
-    const erschlWinnersB = checkErschliessungWin(gameState);
-    if (erschlWinnersB) { showWin(`${erschlWinnersB.map(p => p.n).join(' & ')} haben das Herz der Tiefe erschlossen — wer das Fundament des Landes hält, dem beugt sich die Oberfläche!`, erschlWinnersB); return; }
+    const erschlWinnersB = teamWinnersB ? null : checkErschliessungWin(gameState);
+    if (teamWinnersB) {
+        gameOver = { msg: `${teamWinnersB.map(p => p.n).join(' & ')} gewinnen gemeinsam!`, winners: teamWinnersB };
+    } else if (alivePlayers.length <= 1) {
+        gameOver = { msg: `${alivePlayers[0].n} hat als Letzter überlebt!`, winners: [alivePlayers[0]] };
+    } else if (erschlWinnersB) {
+        gameOver = { msg: `${erschlWinnersB.map(p => p.n).join(' & ')} haben das Herz der Tiefe erschlossen — wer das Fundament des Landes hält, dem beugt sich die Oberfläche!`, winners: erschlWinnersB };
+    }
+    // Gelesen von recapViewerId (js/recap.js): am Spielende ist gameState.cp
+    // kein brauchbarer "wer schaut gerade zu" mehr.
+    window.gameFinished = !!gameOver;
 
     // Erschließungs-Reminder (Korrektur Juli 2026, Bugfix — PLAN.md Abschn. 8
     // verlangt "alle erfahren es"): der Toast in doEndTurn (js/input.js) feuert
@@ -83,7 +104,7 @@ function bootGame() {
     // JEDEM Zugstart JEDES Spielers (Hotseat-Weiterschalten UND frisches Laden
     // eines Server-/Legacy-URL-Zugs) — daher hier zusätzlich ein Reminder-Toast,
     // solange eine Erschließung läuft, unabhängig davon, wer sie hält.
-    if (gameState.uw && gameState.uw.hz) {
+    if (!gameOver && gameState.uw && gameState.uw.hz) {
         const hzOwner = gameState.p[gameState.uw.hz.p];
         if (hzOwner) {
             const who = gameState.uw.hz.p === gameState.cp ? 'Du erschließt' : `${hzOwner.n} erschließt`;
@@ -95,7 +116,7 @@ function bootGame() {
     document.body.classList.add('in-game');   // stoppt den Menü-Hintergrund
     uiContainer.style.display = 'flex';
     gameHud.style.display = 'flex';
-    endTurnBtn.disabled = false;
+    endTurnBtn.disabled = !!gameOver;
 
     Renderer.init();
 
@@ -177,6 +198,16 @@ function bootGame() {
     }
 
     renderBoard(gameState);
+    if (gameOver) {
+        // Kein startEvents(): Ereignis- und Diplomatie-Kette gehören zu einem
+        // laufenden Zug, den es hier nicht mehr gibt. prepareRecap() dagegen
+        // MUSS vor showWin laufen — showWin schließt das Panel und blendet den
+        // HUD-Knopf aus, baut ihn aber nicht; der Knopf im Sieg-Screen holt
+        // beides über showEndRecap() (js/diplomacy.js) zurück.
+        prepareRecap();
+        showWin(gameOver.msg, gameOver.winners);
+        return;
+    }
     // Erst die Ereignis-/Diplomatie-Kette (die liegt als .overlay darüber),
     // dann das Rückblick-Panel — so steht es nach dem Wegklicken eines
     // Ereignisses sichtbar da, statt darunter zu verschwinden.

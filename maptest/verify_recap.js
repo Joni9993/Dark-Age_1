@@ -540,6 +540,95 @@ console.log('\n=== (k) Integrations-Guard: finalizeGameEndLogs wird NUR bei tats
         `jede Aufrufstelle steht hinter einem "if (isWin)"-Guard auf derselben Zeile — ungeschützt: ${calls.filter(m => !/if\s*\(\s*isWin\s*\)/.test(m[0])).map(m => m[0].trim()).join(' | ')}`);
 }
 
+console.log('\n=== (l) Aufgeben steht im Rückblick des Gegners ===');
+{
+    // Vincents Frage (Sept 2026): "und wenn man gewonnen hat, weil der andere
+    // aufgegeben hat?" — bis dahin schrieb confirmSurrender GAR KEINEN
+    // Log-Eintrag, der Sieger sah also bestenfalls die letzten gewöhnlichen
+    // Aktionen des Aufgebenden, nie die Aufgabe selbst.
+    const state = freshState(21, 7, 2);
+    state.la = [];
+    const [sx, sy] = state.p[1].sv.split(',').map(Number);
+
+    // Reihenfolge wie in confirmSurrender: erst killPlayer (Sicht einfrieren,
+    // Einheiten/Dörfer weg), dann der Eintrag, dann recapAppendTurn.
+    M.killPlayer(state, 1);
+    M.recapAppendTurn(state, 1, [{ x: sx, y: sy, t: 'surrender', global: 1 }]);
+    M.finalizeDefeatLogs(state);
+
+    const own = M.recapVisibleActions(state, 1);
+    assert(!own.some(a => a.t === 'surrender'),
+        'der Aufgebende sieht seine eigene Aufgabe nicht (eigene Aktionen stehen nie im eigenen Rückblick)');
+    assert(!(state.p[1].defeatLog || []).some(a => a.t === 'surrender'),
+        'auch nicht im eingefrorenen defeatLog');
+
+    const foe = M.recapVisibleActions(state, 0);
+    assert(foe.some(a => a.t === 'surrender'),
+        'der Gegner sieht sie, obwohl das Feld weit außerhalb seiner Sicht liegt (global)');
+
+    const groups = M.buildRecapGroups(state, 0);
+    const row = groups.flatMap(g => g.rows).find(r => r.t === 'surrender');
+    assert(row && row.label === 'Hat aufgegeben',
+        `die Zeile ist beschriftet statt generisch ("${row ? row.label : 'keine Zeile'}")`);
+    assert(row && row.ic === 'flag', 'und trägt das Aufgeben-Symbol, kein Einheiten-Sprite');
+
+    // Quelltext-Guard: die Funktion oben ist nur so viel wert wie die
+    // Aufrufstelle — der ganze Fehler war ja ein FEHLENDER Push.
+    const inp = fs.readFileSync(path.join(ROOT, 'js/input.js'), 'utf8');
+    const surrenderFn = inp.slice(inp.indexOf('function confirmSurrender'));
+    assert(/t:\s*'surrender'/.test(surrenderFn.slice(0, 4000)),
+        'confirmSurrender schreibt den Eintrag wirklich in den Log');
+}
+
+console.log('\n=== (l2) defeatLog überlebt die bootGame-Normalisierung ===');
+{
+    // Der zweite Grund, warum nie jemand einen Niederlage-Rückblick gesehen hat:
+    // bootGame (js/main.js) setzt bei JEDEM Zugstart `p.defeatLog = []` für alle
+    // Spieler ("alte Blobs ohne das Feld") — und `[]` ist truthy. Der
+    // "nur einmal setzen"-Schutz in finalizeDefeatLogs fragte aber nur nach dem
+    // Vorhandensein, stieg also im echten Spielablauf immer sofort aus. Die
+    // Tests (h)/(j) oben bauen ihre States selbst und kennen bootGame nicht.
+    const state = freshState(21, 7, 3);
+    state.la = [];
+    const [vx, vy] = state.p[1].sv.split(',').map(Number);
+    state.p.forEach(p => { p.defeatLog = []; });   // exakt die bootGame-Zeile
+
+    M.killPlayer(state, 1, 0);
+    M.recapAppendTurn(state, 0, [{ x: vx, y: vy, t: 'atk', au: 3, dm: 30, vk: 'building', vp: 1, kl: 1 }]);
+    M.finalizeDefeatLogs(state);
+    assert(state.p[1].defeatLog.length > 0,
+        'der Todesstoß steht im defeatLog, obwohl das Feld schon als leeres Array normalisiert war');
+
+    // Und der Erschließungs-/Team-Sieg-Zweig genauso.
+    const state2 = freshState(22, 7, 3);
+    state2.la = [];
+    state2.p.forEach(p => { p.defeatLog = []; });
+    M.recapAppendTurn(state2, 0, [{ x: vx, y: vy, t: 'erschl' }]);
+    M.finalizeGameEndLogs(state2, [state2.p[0]]);
+    assert(state2.p[1].defeatLog.length > 0 || state2.p[2].defeatLog.length > 0,
+        'dasselbe für finalizeGameEndLogs (Erschließungs-/Team-Sieg-Verlierer)');
+}
+
+console.log('\n=== (m) Integrations-Guard: bootGame baut den Rückblick auch bei beendetem Spiel ===');
+{
+    // Der eigentliche Grund, warum nie jemand einen Endspiel-Rückblick gesehen
+    // hat: bootGame stieg beim Spielende mit `showWin(...); return;` aus — VOR
+    // prepareRecap(). Sämtliche Daten dafür (defeatLog, 14-Tage-Sichtbarkeit
+    // beendeter Spiele, Defeat-Banner) waren da, nur gebaut wurde der Rückblick
+    // nie. Die Unit-Tests oben hätten das nicht gefangen, sie kennen bootGame
+    // nicht.
+    // Zeilenkommentare raus: die Begruendung im Code zitiert das alte Muster
+    // woertlich, sonst findet die Suche genau diesen Kommentar.
+    const src = fs.readFileSync(path.join(ROOT, 'js/main.js'), 'utf8')
+        .split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+    const iPrep = src.indexOf('prepareRecap();');
+    const iWin = src.indexOf('showWin(');
+    assert(iPrep > -1 && iWin > -1 && iPrep < iWin,
+        'prepareRecap() läuft VOR showWin — showWin schließt das Panel, es baut es nicht');
+    assert(/window\.gameFinished\s*=/.test(src),
+        'bootGame meldet das Spielende an js/recap.js (recapViewerId braucht es, cp taugt am Ende nicht)');
+}
+
 console.log('');
 if (failures > 0) { console.error(`${failures} FEHLER`); process.exit(1); }
 console.log('Alle Prüfungen bestanden.');

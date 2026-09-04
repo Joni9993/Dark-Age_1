@@ -45,6 +45,7 @@ const RECAP_HOSTILE = ['atk', 'cap', 'collapse', 'detonate', 'dynamite', 'chambe
 // Unbekannte Arten fallen auf RECAP_FALLBACK.
 const RECAP_KINDS = {
     atk:         { ic: 'sword',      k: 'fire',  one: 'Angriff',                    many: n => `${n} Angriffe`,                    prio: 0 },
+    surrender:   { ic: 'flag',       k: 'fire',  one: 'Hat aufgegeben',             many: n => `${n}× aufgegeben`,                 prio: 0 },
     cap:         { ic: 'village',    k: 'gold',  one: 'Dorf erobert',               many: n => `${n} Dörfer erobert`,              prio: 1, vb: 'erobert ein Dorf' },
     deploy:      { ic: 'shield',     k: 'build', one: 'Wagenburg umgestellt',       many: n => `${n}× Wagenburg umgestellt`,       prio: 3, vb: 'stellt um' },
     collapse:    { ic: 'boom',       k: 'fire',  one: 'Stollen gesprengt',          many: n => `${n}× Stollen gesprengt`,          prio: 1, vb: 'sprengt den Stollen' },
@@ -217,9 +218,17 @@ function recapVisibleActionsFrom(actions, state, viewerId, visSurface, visUW) {
 // Kampf, Brand-Tick, Aufgeben) — ein Aufruf für alle drei Fälle statt einer
 // Sonderbehandlung je Todesursache. `defeatLog` wird nur EINMAL gesetzt (der
 // Sterbende zieht nie wieder, es gibt also nur dieses eine Fenster).
+//
+// Der "nur einmal"-Schutz fragt bewusst nach der LÄNGE, nicht nach dem bloßen
+// Vorhandensein: bootGame (js/main.js) normalisiert `defeatLog` bei jedem
+// Zugstart auf `[]` für alle Spieler, und ein leeres Array ist truthy. Mit dem
+// alten `|| p.defeatLog` stieg diese Funktion im echten Spiel deshalb IMMER
+// sofort wieder aus — der Verlierer bekam nie ein Log, obwohl alles andere
+// stimmte. Die Unit-Tests hatten es nicht gefangen, weil sie ihre States
+// selbst bauen und bootGame gar nicht kennen (Sept 2026).
 function finalizeDefeatLogs(state) {
     (state.p || []).forEach((p, i) => {
-        if (p.dead !== 1 || !p._deathVis || p.defeatLog) return;
+        if (p.dead !== 1 || !p._deathVis || (p.defeatLog && p.defeatLog.length)) return;
         const visSurface = new Set(p._deathVis);
         const visUW = new Set(p._deathVisUW || []);
         p.defeatLog = recapVisibleActionsFrom(state.la, state, i, visSurface, visUW);
@@ -242,7 +251,8 @@ function finalizeDefeatLogs(state) {
 function finalizeGameEndLogs(state, winners) {
     const winnerIds = new Set((winners || []).map(w => state.p.indexOf(w)));
     (state.p || []).forEach((p, i) => {
-        if (p.dead === 1 || winnerIds.has(i) || p.defeatLog) return;
+        // Länge statt Vorhandensein — siehe finalizeDefeatLogs.
+        if (p.dead === 1 || winnerIds.has(i) || (p.defeatLog && p.defeatLog.length)) return;
         p.defeatLog = recapVisibleActions(state, i);
     });
 }
@@ -448,6 +458,16 @@ if (typeof document !== 'undefined') (function () {
     // statt einem falschen".
     function recapViewerId() {
         if (!gameState) return -1;
+        const mySlot = (typeof currentUserSlot === 'number' && gameState.p && gameState.p[currentUserSlot])
+            ? currentUserSlot : -1;
+        // Beendete Partie (window.gameFinished, gesetzt in bootGame): der
+        // Rückblick gehört dem, der vor dem Gerät sitzt. gameState.cp taugt hier
+        // nicht — am Spielende zeigt er auf einen beliebigen, womöglich toten
+        // Sitz — und isSpectator greift auch nicht: das ist nur der Besiegte,
+        // der Sieger und der Erschließungs-Verlierer sind es nie. Ohne diese
+        // Zeile hätte der Sieger nach dem letzten Zug den Rückblick eines
+        // fremden Spielers gesehen (oder gar keinen).
+        if (window.gameFinished) return mySlot >= 0 ? mySlot : gameState.cp;
         if (typeof isSpectator !== 'undefined' && isSpectator) {
             if (typeof currentUserSlot === 'number' && gameState.p && gameState.p[currentUserSlot] &&
                 gameState.p[currentUserSlot].defeatLog && gameState.p[currentUserSlot].defeatLog.length > 0) {
@@ -693,6 +713,11 @@ if (typeof document !== 'undefined') (function () {
     function openRecap() {
         const panel = el('recap-panel');
         if (!panel) return;
+        // Am Spielende bezieht sich der Rückblick nicht mehr auf "meinen letzten
+        // Zug", sondern auf das Ende der Partie — der Titel sagt es, damit die
+        // Zeilen nicht falsch eingeordnet werden.
+        const titleText = el('recap-title-text');
+        if (titleText) titleText.textContent = window.gameFinished ? 'So ging es aus' : 'Seit deinem letzten Zug';
         clearRecapFocus();
         renderRecapPanel();
         buildRecapFlat();
@@ -735,5 +760,9 @@ if (typeof document !== 'undefined') (function () {
     window.recapStep = recapStep;
     window.prepareRecap = prepareRecap;
     window.isRecapOpen = function () { return recapOpen; };
+    // Anzahl der Ereignisse im aktuellen Rückblick — der Sieg-/Niederlage-Screen
+    // (js/diplomacy.js) blendet seinen Rückblick-Knopf aus, wenn es nichts zu
+    // berichten gibt, statt ein leeres Panel anzubieten.
+    window.recapEventCount = function () { return recapGroups.reduce((s, g) => s + g.total, 0); };
     window.isRecapCollapsed = function () { return recapCollapsed; };
 })();
