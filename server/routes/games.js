@@ -139,6 +139,31 @@ router.get('/:id', authMiddleware, async (req, res) => {
     });
 });
 
+// "Die Partie läuft" an alle Mitspieler, mit "du bist dran" für den, der nach
+// dem Mischen auf Slot 0 sitzt (Sept 2026, Jonathans Meldung: Vincent startete,
+// er selbst hatte den ersten Zug und erfuhr davon nichts).
+//
+// Der Startknopf verschickte bis dahin GAR KEINEN Push — die "du bist
+// dran"-Nachricht hing allein an POST /:id/turn, griff also erst ab dem
+// ZWEITEN Zug. Wer den ersten Zug hatte, wurde als Einziger nie benachrichtigt,
+// und ausgerechnet der hält die Partie auf. Seit die Sitzplätze gemischt werden
+// (server/seating.js) trifft das nicht mehr planbar den Host, sondern
+// irgendwen.
+//
+// `actorId` (Host beim Hand-Start, der Zusagende beim Auto-Start) bleibt außen
+// vor: der hat die Partie gerade selbst ausgelöst und sieht sie auf dem Schirm.
+function notifyGameStarted(gameId, gameName, seats, firstProfileId, actorId) {
+    const url = `${process.env.APP_URL}?game=${gameId}`;
+    for (const seat of seats) {
+        if (seat.profile_id === actorId) continue;
+        notifyPlayer(seat.profile_id, 'Dark Ages',
+            seat.profile_id === firstProfileId
+                ? `"${gameName}" ist gestartet — du machst den ersten Zug!`
+                : `"${gameName}" ist gestartet — viel Erfolg!`,
+            url).catch(() => {});
+    }
+}
+
 // Der eigentliche Spielstart, gemeinsam genutzt von POST /:id/start (Host
 // drückt) und tryAutoStart (letzte Zusage trifft ein, Sept 2026). Erwartet eine
 // laufende Transaktion, in der die games-Zeile bereits FOR UPDATE gesperrt und
@@ -222,7 +247,7 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
         await client.query('BEGIN');
 
         const { rows: [game] } = await client.query(
-            `SELECT id, ranked, team_mode FROM games
+            `SELECT id, name, ranked, team_mode FROM games
               WHERE id = $1 AND host_id = $2 AND status = 'lobby' FOR UPDATE`,
             [req.params.id, req.profileId]
         );
@@ -268,6 +293,7 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
         }
 
         await client.query('COMMIT');
+        notifyGameStarted(req.params.id, game.name, started.seats, started.firstProfileId, req.profileId);
     } catch (err) {
         await client.query('ROLLBACK').catch(() => {});
         console.error('Spielstart fehlgeschlagen', req.params.id, err);
@@ -825,18 +851,10 @@ router.post('/:id/invite/respond', authMiddleware, async (req, res) => {
                 const url = `${process.env.APP_URL}?game=${req.params.id}`;
                 const started = await tryAutoStart(req.params.id);
                 if (started) {
-                    // Alle Beteiligten, auch der Host: hier hat niemand einen
-                    // Knopf gedrückt, die Partie läuft trotzdem.
-                    for (const seat of started.seats) {
-                        // Nicht an den, der gerade getippt hat — der sieht den
-                        // Start ohnehin auf dem Bildschirm.
-                        if (seat.profile_id === req.profileId) continue;
-                        notifyPlayer(seat.profile_id, 'Dark Ages',
-                            seat.profile_id === started.firstProfileId
-                                ? `Alle haben zugesagt — "${game.name}" läuft, du bist dran!`
-                                : `Alle haben zugesagt — "${game.name}" hat begonnen!`,
-                            url).catch(() => {});
-                    }
+                    // Dieselbe Nachricht wie beim Hand-Start — hier hat nur
+                    // niemand einen Knopf gedrückt.
+                    notifyGameStarted(req.params.id, game.name, started.seats,
+                        started.firstProfileId, req.profileId);
                 } else {
                     notifyPlayer(game.host_id, 'Dark Ages',
                         `${name} hat die Einladung zu "${game.name}" angenommen.`, url).catch(() => {});
