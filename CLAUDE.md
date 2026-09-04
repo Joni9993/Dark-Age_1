@@ -29,6 +29,13 @@ node maptest/verify_recap.js              # Rückblick: Log-Führung, Sichtbarke
 node maptest/verify_underworld_m13.js     # Unterwelt-Integrationspass (u.a. dieselbe Sichtregel)
 ```
 
+**Server-Prüfskripte** (ohne DB): `node server/scripts/test-rating.js`, `node server/scripts/test-seating.js`.
+Eines braucht Server **und** Wegwerf-Datenbank, weil seine Logik in SQL und Transaktionen steckt:
+```bash
+cd server && DATABASE_URL=... JWT_SECRET=test PORT=3311 node index.js   # in einer zweiten Shell
+bash server/scripts/test-invite-flow.sh                                # Einladungs-Zusage, legt Testkonten an
+```
+
 **Map analysis scripts:**
 ```bash
 node maptest/gen_maps.js [spieler] [radius]  # generates test map links as HTML (default 6 / 12)
@@ -265,6 +272,14 @@ Die Sichtbarkeitsregel (M13: `global` immer, `uw` über das Netz, sonst Oberflä
 - **Abandoning (`left_game`) counts as a loss** against everyone — with async games running for weeks, quitting to protect a rating would otherwise be the dominant strategy.
 - **Seats are shuffled at game start** (`server/seating.js`). The host used to get slot 0 permanently and slot 0 always moves first — in all 49 resolvable 1v1 games the host sat on slot 0, a structural edge a rating would otherwise book as skill. Only the display name `p[i].n` follows the player; everything else in `state.p[i]` (`sv`, `e`, resources, `al`) belongs to the seat and stays put.
 - Tests: `node server/scripts/test-rating.js` (Glicko-2 vs. Glickman's reference example + the game→pairings translation) and `node server/scripts/test-seating.js` (name↔slot invariant). No DB needed for either.
+
+**Einladung mit Zusage** (`game_players.invite_status`, Sept 2026, Jonathans Meldung „man kann eine Einladung nicht ablehnen"): `POST /:id/invite` schrieb den Freund bisher direkt als Mitspieler in die Lobby — zwischen „drin" und „nicht drin" gab es gar keinen Zustand. Bei einer **Ranked**-Partie hieß das: mitspielen oder aufgeben, und Aufgeben (`left_game`) wertet `server/rating.js` bewusst als Niederlage gegen alle. Gemessen mit der echten `glicko2Update` kostet eine solche erzwungene Aufgabe gegen einen gleich starken Gegner **−175** Punkte bei RD 350 (frischer Account), −85 bei RD 200, −26 bei RD 100 — es trifft also ausgerechnet die Neulinge am härtesten.
+
+- **Nur Ranked ist gesperrt.** `POST /:id/start` weist mit 409 ab, solange jemand auf `'pending'` steht; in einer normalen Partie gilt eine offene Einladung mit dem Start als angenommen (dieselbe Transaktion setzt sie auf `'accepted'`). Dieselbe Wartepflicht für Feierabendpartien wäre Reibung ohne Gegenwert — die Grenze liegt genau dort, wo der Schaden liegt.
+- **`DEFAULT 'accepted'`** ist der Grund, warum nichts zu migrieren war: der Altbestand, der Host selbst und jeder, der über den Einladungslink beitritt, haben aktiv zugestimmt. Nur die Host-Einladung schreibt `'pending'`.
+- **Ablehnen löscht die Zeile** (`POST /:id/invite/respond {accept:false}`) statt einen Zustand `'declined'` zu hinterlassen — sonst bliebe der Slot belegt, denn Beitritt und Einladung rechnen mit `MAX(slot)+1`. Es läuft deshalb durch dasselbe `renumberLobbySlots` wie Kick und Verlassen, und ist zugleich der Ausstieg für einen bereits zugesagten Spieler (eine Geste für „ich bin raus"). Der Host erfährt es per Push.
+- **Der Papierkorb auf Lobby-Karten** war Host-only (`slot === 0`); ein Eingeladener kam aus der Liste heraus gar nicht mehr raus, sondern nur über „Lobby verlassen" zwei Ebenen tiefer. Jetzt hat jede Rolle ihren Ausstieg auf der Karte — der Host löst auf, alle anderen verlassen.
+- Test: `bash server/scripts/test-invite-flow.sh` gegen einen laufenden Server (s.o.) — inklusive des Falls, den eine Nachbildung in Node nicht prüfen würde: nach einer Absage muss der frei gewordene Slot wieder vergeben werden, sonst hält sich die Lobby für voll.
 
 **Rendering entry point**: `renderBoard(gameState)` → active renderer. Rendering is event-driven (after actions), not per-frame; animation loops run only while animations are active.
 

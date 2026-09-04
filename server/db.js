@@ -83,6 +83,22 @@ async function initSchema() {
         -- Wertung, server/routes/leaderboard.js filtert Bilanz/Rang danach.
         ALTER TABLE games ADD COLUMN IF NOT EXISTS ranked BOOLEAN NOT NULL DEFAULT FALSE;
 
+        -- invite_status (Sept 2026, Jonathans Meldung "man kann eine Einladung
+        -- nicht ablehnen"): eine Host-Einladung (POST /:id/invite) schrieb den
+        -- Freund bisher direkt als Mitspieler in die Lobby — es gab zwischen
+        -- "drin" und "nicht drin" gar keinen Zustand. Bei einer RANKED-Partie
+        -- hieß das: mitspielen oder aufgeben, und Aufgeben wertet
+        -- server/rating.js bewusst als Niederlage gegen alle.
+        --
+        -- DEFAULT 'accepted' ist der Punkt: der komplette Altbestand, der Host
+        -- selbst und jeder, der über den Einladungslink beitritt, haben aktiv
+        -- zugestimmt und bleiben unangetastet. Nur die Host-Einladung schreibt
+        -- 'pending'. Kein CHECK-Constraint, weil ALTER TABLE ... ADD CONSTRAINT
+        -- nicht idempotent ist und die Werte ausschließlich hier im Server
+        -- entstehen; eine abgelehnte Einladung wird gelöscht statt markiert
+        -- (der Slot muss wieder frei werden, siehe renumberLobbySlots).
+        ALTER TABLE game_players ADD COLUMN IF NOT EXISTS invite_status TEXT NOT NULL DEFAULT 'accepted';
+
         CREATE TABLE IF NOT EXISTS friendships (
             requester_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
             addressee_id UUID REFERENCES profiles(id) ON DELETE CASCADE,

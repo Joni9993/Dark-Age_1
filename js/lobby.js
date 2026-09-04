@@ -46,22 +46,43 @@ async function refreshGameList() {
         for (const row of rows) {
             const myTurn   = row.status === 'active' && row.current_slot === row.slot && !row.eliminated;
             const spectator = row.eliminated;
+            // Offene Einladung (Sept 2026): der Host hat mich in seine Lobby
+            // geschrieben, ich habe aber noch nicht zugesagt. Bei einer
+            // Ranked-Partie kann er ohne meine Zusage nicht starten
+            // (server/routes/games.js POST :id/start).
+            const invited = row.status === 'lobby' && row.invite_status === 'pending';
             let badge = '';
             // Beendete Spiele bleiben in der Liste (server/routes/games.js liefert sie
             // jetzt mit) statt zu verschwinden, sobald das Spiel vorbei ist — sonst wäre
             // der Niederlage-Rückblick (defeatLog) für den Verlierer genau in dem Moment
             // unerreichbar, in dem er ihn am ehesten in Ruhe nachschauen will.
             if (row.status === 'finished') badge = '<span class="game-badge finished-badge">Beendet</span>';
+            else if (invited)                 badge = `<span class="game-badge invite-badge">${icon('pact', 'ic-14')} Einladung</span>`;
             else if (row.status === 'lobby')  badge = '<span class="game-badge lobby-badge">Lobby</span>';
             else if (spectator)           badge = '<span class="game-badge spectator-badge">Zuschauer</span>';
             else if (myTurn)              badge = '<span class="game-badge turn-badge">Du bist dran!</span>';
             else                          badge = `<span class="game-badge wait-badge">Warte auf ${escHtml(row.current_player_username || '?')}...</span>`;
 
-            const canDelete = row.status === 'lobby' ? row.slot === 0 : true;
-            const deleteTitle = row.status === 'lobby' ? 'Lobby löschen'
+            // Der Papierkorb war bei Lobbys Host-only (slot 0) — ein
+            // beigetretener oder eingeladener Spieler kam aus der Liste heraus
+            // gar nicht mehr raus, sondern nur über "Lobby verlassen" zwei
+            // Ebenen tiefer. Jetzt hat jeder seinen Ausstieg auf der Karte;
+            // welcher es ist, entscheidet die Rolle: der Host löst die Lobby
+            // auf, alle anderen verlassen sie (POST :id/leave).
+            const lobbyAction = row.status !== 'lobby' ? row.status
+                : (row.slot === 0 ? 'lobby' : 'lobby-leave');
+            const deleteTitle = lobbyAction === 'lobby' ? 'Lobby löschen'
+                : lobbyAction === 'lobby-leave' ? (invited ? 'Einladung ablehnen' : 'Lobby verlassen')
                 : row.status === 'finished' ? 'Aus Liste entfernen' : 'Spiel aufgeben';
-            const deleteBtn = canDelete
-                ? `<button class="game-delete-btn" title="${deleteTitle}" onclick="event.stopPropagation();deleteGame('${escHtml(row.id)}','${escHtml(row.status)}')">${icon('trash', 'ic-14')}</button>`
+            const deleteBtn = `<button class="game-delete-btn" title="${deleteTitle}" onclick="event.stopPropagation();deleteGame('${escHtml(row.id)}','${lobbyAction}')">${icon('trash', 'ic-14')}</button>`;
+
+            // Zusagen direkt auf der Karte — die Einladung anzunehmen ist der
+            // mit Abstand häufigste Fall und soll keinen Umweg über den
+            // Lobby-Screen brauchen. Ablehnen läuft bewusst über denselben
+            // Papierkorb wie das Verlassen (eine Geste für "ich bin raus"),
+            // hier steht deshalb nur der Haken.
+            const acceptBtn = invited
+                ? `<button class="game-accept-btn" title="Einladung annehmen" onclick="event.stopPropagation();respondToInvite('${escHtml(row.id)}', true)">${icon('check', 'ic-14')}</button>`
                 : '';
 
             // Beide Modi als Tag sichtbar, nicht nur Ranked — sonst ist "kein Badge"
@@ -74,10 +95,12 @@ async function refreshGameList() {
             const card = document.createElement('div');
             // Beendete Spiele optisch abgesetzt (gedimmt) von laufenden — sonst sieht
             // man den Unterschied zum "Beendet"-Badge erst beim genauen Hinsehen.
-            card.className = 'game-card' + (myTurn ? ' game-card-active' : '') + (row.status === 'finished' ? ' game-card-finished' : '');
+            card.className = 'game-card' + (myTurn ? ' game-card-active' : '')
+                + (row.status === 'finished' ? ' game-card-finished' : '')
+                + (invited ? ' game-card-invite' : '');
             // Beide Badges in einem Wrapper — sonst spreizt .game-card (space-between)
             // sie als eigene Flex-Kinder ungleichmäßig statt sie zusammenzuhalten.
-            card.innerHTML = `<span class="game-card-name">${escHtml(row.name)}</span><span class="game-card-badges">${rankedBadge}${badge}</span>${deleteBtn}`;
+            card.innerHTML = `<span class="game-card-name">${escHtml(row.name)}</span><span class="game-card-badges">${rankedBadge}${badge}</span>${acceptBtn}${deleteBtn}`;
             card.addEventListener('click', () => {
                 if (row.status === 'lobby') openLobbyScreen(row.id);
                 else openGame(row.id);
@@ -209,7 +232,13 @@ function _renderLobbyScreen(game) {
         if (p) {
             const isPlayerHost = p.profile_id === game.host_id;
             const nameSpan = document.createElement('span');
-            nameSpan.textContent = `${i + 1}. ${p.username}${isPlayerHost ? ' (Host)' : ''}`;
+            // "(eingeladen)" statt stiller Gleichbehandlung: für den Host ist es
+            // die entscheidende Auskunft, warum sein Startknopf gesperrt ist —
+            // ohne die Marke stünde ein Eingeladener in der Liste wie ein
+            // zugesagter Mitspieler.
+            const pendingMark = p.invite_status === 'pending' ? ' (eingeladen)' : '';
+            nameSpan.textContent = `${i + 1}. ${p.username}${isPlayerHost ? ' (Host)' : ''}${pendingMark}`;
+            if (pendingMark) nameSpan.style.color = 'var(--text-dim)';
             div.appendChild(nameSpan);
             // Host kann jeden anderen Spieler rauswerfen (Jonathans Meldung: bisher
             // gar keine Möglichkeit, jemanden aus der eigenen Lobby zu entfernen).
@@ -231,15 +260,27 @@ function _renderLobbyScreen(game) {
     document.getElementById('lobby-invite-link').value = link;
     document.getElementById('lobby-player-count').textContent = `${players.length} / ${game.max_players}`;
 
-    const startBtn     = document.getElementById('lobby-start-btn');
+    const startBtn      = document.getElementById('lobby-start-btn');
     const inviteSection = document.getElementById('lobby-friend-invite');
     const leaveBtn      = document.getElementById('lobby-leave-btn');
+    const inviteActions = document.getElementById('lobby-invite-actions');
+    // Offene Einladungen: in einer Ranked-Partie sperren sie den Start
+    // (server/routes/games.js POST :id/start), in einer normalen gelten sie mit
+    // dem Start als angenommen. Der Knopf sagt beides an, statt den Host in
+    // einen 409 laufen zu lassen.
+    const pending = players.filter(p => p.invite_status === 'pending');
+    const iAmPending = game.my_invite_status === 'pending';
     if (isHost) {
         startBtn.style.display = 'block';
-        startBtn.disabled      = players.length < 2;
-        startBtn.textContent   = players.length < 2 ? 'Mindestens 2 Spieler nötig' : 'Spiel starten';
+        const tooFew = players.length < 2;
+        const blocked = game.ranked && pending.length > 0;
+        startBtn.disabled = tooFew || blocked;
+        startBtn.textContent = tooFew ? 'Mindestens 2 Spieler nötig'
+            : blocked ? `Warte auf ${pending.length} Zusage${pending.length === 1 ? '' : 'n'}`
+            : 'Spiel starten';
         inviteSection.style.display = 'flex';
         leaveBtn.style.display = 'none';
+        inviteActions.style.display = 'none';
     } else {
         startBtn.style.display = 'none';
         inviteSection.style.display = 'none';
@@ -247,7 +288,13 @@ function _renderLobbyScreen(game) {
         // verlassen (Jonathans Meldung: "← Zurück" navigiert nur weg, der
         // game_players-Eintrag blieb bestehen) — mussten also zwangsläufig
         // mitspielen, sobald der Host startete.
-        leaveBtn.style.display = 'block';
+        leaveBtn.style.display = iAmPending ? 'none' : 'block';
+        inviteActions.style.display = iAmPending ? 'flex' : 'none';
+        if (iAmPending) {
+            document.getElementById('lobby-invite-hint').textContent = game.ranked
+                ? 'Du wurdest zu einer gewerteten Partie eingeladen. Ohne deine Zusage kann der Host nicht starten — ein späteres Aufgeben würde als Niederlage in dein Rating zählen.'
+                : 'Du wurdest zu dieser Partie eingeladen.';
+        }
     }
 }
 
@@ -393,6 +440,27 @@ async function handleKickPlayer(profileId, username) {
         await api.post(`/api/games/${currentGameId}/kick`, { profile_id: profileId });
         const game = await api.get(`/api/games/${currentGameId}`);
         _renderLobbyScreen(game);
+    } catch (err) {
+        showToast('Fehler: ' + err.message);
+    }
+}
+
+// Zusage/Absage auf eine Host-Einladung (server/routes/games.js
+// POST :id/invite/respond). `fromLobby` unterscheidet nur, wohin es danach
+// geht: von der Spielliste aus bleibt man dort, aus dem Lobby-Screen heraus
+// führt eine Absage nach Hause und eine Zusage zurück in die aktualisierte
+// Lobby.
+async function respondToInvite(gameId, accept, fromLobby) {
+    if (!accept && !confirm('Einladung ablehnen?')) return;
+    try {
+        await api.post(`/api/games/${gameId}/invite/respond`, { accept: !!accept });
+        showToast(accept ? 'Einladung angenommen — warte auf den Start.' : 'Einladung abgelehnt.');
+        if (fromLobby) {
+            if (accept) await openLobbyScreen(gameId);
+            else { _stopLobbyPoll(); showHomeScreen(); }
+        } else {
+            await refreshGameList();
+        }
     } catch (err) {
         showToast('Fehler: ' + err.message);
     }
@@ -787,6 +855,17 @@ async function deleteGame(gameId, status) {
         if (!confirm('Spiel aus deiner Liste entfernen? Andere Spieler sehen es weiterhin.')) return;
         try {
             await api.post(`/api/games/${gameId}/hide`, {});
+            await refreshGameList();
+        } catch (err) {
+            showToast('Fehler: ' + err.message);
+        }
+    } else if (status === 'lobby-leave') {
+        // Nicht-Host in einer Lobby: die eigene Zeile verschwindet, die Lobby
+        // bleibt. Deckt zwei Fälle mit einer Geste ab — eine offene Einladung
+        // ablehnen und eine bereits angenommene Lobby wieder verlassen.
+        if (!confirm('Diese Lobby verlassen? Eine offene Einladung gilt damit als abgelehnt.')) return;
+        try {
+            await api.post(`/api/games/${gameId}/invite/respond`, { accept: false });
             await refreshGameList();
         } catch (err) {
             showToast('Fehler: ' + err.message);
