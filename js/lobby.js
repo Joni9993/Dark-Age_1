@@ -298,9 +298,12 @@ function _renderLobbyScreen(game) {
         leaveBtn.style.display = iAmPending ? 'none' : 'block';
         inviteActions.style.display = iAmPending ? 'flex' : 'none';
         if (iAmPending) {
-            document.getElementById('lobby-invite-hint').textContent = game.ranked
+            const auto = players.length >= game.max_players && pending.length === 1
+                ? ' Du bist der/die Letzte — mit deiner Zusage startet die Partie sofort.'
+                : ' Sobald alle zugesagt haben und die Lobby voll ist, startet sie automatisch.';
+            document.getElementById('lobby-invite-hint').textContent = (game.ranked
                 ? 'Du wurdest zu einer gewerteten Partie eingeladen. Ohne deine Zusage kann der Host nicht starten — ein späteres Aufgeben würde als Niederlage in dein Rating zählen.'
-                : 'Du wurdest zu dieser Partie eingeladen.';
+                : 'Du wurdest zu dieser Partie eingeladen.') + auto;
         }
     }
 }
@@ -460,7 +463,18 @@ async function handleKickPlayer(profileId, username) {
 async function respondToInvite(gameId, accept, fromLobby) {
     if (!accept && !confirm('Einladung ablehnen?')) return;
     try {
-        await api.post(`/api/games/${gameId}/invite/respond`, { accept: !!accept });
+        // `started`: die eigene Zusage war die letzte offene und die Lobby ist
+        // voll — der Server hat die Partie in derselben Anfrage gestartet
+        // (tryAutoStart, server/routes/games.js). Dann direkt hinein, statt den
+        // Spieler auf einem Lobby-Screen zu lassen, den es nicht mehr gibt.
+        const res = await api.post(`/api/games/${gameId}/invite/respond`, { accept: !!accept });
+        if (accept && res && res.started) {
+            showToast('Alle haben zugesagt — die Partie läuft!');
+            _stopLobbyPoll();
+            document.getElementById('lobby-screen').style.display = 'none';
+            await openGame(gameId);
+            return;
+        }
         showToast(accept ? 'Einladung angenommen — warte auf den Start.' : 'Einladung abgelehnt.');
         if (fromLobby) {
             if (accept) await openLobbyScreen(gameId);
