@@ -274,8 +274,15 @@ function _renderLobbyScreen(game) {
         startBtn.style.display = 'block';
         const tooFew = players.length < 2;
         const blocked = game.ranked && pending.length > 0;
-        startBtn.disabled = tooFew || blocked;
+        // Feste Teams: die Spielerzahl muss aufgehen, sonst startet die Partie
+        // als Jeder-gegen-jeden statt als Team-Spiel (js/mapgen.js überspringt
+        // die Zuweisung dann still). Der Server weist das ab — der Knopf sagt
+        // es vorher, statt den Host in einen 409 laufen zu lassen.
+        const teamSize = game.team_mode === 'teams2' ? 2 : game.team_mode === 'teams3' ? 3 : 0;
+        const teamMismatch = teamSize > 0 && (players.length % teamSize !== 0 || players.length / teamSize < 2);
+        startBtn.disabled = tooFew || blocked || teamMismatch;
         startBtn.textContent = tooFew ? 'Mindestens 2 Spieler nötig'
+            : teamMismatch ? `${teamSize}er-Teams: Spielerzahl passt nicht`
             : blocked ? `Warte auf ${pending.length} Zusage${pending.length === 1 ? '' : 'n'}`
             : 'Spiel starten';
         inviteSection.style.display = 'flex';

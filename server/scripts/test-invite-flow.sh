@@ -103,5 +103,90 @@ chk "wer über den Einladungslink beitritt, hat damit zugesagt" \
     "$(mylist $THIRD | jq -r ".[] | select(.id==\"$G5\") | .invite_status")" "accepted"
 chk "eine so gefüllte Lobby startet ohne Rückfrage" "$(start $HOST $G5)" "200"
 
+echo; echo "=== (6) Ranked mit 6 Spielern: Zusagen einzeln, Absage mitten in der Reihe ==="
+# Bei 2 Spielern kann eine Absage nur den letzten Slot treffen — erst ab 3
+# Spielern entsteht der Fall, für den renumberLobbySlots da ist: eine LÜCKE in
+# der Mitte. Und erst hier zeigt sich, ob die Sperre wirklich zählt statt nur
+# "irgendwer fehlt noch" zu prüfen.
+mk6() { C -X POST $API/games -H 'Content-Type: application/json' -H "Authorization: Bearer $1" \
+          -d '{"max_players":6,"map_radius":12,"team_mode":"ffa","name":"Sechser","ranked":true}' | jq -r .id; }
+G6=$(mk6 $HOST)
+for n in p2 p3 p4 p5 p6; do eval "T_$n=\$(login $n)"; invite $HOST $G6 $n > /dev/null; done
+chk "alle fünf Eingeladenen stehen offen" \
+    "$(game $HOST $G6 | jq -r '[.players[] | select(.invite_status=="pending")] | length')" "5"
+chk "Start gesperrt, und die Meldung nennt die Anzahl" \
+    "$(C -X POST $API/games/$G6/start -H 'Content-Type: application/json' -H "Authorization: Bearer $HOST" \
+        -d "$(jq -nc --arg b "$BLOB" '{seed:1,state_blob:$b}')" | jq -r .error)" \
+    "5 eingeladene Spieler haben noch nicht zugesagt"
+
+respond $T_p2 $G6 true > /dev/null
+respond $T_p3 $G6 true > /dev/null
+chk "nach zwei Zusagen fehlen noch drei" \
+    "$(game $HOST $G6 | jq -r '[.players[] | select(.invite_status=="pending")] | length')" "3"
+chk "und der Start ist weiter gesperrt" "$(start $HOST $G6)" "409"
+
+# p3 sitzt auf Slot 2 (Host 0, p2 1, p3 2, p4 3, p5 4, p6 5) und hat bereits
+# zugesagt — seine Absage reißt die Lücke also mitten in eine Reihe, in der vor
+# UND hinter ihm Spieler mit unterschiedlichem Zustand sitzen.
+chk "p3 sitzt vor der Absage auf Slot 2" \
+    "$(game $HOST $G6 | jq -r '.players | map(select(.username=="p3")) | .[0].slot')" "2"
+respond $T_p3 $G6 false > /dev/null
+chk "die Slots sind danach lückenlos" \
+    "$(game $HOST $G6 | jq -r '[.players[].slot] | join(",")')" "0,1,2,3,4"
+chk "und jeder Zustand ist beim richtigen Spieler geblieben" \
+    "$(game $HOST $G6 | jq -r '[.players[] | .username + ":" + .invite_status] | join(" ")')" \
+    "hostuser:accepted p2:accepted p4:pending p5:pending p6:pending"
+
+respond $T_p4 $G6 true > /dev/null
+respond $T_p5 $G6 true > /dev/null
+chk "eine einzelne offene Zusage wird im Singular gemeldet" \
+    "$(C -X POST $API/games/$G6/start -H 'Content-Type: application/json' -H "Authorization: Bearer $HOST" \
+        -d "$(jq -nc --arg b "$BLOB" '{seed:1,state_blob:$b}')" | jq -r .error)" \
+    "Ein eingeladener Spieler hat noch nicht zugesagt"
+respond $T_p6 $G6 true > /dev/null
+
+# Der Blob muss zu den tatsächlich verbliebenen Sitzen passen — er wird beim
+# Start ausgepackt und die Namen werden auf die gemischten Sitze verteilt.
+BLOB5=$(cd "$SERVER_DIR" && node -e "const L=require('lz-string');
+console.log(L.compressToEncodedURIComponent(JSON.stringify(
+  {p:[{n:'a'},{n:'b'},{n:'c'},{n:'d'},{n:'e'}],rn:1,cp:0,v:{},u:[]})))")
+BLOB6=$(cd "$SERVER_DIR" && node -e "const L=require('lz-string');
+console.log(L.compressToEncodedURIComponent(JSON.stringify(
+  {p:[{n:'a'},{n:'b'},{n:'c'},{n:'d'},{n:'e'},{n:'f'}],rn:1,cp:0,v:{},u:[]})))")
+chk "mit allen Zusagen startet die Fünfer-Runde" \
+    "$(C -o /dev/null -w '%{http_code}' -X POST $API/games/$G6/start -H 'Content-Type: application/json' \
+        -H "Authorization: Bearer $HOST" -d "$(jq -nc --arg b "$BLOB5" '{seed:1,state_blob:$b}')")" "200"
+chk "und alle fünf Namen stehen im Startzustand" \
+    "$(game $HOST $G6 | jq -r .state_blob | (cd "$SERVER_DIR" && node -e "
+        const L=require('lz-string');let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{
+        const s=JSON.parse(L.decompressFromEncodedURIComponent(d.trim()));
+        console.log(s.p.map(x=>x.n).sort().join(','));})"))" \
+    "hostuser,p2,p4,p5,p6"
+
+echo; echo "=== (7) Feste Teams: eine Absage darf kein stilles Jeder-gegen-jeden erzeugen ==="
+# js/mapgen.js überspringt die Team-Zuweisung, wenn die Spielerzahl nicht durch
+# die Teamgröße teilbar ist — aus einem 3v3 würde ohne Meldung ein FFA, und
+# server/rating.js wertet es auch so (state.at fehlt). Über Kick/Verlassen war
+# das schon erreichbar; mit dem Ablehnen wird es der Normalfall.
+GT=$(C -X POST $API/games -H 'Content-Type: application/json' -H "Authorization: Bearer $HOST" \
+       -d '{"max_players":6,"map_radius":12,"team_mode":"teams3","name":"Dreier","ranked":true}' | jq -r .id)
+for n in p2 p3 p4 p5 p6; do invite $HOST $GT $n > /dev/null; done
+for n in p2 p3 p4 p5 p6; do eval "respond \$T_$n $GT true" > /dev/null; done
+chk "die volle Sechser-Lobby startet als 3v3" \
+    "$(C -o /dev/null -w '%{http_code}' -X POST $API/games/$GT/start -H 'Content-Type: application/json' \
+        -H "Authorization: Bearer $HOST" -d "$(jq -nc --arg b "$BLOB6" '{seed:1,state_blob:$b}')")" "200"
+
+GT2=$(C -X POST $API/games -H 'Content-Type: application/json' -H "Authorization: Bearer $HOST" \
+        -d '{"max_players":6,"map_radius":12,"team_mode":"teams3","name":"Dreier2","ranked":true}' | jq -r .id)
+for n in p2 p3 p4 p5 p6; do invite $HOST $GT2 $n > /dev/null; done
+for n in p2 p3 p4 p5; do eval "respond \$T_$n $GT2 true" > /dev/null; done
+respond $T_p6 $GT2 false > /dev/null
+chk "nach einer Absage sind noch fünf übrig" "$(game $HOST $GT2 | jq -r '.players | length')" "5"
+chk "und der Start wird abgewiesen statt still zum FFA zu werden" \
+    "$(C -X POST $API/games/$GT2/start -H 'Content-Type: application/json' -H "Authorization: Bearer $HOST" \
+        -d "$(jq -nc --arg b "$BLOB5" '{seed:1,state_blob:$b}')" | jq -r .error)" \
+    "Feste 3er-Teams brauchen eine durch 3 teilbare Spielerzahl (mindestens 6) — aktuell sind es 5"
+chk "das Spiel bleibt Lobby" "$(game $HOST $GT2 | jq -r .status)" "lobby"
+
 echo
 [ $fail -eq 0 ] && echo "Alle Prüfungen bestanden." || { echo "FEHLER"; exit 1; }

@@ -160,7 +160,7 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
         await client.query('BEGIN');
 
         const { rows: [game] } = await client.query(
-            `SELECT id, ranked FROM games
+            `SELECT id, ranked, team_mode FROM games
               WHERE id = $1 AND host_id = $2 AND status = 'lobby' FOR UPDATE`,
             [req.params.id, req.profileId]
         );
@@ -206,6 +206,23 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
              ORDER BY gp.slot FOR UPDATE OF gp`,
             [req.params.id]
         );
+
+        // Team-Modus muss zur tatsächlichen Spielerzahl passen (Sept 2026).
+        // buildInitialGameState (js/mapgen.js) überspringt die Team-Zuweisung
+        // still, wenn count nicht durch die Teamgröße teilbar ist — aus einem
+        // 3v3 würde dann ohne jede Meldung ein Jeder-gegen-jeden, und
+        // server/rating.js wertet es auch so (`state.at === 1` fehlt). Erreichbar
+        // war das schon über Kick und Verlassen; seit man eine Einladung
+        // ablehnen kann, ist es der Normalfall statt der Ausnahme, deshalb
+        // steht die Prüfung jetzt hier — auf der Serverseite, weil nur sie
+        // beim Start die endgültige Belegung kennt.
+        const teamSize = game.team_mode === 'teams2' ? 2 : game.team_mode === 'teams3' ? 3 : 0;
+        if (teamSize > 0 && (seats.length % teamSize !== 0 || seats.length / teamSize < 2)) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                error: `Feste ${teamSize}er-Teams brauchen eine durch ${teamSize} teilbare Spielerzahl (mindestens ${teamSize * 2}) — aktuell sind es ${seats.length}`
+            });
+        }
 
         if (seats.length > 1) {
             const { blob, assignments } = shuffleSeats(seats, state_blob);
