@@ -14,6 +14,7 @@ function loadGameCode() {
     global.mapSizeSelect = stub;
     global.teamModeSelect = selectStub;
     if (!global.document) global.document = { getElementById: () => null };
+    global.window = global; // js/mapgen.js ruft beim Laden window.Segmented?.refreshAll()
 
     // js/data.js: seit M11 braucht buildInitialGameState (js/mapgen.js) die
     // Kreaturen-Konstanten (UWC_*/uwCreatureStats) für die initiale Platzierung.
@@ -23,6 +24,7 @@ function loadGameCode() {
         return {
             buildInitialGameState, createPRNG, oddRToCube, cubeToOddR, hexDistance, isInsideMap,
             getTerrainType, getUnderworldType, isUnderworldOpen, getHeartCavernHexes,
+            getHeartCoreHexes, getHeartArmHexes, hexDistance, UW_HERZWEG,
             UW_FELS, UW_KAVERNE, UW_ADER, UW_RUINE, UW_HERZ, UW_TYPE_NAMES
         };
     `);
@@ -111,12 +113,32 @@ for (const seed of seeds) {
         const centerType = M.getUnderworldType(state, cx, cy);
         assert(centerType === M.UW_HERZ, `Seed ${seed} R${radius}: Zentrum (${cx},${cy}) ist UW_HERZ`);
 
+        // KERN: auf JEDER Kartengröße exakt Zentrum + Ring 1 = 7 Hexes
+        // (Korrektur Sept 2026 — vorher wuchs der zählende Bereich auf 13/19 mit,
+        // was ihn auf großen Karten unverteidigbar machte).
+        const coreHexes = M.getHeartCoreHexes(state);
+        assert(coreHexes.length === 7, `Seed ${seed} R${radius}: Kern hat 7 Hexes, unabhängig vom Radius (${coreHexes.length})`);
+        const coreMaxDist = Math.max(...coreHexes.map(h => M.hexDistance({ x: cx, y: cy }, h)));
+        assert(coreMaxDist === 1, `Seed ${seed} R${radius}: Kern reicht exakt bis Ring 1 (max. Distanz ${coreMaxDist})`);
+        const allCore = coreHexes.every(h => M.getUnderworldType(state, h.x, h.y) === M.UW_HERZ);
+        assert(allCore, `Seed ${seed} R${radius}: alle 7 Kern-Hexes liefern UW_HERZ`);
+
+        // AUSLÄUFER: 6 Achsen-Hexes je Ring, ab Radius 6 (Ring 2) bzw. 9 (Ring 3)
+        const armHexes = M.getHeartArmHexes(state);
+        const expectedArms = radius <= 5 ? 0 : (radius <= 8 ? 6 : 12);
+        assert(armHexes.length === expectedArms, `Seed ${seed} R${radius}: ${expectedArms} Ausläufer-Hexes (gemessen ${armHexes.length})`);
+        const allArms = armHexes.every(h => M.getUnderworldType(state, h.x, h.y) === M.UW_HERZWEG);
+        assert(allArms, `Seed ${seed} R${radius}: alle Ausläufer liefern UW_HERZWEG (nicht UW_HERZ)`);
+        const armsOpen = armHexes.every(h => M.isUnderworldOpen(state, h.x, h.y));
+        assert(armsOpen, `Seed ${seed} R${radius}: Ausläufer sind begehbar wie der Kern`);
+        // Sternform: jeder Ausläufer liegt auf einer Kubik-Achse, also genau
+        // `dist` Schritte gerade vom Zentrum weg — Ring 2 bzw. Ring 3.
+        const armsOnAxis = armHexes.every(h => [2, 3].includes(M.hexDistance({ x: cx, y: cy }, h)));
+        assert(armsOnAxis, `Seed ${seed} R${radius}: Ausläufer liegen auf Ring 2/3`);
+
+        // Gesamt = Kern + Ausläufer (die Optik-/Begehbarkeits-Sicht)
         const heartHexes = M.getHeartCavernHexes(state);
-        const expectedMin = radius <= 5 ? 7 : (radius <= 8 ? 13 : 20);
-        assert(heartHexes.length >= expectedMin - 1, `Seed ${seed} R${radius}: Herzkaverne-Größe plausibel (${heartHexes.length} Hexes, erwartet >= ${expectedMin - 1})`);
-        // Alle Herzkaverne-Hexes müssen auch tatsächlich UW_HERZ liefern
-        const allHeart = heartHexes.every(h => M.getUnderworldType(state, h.x, h.y) === M.UW_HERZ);
-        assert(allHeart, `Seed ${seed} R${radius}: alle ${heartHexes.length} Herzkaverne-Hexes liefern UW_HERZ`);
+        assert(heartHexes.length === coreHexes.length + armHexes.length, `Seed ${seed} R${radius}: getHeartCavernHexes = Kern + Ausläufer (${heartHexes.length})`);
         // Herzkaverne muss dieselbe sein wie state.ct in echten buildInitialGameState-Karten
         const built = M.buildInitialGameState(['A', 'B'], radius);
         assert(built.ct.x === cx && built.ct.y === cy, `Seed ${seed} R${radius}: ct-Position stimmt mit Zentrum überein (${built.ct.x},${built.ct.y})`);

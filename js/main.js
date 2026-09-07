@@ -107,8 +107,17 @@ function bootGame() {
     if (!gameOver && gameState.uw && gameState.uw.hz) {
         const hzOwner = gameState.p[gameState.uw.hz.p];
         if (hzOwner) {
-            const who = gameState.uw.hz.p === gameState.cp ? 'Du erschließt' : `${hzOwner.n} erschließt`;
-            showToast(`🌍 ${who} das Herz der Tiefe (${gameState.uw.hz.n}/${ERSCHLIESSUNG_TARGET})`, 'gold');
+            const mine = gameState.uw.hz.p === gameState.cp;
+            const counter = `(${gameState.uw.hz.n}/${ERSCHLIESSUNG_TARGET})`;
+            if (gameState.uw.hz.pa) {
+                // Angehalten (Korrektur Sept 2026): der Zähler steht, ist aber
+                // nicht verloren — wer den Gegner aus dem Kern wirft, zählt weiter.
+                const who = mine ? 'Deine Erschließung ist angehalten' : `${hzOwner.n}s Erschließung ist angehalten`;
+                showToast(`⏸ ${who} — Gegner im Herzen der Tiefe ${counter}`, 'red');
+            } else {
+                const who = mine ? 'Du erschließt' : `${hzOwner.n} erschließt`;
+                showToast(`🌍 ${who} das Herz der Tiefe ${counter}`, 'gold');
+            }
         }
     }
 

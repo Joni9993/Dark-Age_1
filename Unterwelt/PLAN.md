@@ -16,7 +16,7 @@ Die Unterseite der Karte ist eine zweite Spielebene aus **massivem Fels** — de
 | Flankenmanöver, offene Schlachten | **Engstellen-Kampf** in 1-Hex-Gängen — der Vorderste blockt |
 | Neutralität ist passiv (leere Dörfer) | **PvE**: Höhlentiere reagieren auf Lärm |
 
-**Einziger Unterwelt-Siegweg:** die **Herzkaverne** unter dem zentralen Wachturm erobern (Wächter: der Alte Wurm) und **4 Runden erschließen** → Sieg über die gesamte Partie. **Grundprinzip (Korrektur Juli 2026):** Tiefeneinheiten haben **keinerlei Auswirkung auf das Spiel oben** — es gibt keine Kammer/Unterminierung mehr, die von unten Oberflächen-Strukturen beschädigt. Der Sprengmeister hat stattdessen **Dynamit** (s. Abschn. 6), das rein innerhalb der Unterwelt wirkt.
+**Einziger Unterwelt-Siegweg:** die **Herzkaverne** unter dem zentralen Wachturm erobern (Wächter: der Alte Wurm) und ihren **Kern** **3 eigene Zugenden lang erschließen** (`ERSCHLIESSUNG_TARGET`, js/logic.js — ursprünglich 4, dann 5, seit Korrektur Aug 2026 **3**) → Sieg über die gesamte Partie. **Grundprinzip (Korrektur Juli 2026):** Tiefeneinheiten haben **keinerlei Auswirkung auf das Spiel oben** — es gibt keine Kammer/Unterminierung mehr, die von unten Oberflächen-Strukturen beschädigt. Der Sprengmeister hat stattdessen **Dynamit** (s. Abschn. 6), das rein innerhalb der Unterwelt wirkt.
 
 ## 2. Weltaufbau (seed-deterministisch)
 
@@ -28,7 +28,12 @@ Unterwelt-Terrain-Typen, erzeugt aus `sd` (eigener Hash-Kanal, damit oben/unten 
 | **Kaverne** | natürliche hohle Tasche (alte Wühlgänge des Wurms), bereits offen, nicht miteinander verbunden |
 | **Kristallader** | Fels mit Kristallen — Gesamtmenge seed-deterministisch zufällig zwischen 4 und 12 (Korrektur Juli 2026, vorher fix 4). Wird abgebaut wie Steinhaufen oben (Toggle-Abbau, kein Aktionsverbrauch), danach offener/begehbarer Gang |
 | **Stollenruine** | verlassene Gänge eines längst verschwundenen Bergvolks: fertige Korridore + **Fundkammer** (einmalige Beute: Kristalle oder eine Reliquie) |
-| **Herzkaverne** | fixe große Kaverne (Zentrum + 6 Nachbarn(angepasst auf map größe) **exakt unter dem zentralen Wachturm** — beide Machtorte der Karte liegen senkrecht übereinander |
+| **Herzkaverne (Kern)** | `UW_HERZ`, `getHeartCoreHexes` — **Zentrum + voller Ring 1 = 7 Hexes, auf JEDER Kartengröße gleich** (Korrektur Sept 2026, s.u.), **exakt unter dem zentralen Wachturm** (dasselbe Hex wie `ct`): beide Machtorte der Karte liegen senkrecht übereinander. Nur hier zählt die Erschließung, und nur hier hält ein Gegner sie an |
+| **Herzweg (Ausläufer)** | `UW_HERZWEG`, `getHeartArmHexes` — die 6 Sternarme: je ein Hex pro Kubik-Achse in Ring 2 (ab Radius 6) bzw. zusätzlich Ring 3 (ab Radius 9); `i % 2`/`i % 3` über `hexRingAround` trifft geometrisch genau die Ring-Ecken. Radius 5 → **keine**, Radius 7 → **6**, Radius 12 → **12**. Begehbar wie der Kern, aber **ohne jede Spielwirkung** — reiner Zugang. Am Boden als Weg zum Herz erkennbar (s. Abschn. 9) |
+
+Kern und Ausläufer zusammen sind `getHeartCavernHexes` (Optik + Begehbarkeit). Beide Teile sind dauerhaft offen und **nicht verfüllbar** — Stollenbruch greift nur auf selbst gegrabene Hexes (`uw.d`).
+
+**Warum der Kern nicht mitwächst** (Korrektur Sept 2026, Jonathan: *"es ist zu schwer, die Kaverne zu halten"*): vorher war die ganze Sternfläche der zählende Bereich, auf Radius 12 also **19 Hexes** statt 7 — sechs Arme bis Distanz 3, jeder eine eigene Einfallslinie. Das war mit einer realistischen Expedition nicht zu verteidigen, während dieselbe Aufgabe auf Radius 5 mit 7 Hexes gut machbar blieb: derselbe Zielwert bei völlig unterschiedlicher Verteidigungslast. Der Stern bleibt als **Geometrie und Optik** erhalten (er macht das Herz auf großen Karten überhaupt erst auffindbar), zählt aber nicht mehr mit.
 
 Verteilung fairness-gebändert wie `SPAWN_BUDGETS` oben (gleiche Kristall-/Ruinen-Chancen pro Spieler-Sektor); nach dem Tuning mit einem `maptest`-Analog messen.
 
@@ -176,18 +181,37 @@ Kreatur schlägt nie durch die Wand auf eine dahinterliegende offene Tasche.
 
 ## 8. Der Herz-Sieg: die Erschließung
 
-1. **Wurm besiegen** (Abschn. 5) — stärkste PvE-Hürde des Spiels, verhindert Früh-Rushes.
-2. **Erschließung starten:** eigene Einheit im Zentrum der Herzkaverne, keine gegnerische Einheit in der Kaverne (7 Hexes). Zähler `hz = {p, n}`.
-3. **5 eigene Zugenden halten.** Wird die Bedingung unterbrochen (Zentrum verloren oder Gegner in der Kaverne), **fällt der Zähler auf 0 zurück**.
+1. **Wurm besiegen** (Abschn. 5) — stärkste PvE-Hürde des Spiels, verhindert Früh-Rushes. Ohne `uw.wd === 1` steigt `checkErschliessungProgress` sofort aus.
+2. **Erschließung starten:** eigene Einheit **exakt im Zentrums-Hex** (Ring 1 genügt nicht), keine nicht-verbündete Einheit im **Kern** (die 7 Hexes, s. Abschn. 2 — Gegner in den Ausläufern sind egal). Zähler `hz = {p, n}`.
+3. **3 eigene Zugenden halten** (`ERSCHLIESSUNG_TARGET`, js/logic.js — die einzige Stelle, die die Zahl definiert; UI/Debug lesen sie von dort).
 4. Ab Start der Erschließung erfahren es **alle** über das Event-System: „Die Erde bebt — {Spieler} erschließt das Herz der Tiefe" + sichtbarer Countdown im HUD + Beben-Effekt am zentralen Wachturm. Volle Information, kein heimlicher Sieg.
-5. Nach Runde 5: Sieg über die Gesamtpartie („Wer das Fundament des Landes hält, dem beugt sich die Oberfläche") — läuft durch die normale Win-Check-/Team-Logik (Diplomatie: verbündete Einheiten in der Kaverne unterbrechen nicht). Wird erst final geprüft, wenn die letzte Runde komplett durchlaufen ist (alle Spieler hatten ihren Zug), damit niemand einen Zug zu früh gewinnt (Korrektur Juli 2026).
+5. Nach dem dritten gehaltenen Zugende: Sieg über die Gesamtpartie („Wer das Fundament des Landes hält, dem beugt sich die Oberfläche") — läuft durch die normale Win-Check-/Team-Logik (Diplomatie: verbündete Einheiten in der Kaverne unterbrechen nicht). Wird erst final geprüft, wenn die letzte Runde komplett durchlaufen ist (alle Spieler hatten ihren Zug), und die Haltebedingung wird dabei **noch einmal frisch geprüft** — wer nach dem Erschließer noch am Zug ist, kann ihm auf der Ziellinie eine Einheit in die Kaverne stellen (Korrektur Juli 2026).
 
-**Gegenspiel-Wege:** eigene Expedition in die Herzkaverne (1 Einheit in der Kaverne genügt zum Unterbrechen) · Tunnel des Erschließers oben zerstören/unterminieren → Moral-Kollaps seiner Expedition · Beutegräber/Horcher-Guerilla in seinen Stollen.
+**Halten, Anhalten, Zurückfallen** (`erschliessungStatus`, js/logic.js — dieselbe Dreiteilung gilt am Zugende wie bei der finalen Sieg-Prüfung am Rundenende):
+
+| Lage am eigenen Zugende | Folge |
+|---|---|
+| eigene Einheit im Zentrum, kein Gegner im Kern | **+1** |
+| ein nicht-verbündeter Gegner im Kern (egal wo genau, egal ob die eigene Einheit noch lebt) | **Pause** — `hz.pa = 1`, der Zähler bleibt stehen. Wer den Eindringling wieder rauswirft, zählt weiter, statt bei 0 anzufangen. Aus der Pause heraus gibt es keinen Sieg, auch bei vollem Zähler |
+| Mitte leer, **ohne** gegnerischen Druck (Einheit gefallen, weggelaufen, von einer Kreatur erschlagen) | **Reset auf 0** |
+| ein Gegner steht selbst im **Zentrum** | **Übernahme**: er erfüllt dort die Bedingung selbst, der alte Zähler verschwindet, seiner startet bei 1 |
+
+Pausiert wird also nur unter echtem gegnerischem Druck. Sonst ließe sich Fortschritt beliebig lange horten — 2/3 erreichen, woanders Krieg führen und Monate später in einem einzigen Zug einlösen (Entscheidung Jonathan, Sept 2026).
+
+**Wann der Zähler angefasst wird** (`advanceErschliessung`, aufgerufen für JEDES Zugende): nur am Zugende **seines eigenen Besitzers** — das Zugende eines Unbeteiligten sagt nichts über dessen Fortschritt aus (Bugfix Juli 2026, sonst kam bei 2+ Spielern nie jemand über 1/n hinaus). Zwei Ausnahmen davon (Korrektur Sept 2026):
+- **Übernahme:** Erfüllt der endende Spieler die Bedingung selbst, steht *seine* Einheit im Zentrum — der bisherige Halter also nicht mehr. Sein Zähler wird dann sofort durch den neuen (bei `n=1` startenden) ersetzt, statt den Übernehmer bis zum nächsten Zugende des alten Halters warten zu lassen.
+- **Toter Halter:** `killPlayer` (js/logic.js) löscht `uw.hz` des Toten mit. Vorher blieb ein Zähler mit `n=1`/`n=2` für den Rest der Partie stehen und blockierte **jede** weitere Erschließung — erreichbar über Hauptdorf-Verlust ebenso wie über Aufgeben (`confirmSurrender` ruft `killPlayer`). Der Fall `n=3` räumte sich zufällig über die Rundenend-Prüfung in `doEndTurn` selbst auf.
+
+**Was NICHT anhält:** Gegner in den **Ausläufern** (nur der Kern zählt) · Verbündete im Kern (`al[]` wird live gelesen — ein Bündnisbruch macht sie sofort wieder zu Gegnern und hält die Erschließung an) · **Kreaturen**: geprüft wird nur `uw.u` (Spielereinheiten), nicht `uw.c`. Kreaturen können die Einheit im Zentrum aber erschlagen — dann greift die Reset-Zeile oben.
+
+**Gegenspiel-Wege:** eigene Expedition in den Kern (1 Einheit irgendwo in den 7 Hexes genügt zum Anhalten — man muss sie dort aber auch halten, Anhalten allein zerstört den Fortschritt nicht mehr) · die Einheit im Zentrum erschlagen oder per Dynamit sprengen und selbst nachrücken (übernimmt den Platz sofort, s. o.) · Tunnel des Erschließers oben zerstören → Moral-Kollaps seiner Expedition · Beutegräber/Horcher-Guerilla in seinen Stollen. Die Kaverne selbst lässt sich **nicht** zuschütten (Stollenbruch nur auf `uw.d`), wohl aber der Zugangsstollen des Erschließers.
 
 ## 9. UI / UX
 
 - **Kamerafokus-Zyklus** (fertig): Standard → Luftansicht → Unterwelt. Im Unterwelt-Fokus ist die Oberfläche komplett aus (nicht sichtbar, nicht anwählbar) — Spiegelbild der strikten Ebenen-Trennung der Luftansicht.
-- **Unterseiten-Rendering:** Fels = geschlossene dunkle Tile-Unterseiten; offene Hexes „ausgehöhlt" (vertieft, wärmeres Material); Kristalladern glitzern; Herzkaverne mit eigenem Großmodell (`voxelModels`). Einheiten stehen als Voxel-Billboards in den Gängen, von unten betrachtet. 2D-Fallback (`?r2d=1`): abgedunkelte Karte mit Gang-Overlays.
+- **Unterseiten-Rendering:** Fels = geschlossene dunkle Tile-Unterseiten; offene Hexes „ausgehöhlt" (vertieft, wärmeres Material); Kristalladern glitzern; Herzkaverne mit eigenem Großmodell (`voxelModels`).
+- **Boden „Glut & Adern"** (Korrektur Sept 2026): der **Kern** ist der hellste, wärmste Boden der ganzen Unterwelt (`#6b3a20`) mit dichtem Glut-Glitzern — auf einen Blick als Innerstes erkennbar. Die **Ausläufer** sind dunkler Basalt (`#3d2a2a`) und tragen statt des gestreuten Glitzerns eine **gerichtete Glutader**: vier Voxel auf der Verbindungslinie zum Zentrum, zur Mitte hin dicker und heller (2D: ein Farbverlaufs-Strich mit heller Spitze zum Herz). Man liest am Boden ab, in welche Richtung das Herz liegt, ohne die Karte zu drehen. Die Ausrichtung kommt aus der Geometrie, nicht aus dem Seed — sie funktioniert auf allen sechs Armen identisch.
+- **Angehaltene Erschließung** ist überall gedämpft statt bunt: HUD-Plakette (`.score-hz-badge.is-paused` + Sanduhr-Icon statt 🌍), Zähler über dem Herz auf der Karte, eigener Toast am Zugstart. „Volle Information" gilt für die Pause genauso wie für den Fortschritt — der Verteidiger soll sehen, dass sein Gegenangriff wirkt. Einheiten stehen als Voxel-Billboards in den Gängen, von unten betrachtet. 2D-Fallback (`?r2d=1`): abgedunkelte Karte mit Gang-Overlays.
 - **Klick-Flow:** `handleUnderworldClick` (existiert) wächst zum vollen Pendant von `handleCanvasClick`: Auswahl → Grab-/Bewegungs-/Angriffs-Vorschau → Aktionsmenü (`mkBtn`-Muster: „⛏ Graben", „💎 Abbau starten"/„🛑 Abbau stoppen" (Toggle, Korrektur Juli 2026), „🧨 Dynamit legen" (Korrektur Juli 2026, ersetzt Kammer/Zünden), „🕳 Aufsteigen").
 - **Gehör-Anzeige:** Richtungs-Pings als orangenes Hex-Overlay (nächstgelegenes eigenes Netz-Hex); Horcher-Ortung als kräftigeres rotes Hex-Overlay. Klick auf ein markiertes Feld zeigt per Tooltip die Geräusch-Art (Graben/Abbau/Kämpfe/Dynamit/Stollenbruch/Kreatur-Bewegung/Kreatur-Angriff, `UW_NOISE_TYPE_NAMES`).
 - **Countdown & Beben:** Erschließungs-Fortschritt im HUD aller Spieler; Beben-Partikel am Wachturm. Dynamit (Korrektur Juli 2026) hat bewusst KEINE Oberflächen-Anzeige mehr — nur ein 🧨-Icon unten auf den 3 Ziel-Hexes.
@@ -204,7 +228,7 @@ Kreatur schlägt nie durch die Wand auf eine dahinterliegende offene Tasche.
 - `uw.dr` — herrenlose Kristallhaufen `{"x,y": Menge}` (Korrektur Juli 2026: fällt beim Tod eines Trägers, wird von trage-fähigen Einheiten beim Betreten automatisch eingesammelt)
 - `uw.c[]` — Kreaturen `{t, x, y, h}`; Wurm tot = Eintrag fehlt + Flag `uw.wd = 1`
 - `uw.n[]` — Lärm-Marker der letzten Runde `{x, y}` (transient, wird pro Runde ersetzt)
-- `uw.hz` — Erschließung `{p, n}`
+- `uw.hz` — Erschließung `{p, n, pa}` (`p` = Halter, `n` = gehaltene eigene Zugenden, `pa` = angehalten (nur gesetzt, wenn ein Gegner im Kern steht); wird beim Tod des Halters mitgelöscht)
 - Reliquien: `p[].rel[]` gekaufte, noch nicht verbrauchte "building"-Reliquien (aktuell nur `tool`);
   `p[].rb`/`p[].ra` permanente Passiv-Flags aus Klingenschmiede/Bollwerk (Korrektur Juli 2026, ersetzt
   `u[].art`, siehe Abschn. 7) — wie `p[].mr` nie normalisiert/gelöscht, nur `1` gesetzt oder `undefined`
@@ -230,7 +254,7 @@ Kreatur schlägt nie durch die Wand auf eine dahinterliegende offene Tasche.
 
 - Wurm 24 HP / 8 DMG AoE (unbedingter Konter beim Angreifen, `resolveUWAttackOnCreature`), Korrektur Juli 2026 (30 -> 24, Balancing-Auftrag Jonathan): mit 4–5 Einheiten schaffbar? Soll er zwischen Kämpfen regenerieren?
 - Runden-Phase + Telegraph (Korrektur Juli 2026): neue DMG-Werte (Spinne 4, Wühler 5, Steinpanzer 6, Wurm 8) + Aggro-/Bewegungswerte reiner Erstentwurf — fühlt sich "genau ein Zug zum Ausweichen" fair an, oder ist das bei mehreren gleichzeitig telegraphierenden Kreaturen (z. B. Spinne + Wühler auf überlappenden Feldern) zu viel Druck pro Runde? Steinpanzer-Erdrutsch/Wurm-Wirbel-Muster (6/12 Hexes) ggf. zu großflächig für die Kartenradien 5/7.
-- Erschließung 4 Runden + Zähler-Reset auf 0: zu hart? Alternative: Reset nur um −1 pro Unterbrechungsrunde.
+- Erschließung: 4 → 5 → **3** Zugenden (Korrektur Aug 2026). Der zählende Bereich ist seit Sept 2026 auf allen Karten der 7-Hex-Kern, und ein Gegner im Kern hält den Zähler nur an, statt ihn zu vernichten — beides macht den Siegweg spürbar gnädiger. Nach dem Playtest zu prüfen: ist 3 damit zu billig geworden (Gegenmittel wären 4 Zugenden oder ein Abbau um −1 je Pausenrunde), und reicht die Pause als Anreiz, den Kern überhaupt zu stürmen?
 - Expeditionsgröße: aktuell nur durch Gold begrenzt — braucht es ein hartes Limit (z. B. max. 6 Einheiten unten)?
 - Moral-Kollaps −1 HP: reicht das als Druck, oder zusätzlich „kein Heilen/Kein Kauf" ohne Tunnel?
 - Bohrwagen 2 Hex/Zug: untergräbt (haha) er das Grab-Tempo-Gefüge? Ggf. 2 Hex nur geradeaus.

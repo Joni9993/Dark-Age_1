@@ -141,8 +141,13 @@ function updateScoreboard() {
             // s.o.): "volle Information, kein heimlicher Sieg" heißt, er muss
             // weiter auf den ersten Blick sichtbar sein — also auch hier in
             // der eingeklappten Kopfzeile, nicht hinter dem Antippen versteckt.
-            const hzBadge = (gameState.uw && gameState.uw.hz && gameState.uw.hz.p === s.i)
-                ? `<span class="score-hz-badge" title="Erschließung der Unterwelt">🌍 ${gameState.uw.hz.n}/${ERSCHLIESSUNG_TARGET}</span>`
+            // Angehalten (Korrektur Sept 2026) wird sichtbar markiert: der
+            // Verteidiger soll sofort sehen, dass sein Gegenangriff im Kern der
+            // Herzkaverne wirkt — "volle Information" gilt für die Pause genauso
+            // wie für den Fortschritt.
+            const hzState = gameState.uw && gameState.uw.hz;
+            const hzBadge = (hzState && hzState.p === s.i)
+                ? `<span class="score-hz-badge${hzState.pa ? ' is-paused' : ''}" title="${hzState.pa ? 'Erschließung angehalten — Gegner im Kern der Herzkaverne' : 'Erschließung der Unterwelt'}">${hzState.pa ? icon('hourglass', 'ic-12') : '🌍'} ${hzState.n}/${ERSCHLIESSUNG_TARGET}</span>`
                 : '';
             const clickable = !s.isDead;
             html += `<div class="score-card ${s.isDead ? 'score-dead' : ''}" ${clickable ? 'onclick="this.classList.toggle(\'expanded\')"' : ''}>`;

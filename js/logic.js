@@ -78,6 +78,14 @@ function killPlayer(state, deadId, killerId) {
     pState.dead = 1;
     state.u = state.u.filter(u => u.p !== deadId);
     if (state.uw) state.uw.u = (state.uw.u || []).filter(u => u.p !== deadId);
+    // Erschließungs-Zähler des Toten wegräumen (Bugfix Sept 2026): der Zähler
+    // wird ausschließlich am ZUGENDE SEINES BESITZERS angefasst
+    // (advanceErschliessung) — ein Toter bekommt aber nie wieder einen Zug.
+    // Ohne diese Zeile blieb `uw.hz` mit n=1/2 für den Rest der Partie stehen
+    // (der Fall n=3 räumte sich zufällig über die Rundenend-Prüfung in
+    // doEndTurn selbst auf). Erreichbar über Hauptdorf-Verlust ODER Aufgeben
+    // (confirmSurrender ruft killPlayer) mitten in der Erschließung.
+    if (state.uw && state.uw.hz && state.uw.hz.p === deadId) delete state.uw.hz;
     Object.keys(state.v).forEach(k => { if (state.v[k] === deadId) state.v[k] = -1; });
     if (killerId !== undefined && killerId !== null && killerId !== deadId) {
         state.v[pState.sv] = killerId;
@@ -938,7 +946,7 @@ function openUWHexPermanently(x, y) {
 function pickHuntStep(creature, target) {
     const curDist = hexDistance({ x: creature.x, y: creature.y }, target);
     const isWurm = creature.t === UWC_WURM;
-    const heartCenter = isWurm ? getHeartCavernHexes(gameState)[0] : null;
+    const heartCenter = isWurm ? getHeartCoreHexes(gameState)[0] : null;
     const leash = isWurm ? uwCreatureStats[UWC_WURM].leash : null;
     let best = null, bestDist = curDist;
     getNeighbors(creature.x, creature.y).forEach(n => {
@@ -1020,7 +1028,7 @@ function movePatrolStep(creature, rng) {
     }
 
     if (creature.t === UWC_WURM) {
-        const center = getHeartCavernHexes(gameState)[0];
+        const center = getHeartCoreHexes(gameState)[0];
         const distToCenter = hexDistance({ x: creature.x, y: creature.y }, center);
         if (distToCenter > 1) {
             let best = null, bestD = distToCenter;
@@ -1759,20 +1767,42 @@ function applyMoralCollapse(state, playerId) {
 // hier statt sie zu duplizieren).
 const ERSCHLIESSUNG_TARGET = 3;
 
-// Bedingung an EINEM Zugende: Wurm tot, eigene Einheit exakt im Herzkaverne-
-// ZENTRUM, keine nicht-verbündete fremde Tiefeneinheit irgendwo in der ganzen
-// Herzkaverne (getHeartCavernHexes, js/hex.js). Verbündete unterbrechen NICHT
-// (gleiche al[]-Logik wie checkTeamWin, js/diplomacy.js).
-function checkErschliessungProgress(state, playerId) {
-    if (!state.uw || state.uw.wd !== 1) return false;
+// Zustand der Erschließung an EINEM Zugende, aus Sicht von `playerId`:
+//
+//   'progress'  Wurm tot, eigene Einheit exakt im Zentrums-Hex, kein Gegner im
+//               KERN der Herzkaverne (getHeartCoreHexes, js/hex.js — die 7 Hexes,
+//               die es auf jeder Kartengröße gibt) → Zähler +1.
+//   'paused'    ein nicht-verbündeter Gegner steht im Kern → Zähler bleibt stehen,
+//               fällt aber NICHT auf 0 (Korrektur Sept 2026, Jonathan). Wer den
+//               Eindringling wieder rauswirft, zählt weiter, statt bei 0 anzufangen.
+//   'none'      alles andere — vor allem "die Mitte steht leer und niemand drängt
+//               herein" (eigene Einheit gefallen oder weggelaufen). Das setzt den
+//               Zähler zurück: pausiert wird nur unter echtem gegnerischem Druck,
+//               sonst ließe sich Fortschritt beliebig lange horten und später in
+//               einem einzigen Zug einlösen.
+//
+// Nur der KERN zählt — die Sternausläufer (getHeartArmHexes) sind reiner Zugang.
+// Vorher galt die ganze Kaverne, auf Radius 12 also 19 statt 7 Hexes: praktisch
+// nicht zu verteidigen. Verbündete stören nie (gleiche al[]-Logik wie
+// checkTeamWin, js/diplomacy.js), Kreaturen (uw.c) auch nicht — sie können die
+// Einheit im Zentrum aber erschlagen und unterbrechen so indirekt.
+function erschliessungStatus(state, playerId) {
+    if (!state.uw || state.uw.wd !== 1) return 'none';
+    const pState = state.p[playerId];
+    if (!pState) return 'none';
+    const isAllied = (otherId) => otherId === playerId || (pState.al && pState.al.includes(otherId));
+    const coreHexes = getHeartCoreHexes(state);
+    const enemyInCore = (state.uw.u || []).some(u => !isAllied(u.p) && coreHexes.some(h => h.x === u.x && h.y === u.y));
+    if (enemyInCore) return 'paused';
     const cx = Math.floor(state.bw / 2), cy = Math.floor(state.bh / 2);
     const ownInCenter = (state.uw.u || []).some(u => u.p === playerId && u.x === cx && u.y === cy);
-    if (!ownInCenter) return false;
-    const pState = state.p[playerId];
-    const isAllied = (otherId) => otherId === playerId || (pState.al && pState.al.includes(otherId));
-    const heartHexes = getHeartCavernHexes(state);
-    const enemyPresent = (state.uw.u || []).some(u => !isAllied(u.p) && heartHexes.some(h => h.x === u.x && h.y === u.y));
-    return !enemyPresent;
+    return ownInCenter ? 'progress' : 'none';
+}
+
+// Rückwärtskompatible Ja/Nein-Form (Sieg-Endprüfung in js/input.js, Debug-Panel):
+// "zählt der Zähler in diesem Moment hoch?"
+function checkErschliessungProgress(state, playerId) {
+    return erschliessungStatus(state, playerId) === 'progress';
 }
 
 // Aktualisiert uw.hz um EINEN Zugenden-Schritt für `playerId` (den gerade
@@ -1788,16 +1818,50 @@ function checkErschliessungProgress(state, playerId) {
 // gleichzeitig im Zentrum stehen) — ohne diese Sperre hat jeder einzelne
 // Zugwechsel eines unbeteiligten Spielers den Zähler des echten Halters auf 0
 // zurückgeworfen, sodass er bei 2+ Spielern nie über 1/ERSCHLIESSUNG_TARGET hinauskam.
+//
+// Übernahme (Korrektur Sept 2026): die Sperre oben galt bis dahin bedingungslos
+// und traf damit auch den Fall, für den sie nie gedacht war — wer die Einheit
+// des Halters aus dem Zentrum schlägt und selbst hineinrückt, bekam am eigenen
+// Zugende trotzdem `null` und musste warten, bis der Halter mit seinem nächsten
+// Zugende seinen eigenen Zähler abräumt: bis zu eine volle Runde verschenkt, und
+// bei einem toten Halter (killPlayer räumt `hz` jetzt selbst ab) früher sogar für
+// immer. Erfüllt der endende Spieler die Bedingung SELBST, steht seine Einheit im
+// Zentrum — der bisherige Halter also definitiv nicht mehr, sein Zähler ist
+// hinfällig und wird durch den neuen (bei 1 startenden) ersetzt. Erfüllt er sie
+// nicht, bleibt es beim alten Verhalten: sein Zugende sagt nichts über den
+// Fortschritt des echten Halters aus.
+//
+// Pause (Korrektur Sept 2026): 'paused' lässt den Zähler stehen und setzt
+// `hz.pa = 1` (HUD-Plakette + Zugstart-Erinnerung lesen das Flag). Gemeldet wird
+// nur der ÜBERGANG in die Pause — sonst stünde bei einer Belagerung über mehrere
+// Runden in jedem Zug derselbe Toast. Ein Gegner, der bis ins ZENTRUM vorstößt,
+// löst dagegen weiterhin einen echten Reset aus: er erfüllt dort selbst
+// 'progress' und übernimmt über den Zweig darüber mit n=1.
 function advanceErschliessung(state, playerId) {
-    if (state.uw.hz && state.uw.hz.p !== playerId) return null;
-    const held = checkErschliessungProgress(state, playerId);
-    if (held) {
+    const status = erschliessungStatus(state, playerId);
+    if (state.uw.hz && state.uw.hz.p !== playerId) {
+        if (status !== 'progress') return null;
+        const previous = state.uw.hz.p;
+        state.uw.hz = { p: playerId, n: 1 };
+        return { type: 'start', p: playerId, n: 1, took: previous };
+    }
+    if (status === 'progress') {
         if (!state.uw.hz || state.uw.hz.p !== playerId) {
             state.uw.hz = { p: playerId, n: 1 };
         } else {
             state.uw.hz.n = Math.min(ERSCHLIESSUNG_TARGET, state.uw.hz.n + 1);
         }
-        return { type: state.uw.hz.n === 1 ? 'start' : 'progress', p: playerId, n: state.uw.hz.n };
+        const wasPaused = !!state.uw.hz.pa;
+        delete state.uw.hz.pa;
+        return { type: state.uw.hz.n === 1 ? 'start' : 'progress', p: playerId, n: state.uw.hz.n, resumed: wasPaused || undefined };
+    }
+    if (status === 'paused') {
+        // Ohne laufenden Zähler gibt es nichts anzuhalten — und starten kann man
+        // mit einem Gegner im Kern ohnehin nicht.
+        if (!state.uw.hz) return null;
+        if (state.uw.hz.pa) return null;
+        state.uw.hz.pa = 1;
+        return { type: 'pause', p: playerId, n: state.uw.hz.n };
     }
     if (state.uw.hz) {
         const interrupted = state.uw.hz.p;
@@ -1812,6 +1876,7 @@ function advanceErschliessung(state, playerId) {
 // (checkTeamWin), nur unabhängig davon, ob noch andere Spieler leben.
 function checkErschliessungWin(state) {
     if (!state.uw || !state.uw.hz || state.uw.hz.n < ERSCHLIESSUNG_TARGET) return null;
+    if (state.uw.hz.pa) return null; // angehalten (Gegner im Kern) — kein Sieg, aber auch kein Reset
     const p = state.uw.hz.p;
     if (!state.p[p] || state.p[p].dead === 1) return null;
     const allies = (state.p[p].al || []).filter(id => state.p[id] && state.p[id].dead !== 1);
