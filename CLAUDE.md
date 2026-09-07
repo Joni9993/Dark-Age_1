@@ -27,6 +27,7 @@ Only the affected number increments by 1; the numbers to its right reset to 0 (s
 ```bash
 node maptest/verify_recap.js              # Rückblick: Log-Führung, Sichtbarkeit, Verdichtung
 node maptest/verify_underworld_m13.js     # Unterwelt-Integrationspass (u.a. dieselbe Sichtregel)
+node maptest/verify_underworld_m12.js     # Dynamit, Moral-Kollaps, Erschließung (Zähler, Übernahme, Sieg)
 ```
 
 **Server-Prüfskripte** (ohne DB): `node server/scripts/test-rating.js`, `node server/scripts/test-seating.js`.

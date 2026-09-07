@@ -29,7 +29,7 @@ function loadGameCode() {
             uwUnitAt, uwCreatureAt, digUWHex, calculateStollenbruchTargetsUW, collapseUWHex,
             calculateDynamiteTargetsUW, getDynamiteTriangle, placeUWDynamite, processUWDynamiteDetonations,
             resolveUWAttack, resolveUWAttackOnCreature,
-            hasUsableTunnel, applyMoralCollapse,
+            hasUsableTunnel, applyMoralCollapse, killPlayer,
             checkErschliessungProgress, advanceErschliessung, checkErschliessungWin, ERSCHLIESSUNG_TARGET,
             getUnitMaxHp, getUnitCost, unitStats, uwCreatureStats, UWC_WURM
         };
@@ -383,6 +383,69 @@ console.log('\n=== (e) Erschließung: Bedingungen, Verbündete unterbrechen nich
     const state7 = freshState(5, 5, 2);
     state7.uw.hz = { p: 0, n: M.ERSCHLIESSUNG_TARGET - 1 };
     assert(M.checkErschliessungWin(state7) === null, `n=${M.ERSCHLIESSUNG_TARGET - 1} löst noch keinen Sieg aus`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n=== (e2) Erschließung: Übernahme des Zentrums + toter Halter (Korrektur Sept 2026) ===');
+{
+    // Ausgangslage für alle Fälle: Wurm tot, P0 hält den Zähler bei n=2.
+    const setup = (seed = 8) => {
+        const state = freshState(seed, 5, 3);
+        const cx = state.rad, cy = state.rad;
+        state.uw.wd = 1;
+        state.uw.c = [];
+        state.uw.u.push({ i: 1, p: 0, t: 7, x: cx, y: cy, h: 8 });
+        M.advanceErschliessung(state, 0);
+        M.advanceErschliessung(state, 0);
+        return { state, cx, cy };
+    };
+
+    // 1) Unbeteiligter Spieler: der Juli-2026-Bugfix muss weiter greifen —
+    //    ein Zugende ohne eigene Einheit im Zentrum darf den fremden Zähler NICHT anfassen.
+    {
+        const { state } = setup();
+        assert(state.uw.hz.p === 0 && state.uw.hz.n === 2, 'Vorbedingung: P0 hält den Zähler bei n=2');
+        const ev = M.advanceErschliessung(state, 1);
+        assert(ev === null, 'Zugende eines unbeteiligten Spielers meldet nichts');
+        assert(state.uw.hz.p === 0 && state.uw.hz.n === 2, 'Zähler des Halters bleibt beim Zugende eines Unbeteiligten unangetastet');
+    }
+
+    // 2) Übernahme: P1 schlägt P0s Einheit aus dem Zentrum und rückt selbst nach —
+    //    sein Timer startet am EIGENEN Zugende, ohne auf P0s nächstes Zugende zu warten.
+    {
+        const { state, cx, cy } = setup();
+        state.uw.u = [{ i: 2, p: 1, t: 17, x: cx, y: cy, h: 14 }]; // P0s Einheit gefallen, P1 steht im Zentrum
+        const ev = M.advanceErschliessung(state, 1);
+        assert(ev && ev.type === 'start' && ev.n === 1, 'Übernahme meldet type=start bei n=1');
+        assert(ev.took === 0, 'Übernahme nennt den bisherigen Halter (took)');
+        assert(state.uw.hz.p === 1 && state.uw.hz.n === 1, 'uw.hz gehört nach der Übernahme P1 und steht bei n=1');
+    }
+
+    // 3) Verbündeter im Zentrum ist keine Übernahme: erfüllt P1 die Bedingung nicht
+    //    (P0s Einheit steht noch), bleibt alles wie es war.
+    {
+        const { state } = setup();
+        const ev = M.advanceErschliessung(state, 1);
+        assert(ev === null && state.uw.hz.p === 0, 'solange die Einheit des Halters im Zentrum steht, gibt es keine Übernahme');
+    }
+
+    // 4) Toter Halter: killPlayer räumt seinen Zähler ab (vorher blieb er mit n=1/2
+    //    für den Rest der Partie stehen und blockierte JEDE weitere Erschließung).
+    {
+        const { state, cx, cy } = setup();
+        M.killPlayer(state, 0, 1);
+        assert(state.uw.hz === undefined, 'killPlayer löscht den Erschließungs-Zähler des Toten');
+        state.uw.u = [{ i: 3, p: 1, t: 17, x: cx, y: cy, h: 14 }];
+        const ev = M.advanceErschliessung(state, 1);
+        assert(ev && ev.type === 'start' && state.uw.hz.p === 1, 'nach dem Tod des alten Halters kann ein anderer Spieler regulär starten');
+    }
+
+    // 5) killPlayer fasst den Zähler eines ANDEREN Spielers nicht an.
+    {
+        const { state } = setup();
+        M.killPlayer(state, 2, 1);
+        assert(state.uw.hz && state.uw.hz.p === 0 && state.uw.hz.n === 2, 'killPlayer eines Unbeteiligten lässt den fremden Zähler stehen');
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────

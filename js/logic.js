@@ -78,6 +78,14 @@ function killPlayer(state, deadId, killerId) {
     pState.dead = 1;
     state.u = state.u.filter(u => u.p !== deadId);
     if (state.uw) state.uw.u = (state.uw.u || []).filter(u => u.p !== deadId);
+    // Erschließungs-Zähler des Toten wegräumen (Bugfix Sept 2026): der Zähler
+    // wird ausschließlich am ZUGENDE SEINES BESITZERS angefasst
+    // (advanceErschliessung) — ein Toter bekommt aber nie wieder einen Zug.
+    // Ohne diese Zeile blieb `uw.hz` mit n=1/2 für den Rest der Partie stehen
+    // (der Fall n=3 räumte sich zufällig über die Rundenend-Prüfung in
+    // doEndTurn selbst auf). Erreichbar über Hauptdorf-Verlust ODER Aufgeben
+    // (confirmSurrender ruft killPlayer) mitten in der Erschließung.
+    if (state.uw && state.uw.hz && state.uw.hz.p === deadId) delete state.uw.hz;
     Object.keys(state.v).forEach(k => { if (state.v[k] === deadId) state.v[k] = -1; });
     if (killerId !== undefined && killerId !== null && killerId !== deadId) {
         state.v[pState.sv] = killerId;
@@ -1788,9 +1796,26 @@ function checkErschliessungProgress(state, playerId) {
 // gleichzeitig im Zentrum stehen) — ohne diese Sperre hat jeder einzelne
 // Zugwechsel eines unbeteiligten Spielers den Zähler des echten Halters auf 0
 // zurückgeworfen, sodass er bei 2+ Spielern nie über 1/ERSCHLIESSUNG_TARGET hinauskam.
+//
+// Übernahme (Korrektur Sept 2026): die Sperre oben galt bis dahin bedingungslos
+// und traf damit auch den Fall, für den sie nie gedacht war — wer die Einheit
+// des Halters aus dem Zentrum schlägt und selbst hineinrückt, bekam am eigenen
+// Zugende trotzdem `null` und musste warten, bis der Halter mit seinem nächsten
+// Zugende seinen eigenen Zähler abräumt: bis zu eine volle Runde verschenkt, und
+// bei einem toten Halter (killPlayer räumt `hz` jetzt selbst ab) früher sogar für
+// immer. Erfüllt der endende Spieler die Bedingung SELBST, steht seine Einheit im
+// Zentrum — der bisherige Halter also definitiv nicht mehr, sein Zähler ist
+// hinfällig und wird durch den neuen (bei 1 startenden) ersetzt. Erfüllt er sie
+// nicht, bleibt es beim alten Verhalten: sein Zugende sagt nichts über den
+// Fortschritt des echten Halters aus.
 function advanceErschliessung(state, playerId) {
-    if (state.uw.hz && state.uw.hz.p !== playerId) return null;
     const held = checkErschliessungProgress(state, playerId);
+    if (state.uw.hz && state.uw.hz.p !== playerId) {
+        if (!held) return null;
+        const previous = state.uw.hz.p;
+        state.uw.hz = { p: playerId, n: 1 };
+        return { type: 'start', p: playerId, n: 1, took: previous };
+    }
     if (held) {
         if (!state.uw.hz || state.uw.hz.p !== playerId) {
             state.uw.hz = { p: playerId, n: 1 };

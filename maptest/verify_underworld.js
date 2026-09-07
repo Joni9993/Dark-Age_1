@@ -14,6 +14,7 @@ function loadGameCode() {
     global.mapSizeSelect = stub;
     global.teamModeSelect = selectStub;
     if (!global.document) global.document = { getElementById: () => null };
+    global.window = global; // js/mapgen.js ruft beim Laden window.Segmented?.refreshAll()
 
     // js/data.js: seit M11 braucht buildInitialGameState (js/mapgen.js) die
     // Kreaturen-Konstanten (UWC_*/uwCreatureStats) für die initiale Platzierung.
