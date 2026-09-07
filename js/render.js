@@ -411,7 +411,7 @@ function renderBoard(state) {
 // (getVisibleUWHexes), Ziel-Highlights und Gehör-Pings wie gehabt.
 const UW_2D_COLORS = {
     [UW_FELS]: '#33333a', [UW_KAVERNE]: '#4d3c2a', [UW_ADER]: '#37363f',
-    [UW_RUINE]: '#4a3c2a', [UW_HERZ]: '#5c3a22'
+    [UW_RUINE]: '#4a3c2a', [UW_HERZ]: '#6b3a20', [UW_HERZWEG]: '#3d2a2a'
 };
 // Kristall-Tint der Adern — gleicher Farbwert wie UW_CRYSTAL_TINT (render3d.js)
 const UW_2D_CRYSTAL_TINT = '#79ddff';
@@ -536,6 +536,34 @@ function drawUnderworldHex2D(x, y, uwVis, noisePings) {
                 ctx.fill();
             }
         }
+    } else if (uType === UW_HERZWEG) {
+        // Ausläufer ("Herzweg", Korrektur Sept 2026): 2D-Pendant der gerichteten
+        // Glutader aus buildUnderworldTiles (render3d.js) — eine kurze Ader, die
+        // zum Herz-Zentrum zeigt, zur Mitte hin dicker und heller. Kein gestreutes
+        // Glitzern: die Richtung IST hier die Information.
+        const heartC = getHexCenter(Math.floor(gameState.bw / 2), Math.floor(gameState.bh / 2));
+        let dx = heartC.px - center.px, dy = heartC.py - center.py;
+        const len = Math.hypot(dx, dy) || 1;
+        dx /= len; dy /= len;
+        const reach = 11;
+        const grad = ctx.createLinearGradient(
+            center.px - dx * reach, center.py - dy * reach,
+            center.px + dx * reach, center.py + dy * reach
+        );
+        grad.addColorStop(0, 'rgba(212,87,76,0.25)');
+        grad.addColorStop(1, '#ff8a70');
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'butt';
+        ctx.beginPath();
+        ctx.moveTo(center.px - dx * reach, center.py - dy * reach);
+        ctx.lineTo(center.px + dx * reach, center.py + dy * reach);
+        ctx.stroke();
+        // Spitze zum Herz hin — macht aus der Ader einen Richtungspfeil
+        ctx.fillStyle = '#ff8a70';
+        ctx.beginPath();
+        ctx.arc(center.px + dx * reach, center.py + dy * reach, 2, 0, Math.PI * 2);
+        ctx.fill();
     }
 
     // Herrenloser Kristallhaufen (Korrektur Juli 2026): fällt beim Tod eines

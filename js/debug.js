@@ -502,7 +502,7 @@ window.dbg = {
     // Ader/Ruine/Herz) über die komplette Karte und loggt sie in die Konsole.
     uwStats: () => {
         if (!gameState) { console.log('Kein Spiel geladen.'); return; }
-        const counts = { [UW_FELS]: 0, [UW_KAVERNE]: 0, [UW_ADER]: 0, [UW_RUINE]: 0, [UW_HERZ]: 0 };
+        const counts = { [UW_FELS]: 0, [UW_KAVERNE]: 0, [UW_ADER]: 0, [UW_RUINE]: 0, [UW_HERZ]: 0, [UW_HERZWEG]: 0 };
         let total = 0;
         for (let y = 0; y < gameState.bh; y++) {
             for (let x = 0; x < gameState.bw; x++) {

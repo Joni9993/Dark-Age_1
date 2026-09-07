@@ -42,12 +42,21 @@
     // Basisfarben je Unterwelt-Typ (bewusst hier lokal definiert, nicht in
     // art.js/pal — die Unterwelt-Grafik ist noch reiner Platzhalter, art.js
     // gehört einem parallel arbeitenden Agenten).
+    // Herz der Tiefe (Korrektur Sept 2026, "Glut & Adern"): der KERN ist der
+    // hellste, wärmste Boden der ganzen Unterwelt — glühender Herzstein, auf einen
+    // Blick als Innerstes erkennbar. Die AUSLÄUFER (UW_HERZWEG) sind dunkler
+    // Basalt: sie sollen nicht wie der Kern aussehen, aber auch nicht wie
+    // gewöhnlicher Gang — ihre Kennzeichnung ist die gerichtete Glutader (s.
+    // Akzent-Block in buildUnderworldTiles), nicht die Grundfarbe.
     const UW_COLORS = {
         [UW_FELS]: '#33333a', [UW_KAVERNE]: '#4d3c2a', [UW_ADER]: '#37363f',
-        [UW_RUINE]: '#4a3c2a', [UW_HERZ]: '#5c3a22'
+        [UW_RUINE]: '#4a3c2a', [UW_HERZ]: '#6b3a20', [UW_HERZWEG]: '#3d2a2a'
     };
     // Akzentfarben (Kristall-/Fund-/Herz-Glitzern) für Typen mit `accentPositions`
-    const UW_ACCENT_COLORS = { [UW_ADER]: '#7fe3ff', [UW_RUINE]: '#c9a24b', [UW_HERZ]: '#ff6f61' };
+    const UW_ACCENT_COLORS = {
+        [UW_ADER]: '#7fe3ff', [UW_RUINE]: '#c9a24b',
+        [UW_HERZ]: '#ff6f61', [UW_HERZWEG]: '#d4574c'
+    };
     // Diamantenes Kristallschimmern für das Kristallvorkommen-Voxelmodell (s.
     // Kristalladern-Block in drawScene3d): tint-Mix in addVoxelModel (fixe 45%-
     // Überblendung), bewusst heller/weißer als UW_ACCENT_COLORS[UW_ADER] (das
@@ -489,7 +498,7 @@
             col.multiplyScalar(0.9 + j * 0.2);
             uwTileMesh.setColorAt(i, col);
 
-            if (uType === UW_ADER || uType === UW_RUINE || uType === UW_HERZ) {
+            if (uType === UW_ADER || uType === UW_RUINE || uType === UW_HERZ || uType === UW_HERZWEG) {
                 accentPositions.push({ x: c.x, y: c.y, uType, wx, wz, depth });
             }
             if (uType === UW_FELS) {
@@ -521,11 +530,41 @@
         uwAccentMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(uwAccentMesh.count * 3), 3);
         uwAccentIndex = [];
         let n = 0;
+        // Weltposition des Herz-Zentrums — Richtungsgeber für die Glutadern der
+        // Ausläufer (s.u.); einmal vorab statt je Akzent-Voxel.
+        const heartCenterW = worldPos(Math.floor(state.bw / 2), Math.floor(state.bh / 2));
         accentPositions.forEach(a => {
             const rng = createPRNG(a.x * 1013 + a.y * 7919 + 55);
             const baseCol = new THREE.Color(UW_ACCENT_COLORS[a.uType] || '#7fe3ff');
             // Herzkaverne deutlich hervorgehoben: mehr + größere Akzent-Voxel
             const isHeart = a.uType === UW_HERZ;
+            const isHeartWay = a.uType === UW_HERZWEG;
+            if (isHeartWay) {
+                // Ausläufer ("Herzweg", Korrektur Sept 2026): KEIN gestreutes
+                // Glitzern wie überall sonst, sondern eine gerichtete Glutader —
+                // vier Voxel auf der Verbindungslinie zum Herz-Zentrum, zur Mitte
+                // hin größer und heller. Dadurch liest man am Boden ab, in welche
+                // Richtung das Herz liegt, ohne die Karte zu drehen. Die Ausrichtung
+                // kommt aus der Geometrie (Weltkoordinaten), nicht aus dem Seed —
+                // sie soll auf allen sechs Armen identisch funktionieren.
+                let dirX = heartCenterW.wx - a.wx, dirZ = heartCenterW.wz - a.wz;
+                const len = Math.hypot(dirX, dirZ) || 1;
+                dirX /= len; dirZ /= len;
+                const veinVoxels = 4;
+                for (let k = 0; k < veinVoxels; k++) {
+                    if (n >= uwAccentMesh.count) break;
+                    const t = (k / (veinVoxels - 1) - 0.5) * hexSize * 1.5; // -0.75 .. +0.75 Hexbreite
+                    const s = 0.7 + (k / (veinVoxels - 1)) * 0.9;           // zum Herz hin dicker
+                    m.makeScale(s, s * 0.6, s);
+                    m.setPosition(a.wx + dirX * t, -a.depth + s * 0.3, a.wz + dirZ * t);
+                    uwAccentMesh.setMatrixAt(n, m);
+                    col.copy(baseCol).multiplyScalar(0.7 + (k / (veinVoxels - 1)) * 0.6);
+                    uwAccentMesh.setColorAt(n, col);
+                    uwAccentIndex.push({ x: a.x, y: a.y });
+                    n++;
+                }
+                return;
+            }
             const count = isHeart ? perHexAccents * 2 : perHexAccents;
             for (let k = 0; k < count; k++) {
                 if (n >= uwAccentMesh.count) break;
@@ -1451,7 +1490,9 @@
                     // Smartphones sonst zu voll wird) — Spieler sehen den Countdown so
                     // beim Blick aufs Feld, ohne die Ressourcenzeile lesen zu müssen.
                     if (state.uw && state.uw.hz) {
-                        addIcon(`${state.uw.hz.n}/${ERSCHLIESSUNG_TARGET}`, '#ffd54f', wx, wz, heartBaseY + modelTopHeight('herzkaverne') + 10, 13);
+                        // Angehalten (Gegner im Kern) wird gedämpft gezeigt statt
+                        // in Gold — dieselbe Unterscheidung wie die HUD-Plakette.
+                        addIcon(`${state.uw.hz.n}/${ERSCHLIESSUNG_TARGET}`, state.uw.hz.pa ? '#8a7e6e' : '#ffd54f', wx, wz, heartBaseY + modelTopHeight('herzkaverne') + 10, 13);
                     }
                 }
             }

@@ -80,10 +80,11 @@ const UW_FELS = 0;      // Standard, massiv — nur durch Graben passierbar (M9b
 const UW_KAVERNE = 1;   // natürliche offene Tasche, vereinzelt, NICHT zusammenhängend
 const UW_ADER = 2;      // Kristallader — Fels mit Kristallen, abbaubar (M10)
 const UW_RUINE = 3;     // Stollenruine — kleiner, zusammenhängender Korridor-Cluster
-const UW_HERZ = 4;      // Herzkaverne — fix, exakt unter dem zentralen Wachturm
+const UW_HERZ = 4;      // Herzkaverne — der KERN, fix unter dem zentralen Wachturm
+const UW_HERZWEG = 5;   // Sternausläufer der Herzkaverne — offener Gang, zeigt zum Kern
 const UW_TYPE_NAMES = {
     [UW_FELS]: 'Fels', [UW_KAVERNE]: 'Kaverne', [UW_ADER]: 'Kristallader',
-    [UW_RUINE]: 'Stollenruine', [UW_HERZ]: 'Herzkaverne'
+    [UW_RUINE]: 'Stollenruine', [UW_HERZ]: 'Herzkaverne', [UW_HERZWEG]: 'Herzweg'
 };
 
 // Gleiches Hash-Verfahren wie createPRNG (js/prng.js: seed += Konstante, dann
@@ -164,36 +165,68 @@ function getWedgeHexes(cx, cy, dirIdx) {
 }
 
 // Herzkaverne: fix unter dem Kartenzentrum — dasselbe Hex wie `ct` in
-// js/mapgen.js ({x: radius, y: radius}). Größe an die Kartengröße angepasst:
-// Radius 5 → Zentrum + Ring 1 (7 Hexes); größere Karten zusätzlich einzelne
-// (nicht alle) Ring-2-/Ring-3-Hexes. Reine Funktion von bw/bh/rad (kein x/y-
-// Argument nötig), daher pro Karte gecacht statt bei jeder Abfrage neu gebaut.
+// js/mapgen.js ({x: radius, y: radius}). Sie besteht aus zwei Teilen, die seit
+// der Korrektur Sept 2026 (Jonathan: "die Kaverne ist zu schwer zu halten")
+// bewusst AUSEINANDERGEHALTEN werden:
+//
+//   KERN (getHeartCoreHexes)      Zentrum + voller Ring 1 = 7 Hexes, auf JEDER
+//                                 Kartengröße gleich. Nur hier zählt die
+//                                 Erschließung, und nur ein Gegner HIER hält sie
+//                                 an — auf Radius 12 waren vorher 19 Hexes zu
+//                                 verteidigen, ein aussichtsloser Auftrag.
+//   AUSLÄUFER (getHeartArmHexes)  die 6 Sternarme im Fels: auf größeren Karten je
+//                                 ein Hex pro Kubik-Achse in Ring 2 (rad > 5) bzw.
+//                                 Ring 3 (rad > 8). `i % 2`/`i % 3` über
+//                                 hexRingAround trifft geometrisch exakt die
+//                                 Ring-Ecken, also die 6 Achsenrichtungen.
+//                                 Begehbar wie der Kern, aber ohne Spielwirkung —
+//                                 reiner Zugang, im Boden als Weg zum Herz erkennbar.
+//
+// getHeartCavernHexes bleibt "die ganze Kaverne" (Kern + Ausläufer) und damit die
+// Grundlage für Optik/Begehbarkeit. Alle drei sind reine Funktionen von bw/bh/rad
+// (kein x/y-Argument), daher pro Karte gecacht statt bei jeder Abfrage neu gebaut.
+const _heartCoreCache = {};
+const _heartArmCache = {};
 const _heartCavernCache = {};
-function getHeartCavernHexes(state) {
+
+function getHeartCoreHexes(state) {
     const key = `${state.bw}|${state.bh}|${state.rad}`;
-    if (_heartCavernCache[key]) return _heartCavernCache[key];
-
-    const cx = Math.floor(state.bw / 2), cy = Math.floor(state.bh / 2);
-    const center = { x: cx, y: cy };
-    let hexes = [center, ...hexRingAround(center, 1)];
-
-    const rad = state.rad || 5;
-    if (rad > 5) {
-        // Größere Karten: jedes zweite Ring-2-Hex dazu ("einzelne", kein voller Ring)
-        hexRingAround(center, 2).forEach((h, i) => { if (i % 2 === 0) hexes.push(h); });
-    }
-    if (rad > 8) {
-        // Sehr große Karten (Radius 12): zusätzlich jedes dritte Ring-3-Hex
-        hexRingAround(center, 3).forEach((h, i) => { if (i % 3 === 0) hexes.push(h); });
-    }
-
-    hexes = hexes.filter(h => isInsideMap(state, h.x, h.y));
-    _heartCavernCache[key] = hexes;
+    if (_heartCoreCache[key]) return _heartCoreCache[key];
+    const center = { x: Math.floor(state.bw / 2), y: Math.floor(state.bh / 2) };
+    const hexes = [center, ...hexRingAround(center, 1)].filter(h => isInsideMap(state, h.x, h.y));
+    _heartCoreCache[key] = hexes;
     return hexes;
 }
 
+function getHeartArmHexes(state) {
+    const key = `${state.bw}|${state.bh}|${state.rad}`;
+    if (_heartArmCache[key]) return _heartArmCache[key];
+    const center = { x: Math.floor(state.bw / 2), y: Math.floor(state.bh / 2) };
+    const hexes = [];
+    const rad = state.rad || 5;
+    if (rad > 5) hexRingAround(center, 2).forEach((h, i) => { if (i % 2 === 0) hexes.push(h); });
+    if (rad > 8) hexRingAround(center, 3).forEach((h, i) => { if (i % 3 === 0) hexes.push(h); });
+    _heartArmCache[key] = hexes.filter(h => isInsideMap(state, h.x, h.y));
+    return _heartArmCache[key];
+}
+
+function getHeartCavernHexes(state) {
+    const key = `${state.bw}|${state.bh}|${state.rad}`;
+    if (_heartCavernCache[key]) return _heartCavernCache[key];
+    _heartCavernCache[key] = [...getHeartCoreHexes(state), ...getHeartArmHexes(state)];
+    return _heartCavernCache[key];
+}
+
+function isHeartCoreHex(state, x, y) {
+    return getHeartCoreHexes(state).some(h => h.x === x && h.y === y);
+}
+
+function isHeartArmHex(state, x, y) {
+    return getHeartArmHexes(state).some(h => h.x === x && h.y === y);
+}
+
 function isHeartCavernHex(state, x, y) {
-    return getHeartCavernHexes(state).some(h => h.x === x && h.y === y);
+    return isHeartCoreHex(state, x, y) || isHeartArmHex(state, x, y);
 }
 
 // Stollenruinen: wenige, kleine geradlinige Korridore (2-4 Hexes je Cluster),
@@ -377,7 +410,8 @@ function getWuehlerSpawnHexes(state) {
 // schlägt Fels. Deterministisch aus state.sd (+ eigenem Hash-Kanal) — zweimal
 // mit denselben Argumenten aufgerufen liefert immer denselben Typ.
 function getUnderworldType(state, x, y) {
-    if (isHeartCavernHex(state, x, y)) return UW_HERZ;
+    if (isHeartCoreHex(state, x, y)) return UW_HERZ;
+    if (isHeartArmHex(state, x, y)) return UW_HERZWEG;
     if (isRuinHex(state, x, y)) return UW_RUINE;
 
     const r = underworldHash(state, x, y, 1);
@@ -425,7 +459,7 @@ function isUnderworldTunnelHead(state, x, y) {
 // vor der bootGame-Dekomprimierung aufgerufen wird.
 function isUnderworldOpen(state, x, y) {
     const t = getUnderworldType(state, x, y);
-    if (t === UW_KAVERNE || t === UW_RUINE || t === UW_HERZ) return true;
+    if (t === UW_KAVERNE || t === UW_RUINE || t === UW_HERZ || t === UW_HERZWEG) return true;
     if (isUnderworldTunnelHead(state, x, y)) return true;
     // Steinpanzer-Wachtaschen: seed-deterministisch vorgegrabene Fels-Nischen
     // neben den reichsten Adern (getSteinpanzerPocketSet) — zählen als natürlich

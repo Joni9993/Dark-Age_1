@@ -732,8 +732,12 @@ function showUnderworldTileUI(clickedX, clickedY) {
             extra += `<div class="info-detail" style="color:#c9a24b;">🌍 Herz der Tiefe — Sieg-Ziel unter dem zentralen Wachturm.${wormAlive ? ' Bewacht vom Alten Wurm; muss zuerst besiegt werden, bevor die Erschließung starten kann.' : ' Wurm besiegt — eigene Einheit hier postieren, um die Erschließung zu starten.'}</div>`;
             const hz = gameState.uw && gameState.uw.hz;
             if (hz) {
-                extra += `<div class="info-detail" style="color:${getEntityColor(hz.p)};">${formatOwnerName(hz.p, gameState.cp)} erschließt: ${hz.n}/${ERSCHLIESSUNG_TARGET} Zugenden gehalten</div>`;
+                const state = hz.pa ? 'angehalten bei' : 'erschließt:';
+                extra += `<div class="info-detail" style="color:${getEntityColor(hz.p)};">${formatOwnerName(hz.p, gameState.cp)} ${state} ${hz.n}/${ERSCHLIESSUNG_TARGET} Zugenden gehalten${hz.pa ? ' (Gegner im Kern)' : ''}</div>`;
             }
+        }
+        if (uType === UW_HERZWEG) {
+            extra += `<div class="info-detail" style="color:#c9a24b;">🌋 Herzweg — einer der sechs Ausläufer der Herzkaverne. Die Glutader im Boden zeigt zum Herz der Tiefe. Freier Gang, aber ohne Wirkung auf die Erschließung: angehalten wird sie nur von Gegnern im Kern (Zentrum + die 6 Felder drumherum).</div>`;
         }
     }
 
@@ -2588,9 +2592,16 @@ function doEndTurn() {
     // Event-Icon auf der Karte erhalten.
     if (gameState.uw) {
         const erschlEvent = advanceErschliessung(gameState, gameState.cp);
-        if (erschlEvent && erschlEvent.type !== 'reset') {
+        if (erschlEvent && erschlEvent.type === 'pause') {
+            // Angehalten statt zurückgesetzt (Korrektur Sept 2026): meldet nur den
+            // Übergang, nicht jede Runde der Belagerung. Kein Recap-Eintrag — die
+            // Plakette im Scoreboard (js/ui.js) und die Zugstart-Erinnerung
+            // (js/main.js) tragen den Zustand ohnehin zu allen Spielern.
+            showToast(`⏸ Erschließung angehalten — Gegner im Herzen der Tiefe (${erschlEvent.n}/${ERSCHLIESSUNG_TARGET})`, 'red');
+        } else if (erschlEvent && erschlEvent.type !== 'reset') {
             const name = gameState.p[erschlEvent.p].n;
-            showToast(`🌍 Die Erde bebt — ${name} erschließt das Herz der Tiefe (${erschlEvent.n}/${ERSCHLIESSUNG_TARGET})`, 'gold');
+            const verb = erschlEvent.resumed ? 'erschließt weiter' : 'erschließt';
+            showToast(`🌍 Die Erde bebt — ${name} ${verb} das Herz der Tiefe (${erschlEvent.n}/${ERSCHLIESSUNG_TARGET})`, 'gold');
             const cxHz = Math.floor(gameState.bw / 2), cyHz = Math.floor(gameState.bh / 2);
             // global:true (M13): PLAN.md Abschn. 8 — "erfahren es ALLE über das
             // Event-System", explizit fog-unabhängig wie der Wurm-Tod.
@@ -2750,9 +2761,17 @@ function doEndTurn() {
     // komplett auf 0, kein Sieg).
     let erschlWinners = null;
     if (gameState.rn > oldRn && gameState.uw && gameState.uw.hz && gameState.uw.hz.n >= ERSCHLIESSUNG_TARGET) {
-        if (!checkErschliessungProgress(gameState, gameState.uw.hz.p)) {
+        // Dieselbe Dreiteilung wie am Zugende (erschliessungStatus, js/logic.js):
+        // ein Gegner, der es auf der Ziellinie noch in den Kern schafft, HÄLT den
+        // Sieg auf, ohne den Zähler zu vernichten (Korrektur Sept 2026); steht die
+        // Mitte dagegen einfach leer, fällt er wie gehabt auf 0.
+        const status = erschliessungStatus(gameState, gameState.uw.hz.p);
+        if (status === 'paused') {
+            gameState.uw.hz.pa = 1;
+        } else if (status === 'none') {
             delete gameState.uw.hz;
         } else {
+            delete gameState.uw.hz.pa;
             erschlWinners = checkErschliessungWin(gameState);
         }
     }

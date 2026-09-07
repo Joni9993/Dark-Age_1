@@ -41,7 +41,7 @@ function loadGameCode() {
         return {
             buildInitialGameState, createPRNG, compressFog, decompressFog,
             isInsideMap, hexDistance, getNeighbors, oddRToCube,
-            getUnderworldType, isUnderworldOpen, getHeartCavernHexes,
+            getUnderworldType, isUnderworldOpen, getHeartCavernHexes, getHeartCoreHexes, getHeartArmHexes,
             getUnderworldTunnelHeads, isUnderworldTunnelHead, getStollenkopfOwner,
             UW_FELS, UW_KAVERNE, UW_ADER, UW_RUINE, UW_HERZ,
             uwUnitAt, uwCreatureAt, digUWHex, mineUWVein, deliverUWCrystals,
@@ -219,7 +219,7 @@ console.log('\n=== (d) Diplomatie: calculateAttacksUW schließt Verbündete/Waff
 console.log('\n=== (e) Diplomatie: Bündnisbruch WÄHREND laufender Erschließung interrumpiert sie beim nächsten Zugenden-Check ===');
 {
     const state = freshState(21, 7, 3);
-    const heart = M.getHeartCavernHexes(state);
+    const heart = M.getHeartCoreHexes(state); // Kern — nur er zählt für die Erschließung
     const center = heart[0];
     state.uw.wd = 1; // Wurm tot (direkte Manipulation laut Auftrag zulässig)
     state.uw.c = (state.uw.c || []).filter(c => c.t !== M.UWC_WURM);
@@ -238,7 +238,14 @@ console.log('\n=== (e) Diplomatie: Bündnisbruch WÄHREND laufender Erschließun
     state.p[0].al = []; state.p[2].al = [];
     assert(M.checkErschliessungProgress(state, 0) === false, 'nach Bündnisbruch zählt der Ex-Verbündete in der Kaverne wieder als Gegner (al[] wird live gelesen, kein Caching)');
     evt = M.advanceErschliessung(state, 0);
-    assert(evt && evt.type === 'reset' && !state.uw.hz, 'Bündnisbruch resettet eine laufende Erschließung auf den nächsten Zugenden-Check (n->0), obwohl nur die Diplomatie sich geändert hat');
+    assert(evt && evt.type === 'pause', 'Bündnisbruch hält die laufende Erschließung beim nächsten Zugenden-Check an, obwohl nur die Diplomatie sich geändert hat');
+    assert(state.uw.hz && state.uw.hz.n === 2 && state.uw.hz.pa === 1, 'angehalten heißt: Zähler bleibt bei n=2 stehen und ist als pausiert markiert (Korrektur Sept 2026, kein Reset auf 0)');
+    // Zweites Zugende unter demselben Druck meldet NICHT noch einmal
+    assert(M.advanceErschliessung(state, 0) === null, 'eine anhaltende Belagerung meldet nur den Übergang, nicht jede Runde erneut');
+    // Bündnis wieder geschlossen -> der Ex-Gegner stört nicht mehr, es geht weiter
+    state.p[0].al = [2]; state.p[2].al = [0];
+    evt = M.advanceErschliessung(state, 0);
+    assert(evt && evt.type === 'progress' && evt.n === 3 && !state.uw.hz.pa, 'fällt der Druck weg, zählt es bei n=3 weiter statt bei 1 neu anzufangen');
 }
 
 console.log('\n=== (f) Diplomatie: Geschenke/Tribute (sendResources) bleiben von der Unterwelt-Arbeit unberührt funktionsfähig ===');
@@ -542,10 +549,11 @@ function roundtrip(state, label) {
     assert(!winners.some(p => state.p.indexOf(p) === 1), 'Player 2 (der Unterminierer) gehört NICHT zu den Siegern');
 }
 
-console.log(`\n=== (h2) Regression: eine ECHTE Unterbrechung (Gegner betritt die Kaverne) resettet n auf 0, danach sauberer Neuaufbau bis n==${M.ERSCHLIESSUNG_TARGET} ===`);
+console.log(`\n=== (h2) Regression: Gegner im KERN hält an (kein Reset), leere Mitte resettet, danach sauberer Aufbau bis n==${M.ERSCHLIESSUNG_TARGET} ===`);
 {
     let state = freshState(778, 7, 3);
-    const heart = M.getHeartCavernHexes(state);
+    const heart = M.getHeartCoreHexes(state);
+    const arms = M.getHeartArmHexes(state);
     const center = heart[0];
     state.uw.wd = 1;
     state.uw.c = (state.uw.c || []).filter(c => c.t !== M.UWC_WURM);
@@ -559,15 +567,36 @@ console.log(`\n=== (h2) Regression: eine ECHTE Unterbrechung (Gegner betritt die
     assert(evt.type === 'progress' && state.uw.hz.n === 2, 'Fortschritt auf n=2');
     state = roundtrip(state, 'vor der echten Unterbrechung');
 
-    // Player 1 (NICHT verbündet) schickt eine Einheit physisch in die Kaverne.
-    state.uw.u.push({ i: 2, p: 1, t: 7, x: heart[2].x, y: heart[2].y, h: 8, a: 0 });
-    assert(M.checkErschliessungProgress(state, 0) === false, 'echte Gegner-Präsenz in der Kaverne unterbricht die Bedingung');
-    evt = M.advanceErschliessung(state, 0);
-    assert(evt.type === 'reset' && !state.uw.hz, 'echte Unterbrechung resettet n auf 0 (uw.hz gelöscht) — Gegenprobe zu (h), wo NUR ein Verbündeter/Moral-Kollaps NICHT resettet');
-    state = roundtrip(state, 'nach dem Reset');
+    // Ein Gegner in einem AUSLÄUFER stört gar nicht mehr (Korrektur Sept 2026):
+    // die Sternarme sind reiner Zugang, nur der Kern zählt.
+    if (arms.length) {
+        state.uw.u.push({ i: 9, p: 1, t: 7, x: arms[0].x, y: arms[0].y, h: 8, a: 0 });
+        assert(M.checkErschliessungProgress(state, 0) === true, 'ein Gegner in einem Sternausläufer unterbricht die Erschließung NICHT');
+        state.uw.u = state.uw.u.filter(u => u.i !== 9);
+    }
 
-    // Der Eindringling zieht wieder ab -> sauberer Neuaufbau bis n==ERSCHLIESSUNG_TARGET.
+    // Player 1 (NICHT verbündet) schickt eine Einheit physisch in den KERN.
+    state.uw.u.push({ i: 2, p: 1, t: 7, x: heart[2].x, y: heart[2].y, h: 8, a: 0 });
+    assert(M.checkErschliessungProgress(state, 0) === false, 'echte Gegner-Präsenz im Kern stoppt das Weiterzählen');
+    evt = M.advanceErschliessung(state, 0);
+    assert(evt.type === 'pause' && state.uw.hz && state.uw.hz.n === 2, 'Gegner im Kern hält bei n=2 an, statt auf 0 zu resetten');
+    state = roundtrip(state, 'nach dem Anhalten');
+    assert(state.uw.hz && state.uw.hz.pa === 1, 'das Pause-Flag übersteht den Blob-Roundtrip');
+
+    // Der Eindringling wird geschlagen -> es geht weiter, nicht von vorn.
     state.uw.u = state.uw.u.filter(u => u.p === 0);
+    evt = M.advanceErschliessung(state, 0);
+    assert(evt.type === 'progress' && state.uw.hz.n === 3 && !state.uw.hz.pa, `nach dem Rauswurf zählt es bei ${M.ERSCHLIESSUNG_TARGET} weiter (nicht bei 1)`);
+
+    // Echter Reset: die Mitte steht leer, OHNE gegnerischen Druck.
+    const holder = state.uw.u.find(u => u.p === 0);
+    state.uw.u = [];
+    evt = M.advanceErschliessung(state, 0);
+    assert(evt.type === 'reset' && !state.uw.hz, 'leere Mitte ohne Gegner resettet auf 0 — Fortschritt lässt sich nicht horten');
+    state = roundtrip(state, 'nach dem echten Reset');
+
+    // Sauberer Neuaufbau bis n==ERSCHLIESSUNG_TARGET.
+    state.uw.u = [{ ...holder }];
     for (let i = 1; i <= M.ERSCHLIESSUNG_TARGET; i++) {
         evt = M.advanceErschliessung(state, 0);
         assert(state.uw.hz.n === i, `Neuaufbau nach Reset: n erreicht ${i}/${M.ERSCHLIESSUNG_TARGET}`);

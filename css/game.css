@@ -1841,6 +1841,13 @@ canvas {
     font-size: 12px;
 }
 
+/* Erschließung angehalten (Gegner im Kern der Herzkaverne): der Zähler steht,
+   ist aber nicht verloren — gedämpft statt bunt, damit "läuft" und "steht"
+   auf einen Blick auseinandergehen. */
+.score-hz-badge.is-paused {
+    color: var(--text-dim);
+}
+
 .score-total {
     flex: 0 0 auto;
     color: var(--gold);

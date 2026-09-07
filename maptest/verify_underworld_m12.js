@@ -25,6 +25,7 @@ function loadGameCode() {
         return {
             buildInitialGameState, createPRNG, isInsideMap, hexDistance, getNeighbors,
             getUnderworldType, isUnderworldOpen, getHeartCavernHexes, getStollenkopfOwner,
+            getHeartCoreHexes, getHeartArmHexes, erschliessungStatus, UW_HERZWEG,
             UW_FELS, UW_KAVERNE, UW_ADER, UW_RUINE, UW_HERZ,
             uwUnitAt, uwCreatureAt, digUWHex, calculateStollenbruchTargetsUW, collapseUWHex,
             calculateDynamiteTargetsUW, getDynamiteTriangle, placeUWDynamite, processUWDynamiteDetonations,
@@ -331,14 +332,14 @@ console.log('\n=== (e) Erschließung: Bedingungen, Verbündete unterbrechen nich
     state2.uw.wd = 1;
     assert(M.checkErschliessungProgress(state2, 0) === false, 'kein Fortschritt ohne eigene Einheit im Herzkaverne-Zentrum');
 
-    // Feind irgendwo in der Kaverne (nicht nur im Zentrum) unterbricht
+    // Feind irgendwo im KERN (nicht nur im Zentrum) stoppt das Weiterzählen
     const state3 = freshState(5, 5, 3);
     state3.uw.wd = 1;
     state3.uw.u.push({ i: 1, p: 0, t: 7, x: cx, y: cy, h: 8 });
-    const heartHexes = M.getHeartCavernHexes(state3);
+    const heartHexes = M.getHeartCoreHexes(state3);
     const otherHeartHex = heartHexes.find(h => !(h.x === cx && h.y === cy));
     state3.uw.u.push({ i: 2, p: 1, t: 17, x: otherHeartHex.x, y: otherHeartHex.y, h: 14 });
-    assert(M.checkErschliessungProgress(state3, 0) === false, 'ein FEIND irgendwo in der Herzkaverne (nicht nur im Zentrum) unterbricht');
+    assert(M.checkErschliessungProgress(state3, 0) === false, 'ein FEIND irgendwo im Kern (nicht nur im Zentrum) stoppt das Weiterzählen');
 
     // Verbündeter in der Kaverne unterbricht NICHT
     const state4 = freshState(5, 5, 3);
@@ -347,7 +348,7 @@ console.log('\n=== (e) Erschließung: Bedingungen, Verbündete unterbrechen nich
     state4.p[1].al = [0];
     state4.uw.u.push({ i: 1, p: 0, t: 7, x: cx, y: cy, h: 8 });
     state4.uw.u.push({ i: 2, p: 1, t: 17, x: otherHeartHex.x, y: otherHeartHex.y, h: 14 });
-    assert(M.checkErschliessungProgress(state4, 0) === true, 'ein VERBÜNDETER in der Herzkaverne unterbricht NICHT');
+    assert(M.checkErschliessungProgress(state4, 0) === true, 'ein VERBÜNDETER im Kern unterbricht NICHT');
 
     // advanceErschliessung: Start -> Fortschritt -> ... -> ERSCHLIESSUNG_TARGET, dann Reset bei Unterbrechung
     const state5 = freshState(5, 5, 3);
@@ -364,7 +365,7 @@ console.log('\n=== (e) Erschließung: Bedingungen, Verbündete unterbrechen nich
     assert(eLast.n === M.ERSCHLIESSUNG_TARGET, `letzter gehaltener Zugende erreicht n=${M.ERSCHLIESSUNG_TARGET}`);
     assert(M.checkErschliessungWin(state5) !== null, `bei n=${M.ERSCHLIESSUNG_TARGET} meldet checkErschliessungWin einen Sieger`);
 
-    // Unterbrechung -> KOMPLETTER Reset (nicht Dekrement)
+    // Mitte leer OHNE gegnerischen Druck -> KOMPLETTER Reset (nicht Dekrement)
     state5.uw.u = []; // eigene Einheit verlässt das Zentrum
     const eReset = M.advanceErschliessung(state5, 0);
     assert(eReset.type === 'reset', 'Unterbrechung meldet type=reset');
@@ -446,6 +447,75 @@ console.log('\n=== (e2) Erschließung: Übernahme des Zentrums + toter Halter (K
         M.killPlayer(state, 2, 1);
         assert(state.uw.hz && state.uw.hz.p === 0 && state.uw.hz.n === 2, 'killPlayer eines Unbeteiligten lässt den fremden Zähler stehen');
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n=== (e3) Kern vs. Ausläufer + Pause statt Reset (Korrektur Sept 2026) ===');
+{
+    // Der Kern ist auf JEDER Kartengröße gleich groß — das war der Auslöser:
+    // auf Radius 12 waren vorher 19 Hexes zu verteidigen statt 7.
+    for (const rad of [5, 7, 12]) {
+        const st = freshState(31, rad, 2);
+        assert(M.getHeartCoreHexes(st).length === 7, `Radius ${rad}: Kern hat 7 Hexes`);
+        assert(M.getHeartArmHexes(st).length === (rad <= 5 ? 0 : (rad <= 8 ? 6 : 12)), `Radius ${rad}: Ausläufer-Anzahl stimmt`);
+        const arms = M.getHeartArmHexes(st);
+        assert(arms.every(h => M.getUnderworldType(st, h.x, h.y) === M.UW_HERZWEG), `Radius ${rad}: Ausläufer sind UW_HERZWEG`);
+        assert(arms.every(h => M.isUnderworldOpen(st, h.x, h.y)), `Radius ${rad}: Ausläufer sind begehbar`);
+    }
+
+    // Gegner im Ausläufer stört nicht, Gegner im Kern hält an.
+    const state = freshState(32, 12, 3);
+    const cx = Math.floor(state.bw / 2), cy = Math.floor(state.bh / 2);
+    state.uw.wd = 1;
+    state.uw.c = [];
+    state.uw.u = [{ i: 1, p: 0, t: 7, x: cx, y: cy, h: 8 }];
+    const arm = M.getHeartArmHexes(state)[0];
+    state.uw.u.push({ i: 2, p: 1, t: 17, x: arm.x, y: arm.y, h: 14 });
+    assert(M.erschliessungStatus(state, 0) === 'progress', 'Gegner im Sternausläufer: Erschließung läuft weiter');
+    M.advanceErschliessung(state, 0);
+    M.advanceErschliessung(state, 0);
+    assert(state.uw.hz.n === 2, 'Zähler steht bei 2/3');
+
+    // Der Gegner rückt in den Kern (nicht ins Zentrum) -> Pause, kein Reset
+    const coreHex = M.getHeartCoreHexes(state).find(h => !(h.x === cx && h.y === cy));
+    const intruder = state.uw.u.find(u => u.p === 1);
+    intruder.x = coreHex.x; intruder.y = coreHex.y;
+    assert(M.erschliessungStatus(state, 0) === 'paused', 'Gegner im Kern: Status ist paused');
+    const evPause = M.advanceErschliessung(state, 0);
+    assert(evPause && evPause.type === 'pause' && evPause.n === 2, 'Pause wird als eigenes Ereignis gemeldet');
+    assert(state.uw.hz.n === 2 && state.uw.hz.pa === 1, 'Zähler bleibt bei 2/3 stehen und ist als pausiert markiert');
+    assert(M.advanceErschliessung(state, 0) === null, 'die Pause wird nur einmal gemeldet, nicht in jeder Runde erneut');
+
+    // Kein Sieg aus der Pause heraus, auch bei n == TARGET
+    state.uw.hz.n = M.ERSCHLIESSUNG_TARGET;
+    assert(M.checkErschliessungWin(state) === null, 'aus der Pause heraus gibt es keinen Sieg, auch bei vollem Zähler');
+    state.uw.hz.n = 2;
+
+    // Eindringling fällt -> weiterzählen bei 3, nicht bei 1
+    state.uw.u = state.uw.u.filter(u => u.p === 0);
+    const evResume = M.advanceErschliessung(state, 0);
+    assert(evResume.type === 'progress' && evResume.n === 3 && evResume.resumed === true, 'nach dem Rauswurf zählt es weiter und meldet das als Fortsetzung');
+    assert(!state.uw.hz.pa, 'das Pause-Flag ist wieder weg');
+    assert(M.checkErschliessungWin(state) !== null, 'jetzt greift der Sieg');
+
+    // Gegner tötet die Einheit im Zentrum UND stellt sich selbst hinein:
+    // echter Reset über die Übernahme, er selbst startet bei 1/3.
+    state.uw.u = [{ i: 3, p: 1, t: 17, x: cx, y: cy, h: 14 }];
+    const evTake = M.advanceErschliessung(state, 1);
+    assert(evTake && evTake.type === 'start' && evTake.n === 1 && evTake.took === 0, 'Gegner im Zentrum übernimmt und startet bei 1/3');
+    assert(state.uw.hz.p === 1 && state.uw.hz.n === 1 && !state.uw.hz.pa, 'der alte Zähler ist weg, der neue läuft unpausiert');
+
+    // Kein Start, solange ein Gegner im Kern steht
+    const fresh = freshState(33, 7, 2);
+    const fcx = Math.floor(fresh.bw / 2), fcy = Math.floor(fresh.bh / 2);
+    fresh.uw.wd = 1;
+    fresh.uw.c = [];
+    const fCore = M.getHeartCoreHexes(fresh).find(h => !(h.x === fcx && h.y === fcy));
+    fresh.uw.u = [
+        { i: 1, p: 0, t: 7, x: fcx, y: fcy, h: 8 },
+        { i: 2, p: 1, t: 17, x: fCore.x, y: fCore.y, h: 14 }
+    ];
+    assert(M.advanceErschliessung(fresh, 0) === null && !fresh.uw.hz, 'mit einem Gegner im Kern lässt sich gar nicht erst starten');
 }
 
 // ─────────────────────────────────────────────────────────────────────────
