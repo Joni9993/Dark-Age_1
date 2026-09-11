@@ -404,10 +404,14 @@
     </div>
 
     <div id="intermission-screen" class="screen-box">
-        <h2 style="color: #ff1744; margin-top: 0;">ZUG BEENDET</h2>
+        <h2 id="intermission-title" style="color: #ff1744; margin-top: 0;">ZUG BEENDET</h2>
         <p id="intermission-msg">Kopiere diesen Link und schicke ihn an den nächsten Spieler.</p>
         <textarea id="link-box" rows="5" readonly></textarea>
         <button id="wa-share-btn" class="action-btn wa-btn">Über WhatsApp teilen</button>
+        <!-- Nur im Server-Modus und nur, wenn das Hochladen des Zuges fehlgeschlagen
+             ist (js/input.js retryTurnSubmit): schickt exakt denselben Blob nochmal. -->
+        <button id="intermission-retry-btn" class="action-btn primary" style="display:none;"
+            onclick="retryTurnSubmit()">Erneut senden</button>
         <button id="intermission-back-btn" class="action-btn secondary" style="display:none;"
             onclick="showHomeScreen()">← Zur Spielübersicht</button>
     </div>

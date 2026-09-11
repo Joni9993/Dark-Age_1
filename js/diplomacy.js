@@ -168,7 +168,20 @@ function computeDiplomacyGroups(cp) {
 function renderDipActionRow(id, pState, maxReached) {
     const p = gameState.p[id];
     let actionBtn;
-    if (pState.req && pState.req.includes(id)) {
+    // Readonly-Guard wie bei Fraktion/Reliquie/Handel (js/ui.js): Bündnisse
+    // ändern den Spielzustand, gehören also in den eigenen Zug. Bis Sept 2026
+    // waren die Diplomatie-Knöpfe die EINZIGEN Aktionsknöpfe ohne diesen Riegel
+    // — wer nur zuschaute, konnte "Anfragen" drücken, bekam 5💰/5🪵 lokal
+    // abgezogen und einen Toast "gesendet", während der Blob des aktiven
+    // Spielers alles gleich wieder überschrieb. Die Anfrage kam nie an.
+    if (!isMyActiveTurn()) {
+        // Gesperrt, aber nicht stumm: eine offene Anfrage soll man auch als
+        // Wartender sehen — nur eben nicht beantworten können.
+        const label = (pState.req && pState.req.includes(id)) ? 'Anfrage offen — dran im eigenen Zug'
+            : (p.req && p.req.includes(gameState.cp)) ? 'Anfrage gesendet'
+            : 'Nur im eigenen Zug';
+        actionBtn = `<button class="action-btn dip-action-btn" disabled>${icon('pact', 'ic-12')} ${label}</button>`;
+    } else if (pState.req && pState.req.includes(id)) {
         actionBtn = `<button class="action-btn dip-action-btn act-ally" onclick="acceptAlliance(${id})">${icon('check', 'ic-12')} Annehmen (5${icon('gold', 'ic-12')} 5${icon('wood', 'ic-12')})</button>
                      <button class="action-btn dip-action-btn" onclick="rejectAlliance(${id})">× Ablehnen</button>`;
     } else if (p.req && p.req.includes(gameState.cp)) {
@@ -261,6 +274,7 @@ window.openDiplomacy = function () {
 };
 
 window.sendAlliance = function (id) {
+    if (!isMyActiveTurn()) { showToast('Bündnisanfragen gehen nur im eigenen Zug!', 'error'); return; }
     const pState = gameState.p[gameState.cp];
     if (pState.g < 5 || pState.m < 5) {
         showToast('Nicht genug Ressourcen! (5💰 5🪵 benötigt)', 'error'); return;
@@ -273,6 +287,7 @@ window.sendAlliance = function (id) {
 };
 
 window.acceptAlliance = function (id) {
+    if (!isMyActiveTurn()) { showToast('Annehmen geht nur im eigenen Zug!', 'error'); return; }
     const pState = gameState.p[gameState.cp];
     const hasAlliance = pState.al && pState.al.length > 0;
     const hasOutReq = gameState.p.some(p => p.req && p.req.includes(gameState.cp));
@@ -293,6 +308,7 @@ window.acceptAlliance = function (id) {
 };
 
 window.rejectAlliance = function (id) {
+    if (!isMyActiveTurn()) { showToast('Ablehnen geht nur im eigenen Zug!', 'error'); return; }
     const pState = gameState.p[gameState.cp];
     if (!pState.req) pState.req = [];
     pState.req = pState.req.filter(reqId => reqId !== id);
@@ -301,6 +317,7 @@ window.rejectAlliance = function (id) {
 };
 
 window.withdrawAlliance = function (id) {
+    if (!isMyActiveTurn()) { showToast('Zurückziehen geht nur im eigenen Zug!', 'error'); return; }
     if (gameState.p[id].req) {
         gameState.p[id].req = gameState.p[id].req.filter(reqId => reqId !== gameState.cp);
     }
@@ -326,6 +343,7 @@ window.sendResources = function (id) {
 };
 
 window.breakAlliance = function (id) {
+    if (!isMyActiveTurn()) { showToast('Bündnisse brechen geht nur im eigenen Zug!', 'error'); return; }
     if (gameState.at) { showToast('Feste Teams können nicht gebrochen werden!', 'error'); return; }
     const pState = gameState.p[gameState.cp];
     if (!pState.al) pState.al = [];

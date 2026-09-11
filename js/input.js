@@ -2360,6 +2360,8 @@ function confirmSurrender() {
         document.getElementById('link-box').style.display = '';
         document.getElementById('wa-share-btn').style.display = '';
         document.getElementById('intermission-back-btn').style.display = 'none';
+        document.getElementById('intermission-retry-btn').style.display = 'none';
+        document.getElementById('intermission-title').textContent = 'ZUG BEENDET';
         intermissionMsg.innerText = `${surrenderingName} hat aufgegeben! Kopiere diesen Link und schicke ihn an ${nextPlayer.n}.`;
         linkBox.value = newUrl;
         intermissionScreen.style.display = 'flex';
@@ -2935,6 +2937,8 @@ function doEndTurn() {
         document.getElementById('link-box').style.display = '';
         document.getElementById('wa-share-btn').style.display = '';
         document.getElementById('intermission-back-btn').style.display = 'none';
+        document.getElementById('intermission-retry-btn').style.display = 'none';
+        document.getElementById('intermission-title').textContent = 'ZUG BEENDET';
         intermissionMsg.innerText = `Kopiere diesen Link und schicke ihn an ${pState.n}.`;
         linkBox.value = newUrl; intermissionScreen.style.display = 'flex';
         waShareBtn.onclick = () => { window.open(`https://wa.me/?text=${encodeURIComponent(`Dein Zug in Dark Ages, ${pState.n}!\nKlicke hier: ${newUrl}`)}`, '_blank'); };
@@ -2962,6 +2966,13 @@ window.confirmEndTurn = confirmEndTurn;
 
 
 // === SERVER TURN SUBMISSION ===
+
+// Der fertig serialisierte, noch nicht bestätigte Zug. Er muss aufgehoben
+// werden, weil er sich nach einem Fehlschlag NICHT neu erzeugen ließe:
+// gameState ist lokal längst der Zustand des nächsten Spielers, ein zweites
+// doEndTurn() würde dessen Zug beenden, nicht den eigenen.
+let pendingTurnSubmit = null;
+
 async function submitTurnToServer(encodedState, nextPlayerName, isFinished = false, winners = null) {
     endTurnBtn.disabled = true;
 
@@ -2977,18 +2988,62 @@ async function submitTurnToServer(encodedState, nextPlayerName, isFinished = fal
     // Sieger-Spielerobjekte aus gameState.p; wir schicken ihre Indizes (== DB slot).
     const winnerSlots = winners ? winners.map(p => gameState.p.indexOf(p)) : null;
 
+    // Zug-Übergabe-Riegel (Bugfix Sept 2026, Dannys Meldung "ich konnte plötzlich
+    // deine Einheiten bewegen und war du sozusagen"): doEndTurn hat gameState.cp
+    // hier bereits auf den nächsten Spieler gestellt, die Karte blieb aber bis
+    // zur Server-Antwort stehen — und JEDER Riegel im Client hängt an
+    // currentTurnSlot (handleCanvasClick/handleUnderworldClick js/input.js,
+    // Fraktion/Reliquie/Handel js/ui.js, Diplomatie js/diplomacy.js), das bisher
+    // NUR beim Laden gesetzt wurde (js/lobby.js). Solange der POST lief — auf dem
+    // Handy Sekunden, bei einem hängenden Request beliebig lange, nach einem
+    // Fehler bis zum Neuladen — war das Brett also mit Sicht und Rechten des
+    // GEGNERS bedienbar. Ein zweites "Zug beenden" hätte diesen fremd gespielten
+    // Zustand auch noch hochgeladen (der Server sah weiterhin den eigenen Slot am
+    // Zug); dagegen steht zusätzlich die Weitergabe-Prüfung in
+    // server/routes/games.js. Ein Wert aus der Client-Sicht heraus ist das nicht:
+    // der Server bleibt die Wahrheit, currentTurnSlot wird beim nächsten Laden
+    // ohnehin frisch aus der Antwort gesetzt.
+    currentTurnSlot = gameState.cp;
+
+    pendingTurnSubmit = {
+        encodedState, nextPlayerName, isFinished,
+        nextSlot: gameState.cp, nextRound: gameState.rn,
+        eliminatedSlots, winnerSlots,
+    };
+    // Beim Sieg legt der Aufrufer direkt danach showWin darüber — zwei Screens
+    // übereinander wären doppelt gemoppelt.
+    if (!isFinished) showTurnSubmitPending(nextPlayerName);
+    await sendPendingTurn();
+}
+
+async function sendPendingTurn() {
+    const t = pendingTurnSubmit;
+    if (!t) return;
     try {
         await api.post(`/api/games/${currentGameId}/turn`, {
-            state_blob:       encodedState,
-            next_slot:        gameState.cp,
-            next_round:       gameState.rn,
-            eliminated_slots: eliminatedSlots,
-            game_finished:    isFinished,
-            winner_slots:     winnerSlots,
+            state_blob:       t.encodedState,
+            next_slot:        t.nextSlot,
+            next_round:       t.nextRound,
+            eliminated_slots: t.eliminatedSlots,
+            game_finished:    t.isFinished,
+            winner_slots:     t.winnerSlots,
         });
-        if (!isFinished) showServerIntermission(nextPlayerName);
+        pendingTurnSubmit = null;
+        if (!t.isFinished) showServerIntermission(t.nextPlayerName);
     } catch (err) {
-        showToast('Fehler: ' + err.message);
-        endTurnBtn.disabled = false;
+        // Der Knopf wird bewusst NICHT wieder scharf gemacht (so war es bis
+        // Sept 2026): der lokale Zustand gehört bereits dem nächsten Spieler,
+        // Weiterspielen hieße, dessen Zug zu spielen. Der Server hat bis hier
+        // nichts geschrieben — entweder derselbe Blob geht nochmal raus, oder
+        // man verwirft ihn und spielt den eigenen Zug neu.
+        showToast('Zug konnte nicht gesendet werden: ' + err.message, 'error');
+        if (!t.isFinished) showTurnSubmitError(err.message);
     }
 }
+
+// Knopf auf dem Fehler-Zwischenscreen (index.html).
+window.retryTurnSubmit = function () {
+    if (!pendingTurnSubmit) return;
+    showTurnSubmitPending(pendingTurnSubmit.nextPlayerName);
+    sendPendingTurn();
+};
