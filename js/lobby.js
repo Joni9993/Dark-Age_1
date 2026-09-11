@@ -847,15 +847,50 @@ async function addFriendFromLeaderboard(username) {
 
 // ── Server Intermission ───────────────────────────────────────────────────────
 
-function showServerIntermission(nextPlayerName) {
+// Drei Zustände auf demselben Zwischenscreen: "wird gesendet" (solange der
+// POST läuft), "abgeschickt" und "fehlgeschlagen". Der erste ist NICHT nur
+// Kosmetik — bis Sept 2026 blieb das Spielfeld während des Uploads stehen und
+// bedienbar, obwohl gameState.cp lokal schon dem nächsten Spieler gehörte
+// (Dannys Meldung, siehe submitTurnToServer in js/input.js). Der Screen nimmt
+// das Brett sofort weg, der Riegel in submitTurnToServer sperrt zusätzlich die
+// Logik — Anzeige und Regel decken denselben Fall unabhängig voneinander ab.
+function _showIntermissionState({ title, msg, back, retry }) {
     canvasWrapper.style.display = 'none'; document.body.classList.remove('in-game');
     uiContainer.style.display = 'none';
     gameHud.style.display = 'none';
-    document.getElementById('intermission-msg').textContent = `Zug abgeschickt! ${nextPlayerName} ist dran.`;
+    document.getElementById('intermission-title').textContent = title;
+    document.getElementById('intermission-msg').textContent = msg;
     document.getElementById('link-box').style.display = 'none';
     document.getElementById('wa-share-btn').style.display = 'none';
-    document.getElementById('intermission-back-btn').style.display = 'block';
+    document.getElementById('intermission-retry-btn').style.display = retry ? 'block' : 'none';
+    document.getElementById('intermission-back-btn').style.display = back ? 'block' : 'none';
     intermissionScreen.style.display = 'flex';
+}
+
+function showTurnSubmitPending(nextPlayerName) {
+    // Kein "Zurück zur Übersicht": der Zug ist noch nicht beim Server, ein
+    // Wegklicken würde ihn verlieren, ohne dass das jemand merkt.
+    _showIntermissionState({
+        title: 'ZUG WIRD GESENDET',
+        msg: nextPlayerName ? `Einen Moment — der Zug geht an ${nextPlayerName}.` : 'Einen Moment — der Zug wird gesendet.',
+        back: false, retry: false,
+    });
+}
+
+function showTurnSubmitError(errMsg) {
+    _showIntermissionState({
+        title: 'NICHT GESENDET',
+        msg: `Der Zug konnte nicht abgeschickt werden (${errMsg}). Er liegt noch hier — "Erneut senden" schickt genau diesen Zug nochmal. Gehst du stattdessen zurück, ist er verloren und du spielst deinen Zug neu.`,
+        back: true, retry: true,
+    });
+}
+
+function showServerIntermission(nextPlayerName) {
+    _showIntermissionState({
+        title: 'ZUG BEENDET',
+        msg: `Zug abgeschickt! ${nextPlayerName} ist dran.`,
+        back: true, retry: false,
+    });
 }
 
 // ── Delete Game ───────────────────────────────────────────────────────────────

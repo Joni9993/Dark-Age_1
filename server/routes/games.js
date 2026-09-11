@@ -5,6 +5,7 @@ const { notifyPlayer } = require('../push');
 const { rateFinishedGame } = require('../rating');
 const { shuffleSeats } = require('../seating');
 const { buildStartState } = require('../mapgen');
+const { isValidHandover } = require('../turnorder');
 const LZString = require('lz-string');
 
 // Apply server-side eliminations to a parsed state object.
@@ -319,6 +320,23 @@ router.post('/:id/turn', authMiddleware, async (req, res) => {
     if (!row) return res.status(403).json({ error: 'Kein Zugriff oder Spiel nicht aktiv' });
     if (row.current_slot !== row.slot) return res.status(403).json({ error: 'Nicht dein Zug' });
 
+    // Weitergabe prüfen (siehe ../turnorder.js für das Warum): "ich bin am Zug"
+    // allein sagt nicht, dass auch nur EIN Zug eingereicht wird. Bewusst
+    // fail-open bei einem unlesbaren Blob — ein nicht dekomprimierbarer Zustand
+    // ist ein anderes Problem als ein übersprungener Spieler, und ein echter Zug
+    // darf daran nicht scheitern (dieselbe Haltung wie bei der
+    // Eliminierungs-Nachbereitung weiter unten).
+    let submittedState = null;
+    try { submittedState = JSON.parse(LZString.decompressFromEncodedURIComponent(state_blob)); } catch (_) {}
+    if (submittedState && Array.isArray(submittedState.p)) {
+        if (submittedState.cp !== next_slot) {
+            return res.status(409).json({ error: 'Zustand und Zugweitergabe passen nicht zusammen' });
+        }
+        if (!isValidHandover(submittedState, row.slot, next_slot)) {
+            return res.status(409).json({ error: 'Ungültige Zugweitergabe — bitte Spiel neu laden' });
+        }
+    }
+
     // Find newly eliminated players before marking them
     let newlyEliminated = [];
     if (eliminated_slots.length > 0) {
@@ -349,9 +367,10 @@ router.post('/:id/turn', authMiddleware, async (req, res) => {
             [req.params.id]
         );
         const serverElimSlots = serverElimRows.map(r => r.slot);
-        if (serverElimSlots.length > 0) {
-            const decoded = LZString.decompressFromEncodedURIComponent(state_blob);
-            const stateObj = JSON.parse(decoded);
+        // submittedState ist derselbe Blob, oben schon einmal ausgepackt —
+        // ein zweites Dekomprimieren des (großen) Zustands spart man sich.
+        const stateObj = submittedState;
+        if (serverElimSlots.length > 0 && stateObj) {
             const modified = applyEliminationsToState(stateObj, serverElimSlots);
             if (modified) {
                 // If next_slot is now dead, advance to next alive player
